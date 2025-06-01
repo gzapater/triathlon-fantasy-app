@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageArea = document.getElementById('messageArea');
 
     helloButton.addEventListener('click', () => {
-        fetch('http://13.49.77.162/api/hello')
+        fetch('https://triathlon-fantasy.duckdns.org/api/hello')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
