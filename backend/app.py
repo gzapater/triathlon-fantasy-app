@@ -18,6 +18,9 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY')
 if not app.secret_key:
     raise ValueError("No FLASK_SECRET_KEY set for Flask application")
 
+
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'None' # O 'Lax' si 'None' causa problemas
 # Lee la URI de la base de datos de una variable de entorno
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 if not app.config['SQLALCHEMY_DATABASE_URI']:
