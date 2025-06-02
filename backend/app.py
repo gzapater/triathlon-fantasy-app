@@ -1,9 +1,15 @@
-import os # For path joining if needed, though send_from_directory handles relative paths
-from flask import Flask, jsonify, request, redirect, url_for, send_from_directory # Updated imports
+import os
+from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 from backend.models import db, User
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 
 app = Flask(__name__)
+
+# Añade esta línea DESPUÉS de app = Flask(__name__)
+# Indica a Flask que confíe en los headers X-Forwarded-For, X-Forwarded-Host, X-Forwarded-Proto y X-Forwarded-Port del proxy
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1) # <--- Añade esta línea
+
 app.secret_key = 'ebf035f28a9b2b54201c7d242767098e72f9b8c0a1d3e5f6b7a8c9d0e1f2a3b4'
 # Configuration
 # ==============================================================================
