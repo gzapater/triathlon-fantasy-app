@@ -3,8 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageArea = document.getElementById('messageArea');
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
-        messageArea.textContent = ''; // Clear previous messages
-        messageArea.className = 'message'; // Reset class
+        messageArea.textContent = '';
+        messageArea.className = 'message';
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         try {
@@ -13,21 +13,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include', // ← ESTA LÍNEA ES CRUCIAL
+                credentials: 'include',
                 body: JSON.stringify({ username, password }),
             });
+            
+            // DEBUG: Loggear headers de respuesta
+            console.log('=== LOGIN RESPONSE DEBUG ===');
+            console.log('Status:', response.status);
+            console.log('Headers:');
+            for (let [key, value] of response.headers.entries()) {
+                console.log(`  ${key}: ${value}`);
+            }
+            console.log('Cookies después del login:', document.cookie);
+            console.log('==========================');
+            
             const result = await response.json();
             if (response.ok) {
                 messageArea.textContent = result.message || 'Login successful! Redirecting...';
                 messageArea.classList.add('success');
                 
-                // Debug: Verificar que la cookie se estableció
-                console.log('Login successful, cookies:', document.cookie);
-                
-                // Redirect to the Hello-world page
+                // Esperar un poco más para asegurar que las cookies se establecen
                 setTimeout(() => {
+                    console.log('Cookies antes de redirect:', document.cookie);
                     window.location.href = '/Hello-world';
-                }, 1500);
+                }, 2000); // Aumentado a 2 segundos
             } else {
                 messageArea.textContent = result.message || 'Login failed. Check username or password.';
                 messageArea.classList.add('error');
