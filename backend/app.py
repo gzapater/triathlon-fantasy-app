@@ -19,7 +19,7 @@ if not app.secret_key:
 # Configuración de cookies mejorada para Cloudfront
 app.config['SESSION_COOKIE_SECURE'] = True  # Para HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Seguridad adicional
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Cambiar de 'None' a 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cambiar de 'None' a 'Lax'
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
 
@@ -45,6 +45,7 @@ app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE par
 
 @login_manager.user_loader
 def load_user(user_id):
+    print(f"[DEBUG] load_user called with ID: {user_id}")
     return User.query.get(int(user_id))
 
 with app.app_context():
