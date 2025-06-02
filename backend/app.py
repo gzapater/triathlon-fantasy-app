@@ -32,7 +32,7 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'serve_login_page' # Crucial for @login_required redirection
-login_manager.session_protection = "strong"
+login_manager.session_protection = "None"
 
 app.config['LOGIN_DISABLED'] = False # Asegúrate de que no esté deshabilitado accidentalmente
 app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE para depuración
