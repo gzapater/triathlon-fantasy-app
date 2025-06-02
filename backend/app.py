@@ -10,7 +10,6 @@ app = Flask(__name__)
 # Indica a Flask que confíe en los headers X-Forwarded-For, X-Forwarded-Host, X-Forwarded-Proto y X-Forwarded-Port del proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1) # <--- Añade esta línea
 
-app.secret_key = 'ebf035f28a9b2b54201c7d242767098e72f9b8c0a1d3e5f6b7a8c9d0e1f2a3b4'
 # Configuration
 # ==============================================================================
 # Lee la SECRET_KEY de una variable de entorno
