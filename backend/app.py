@@ -4,10 +4,10 @@ from backend.models import db, User
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 app = Flask(__name__)
-app.secret_key = 'your_very_secret_and_random_key_please_change_me'
+app.secret_key = 'ebf035f28a9b2b54201c7d242767098e72f9b8c0a1d3e5f6b7a8c9d0e1f2a3b4'
 
 # Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://your_db_user:your_db_password@localhost:5432/your_db_name'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://triathlondbadmin:6S0ziJoI4IFUe1HzTGxN@triathlon-fantasy-db.cz6w0kycayb8.eu-north-1.rds.amazonaws.com:5432/triathlon_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
