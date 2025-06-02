@@ -89,9 +89,17 @@ def login_api():
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password) and user.is_active:
         login_user(user)
-        return jsonify(message="Login successful", user_id=user.id, username=user.username), 200
-    elif user and not user.is_active: return jsonify(message="Account disabled. Please contact support."), 403
-    else: return jsonify(message="Invalid username or password"), 401
+        response = jsonify(message="Login successful", user_id=user.id, username=user.username)
+        
+        # Añadir headers CORS si es necesario
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+        
+        return response, 200
+    elif user and not user.is_active: 
+        return jsonify(message="Account disabled. Please contact support."), 403
+    else: 
+        return jsonify(message="Invalid username or password"), 401
 
 @app.route('/api/logout', methods=['POST'])
 @login_required
