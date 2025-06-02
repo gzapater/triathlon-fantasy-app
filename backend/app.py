@@ -1,4 +1,4 @@
-import os
+import osMore actions
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 from backend.models import db, User
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -19,7 +19,7 @@ if not app.secret_key:
 # Configuración de cookies mejorada para Cloudfront
 app.config['SESSION_COOKIE_SECURE'] = True  # Para HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Seguridad adicional
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Cambiar de 'None' a 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Cambiar de 'None' a 'Lax'
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
 
@@ -45,7 +45,6 @@ app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE par
 
 @login_manager.user_loader
 def load_user(user_id):
-    print(f"[DEBUG] load_user called with ID: {user_id}")
     return User.query.get(int(user_id))
 
 with app.app_context():
@@ -79,10 +78,6 @@ def register_user():
         print(f"Error during registration: {e}")
         return jsonify(message="Registration failed due to a server error"), 500
 
-@app.after_request
-def after_request(response):
-    print("[AFTER REQUEST] Headers:", dict(response.headers))
-    return response
 
 @app.route('/api/login', methods=['POST'])
 def login_api():
@@ -94,13 +89,12 @@ def login_api():
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password) and user.is_active:
         login_user(user)
-        session['user_id'] = user.id  # Forzar escritura en sesión
         response = jsonify(message="Login successful", user_id=user.id, username=user.username)
-        
+
         # Añadir headers CORS si es necesario
         response.headers.add('Access-Control-Allow-Credentials', 'true')
         response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-        
+
         return response, 200
     elif user and not user.is_active: 
         return jsonify(message="Account disabled. Please contact support."), 403
@@ -131,6 +125,11 @@ def serve_register_page():
 @app.route('/Hello-world')
 @login_required
 def serve_hello_world_page():
+        # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
+    print(f"DEBUG: current_user.is_authenticated: {current_user.is_authenticated}")
+    print(f"DEBUG: current_user.id: {current_user.id if current_user.is_authenticated else 'None'}")
+    print(f"DEBUG: current_user.username: {current_user.username if current_user.is_authenticated else 'None'}")
+    # FIN DEBUG
     # DEBUG COMPLETO
     print("=== HELLO-WORLD ENDPOINT DEBUG ===")
     print(f"Request headers: {dict(request.headers)}")
@@ -145,6 +144,7 @@ def serve_hello_world_page():
     print("===================================")
     
     return send_from_directory('../frontend', 'index.html')
+
 # --- Static File Serving Routes (for JS files in this case) ---
 @app.route('/script.js')
 def serve_script_js():
@@ -155,7 +155,7 @@ def serve_login_js():
     return send_from_directory('../frontend', 'login.js')
 
 @app.route('/register.js')
-def serve_register_js():
+def serve_register_js():More actions
     return send_from_directory('../frontend', 'register.js')
 
 if __name__ == '__main__':
