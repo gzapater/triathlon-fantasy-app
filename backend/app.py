@@ -121,16 +121,24 @@ def serve_login_page():
 def serve_register_page():
     return send_from_directory('../frontend', 'register.html')
 
+
 @app.route('/Hello-world')
 @login_required
 def serve_hello_world_page():
-        # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
-    print(f"DEBUG: current_user.is_authenticated: {current_user.is_authenticated}")
-    print(f"DEBUG: current_user.id: {current_user.id if current_user.is_authenticated else 'None'}")
-    print(f"DEBUG: current_user.username: {current_user.username if current_user.is_authenticated else 'None'}")
-    # FIN DEBUG
+    # DEBUG COMPLETO
+    print("=== HELLO-WORLD ENDPOINT DEBUG ===")
+    print(f"Request headers: {dict(request.headers)}")
+    print(f"Request cookies: {request.cookies}")
+    print(f"Session data: {dict(session) if 'session' in globals() else 'No session'}")
+    print(f"current_user.is_authenticated: {current_user.is_authenticated}")
+    print(f"current_user.id: {current_user.id if current_user.is_authenticated else 'None'}")
+    print(f"current_user.username: {current_user.username if current_user.is_authenticated else 'None'}")
+    print(f"Request remote_addr: {request.remote_addr}")
+    print(f"Request environ REMOTE_ADDR: {request.environ.get('REMOTE_ADDR')}")
+    print(f"Request environ HTTP_X_FORWARDED_FOR: {request.environ.get('HTTP_X_FORWARDED_FOR')}")
+    print("===================================")
+    
     return send_from_directory('../frontend', 'index.html')
-
 # --- Static File Serving Routes (for JS files in this case) ---
 @app.route('/script.js')
 def serve_script_js():
