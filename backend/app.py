@@ -5,9 +5,18 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 
 app = Flask(__name__)
 app.secret_key = 'ebf035f28a9b2b54201c7d242767098e72f9b8c0a1d3e5f6b7a8c9d0e1f2a3b4'
+# Configuration
+# ==============================================================================
+# Lee la SECRET_KEY de una variable de entorno
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+if not app.secret_key:
+    raise ValueError("No FLASK_SECRET_KEY set for Flask application")
 
-# Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://triathlondbadmin:6S0ziJoI4IFUe1HzTGxN@triathlon-fantasy-db.cz6w0kycayb8.eu-north-1.rds.amazonaws.com:5432/triathlon_db'
+# Lee la URI de la base de datos de una variable de entorno
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    raise ValueError("No DATABASE_URL set for Flask application")
+# ==============================================================================
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
