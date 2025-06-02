@@ -26,25 +26,60 @@ if not app.config['SQLALCHEMY_DATABASE_URI']:
     raise ValueError("No DATABASE_URL set for Flask application")
 # ==============================================================================
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db.init_app(app)
+#db.init_app(app)
 
 # Flask-Login Configuration
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'serve_login_page' # Crucial for @login_required redirection
-login_manager.session_protection = "None"
+#login_manager = LoginManager()
+#login_manager.init_app(app)
+#login_manager.login_view = 'serve_login_page' # Crucial for @login_required redirection
+#login_manager.session_protection = "None"
 
 app.config['LOGIN_DISABLED'] = False # Asegúrate de que no esté deshabilitado accidentalmente
 app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE para depuración
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
+#@login_manager.user_loader
+#def load_user(user_id):
+#    return User.query.get(int(user_id))
 
-with app.app_context():
-    db.create_all()
+#with app.app_context():
+ #   db.create_all()
 
-# --- API Routes ---
+# --- RUTAS DE PRUEBA DE SESIÓN MANUAL ---
+@app.route('/api/login', methods=['POST'])
+def login_api():
+    data = request.get_json()
+    if not data: return jsonify(message="Invalid input: No data provided"), 400
+    username = data.get('username')
+    password = data.get('password')
+
+    # PRUEBA DE LOGIN MANUAL BÁSICA (SIN BASE DE DATOS NI VERIFICACIÓN REAL)
+    if username == "test" and password == "test":
+        session['logged_in'] = True
+        session['username'] = username
+        print("DEBUG: Sesión establecida: logged_in = True, username =", username) # <-- Añade este print
+        return jsonify(message="Login successful", user_id=1, username=username), 200
+    else:
+        return jsonify(message="Invalid username or password (manual test)"), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout_api():
+    session.pop('logged_in', None)
+    session.pop('username', None)
+    print("DEBUG: Sesión finalizada.") # <-- Añade este print
+    return jsonify(message="Logout successful"), 200
+
+
+@app.route('/Hello-world')
+# @login_required # Comenta este decorador
+def serve_hello_world_page():
+    if 'logged_in' in session and session['logged_in']:
+        print(f"DEBUG: Acceso a /Hello-world. Sesión activa para {session['username']}") # <-- Print importante
+        return send_from_directory('../frontend', 'index.html')
+    else:
+        print("DEBUG: Acceso a /Hello-world. Sesión NO activa. Redirigiendo a login.") # <-- Print importante
+        return redirect(url_for('serve_login_page', next=request.url))
+
+"""# --- API Routes ---
 @app.route('/api/hello', methods=['GET'])
 @login_required
 def hello():
@@ -97,7 +132,7 @@ def logout_api():
 @app.route('/')
 def root():
     return redirect(url_for('serve_login_page'))
-
+"""
 @app.route('/login')
 def serve_login_page():
     # Assuming frontend folder is one level up from where app.py is (backend/app.py -> frontend/)
