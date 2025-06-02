@@ -83,7 +83,7 @@ def logout_api():
 
 # --- HTML Serving Routes ---
 @app.route('/')
-def index():
+def root():
     return redirect(url_for('serve_login_page'))
 
 @app.route('/login')
