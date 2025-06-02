@@ -33,6 +33,9 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'serve_login_page' # Crucial for @login_required redirection
 
+app.config['LOGIN_DISABLED'] = False # Asegúrate de que no esté deshabilitado accidentalmente
+app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE para depuración
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -106,6 +109,11 @@ def serve_register_page():
 @app.route('/Hello-world')
 @login_required
 def serve_hello_world_page():
+        # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
+    print(f"DEBUG: current_user.is_authenticated: {current_user.is_authenticated}")
+    print(f"DEBUG: current_user.id: {current_user.id if current_user.is_authenticated else 'None'}")
+    print(f"DEBUG: current_user.username: {current_user.username if current_user.is_authenticated else 'None'}")
+    # FIN DEBUG
     return send_from_directory('../frontend', 'index.html')
 
 # --- Static File Serving Routes (for JS files in this case) ---
