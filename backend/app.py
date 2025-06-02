@@ -16,10 +16,16 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1) # 
 app.secret_key = os.environ.get('FLASK_SECRET_KEY')
 if not app.secret_key:
     raise ValueError("No FLASK_SECRET_KEY set for Flask application")
+# Configuración de cookies mejorada para Cloudfront
+app.config['SESSION_COOKIE_SECURE'] = True  # Para HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Seguridad adicional
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Cambiar de 'None' a 'Lax'
+app.config['SESSION_COOKIE_PATH'] = '/'
+app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
 
-
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None' # O 'Lax' si 'None' causa problemas
+# Configuración CORS si es necesario
+app.config['CORS_ORIGINS'] = '*'  # O especifica tu dominio de Cloudfront
+app.config['CORS_SUPPORTS_CREDENTIALS'] = True
 # Lee la URI de la base de datos de una variable de entorno
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 if not app.config['SQLALCHEMY_DATABASE_URI']:
