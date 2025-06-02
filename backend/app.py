@@ -78,6 +78,10 @@ def register_user():
         print(f"Error during registration: {e}")
         return jsonify(message="Registration failed due to a server error"), 500
 
+@app.after_request
+def after_request(response):
+    print("[AFTER REQUEST] Headers:", dict(response.headers))
+    return response
 
 @app.route('/api/login', methods=['POST'])
 def login_api():
@@ -89,6 +93,7 @@ def login_api():
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password) and user.is_active:
         login_user(user)
+        session['user_id'] = user.id  # Forzar escritura en sesión
         response = jsonify(message="Login successful", user_id=user.id, username=user.username)
         
         # Añadir headers CORS si es necesario
