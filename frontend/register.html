@@ -36,6 +36,14 @@
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
             </div>
+            <div>
+                <label for="role">Role:</label>
+                <select id="role" name="role" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+                    <option value="user" selected>User</option>
+                    <option value="league_admin">League Admin</option>
+                    <option value="general_admin">General Admin</option>
+                </select>
+            </div>
             <button type="submit">Register</button>
         </form>
         <div id="messageArea" class="message"></div>

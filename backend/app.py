@@ -1,6 +1,6 @@
 import osMore actions
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
-from backend.models import db, User
+from backend.models import db, User, RoleEnum # Import RoleEnum
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 
@@ -64,10 +64,23 @@ def register_user():
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
+    role_str = data.get('role') # Get role from request
+
     if not all([name, username, email, password]): return jsonify(message="Missing required fields"), 400
+
+    # Validate role
+    user_role = RoleEnum.USER # Default role
+    if role_str and role_str.strip(): # If role is provided and not empty
+        try:
+            user_role = RoleEnum(role_str)
+        except ValueError:
+            allowed_roles = [r.value for r in RoleEnum]
+            return jsonify(message=f"Invalid role '{role_str}'. Allowed roles are: {allowed_roles}"), 400
+    
     if User.query.filter_by(username=username).first(): return jsonify(message="Username already exists"), 409
     if User.query.filter_by(email=email).first(): return jsonify(message="Email already exists"), 409
-    new_user = User(name=name, username=username, email=email)
+    
+    new_user = User(name=name, username=username, email=email, role=user_role) # Add role to User constructor
     new_user.set_password(password)
     try:
         db.session.add(new_user)
@@ -106,6 +119,41 @@ def login_api():
 def logout_api():
     logout_user()
     return jsonify(message="Logout successful"), 200
+
+@app.route('/api/user/me', methods=['GET'])
+@login_required
+def current_user_details():
+    # @login_required should ensure current_user is authenticated
+    # current_user.role is an Enum object, access .value for the string
+    return jsonify(
+        username=current_user.username,
+        role=current_user.role.value
+    ), 200
+
+@app.route('/api/admin/general_data', methods=['GET'])
+@login_required
+def general_admin_data():
+    if current_user.role.value == RoleEnum.GENERAL_ADMIN.value:
+        return jsonify(message="Data for General Admin"), 200
+    else:
+        return jsonify(message="Forbidden: You do not have the required permissions."), 403
+
+@app.route('/api/admin/league_data', methods=['GET'])
+@login_required
+def league_admin_data():
+    if current_user.role.value == RoleEnum.LEAGUE_ADMIN.value or \
+       current_user.role.value == RoleEnum.GENERAL_ADMIN.value:
+        return jsonify(message="Data for League Admin (accessible by League and General Admins)"), 200
+    else:
+        return jsonify(message="Forbidden: You do not have the required permissions."), 403
+
+@app.route('/api/user/personal_data', methods=['GET'])
+@login_required
+def user_personal_data():
+    if current_user.role.value == RoleEnum.USER.value:
+        return jsonify(message="Data for User role"), 200
+    else:
+        return jsonify(message="Forbidden: You do not have the required permissions for this data."), 403
 
 # --- HTML Serving Routes ---
 @app.route('/')

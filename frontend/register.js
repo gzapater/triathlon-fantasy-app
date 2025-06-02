@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const username = document.getElementById('username').value;
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
+        const role = document.getElementById('role').value; // Get role value
 
         try {
             const response = await fetch('/api/register', {
@@ -18,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name, username, email, password }),
+                body: JSON.stringify({ name, username, email, password, role }), // Add role to payload
             });
 
             const result = await response.json();

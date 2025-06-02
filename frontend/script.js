@@ -1,7 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     const helloButton = document.getElementById('helloButton');
     const messageArea = document.getElementById('messageArea');
-    const logoutButton = document.getElementById('logoutButton'); // Get the logout button
+    const logoutButton = document.getElementById('logoutButton'); 
+    const userRoleDisplay = document.getElementById('user-role-display');
+
+    // Buttons for role-specific data
+    const generalAdminDataButton = document.getElementById('general-admin-data-button');
+    const leagueAdminDataButton = document.getElementById('league-admin-data-button');
+    const userDataButton = document.getElementById('user-data-button');
+
+    // Initially hide all role-specific buttons (though CSS also does this)
+    if(generalAdminDataButton) generalAdminDataButton.style.display = 'none';
+    if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'none';
+    if(userDataButton) userDataButton.style.display = 'none';
 
     if (helloButton) { // Ensure helloButton exists
         helloButton.addEventListener('click', () => {
@@ -31,42 +42,89 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (logoutButton) { // Ensure logoutButton exists
+    if (logoutButton) { 
         logoutButton.addEventListener('click', async () => {
             try {
                 const response = await fetch('/api/logout', {
                     method: 'POST',
-                    headers: {
-                        // If using CSRF tokens with Flask-Login, they might need to be included here.
-                        // For now, assuming basic session cookie authentication.
-                        'Content-Type': 'application/json',
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
-
-                if (response.ok) {
-                    // Successfully logged out
-                    messageArea.textContent = 'Logout successful. Redirecting to login...';
-                    // Clear any stored auth tokens if using JWT (though we are using sessions here)
-                    // localStorage.removeItem('authToken');
-                    setTimeout(() => {
-                        window.location.href = '/login'; // Redirect to login page
-                    }, 1500);
-                } else {
-                    // Handle errors, e.g., if the session had already expired server-side
-                    const result = await response.json().catch(() => null); // Try to parse error
-                    messageArea.textContent = result ? result.message : 'Logout failed. Please try again.';
-                    console.error('Logout failed:', result ? result.message : response.status);
-                     // If logout fails due to not being logged in (e.g. session expired), still redirect to login.
-                    if(response.status === 401){
-                         setTimeout(() => {
-                            window.location.href = '/login';
-                        }, 1500);
-                    }
-                }
+                if(userRoleDisplay) userRoleDisplay.textContent = '';
+                if(generalAdminDataButton) generalAdminDataButton.style.display = 'none';
+                if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'none';
+                if(userDataButton) userDataButton.style.display = 'none';
+                messageArea.textContent = 'Logout successful. Redirecting to login...';
+                setTimeout(() => { window.location.href = '/login'; }, 1500);
             } catch (error) {
                 console.error('Logout request error:', error);
                 messageArea.textContent = 'An error occurred during logout.';
             }
         });
     }
+
+    async function fetchAndDisplayUserDetails() {
+        if (!userRoleDisplay) {
+            console.log("User role display element not found.");
+            return; 
+        }
+        // Hide all buttons initially before fetching details
+        if(generalAdminDataButton) generalAdminDataButton.style.display = 'none';
+        if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'none';
+        if(userDataButton) userDataButton.style.display = 'none';
+
+        try {
+            const response = await fetch('/api/user/me');
+            if (response.ok) {
+                const data = await response.json();
+                userRoleDisplay.textContent = `Welcome, ${data.username}! You are logged in as a ${data.role}.`;
+
+                // Show buttons based on role
+                if (data.role === 'general_admin') {
+                    if(generalAdminDataButton) generalAdminDataButton.style.display = 'inline-block';
+                    if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'inline-block';
+                } else if (data.role === 'league_admin') {
+                    if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'inline-block';
+                } else if (data.role === 'user') {
+                    if(userDataButton) userDataButton.style.display = 'inline-block';
+                }
+            } else {
+                userRoleDisplay.textContent = ''; 
+                if (response.status === 401) {
+                   console.log("User not authenticated, /api/user/me returned 401. Page should redirect via Flask @login_required.");
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+            if(userRoleDisplay) userRoleDisplay.textContent = 'An error occurred while fetching user details.';
+        }
+    }
+
+    async function fetchDataForButton(endpoint, buttonElement) {
+        if (!buttonElement) return;
+        messageArea.textContent = 'Fetching data...';
+        try {
+            const response = await fetch(endpoint);
+            const result = await response.json();
+            if (response.ok) {
+                messageArea.textContent = result.message;
+            } else {
+                messageArea.textContent = `Error: ${result.message || response.statusText}`;
+            }
+        } catch (error) {
+            console.error(`Error fetching from ${endpoint}:`, error);
+            messageArea.textContent = `Failed to fetch data from ${endpoint}.`;
+        }
+    }
+
+    if(generalAdminDataButton) {
+        generalAdminDataButton.addEventListener('click', () => fetchDataForButton('/api/admin/general_data', generalAdminDataButton));
+    }
+    if(leagueAdminDataButton) {
+        leagueAdminDataButton.addEventListener('click', () => fetchDataForButton('/api/admin/league_data', leagueAdminDataButton));
+    }
+    if(userDataButton) {
+        userDataButton.addEventListener('click', () => fetchDataForButton('/api/user/personal_data', userDataButton));
+    }
+
+    fetchAndDisplayUserDetails();
 });
