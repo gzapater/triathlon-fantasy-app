@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const helloButton = document.getElementById('helloButton');
     const messageArea = document.getElementById('messageArea');
-    const logoutButton = document.getElementById('logoutButton'); 
+    const logoutButton = document.getElementById('logoutButton');
     const userRoleDisplay = document.getElementById('user-role-display');
 
     // Buttons for role-specific data
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (logoutButton) { 
+    if (logoutButton) {
         logoutButton.addEventListener('click', async () => {
             try {
                 const response = await fetch('/api/logout', {
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchAndDisplayUserDetails() {
         if (!userRoleDisplay) {
             console.log("User role display element not found.");
-            return; 
+            return;
         }
         // Hide all buttons initially before fetching details
         if(generalAdminDataButton) generalAdminDataButton.style.display = 'none';
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(userDataButton) userDataButton.style.display = 'inline-block';
                 }
             } else {
-                userRoleDisplay.textContent = ''; 
+                userRoleDisplay.textContent = '';
                 if (response.status === 401) {
                    console.log("User not authenticated, /api/user/me returned 401. Page should redirect via Flask @login_required.");
                 }

@@ -1,7 +1,8 @@
-import osMore actions
+import os
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
-from backend.models import db, User, RoleEnum # Import RoleEnum
+from backend.models import db, User, Role # Import Role instead of RoleEnum
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 
 app = Flask(__name__)
@@ -33,6 +34,7 @@ if not app.config['SQLALCHEMY_DATABASE_URI']:
 # ==============================================================================
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+migrate = Migrate(app, db) # Initialize Flask-Migrate
 
 # Flask-Login Configuration
 login_manager = LoginManager()
@@ -47,8 +49,25 @@ app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE par
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+def create_initial_roles():
+    """Checks for existing roles and creates them if not present."""
+    role_names = ['user', 'league_admin', 'general_admin']
+    for role_name in role_names:
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            new_role = Role(name=role_name)
+            db.session.add(new_role)
+    # Commit after checking/adding all roles
+    # Check if there were any roles added to avoid empty commit
+    if db.session.new: # or check if any new_role was created
+        db.session.commit()
+    elif db.session.dirty: # For safety, if other changes were pending (should not be here ideally)
+        db.session.commit()
+
+
 with app.app_context():
     db.create_all()
+    create_initial_roles() # Call the function to create roles
 
 # --- API Routes ---
 @app.route('/api/hello', methods=['GET'])
@@ -69,18 +88,17 @@ def register_user():
     if not all([name, username, email, password]): return jsonify(message="Missing required fields"), 400
 
     # Validate role
-    user_role = RoleEnum.USER # Default role
-    if role_str and role_str.strip(): # If role is provided and not empty
-        try:
-            user_role = RoleEnum(role_str)
-        except ValueError:
-            allowed_roles = [r.value for r in RoleEnum]
-            return jsonify(message=f"Invalid role '{role_str}'. Allowed roles are: {allowed_roles}"), 400
-    
+    role_name = data.get('role', 'user') # Default to 'user' if not provided
+    user_role_obj = Role.query.filter_by(name=role_name).first()
+
+    if not user_role_obj:
+        # It's crucial that create_initial_roles() has run and populated roles.
+        return jsonify(message=f"Invalid role: '{role_name}' specified. Available roles are typically 'user', 'league_admin', 'general_admin'."), 400
+
     if User.query.filter_by(username=username).first(): return jsonify(message="Username already exists"), 409
     if User.query.filter_by(email=email).first(): return jsonify(message="Email already exists"), 409
-    
-    new_user = User(name=name, username=username, email=email, role=user_role) # Add role to User constructor
+
+    new_user = User(name=name, username=username, email=email, role=user_role_obj)
     new_user.set_password(password)
     try:
         db.session.add(new_user)
@@ -124,16 +142,16 @@ def logout_api():
 @login_required
 def current_user_details():
     # @login_required should ensure current_user is authenticated
-    # current_user.role is an Enum object, access .value for the string
+    # Access role name via current_user.role.name
     return jsonify(
         username=current_user.username,
-        role=current_user.role.value
+        role=current_user.role.name
     ), 200
 
 @app.route('/api/admin/general_data', methods=['GET'])
 @login_required
 def general_admin_data():
-    if current_user.role.value == RoleEnum.GENERAL_ADMIN.value:
+    if current_user.role.name == 'general_admin':
         return jsonify(message="Data for General Admin"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions."), 403
@@ -141,8 +159,8 @@ def general_admin_data():
 @app.route('/api/admin/league_data', methods=['GET'])
 @login_required
 def league_admin_data():
-    if current_user.role.value == RoleEnum.LEAGUE_ADMIN.value or \
-       current_user.role.value == RoleEnum.GENERAL_ADMIN.value:
+    if current_user.role.name == 'league_admin' or \
+       current_user.role.name == 'general_admin':
         return jsonify(message="Data for League Admin (accessible by League and General Admins)"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions."), 403
@@ -150,7 +168,7 @@ def league_admin_data():
 @app.route('/api/user/personal_data', methods=['GET'])
 @login_required
 def user_personal_data():
-    if current_user.role.value == RoleEnum.USER.value:
+    if current_user.role.name == 'user':
         return jsonify(message="Data for User role"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions for this data."), 403
@@ -204,7 +222,7 @@ def serve_login_js():
 
 @app.route('/register.js')
 def serve_register_js():
-    return send_from_directory('../frontend', 'register.js')More actions
+    return send_from_directory('../frontend', 'register.js')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

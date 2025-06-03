@@ -1,16 +1,19 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import bcrypt
-import enum # Import enum
+# Removed: import enum
 from flask_login import UserMixin # Import UserMixin
 
 db = SQLAlchemy()
 
-# Define an enum for user roles
-class RoleEnum(enum.Enum):
-    USER = 'user'
-    LEAGUE_ADMIN = 'league_admin'
-    GENERAL_ADMIN = 'general_admin'
+# New Role Model
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+
+    def __repr__(self):
+        return f'<Role {self.name}>'
 
 class User(db.Model, UserMixin): # Inherit from UserMixin
     __tablename__ = 'users'
@@ -20,7 +23,9 @@ class User(db.Model, UserMixin): # Inherit from UserMixin
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.Enum(RoleEnum), default=RoleEnum.USER, nullable=False) # Add role attribute
+    # Removed old role enum column
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False) # New Foreign Key
+    role = db.relationship('Role', backref=db.backref('users', lazy=True)) # New Relationship
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
