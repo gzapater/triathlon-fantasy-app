@@ -211,7 +211,7 @@ def serve_login_page():
 @app.route('/register')
 def register_page():
     all_roles = Role.query.all()
-    return render_template('registration.html', roles=all_roles)
+    return render_template('register.html', roles=all_roles)
 
 
 @app.route('/Hello-world')
