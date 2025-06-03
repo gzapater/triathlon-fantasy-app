@@ -65,7 +65,7 @@ def create_initial_roles():
         db.session.commit()
 
 
-with app.app_context():
+#with app.app_context():
    # db.create_all()
    # create_initial_roles() # Call the function to create roles
 
