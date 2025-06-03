@@ -102,17 +102,21 @@ def register_user():
     password = data.get('password')
     role_code = data.get('role') # Get role from request
 
-    if not all([name, username, email, password]): return jsonify(message="Missing required fields"), 400
+    # Aseguramos que role_code también venga en la solicitud
+    if not all([name, username, email, password, role_code]):
+        return jsonify(message="Missing required fields"), 400
 
-    # Validate role
-    role_name = data.get('role', 'user') # Default to 'user' if not provided
+    # Validar rol: Buscar el rol por su 'code'
+    # La línea 'role_name = data.get('role', 'user')' era redundante y se ha eliminado.
     user_role_obj = Role.query.filter_by(code=role_code).first()
 
-  if not user_role_obj:
+    # Este bloque 'if' ahora tiene la indentación correcta (4 espacios)
+    if not user_role_obj:
         # Es crucial que create_initial_roles() haya corrido y poblado los roles con sus 'code's.
         # Los mensajes de error ahora deben reflejar los 'code's esperados.
         return jsonify(message=f"Invalid role code: '{role_code}' specified. Available role codes are typically 'PLAYER', 'LEAGUE_ADMIN', 'ADMIN'."), 400
-      
+
+    # Estas líneas también deben tener la misma indentación que el resto del bloque principal de la función
     if User.query.filter_by(username=username).first(): return jsonify(message="Username already exists"), 409
     if User.query.filter_by(email=email).first(): return jsonify(message="Email already exists"), 409
 
