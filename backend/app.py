@@ -4,6 +4,7 @@ from backend.models import db, User, Role # Import Role instead of RoleEnum
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
+from flask import render_template
 
 app = Flask(__name__)
 
@@ -208,8 +209,9 @@ def serve_login_page():
     return send_from_directory('../frontend', 'login.html')
 
 @app.route('/register')
-def serve_register_page():
-    return send_from_directory('../frontend', 'register.html')
+def register_page():
+    all_roles = Role.query.all()
+    return render_template('registration.html', roles=all_roles)
 
 
 @app.route('/Hello-world')
