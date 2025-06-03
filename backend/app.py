@@ -51,7 +51,7 @@ def load_user(user_id):
 
 def create_initial_roles():
     """Checks for existing roles and creates them if not present."""
-    role_names = ['user', 'league_admin', 'general_admin']
+    role_names = ['admin', 'admin de liga', 'jugador']
     for role_name in role_names:
         role = Role.query.filter_by(name=role_name).first()
         if not role:
@@ -93,7 +93,7 @@ def register_user():
 
     if not user_role_obj:
         # It's crucial that create_initial_roles() has run and populated roles.
-        return jsonify(message=f"Invalid role: '{role_name}' specified. Available roles are typically 'user', 'league_admin', 'general_admin'."), 400
+        return jsonify(message=f"Invalid role: '{role_name}' specified. Available roles are typically 'jugador', 'admin de liga', 'admin'."), 400
 
     if User.query.filter_by(username=username).first(): return jsonify(message="Username already exists"), 409
     if User.query.filter_by(email=email).first(): return jsonify(message="Email already exists"), 409
@@ -151,7 +151,7 @@ def current_user_details():
 @app.route('/api/admin/general_data', methods=['GET'])
 @login_required
 def general_admin_data():
-    if current_user.role.name == 'general_admin':
+    if current_user.role.name == 'admin':
         return jsonify(message="Data for General Admin"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions."), 403
@@ -159,8 +159,8 @@ def general_admin_data():
 @app.route('/api/admin/league_data', methods=['GET'])
 @login_required
 def league_admin_data():
-    if current_user.role.name == 'league_admin' or \
-       current_user.role.name == 'general_admin':
+    if current_user.role.name == 'admin de liga' or \
+       current_user.role.name == 'admin':
         return jsonify(message="Data for League Admin (accessible by League and General Admins)"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions."), 403
@@ -168,7 +168,7 @@ def league_admin_data():
 @app.route('/api/user/personal_data', methods=['GET'])
 @login_required
 def user_personal_data():
-    if current_user.role.name == 'user':
+    if current_user.role.name == 'jugador':
         return jsonify(message="Data for User role"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions for this data."), 403
@@ -192,23 +192,7 @@ def serve_register_page():
 @login_required
 def serve_hello_world_page():
         # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
-    print(f"DEBUG: current_user.is_authenticated: {current_user.is_authenticated}")
-    print(f"DEBUG: current_user.id: {current_user.id if current_user.is_authenticated else 'None'}")
-    print(f"DEBUG: current_user.username: {current_user.username if current_user.is_authenticated else 'None'}")
-    # FIN DEBUG
-    # DEBUG COMPLETO
-    print("=== HELLO-WORLD ENDPOINT DEBUG ===")
-    print(f"Request headers: {dict(request.headers)}")
-    print(f"Request cookies: {request.cookies}")
-    print(f"Session data: {dict(session) if 'session' in globals() else 'No session'}")
-    print(f"current_user.is_authenticated: {current_user.is_authenticated}")
-    print(f"current_user.id: {current_user.id if current_user.is_authenticated else 'None'}")
-    print(f"current_user.username: {current_user.username if current_user.is_authenticated else 'None'}")
-    print(f"Request remote_addr: {request.remote_addr}")
-    print(f"Request environ REMOTE_ADDR: {request.environ.get('REMOTE_ADDR')}")
-    print(f"Request environ HTTP_X_FORWARDED_FOR: {request.environ.get('HTTP_X_FORWARDED_FOR')}")
-    print("===================================")
-    
+
     return send_from_directory('../frontend', 'index.html')
 
 # --- Static File Serving Routes (for JS files in this case) ---
