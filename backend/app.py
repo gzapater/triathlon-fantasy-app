@@ -66,8 +66,8 @@ def create_initial_roles():
 
 
 with app.app_context():
-    db.create_all()
-    create_initial_roles() # Call the function to create roles
+   # db.create_all()
+   # create_initial_roles() # Call the function to create roles
 
 # --- API Routes ---
 @app.route('/api/hello', methods=['GET'])
