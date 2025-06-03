@@ -16,7 +16,7 @@ roles_table = sa.table('roles',
 )
 
 # revision identifiers, used by Alembic.
-revision = '<ID_AUTO_GENERADO_POR_ALEMBIC>' # No cambies esto, Alembic lo pone.
+revision = '0002' # No cambies esto, Alembic lo pone.
 down_revision = '0001' # ¡IMPORTANTE! Asegúrate que este es el ID de tu migración anterior (0001_initial_roles_users_setup.py)
 branch_labels = None
 depends_on = None
