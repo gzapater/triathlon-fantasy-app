@@ -50,13 +50,30 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 def create_initial_roles():
-    """Checks for existing roles and creates them if not present."""
-    role_names = ['admin', 'admin de liga', 'jugador']
-    for role_name in role_names:
-        role = Role.query.filter_by(name=role_name).first()
+    #Checks for existing roles and creates them if not present, using code and description."""
+    # Definimos los roles con su código y descripción
+    # El 'code' será el identificador interno (ej. ADMIN, LEAGUE_ADMIN, PLAYER)
+    # La 'description' será lo que se muestre (ej. Administrador, Admin de liga, Jugador)
+    roles_data = [
+        {'code': 'ADMIN', 'description': 'Administrador'},
+        {'code': 'LEAGUE_ADMIN', 'description': 'Admin de Liga'},
+        {'code': 'PLAYER', 'description': 'Jugador'}
+    ]
+
+    for role_info in roles_data:
+        # Buscamos el rol usando la nueva columna 'code'
+        role = Role.query.filter_by(code=role_info['code']).first()
+        
         if not role:
-            new_role = Role(name=role_name)
+            # Si el rol no existe, lo creamos con 'code' y 'description'
+            new_role = Role(code=role_info['code'], description=role_info['description'])
             db.session.add(new_role)
+            print(f"Role '{role_info['description']}' with code '{role_info['code']}' created.")
+        else:
+            print(f"Role '{role_info['description']}' with code '{role_info['code']}' already exists.")
+
+    db.session.commit()
+    print("Initial roles check and creation complete.")
     # Commit after checking/adding all roles
     # Check if there were any roles added to avoid empty commit
     if db.session.new: # or check if any new_role was created
@@ -83,18 +100,19 @@ def register_user():
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
-    role_str = data.get('role') # Get role from request
+    role_code = data.get('role') # Get role from request
 
     if not all([name, username, email, password]): return jsonify(message="Missing required fields"), 400
 
     # Validate role
     role_name = data.get('role', 'user') # Default to 'user' if not provided
-    user_role_obj = Role.query.filter_by(name=role_name).first()
+    user_role_obj = Role.query.filter_by(code=role_code).first()
 
-    if not user_role_obj:
-        # It's crucial that create_initial_roles() has run and populated roles.
-        return jsonify(message=f"Invalid role: '{role_name}' specified. Available roles are typically 'jugador', 'admin de liga', 'admin'."), 400
-
+  if not user_role_obj:
+        # Es crucial que create_initial_roles() haya corrido y poblado los roles con sus 'code's.
+        # Los mensajes de error ahora deben reflejar los 'code's esperados.
+        return jsonify(message=f"Invalid role code: '{role_code}' specified. Available role codes are typically 'PLAYER', 'LEAGUE_ADMIN', 'ADMIN'."), 400
+      
     if User.query.filter_by(username=username).first(): return jsonify(message="Username already exists"), 409
     if User.query.filter_by(email=email).first(): return jsonify(message="Email already exists"), 409
 
@@ -142,16 +160,17 @@ def logout_api():
 @login_required
 def current_user_details():
     # @login_required should ensure current_user is authenticated
-    # Access role name via current_user.role.name
+    # Acceder a la descripción del rol para mostrarla en el frontend
     return jsonify(
         username=current_user.username,
-        role=current_user.role.name
+        role=current_user.role.description # CAMBIO AQUÍ: Usar .description para visualización
     ), 200
 
 @app.route('/api/admin/general_data', methods=['GET'])
 @login_required
 def general_admin_data():
-    if current_user.role.name == 'admin':
+    # Comprobación de permisos: Usar .code para la lógica de autorización
+    if current_user.role.code == 'ADMIN': # CAMBIO AQUÍ: 'admin' a 'ADMIN' (el código)
         return jsonify(message="Data for General Admin"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions."), 403
@@ -159,20 +178,21 @@ def general_admin_data():
 @app.route('/api/admin/league_data', methods=['GET'])
 @login_required
 def league_admin_data():
-    if current_user.role.name == 'admin de liga' or \
-       current_user.role.name == 'admin':
+    # Comprobación de permisos: Usar .code para la lógica de autorización
+    if current_user.role.code == 'LEAGUE_ADMIN' or \
+       current_user.role.code == 'ADMIN': # CAMBIO AQUÍ: 'admin de liga' a 'LEAGUE_ADMIN', 'admin' a 'ADMIN'
         return jsonify(message="Data for League Admin (accessible by League and General Admins)"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions."), 403
-
+        
 @app.route('/api/user/personal_data', methods=['GET'])
 @login_required
 def user_personal_data():
-    if current_user.role.name == 'jugador':
+    # Comprobación de permisos: Usar .code para la lógica de autorización
+    if current_user.role.code == 'PLAYER': # CAMBIO AQUÍ: 'jugador' a 'PLAYER'
         return jsonify(message="Data for User role"), 200
     else:
         return jsonify(message="Forbidden: You do not have the required permissions for this data."), 403
-
 # --- HTML Serving Routes ---
 @app.route('/')
 def root():
