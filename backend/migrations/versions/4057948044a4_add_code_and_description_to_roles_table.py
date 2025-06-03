@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '<ID_NUEVO_GENERADO_POR_ALEMBIC>' # Alembic lo pone
+revision = '4057948044a4' # Alembic lo pone
 down_revision = '0002' # ¡VERIFICA QUE ESTE SEA EL ID DE TU MIGRACIÓN ANTERIOR!
 branch_labels = None
 depends_on = None
