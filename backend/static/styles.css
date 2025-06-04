@@ -1,0 +1,176 @@
+/* General Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4; /* Light grey background */
+    color: #333; /* Dark grey text */
+    line-height: 1.6;
+}
+
+.container {
+    width: 80%;
+    margin: auto;
+    overflow: hidden;
+    padding: 0 20px;
+}
+
+/* Header Styles */
+header {
+    background: #005f73; /* Deep teal for water/calmness */
+    color: #fff;
+    padding-top: 30px;
+    min-height: 70px;
+    border-bottom: #0a9396 3px solid; /* Brighter teal accent */
+}
+
+header a {
+    color: #fff;
+    text-decoration: none;
+    text-transform: uppercase;
+    font-size: 16px;
+}
+
+header ul {
+    padding: 0;
+    list-style: none;
+}
+
+header li {
+    float: left;
+    display: inline;
+    padding: 0 20px 0 20px;
+}
+
+header #branding {
+    float: left;
+}
+
+header #branding h1 {
+    margin: 0;
+    font-size: 24px; /* Adjusted for better fit */
+}
+
+header nav {
+    float: right;
+    margin-top: 10px;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: #003459; /* Dark blue for headings */
+    margin-bottom: 20px;
+}
+
+h1 { font-size: 2.5em; }
+h2 { font-size: 2em; }
+h3 { font-size: 1.75em; }
+
+/* Paragraphs */
+p {
+    margin-bottom: 20px;
+}
+
+/* Links */
+a {
+    color: #0a9396; /* Brighter teal for links */
+    text-decoration: none;
+}
+
+a:hover {
+    color: #005f73; /* Darker teal on hover */
+}
+
+/* Buttons */
+button, .button {
+    display: inline-block;
+    background: #ee9b00; /* Energetic orange for action buttons - cycling/running */
+    color: #fff;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+button:hover, .button:hover {
+    background: #ca6702; /* Darker orange on hover */
+}
+
+/* Forms */
+form {
+    margin-top: 20px;
+}
+
+form label {
+    display: block;
+    margin-bottom: 5px;
+    color: #003459; /* Dark blue for labels */
+}
+
+form input[type="text"],
+form input[type="email"],
+form input[type="password"],
+form select,
+form textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box; /* So padding doesn't affect width */
+}
+
+form input[type="submit"],
+form button[type="submit"] {
+    width: auto;
+    background: #94d2bd; /* Muted green for submit - nature/running */
+    color: #003459; /* Dark blue text for contrast */
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-transform: uppercase;
+}
+
+form input[type="submit"]:hover,
+form button[type="submit"]:hover {
+    background: #005f73; /* Deep teal on hover */
+    color: #fff;
+}
+
+/* Lists */
+ul, ol {
+    margin-bottom: 20px;
+    padding-left: 20px;
+}
+
+ul li, ol li {
+    margin-bottom: 5px;
+}
+
+/* Utility classes */
+.text-center {
+    text-align: center;
+}
+
+.mt-1 { margin-top: 1rem; }
+.mt-2 { margin-top: 2rem; }
+.mb-1 { margin-bottom: 1rem; }
+.mb-2 { margin-bottom: 2rem; }
+
+/* Specific page element styling if needed - can be expanded */
+/* For example, if there's a common navigation bar or footer */
+.main-nav {
+    /* Styles for main navigation if it's a specific component */
+}
+
+.footer {
+    background: #333;
+    color: #fff;
+    text-align: center;
+    padding: 20px;
+    margin-top: 30px;
+}
