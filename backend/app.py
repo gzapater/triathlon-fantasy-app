@@ -206,7 +206,7 @@ def root():
 @app.route('/login')
 def serve_login_page():
     # Assuming frontend folder is one level up from where app.py is (backend/app.py -> frontend/)
-    return send_from_directory('../frontend', 'login.html')
+    return render_template('login.html')
 
 @app.route('/register')
 def register_page():
@@ -219,20 +219,7 @@ def register_page():
 def serve_hello_world_page():
         # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
 
-    return send_from_directory('../frontend', 'index.html')
-
-# --- Static File Serving Routes (for JS files in this case) ---
-@app.route('/script.js')
-def serve_script_js():
-    return send_from_directory('../frontend', 'script.js')
-
-@app.route('/login.js')
-def serve_login_js():
-    return send_from_directory('../frontend', 'login.js')
-
-@app.route('/register.js')
-def serve_register_js():
-    return send_from_directory('../frontend', 'register.js')
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
