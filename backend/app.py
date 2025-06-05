@@ -1,10 +1,12 @@
 import os
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
-from backend.models import db, User, Role # Import Role instead of RoleEnum
+# Updated model imports
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 from flask import render_template
+from datetime import datetime # For event_date processing
 
 app = Flask(__name__)
 
@@ -82,12 +84,158 @@ def create_initial_roles():
     elif db.session.dirty: # For safety, if other changes were pending (should not be here ideally)
         db.session.commit()
 
+def create_initial_race_data():
+    """Seeds RaceFormat and Segment tables with initial data."""
+    race_formats_data = ["Triatlón", "Duatlón", "Acuatlón"]
+    segments_data = ["Natación", "Ciclismo", "Carrera a pie", "Transición 1 (T1)", "Transición 2 (T2)"]
 
-#with app.app_context():
-   # db.create_all()
-   # create_initial_roles() # Call the function to create roles
+    for name in race_formats_data:
+        if not RaceFormat.query.filter_by(name=name).first():
+            db.session.add(RaceFormat(name=name))
+            print(f"RaceFormat '{name}' created.")
+        else:
+            print(f"RaceFormat '{name}' already exists.")
+
+    for name in segments_data:
+        if not Segment.query.filter_by(name=name).first():
+            db.session.add(Segment(name=name))
+            print(f"Segment '{name}' created.")
+        else:
+            print(f"Segment '{name}' already exists.")
+
+    # Check if any new data was added before committing
+    if db.session.new:
+        db.session.commit()
+        print("Initial race data seeding complete.")
+    else:
+        print("Initial race data already exists. No new data seeded.")
+
+with app.app_context():
+    db.create_all() # Ensures all tables are created based on models
+    create_initial_roles()
+    create_initial_race_data() # Call the function to seed race data
 
 # --- API Routes ---
+
+@app.route('/api/race-formats', methods=['GET'])
+def get_race_formats():
+    try:
+        formats = RaceFormat.query.all()
+        return jsonify([{'id': fmt.id, 'name': fmt.name} for fmt in formats]), 200
+    except Exception as e:
+        print(f"Error fetching race formats: {e}")
+        return jsonify(message="Error fetching race formats"), 500
+
+@app.route('/api/races', methods=['POST'])
+@login_required
+def create_race():
+    # Role check
+    if current_user.role.code not in ['LEAGUE_ADMIN', 'ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to create races."), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Required fields validation
+    required_fields = ['title', 'race_format_id', 'event_date', 'gender_category', 'segments']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify(message=f"Missing required fields: {', '.join(missing_fields)}"), 400
+
+    title = data.get('title')
+    description = data.get('description')
+    race_format_id = data.get('race_format_id')
+    event_date_str = data.get('event_date')
+    location = data.get('location')
+    promo_image_url = data.get('promo_image_url')
+    gender_category = data.get('gender_category')
+    segments_data = data.get('segments')
+
+    # Validate title
+    if not isinstance(title, str) or not title.strip():
+        return jsonify(message="Title must be a non-empty string."), 400
+
+    # Validate race_format_id
+    if not isinstance(race_format_id, int):
+        return jsonify(message="race_format_id must be an integer."), 400
+    race_format = RaceFormat.query.get(race_format_id)
+    if not race_format:
+        return jsonify(message=f"Invalid race_format_id: {race_format_id} does not exist."), 400
+
+    # Validate event_date
+    try:
+        event_date = datetime.strptime(event_date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify(message="Invalid event_date format. Required format: YYYY-MM-DD."), 400
+
+    # Validate gender_category
+    if not isinstance(gender_category, str) or not gender_category.strip():
+        return jsonify(message="gender_category must be a non-empty string."), 400
+
+    # Validate segments
+    if not isinstance(segments_data, list) or not segments_data:
+        return jsonify(message="Segments must be a non-empty list."), 400
+
+    race_segment_details_objects = []
+    for seg_data in segments_data:
+        segment_id = seg_data.get('segment_id')
+        distance_km = seg_data.get('distance_km')
+
+        if not isinstance(segment_id, int):
+            return jsonify(message="Each segment's segment_id must be an integer."), 400
+        segment = Segment.query.get(segment_id)
+        if not segment:
+            return jsonify(message=f"Invalid segment_id: {segment_id} does not exist."), 400
+
+        if not (isinstance(distance_km, (float, int)) and distance_km > 0):
+            # Allow distance_km = 0 for segments like transitions, if needed.
+            # For now, strictly positive as per original prompt for "distance".
+            # If 0 is allowed, change to: distance_km >= 0
+            if not (isinstance(distance_km, (float, int)) and distance_km >= 0):
+                 return jsonify(message="Each segment's distance_km must be a non-negative number."), 400
+            # If distance is optional for some segments, this logic needs adjustment.
+            # For now, assuming distance_km is required for all segments listed.
+            if distance_km <=0 and segment.name not in ["Transición 1 (T1)", "Transición 2 (T2)"]:
+                 return jsonify(message=f"distance_km for {segment.name} must be a positive number."), 400
+            elif distance_km <0: # Negative distance is never allowed
+                 return jsonify(message=f"distance_km for {segment.name} cannot be negative."), 400
+
+
+        race_segment_details_objects.append(RaceSegmentDetail(
+            segment_id=segment_id,
+            distance_km=float(distance_km) # Ensure it's float
+        ))
+
+    # Create Race object
+    new_race = Race(
+        title=title,
+        description=description,
+        race_format_id=race_format_id,
+        event_date=event_date,
+        location=location,
+        promo_image_url=promo_image_url,
+        gender_category=gender_category,
+        user_id=current_user.id,
+        category="Elite" # Default as per requirement
+    )
+
+    try:
+        db.session.add(new_race)
+        # After adding new_race, it gets an ID (if auto-incrementing PK)
+        # which is needed for race_segment_details_objects if they are not yet associated.
+        # However, SQLAlchemy handles this association through backrefs or direct assignment.
+        for rsd in race_segment_details_objects:
+            rsd.race = new_race # Associate with the race
+            db.session.add(rsd)
+
+        db.session.commit()
+        return jsonify(message="Race created successfully", race_id=new_race.id), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating race: {e}")
+        return jsonify(message="Error creating race"), 500
+
 @app.route('/api/hello', methods=['GET'])
 @login_required
 def hello():
@@ -220,6 +368,17 @@ def serve_hello_world_page():
         # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
 
     return render_template('index.html')
+
+@app.route('/create-race')
+@login_required
+def serve_create_race_page():
+    if current_user.role.code not in ['LEAGUE_ADMIN', 'ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to access this page."), 403
+        # Or redirect to a more user-friendly error page:
+        # return render_template('errors/403.html'), 403
+        # For now, returning JSON as it's simpler for this step.
+        # A better UX would be to show an error page or redirect.
+    return render_template('create_race.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

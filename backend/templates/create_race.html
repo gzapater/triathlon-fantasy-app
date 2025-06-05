@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Nueva Carrera</title>
+    <!-- Link to a general stylesheet if available, e.g., styles.css -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], input[type="date"], input[type="number"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea { resize: vertical; }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        .button:hover { background-color: #0056b3; }
+        #errorMessages { color: red; margin-top: 15px; }
+        .segment-entry { border: 1px solid #eee; padding: 10px; margin-top: 10px; border-radius: 4px; }
+        .segment-name { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Crear Nueva Carrera</h1>
+
+        <form id="createRaceForm">
+            <div>
+                <label for="raceTitle">Título de la Carrera:</label>
+                <input type="text" id="raceTitle" name="raceTitle" required>
+            </div>
+
+            <div>
+                <label for="raceDescription">Descripción Adicional:</label>
+                <textarea id="raceDescription" name="raceDescription" rows="3"></textarea>
+            </div>
+
+            <div>
+                <label for="raceFormat">Formato de Carrera:</label>
+                <select id="raceFormat" name="raceFormat" required>
+                    <option value="">-- Seleccione Formato --</option>
+                </select>
+            </div>
+
+            <div id="raceSegmentsContainer">
+                <!-- Segmentos se generarán aquí por JS -->
+            </div>
+
+            <div>
+                <label for="eventDate">Fecha del Evento:</label>
+                <input type="date" id="eventDate" name="eventDate" required>
+            </div>
+
+            <div>
+                <label for="raceLocation">Ubicación:</label>
+                <input type="text" id="raceLocation" name="raceLocation">
+            </div>
+
+            <div>
+                <label for="promoImageUrl">URL de Imagen Promocional:</label>
+                <input type="text" id="promoImageUrl" name="promoImageUrl" placeholder="https://example.com/image.jpg">
+            </div>
+
+            <div>
+                <label>Categoría Principal:</label>
+                <input type="text" id="raceCategory" name="raceCategory" value="Elite" readonly>
+            </div>
+
+            <div>
+                <label for="genderCategory">Género de la Categoría Elite:</label>
+                <select id="genderCategory" name="genderCategory" required>
+                    <option value="">-- Seleccione Género --</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Ambos">Ambos</option>
+                </select>
+            </div>
+
+            <div id="errorMessages"></div>
+
+            <button type="submit" id="createRaceButton" class="button">Crear Carrera</button>
+        </form>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/create_race.js') }}"></script>
+</body>
+</html>
