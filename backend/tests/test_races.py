@@ -318,3 +318,106 @@ def test_create_race_zero_distance_for_transition(authenticated_client, db_sessi
     segment_detail = RaceSegmentDetail.query.filter_by(race_id=race_in_db.id, segment_id=t1_segment.id).first()
     assert segment_detail is not None
     assert segment_detail.distance_km == 0
+
+# --- Tests for /Hello-world (index.html race display) ---
+
+def test_hello_world_page_unauthenticated(client):
+    response = client.get('/Hello-world')
+    assert response.status_code == 302 # Should redirect to login
+
+def test_hello_world_page_no_races(authenticated_client, db_session):
+    test_client, _ = authenticated_client("PLAYER") # Any authenticated user
+
+    # Ensure no races exist for this part of the test
+    # This is tricky if other tests created races and db is not reset per test.
+    # Assuming in-memory DB is clean per session, or specific cleanup for this test.
+    # For now, we rely on the fact that no races are added by default for a fresh user.
+    # A more robust way would be to explicitly delete all Race objects here.
+    Race.query.delete()
+    db_session.commit()
+
+    response = test_client.get('/Hello-world')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+    assert "No hay carreras programadas por el momento." in html_content
+    assert "Crear Carrera" not in html_content # Player shouldn't see this
+
+def test_hello_world_page_with_races_and_roles(authenticated_client, db_session, new_user_factory):
+    # Create some race formats and segments if not already seeded by app fixture
+    # (conftest should handle this, but being explicit for clarity if needed)
+    rf1 = RaceFormat.query.filter_by(name="Triatlón").first()
+    if not rf1:
+        rf1 = RaceFormat(name="Triatlón")
+        db_session.add(rf1)
+        db_session.commit()
+
+    # Create users for race creation
+    # admin_user = User.query.filter_by(username="admin_user_for_race").first()
+    # if not admin_user:
+    #     admin_role = Role.query.filter_by(code="ADMIN").first()
+    #     admin_user = User(username="admin_user_for_race", email="admin_race@test.com", role_id=admin_role.id, name="Admin Racer")
+    #     admin_user.set_password("password")
+    #     db_session.add(admin_user)
+    #     db_session.commit()
+    # Using existing admin_user fixture is better. Let's assume admin_user fixture is available.
+    # We need an admin to be the creator of the race, let's use the one from new_user_factory or fixture.
+    # The authenticated_client logs in a user, but for creating races, we need a user_id.
+    # Let's create a dedicated admin for this test to own the races.
+
+    creator_admin = User.query.filter_by(username="race_creator_admin").first()
+    if not creator_admin:
+         creator_admin = new_user_factory("race_creator_admin", "race_creator@test.com", "password", "ADMIN")
+
+
+    race1 = Race(title="Summer Triathlon", race_format_id=rf1.id, event_date=datetime(2024, 7, 15),
+                 location="Beach City", user_id=creator_admin.id, gender_category="Ambos", category="Elite")
+    race2 = Race(title="Autumn Duathlon", race_format_id=rf1.id, event_date=datetime(2024, 10, 5),
+                 location="Forest Town", user_id=creator_admin.id, gender_category="Masculino", category="Elite") # Assuming rf1 for simplicity
+    race3 = Race(title="Spring Aquathlon", race_format_id=rf1.id, event_date=datetime(2024,4, 20),
+                 location="Lake Side", user_id=creator_admin.id, gender_category="Femenino", category="Elite")
+
+    db_session.add_all([race1, race2, race3])
+    db_session.commit()
+
+    # Test as PLAYER
+    player_client, player_user = authenticated_client("PLAYER")
+    response_player = player_client.get('/Hello-world')
+    assert response_player.status_code == 200
+    html_player = response_player.get_data(as_text=True)
+
+    assert "Summer Triathlon" in html_player
+    assert "Beach City" in html_player
+    assert "15 July, 2024" in html_player # Check date format, adjust if strftime is different
+    assert "Autumn Duathlon" in html_player
+    assert "05 October, 2024" in html_player
+    assert "Spring Aquathlon" in html_player
+    assert "20 April, 2024" in html_player
+
+    # Check order (race2 newest of these three, then race1, then race3)
+    # This depends on the exact strftime format; a more robust check might look at positions
+    assert html_player.find("Autumn Duathlon") < html_player.find("Summer Triathlon") < html_player.find("Spring Aquathlon")
+
+    assert "Crear Carrera" not in html_player # Player shouldn't see this link
+
+    # Test as LEAGUE_ADMIN
+    league_admin_client, _ = authenticated_client("LEAGUE_ADMIN")
+    response_league_admin = league_admin_client.get('/Hello-world')
+    assert response_league_admin.status_code == 200
+    html_league_admin = response_league_admin.get_data(as_text=True)
+    assert "Summer Triathlon" in html_league_admin # Basic check
+    assert "Crear Carrera" in html_league_admin # League Admin should see this
+
+    # Test as ADMIN
+    admin_client, _ = authenticated_client("ADMIN")
+    response_admin = admin_client.get('/Hello-world')
+    assert response_admin.status_code == 200
+    html_admin = response_admin.get_data(as_text=True)
+    assert "Summer Triathlon" in html_admin # Basic check
+    assert "Crear Carrera" in html_admin # Admin should see this
+
+    # Clean up created races for other tests if needed, though in-memory DB handles per-session cleanup.
+    db_session.delete(race1)
+    db_session.delete(race2)
+    db_session.delete(race3)
+    # db_session.delete(creator_admin) # If this user is only for this test
+    db_session.commit()

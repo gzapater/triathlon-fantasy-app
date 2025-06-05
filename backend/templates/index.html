@@ -3,48 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frontend - Hello World</title> {/* Updated title slightly */}
-    <style> /* Basic styling for layout */
-        body { font-family: sans-serif; padding: 20px; }
-        .user-actions { margin-bottom: 20px; }
-        button { margin-right: 10px; padding: 8px 12px; cursor: pointer; }
+    <title>Dashboard de Carreras</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> <!-- General stylesheet -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding:0; background-color: #f4f4f4; color: #333; }
+        .navbar { background-color: #333; padding: 10px 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .navbar a { color: white; text-decoration: none; padding: 5px 10px; }
+        .navbar a:hover { background-color: #555; border-radius: 4px;}
+        .container { max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #333; }
+        p { line-height: 1.6; }
+        .button, .button-link { /* Combined styles for buttons and styled links */
+            display: inline-block;
+            background-color: #007bff;
+            color: white !important; /* Important to override link color */
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none; /* Remove underline from links styled as buttons */
+            font-size: 16px;
+            margin-right: 10px;
+            margin-top: 5px; /* Added some top margin for spacing */
+            margin-bottom: 10px; /* Added some bottom margin for spacing */
+        }
+        .button:hover, .button-link:hover { background-color: #0056b3; text-decoration: none; }
+        .logout-button { background-color: #dc3545; } /* Specific style for logout */
+        .logout-button:hover { background-color: #c82333; }
+
+        .user-info { margin-bottom: 20px; padding-bottom:10px; border-bottom: 1px solid #eee; }
+
+        .race-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .race-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: box-shadow 0.3s ease-in-out;
+        }
+        .race-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .race-card h3 { margin-top: 0; color: #007bff; }
+        .race-card p { margin-bottom: 8px; font-size: 0.95em; }
+        .race-card strong { color: #555; }
+        .race-card img { max-width: 100%; height: auto; border-radius: 4px; margin-top: 10px; }
+        .no-races { text-align: center; padding: 20px; color: #777; }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <div class="user-actions">
-        <button id="helloButton">Say Hello</button>
-        <button id="logoutButton">Logout</button> {/* New Logout Button */}
-
-        {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
-        <a href="{{ url_for('serve_create_race_page') }}" class="button-link">Crear Nueva Carrera</a>
-        {% endif %}
-
-        <hr style="margin-top: 15px; margin-bottom: 15px;"> {/* Separator */}
-        <button id="general-admin-data-button" style="display:none;">Get General Admin Data</button>
-        <button id="league-admin-data-button" style="display:none;">Get League Admin Data</button>
-        <button id="user-data-button" style="display:none;">Get User Data</button>
+    <div class="navbar">
+        <div>Bienvenido, {{ current_user.username }}! ({{ current_user.role.description }})</div>
+        <div>
+            {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
+                <a href="{{ url_for('serve_create_race_page') }}">Crear Carrera</a>
+            {% endif %}
+            <a href="#" id="logoutLinkNavBar">Logout</a> <!-- Placeholder, JS will handle -->
+        </div>
     </div>
-    <div id="messageArea" style="margin-top: 10px; border: 1px solid #ccc; padding: 10px; min-height: 30px;"></div>
-    <div id="user-role-display" style="margin-top: 10px; font-weight: bold;"></div> {/* New element for role display */}
 
-    <style>
-        .button-link {
-            display: inline-block;
-            padding: 8px 12px;
-            margin-right: 10px;
-            background-color: #007bff;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            font-family: sans-serif; /* Match button style */
-            font-size: initial; /* Match button style */
-            border: none; /* Match button style */
-        }
-        .button-link:hover {
-            background-color: #0056b3;
-        }
-    </style>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <div class="container">
+        <h2>Carreras Programadas</h2>
+        {% if races %}
+            <div class="race-list">
+                {% for race in races %}
+                    <div class="race-card">
+                        <h3>{{ race.title }}</h3>
+                        {% if race.promo_image_url %}
+                            <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}">
+                        {% endif %}
+                        <p><strong>Fecha:</strong> {{ race.event_date.strftime('%d %B, %Y') }}</p>
+                        <p><strong>Formato:</strong> {{ race.race_format.name }}</p>
+                        <p><strong>Ubicación:</strong> {{ race.location if race.location else 'No especificada' }}</p>
+                        <p><strong>Género:</strong> {{ race.gender_category }}</p>
+                        <p><strong>Categoría:</strong> {{ race.category }}</p>
+                        {% if race.description %}
+                            <p><strong>Descripción:</strong> {{ race.description }}</p>
+                        {% endif %}
+                        <!-- Future: Link to race details page -->
+                        <!-- <a href="{{ url_for('race_details_page', race_id=race.id) }}" class="button-link">Ver Detalles</a> -->
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="no-races">No hay carreras programadas por el momento.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        // Basic logout functionality for the navbar link
+        document.getElementById('logoutLinkNavBar').addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent default anchor behavior
+            fetch('/api/logout', { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/login'; // Redirect to login page
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Logout error:', error);
+                    alert('Error during logout. Please try again.');
+                });
+        });
+    </script>
 </body>
 </html>

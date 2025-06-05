@@ -365,9 +365,16 @@ def register_page():
 @app.route('/Hello-world')
 @login_required
 def serve_hello_world_page():
-        # AÑADE ESTO TEMPORALMENTE PARA DEPURACIÓN
+    all_races = []
+    try:
+        # Query all races, ordered by event_date descending
+        all_races = Race.query.order_by(Race.event_date.desc()).all()
+    except Exception as e:
+        print(f"Error fetching races for index page: {e}")
+        # Optionally, flash a message to the user or handle more gracefully
+        pass # Render the page with an empty list of races if DB query fails
 
-    return render_template('index.html')
+    return render_template('index.html', races=all_races)
 
 @app.route('/create-race')
 @login_required

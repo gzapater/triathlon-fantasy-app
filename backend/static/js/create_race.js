@@ -157,9 +157,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(result => {
             if (result.status === 201) {
                 alert('¡Carrera creada exitosamente!');
-                createRaceForm.reset();
-                raceSegmentsContainer.innerHTML = ''; // Clear segments
-                // Optionally, redirect: window.location.href = '/some-success-page';
+                window.location.href = '/Hello-world'; // Redirect to main page
             } else {
                 errorMessagesDiv.textContent = result.body.message || 'Error al crear la carrera.';
                 if (result.body.errors) { // For more detailed errors if API provides them
