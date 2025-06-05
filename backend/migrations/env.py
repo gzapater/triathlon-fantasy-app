@@ -34,10 +34,10 @@ def get_engine_url():
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-# from myapp import mymodel
+from backend.models import db as application_db # Explicitly import db from models
 # target_metadata = mymodel.Base.metadata
 config.set_main_option('sqlalchemy.url', get_engine_url())
-target_db = current_app.extensions['migrate'].db
+# target_db = current_app.extensions['migrate'].db # Keep for engine, but use application_db for metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -46,9 +46,11 @@ target_db = current_app.extensions['migrate'].db
 
 
 def get_metadata():
-    if hasattr(target_db, 'metadatas'):
-        return target_db.metadatas[None]
-    return target_db.metadata
+    # if hasattr(target_db, 'metadatas'):
+    #     return target_db.metadatas[None]
+    # return target_db.metadata
+    print(f"DEBUG: Tables known to application_db.metadata: {application_db.metadata.tables.keys()}")
+    return application_db.metadata # Use metadata from explicitly imported db
 
 
 def run_migrations_offline():

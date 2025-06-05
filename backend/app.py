@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption # Added Question, QuestionOption
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
@@ -110,10 +110,27 @@ def create_initial_race_data():
     else:
         print("Initial race data already exists. No new data seeded.")
 
+def create_initial_question_types():
+    """Seeds QuestionType table with initial data."""
+    question_type_names = ['FREE_TEXT', 'MULTIPLE_CHOICE', 'ORDERING']
+    for name in question_type_names:
+        if not QuestionType.query.filter_by(name=name).first():
+            db.session.add(QuestionType(name=name))
+            print(f"QuestionType '{name}' created.")
+        else:
+            print(f"QuestionType '{name}' already exists.")
+
+    if db.session.new: # Check if any new data was added
+        db.session.commit()
+        print("Initial question types seeding complete.")
+    else:
+        print("Initial question types already exist. No new data seeded.")
+
 with app.app_context():
-    db.create_all() # Ensures all tables are created based on models
+    # db.create_all() # Ensures all tables are created based on models - Handled by migrations
     create_initial_roles()
-    create_initial_race_data() # Call the function to seed race data
+    create_initial_race_data()
+    create_initial_question_types() # Call the function to seed question types
 
 # --- API Routes ---
 
@@ -236,6 +253,204 @@ def create_race():
         print(f"Error creating race: {e}")
         return jsonify(message="Error creating race"), 500
 
+@app.route('/api/races/<int:race_id>/questions', methods=['GET'])
+@login_required
+def get_race_questions(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    # Assuming race.questions is the backref from Question model
+    # and it's set to lazy='dynamic' or similar to allow ordering.
+    # If not dynamic, race.questions would be a list already.
+    # For lazy='dynamic', it's a query object.
+    # Let's order by question ID for consistent output.
+    questions_query = race.questions.order_by(Question.id) # Use Question.id for ordering
+
+    output = []
+    for question in questions_query:
+        question_data = {
+            "id": question.id,
+            "text": question.text,
+            "question_type": question.question_type.name, # Accessing name from relationship
+            "is_active": question.is_active
+        }
+
+        # Add type-specific scoring fields
+        if question.question_type.name == 'FREE_TEXT':
+            question_data["max_score_free_text"] = question.max_score_free_text
+        elif question.question_type.name == 'MULTIPLE_CHOICE':
+            question_data["is_mc_multiple_correct"] = question.is_mc_multiple_correct
+            question_data["points_per_correct_mc"] = question.points_per_correct_mc
+            question_data["points_per_incorrect_mc"] = question.points_per_incorrect_mc
+            question_data["total_score_mc_single"] = question.total_score_mc_single
+        elif question.question_type.name == 'ORDERING':
+            question_data["points_per_correct_order"] = question.points_per_correct_order
+            question_data["bonus_for_full_order"] = question.bonus_for_full_order
+
+        options_output = []
+        # Assuming question.options is the backref from QuestionOption model
+        # and it's also lazy='dynamic' or similar.
+        options_query = question.options.order_by(QuestionOption.id) # Order options by ID
+
+        for opt in options_query:
+            option_data = {
+                "id": opt.id,
+                "option_text": opt.option_text,
+                "is_correct_mc_single": opt.is_correct_mc_single,
+                "is_correct_mc_multiple": opt.is_correct_mc_multiple,
+                "correct_order_index": opt.correct_order_index
+            }
+            options_output.append(option_data)
+
+        question_data["options"] = options_output
+        output.append(question_data)
+
+    return jsonify(output), 200
+
+# --- Helper function for question serialization ---
+def _serialize_question(question):
+    question_data = {
+        "id": question.id,
+        "text": question.text,
+        "question_type": question.question_type.name,
+        "is_active": question.is_active,
+        "race_id": question.race_id
+    }
+    if question.question_type.name == 'FREE_TEXT':
+        question_data["max_score_free_text"] = question.max_score_free_text
+    elif question.question_type.name == 'MULTIPLE_CHOICE':
+        question_data["is_mc_multiple_correct"] = question.is_mc_multiple_correct
+        question_data["points_per_correct_mc"] = question.points_per_correct_mc
+        question_data["points_per_incorrect_mc"] = question.points_per_incorrect_mc
+        question_data["total_score_mc_single"] = question.total_score_mc_single
+    elif question.question_type.name == 'ORDERING':
+        question_data["points_per_correct_order"] = question.points_per_correct_order
+        question_data["bonus_for_full_order"] = question.bonus_for_full_order
+
+    options_output = []
+    # Order options by ID for consistent output, could also be creation order or specific order field
+    options_query = question.options.order_by(QuestionOption.id)
+    for opt in options_query:
+        option_data = {
+            "id": opt.id,
+            "option_text": opt.option_text,
+            "is_correct_mc_single": opt.is_correct_mc_single,
+            "is_correct_mc_multiple": opt.is_correct_mc_multiple,
+            "correct_order_index": opt.correct_order_index
+        }
+        options_output.append(option_data)
+    question_data["options"] = options_output
+    return question_data
+
+# --- CRUD for Free Text Questions ---
+@app.route('/api/races/<int:race_id>/questions/free-text', methods=['POST'])
+@login_required
+def create_free_text_question(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    text = data.get('text')
+    max_score_free_text = data.get('max_score_free_text')
+
+    if not text or not isinstance(text, str) or not text.strip():
+        return jsonify(message="Question text is required and must be a non-empty string"), 400
+    if not isinstance(max_score_free_text, int) or max_score_free_text <= 0:
+        return jsonify(message="max_score_free_text is required and must be a positive integer"), 400
+
+    question_type_ft = QuestionType.query.filter_by(name='FREE_TEXT').first()
+    if not question_type_ft:
+        return jsonify(message="QuestionType 'FREE_TEXT' not found. Please seed database."), 500
+
+    new_question = Question(
+        race_id=race_id,
+        question_type_id=question_type_ft.id,
+        text=text,
+        max_score_free_text=max_score_free_text,
+        is_active=data.get('is_active', True) # Default to True if not provided
+        # Other scoring fields will default to None as per model definition
+    )
+    try:
+        db.session.add(new_question)
+        db.session.commit()
+        return jsonify(_serialize_question(new_question)), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating free text question: {e}")
+        return jsonify(message="Error creating question"), 500
+
+@app.route('/api/questions/free-text/<int:question_id>', methods=['PUT'])
+@login_required
+def update_free_text_question(question_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify(message="Question not found"), 404
+    if question.question_type.name != 'FREE_TEXT':
+        return jsonify(message="Cannot update non-FREE_TEXT question via this endpoint"), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    if 'text' in data:
+        text = data.get('text')
+        if not isinstance(text, str) or not text.strip():
+            return jsonify(message="Question text must be a non-empty string if provided"), 400
+        question.text = text
+
+    if 'max_score_free_text' in data:
+        max_score = data.get('max_score_free_text')
+        if not isinstance(max_score, int) or max_score <= 0:
+            return jsonify(message="max_score_free_text must be a positive integer if provided"), 400
+        question.max_score_free_text = max_score
+
+    if 'is_active' in data:
+        is_active = data.get('is_active')
+        if not isinstance(is_active, bool):
+            return jsonify(message="is_active must be a boolean if provided"), 400
+        question.is_active = is_active
+
+    try:
+        db.session.commit()
+        return jsonify(_serialize_question(question)), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating free text question: {e}")
+        return jsonify(message="Error updating question"), 500
+
+@app.route('/api/questions/<int:question_id>', methods=['DELETE'])
+@login_required
+def delete_question(question_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify(message="Question not found"), 404
+
+    try:
+        # Delete associated options first - important for all question types
+        QuestionOption.query.filter_by(question_id=question_id).delete()
+        # Then delete the question itself
+        db.session.delete(question)
+        db.session.commit()
+        return jsonify(message="Question deleted successfully"), 200 # Or 204 No Content
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting question: {e}")
+        return jsonify(message="Error deleting question"), 500
+
 @app.route('/api/hello', methods=['GET'])
 @login_required
 def hello():
@@ -308,6 +523,352 @@ def login_api():
 def logout_api():
     logout_user()
     return jsonify(message="Logout successful"), 200
+
+# --- CRUD for Multiple Choice Questions ---
+
+@app.route('/api/races/<int:race_id>/questions/multiple-choice', methods=['POST'])
+@login_required
+def create_multiple_choice_question(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Validate required fields
+    text = data.get('text')
+    is_mc_multiple_correct = data.get('is_mc_multiple_correct') # Boolean: True for multi-select, False for single-select (radio)
+    options_data = data.get('options')
+
+    if not text or not isinstance(text, str) or not text.strip():
+        return jsonify(message="Question text is required and must be a non-empty string"), 400
+    if not isinstance(is_mc_multiple_correct, bool):
+        return jsonify(message="is_mc_multiple_correct (boolean) is required"), 400
+    if not options_data or not isinstance(options_data, list) or len(options_data) < 2:
+        return jsonify(message="At least two options are required for a multiple choice question"), 400
+
+    # Validate options structure and content
+    num_correct_options_for_single_choice = 0
+    for opt_data in options_data:
+        if not isinstance(opt_data, dict) or \
+           'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip() or \
+           'is_correct' not in opt_data or not isinstance(opt_data['is_correct'], bool):
+            return jsonify(message="Each option must have 'option_text' (string) and 'is_correct' (boolean)"), 400
+        if not is_mc_multiple_correct and opt_data['is_correct']:
+            num_correct_options_for_single_choice += 1
+
+    if not is_mc_multiple_correct and num_correct_options_for_single_choice != 1:
+        return jsonify(message="For single-correct multiple choice, exactly one option must be marked as correct"), 400
+
+    # Validate scoring fields based on is_mc_multiple_correct
+    points_per_correct_mc = None
+    points_per_incorrect_mc = None
+    total_score_mc_single = None
+
+    if is_mc_multiple_correct:
+        points_per_correct_mc = data.get('points_per_correct_mc')
+        points_per_incorrect_mc = data.get('points_per_incorrect_mc', 0) # Default to 0 if not provided
+        if not isinstance(points_per_correct_mc, int): # Assuming positive points for correct
+            return jsonify(message="points_per_correct_mc is required and must be an integer for multiple-correct MCQs"), 400
+        if not isinstance(points_per_incorrect_mc, int): # Can be negative or zero
+            return jsonify(message="points_per_incorrect_mc must be an integer for multiple-correct MCQs"), 400
+    else: # Single correct
+        total_score_mc_single = data.get('total_score_mc_single')
+        if not isinstance(total_score_mc_single, int) or total_score_mc_single <= 0:
+            return jsonify(message="total_score_mc_single is required and must be a positive integer for single-correct MCQs"), 400
+
+    question_type_mc = QuestionType.query.filter_by(name='MULTIPLE_CHOICE').first()
+    if not question_type_mc:
+        return jsonify(message="QuestionType 'MULTIPLE_CHOICE' not found. Please seed database."), 500
+
+    new_question = Question(
+        race_id=race_id,
+        question_type_id=question_type_mc.id,
+        text=text,
+        is_active=data.get('is_active', True),
+        is_mc_multiple_correct=is_mc_multiple_correct,
+        points_per_correct_mc=points_per_correct_mc,
+        points_per_incorrect_mc=points_per_incorrect_mc,
+        total_score_mc_single=total_score_mc_single
+    )
+    db.session.add(new_question)
+    # Need to commit here or flush to get new_question.id for options if not handled by backref immediately
+    # However, if we add options to new_question.options, SQLAlchemy often handles it.
+    # Let's try adding to session and then creating options.
+
+    try:
+        # Flush to get new_question.id before creating options if needed,
+        # or add options to new_question.options list and SQLAlchemy will handle it upon commit.
+        # For clarity and explicit control, flushing can be an option:
+        # db.session.flush() # if new_question.id is needed by QuestionOption constructor directly
+
+        for opt_data in options_data:
+            q_option = QuestionOption(
+                question=new_question, # Associate with the question object
+                option_text=opt_data['option_text']
+            )
+            if is_mc_multiple_correct:
+                q_option.is_correct_mc_multiple = opt_data['is_correct']
+            else:
+                q_option.is_correct_mc_single = opt_data['is_correct']
+            db.session.add(q_option) # Add option to session
+
+        db.session.commit()
+        return jsonify(_serialize_question(new_question)), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating multiple choice question: {e}")
+        return jsonify(message="Error creating question"), 500
+
+
+@app.route('/api/questions/multiple-choice/<int:question_id>', methods=['PUT'])
+@login_required
+def update_multiple_choice_question(question_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify(message="Question not found"), 404
+    if question.question_type.name != 'MULTIPLE_CHOICE':
+        return jsonify(message="Cannot update non-MULTIPLE_CHOICE question via this endpoint"), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Update common fields
+    if 'text' in data:
+        text = data.get('text')
+        if not isinstance(text, str) or not text.strip():
+            return jsonify(message="Question text must be a non-empty string if provided"), 400
+        question.text = text
+    if 'is_active' in data:
+        is_active = data.get('is_active')
+        if not isinstance(is_active, bool):
+            return jsonify(message="is_active must be a boolean if provided"), 400
+        question.is_active = is_active
+
+    # Update type and scoring fields (can be complex if type itself changes, but here only MC fields)
+    if 'is_mc_multiple_correct' in data:
+        is_mc_multiple_correct = data.get('is_mc_multiple_correct')
+        if not isinstance(is_mc_multiple_correct, bool):
+             return jsonify(message="is_mc_multiple_correct (boolean) is required if provided"), 400
+        question.is_mc_multiple_correct = is_mc_multiple_correct
+
+        # Reset related scoring fields when type of MC (single/multi) changes
+        question.points_per_correct_mc = None
+        question.points_per_incorrect_mc = None
+        question.total_score_mc_single = None
+
+    # Apply new scoring fields based on the (potentially updated) is_mc_multiple_correct
+    if question.is_mc_multiple_correct: # Handles both existing and newly set
+        if 'points_per_correct_mc' in data:
+            question.points_per_correct_mc = data.get('points_per_correct_mc')
+            if not isinstance(question.points_per_correct_mc, int):
+                return jsonify(message="points_per_correct_mc must be an integer for multiple-correct MCQs"), 400
+        elif question.points_per_correct_mc is None: # If it became multi-select and this field is not provided
+             return jsonify(message="points_per_correct_mc is required for multiple-correct MCQs"), 400
+
+
+        if 'points_per_incorrect_mc' in data:
+            question.points_per_incorrect_mc = data.get('points_per_incorrect_mc',0)
+            if not isinstance(question.points_per_incorrect_mc, int):
+                return jsonify(message="points_per_incorrect_mc must be an integer for multiple-correct MCQs"), 400
+        elif question.points_per_incorrect_mc is None: # If it became multi-select and this field is not provided
+             question.points_per_incorrect_mc = 0 # Default if not provided during update
+
+    else: # Single correct
+        if 'total_score_mc_single' in data:
+            question.total_score_mc_single = data.get('total_score_mc_single')
+            if not isinstance(question.total_score_mc_single, int) or question.total_score_mc_single <= 0:
+                return jsonify(message="total_score_mc_single must be a positive integer for single-correct MCQs"), 400
+        elif question.total_score_mc_single is None: # If it became single-select and this field is not provided
+            return jsonify(message="total_score_mc_single is required for single-correct MCQs"), 400
+
+
+    # Handle options: delete existing and recreate if 'options' is in payload
+    if 'options' in data:
+        options_data = data.get('options')
+        if not isinstance(options_data, list) or len(options_data) < 2:
+            return jsonify(message="At least two options are required if 'options' are provided for update"), 400
+
+        num_correct_options_for_single_choice = 0
+        for opt_data in options_data:
+            if not isinstance(opt_data, dict) or \
+               'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip() or \
+               'is_correct' not in opt_data or not isinstance(opt_data['is_correct'], bool):
+                return jsonify(message="Each option must have 'option_text' (string) and 'is_correct' (boolean)"), 400
+            if not question.is_mc_multiple_correct and opt_data['is_correct']: # Use the potentially updated question.is_mc_multiple_correct
+                num_correct_options_for_single_choice += 1
+
+        if not question.is_mc_multiple_correct and num_correct_options_for_single_choice != 1:
+            return jsonify(message="For single-correct multiple choice, exactly one new option must be marked as correct"), 400
+
+        # Delete old options
+        QuestionOption.query.filter_by(question_id=question_id).delete()
+
+        # Add new options
+        for opt_data in options_data:
+            q_option = QuestionOption(
+                question_id=question_id,
+                option_text=opt_data['option_text']
+            )
+            if question.is_mc_multiple_correct:
+                q_option.is_correct_mc_multiple = opt_data['is_correct']
+            else:
+                q_option.is_correct_mc_single = opt_data['is_correct']
+            db.session.add(q_option)
+
+    try:
+        db.session.commit()
+        return jsonify(_serialize_question(question)), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating multiple choice question: {e}")
+        return jsonify(message="Error updating question"), 500
+
+# --- CRUD for Ordering Questions ---
+
+@app.route('/api/races/<int:race_id>/questions/ordering', methods=['POST'])
+@login_required
+def create_ordering_question(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    text = data.get('text')
+    points_per_correct_order = data.get('points_per_correct_order')
+    bonus_for_full_order = data.get('bonus_for_full_order', 0) # Default to 0
+    options_data = data.get('options')
+
+    if not text or not isinstance(text, str) or not text.strip():
+        return jsonify(message="Question text is required and must be a non-empty string"), 400
+    if not isinstance(points_per_correct_order, int) or points_per_correct_order <= 0:
+        return jsonify(message="points_per_correct_order is required and must be a positive integer"), 400
+    if not isinstance(bonus_for_full_order, int) or bonus_for_full_order < 0:
+        return jsonify(message="bonus_for_full_order must be a non-negative integer"), 400
+    if not options_data or not isinstance(options_data, list) or len(options_data) < 2:
+        return jsonify(message="At least two options (items to order) are required"), 400
+
+    for opt_data in options_data:
+        if not isinstance(opt_data, dict) or \
+           'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip():
+            return jsonify(message="Each option must have 'option_text' (string)"), 400
+
+    question_type_ordering = QuestionType.query.filter_by(name='ORDERING').first()
+    if not question_type_ordering:
+        return jsonify(message="QuestionType 'ORDERING' not found. Please seed database."), 500
+
+    new_question = Question(
+        race_id=race_id,
+        question_type_id=question_type_ordering.id,
+        text=text,
+        is_active=data.get('is_active', True),
+        points_per_correct_order=points_per_correct_order,
+        bonus_for_full_order=bonus_for_full_order
+    )
+
+    try:
+        db.session.add(new_question)
+        # db.session.flush() # To get new_question.id if needed for options immediately
+
+        for index, opt_data in enumerate(options_data):
+            q_option = QuestionOption(
+                question=new_question, # Associate with the question object
+                option_text=opt_data['option_text'],
+                correct_order_index=index
+            )
+            db.session.add(q_option)
+
+        db.session.commit()
+        return jsonify(_serialize_question(new_question)), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating ordering question: {e}")
+        return jsonify(message="Error creating ordering question"), 500
+
+@app.route('/api/questions/ordering/<int:question_id>', methods=['PUT'])
+@login_required
+def update_ordering_question(question_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify(message="Question not found"), 404
+    if question.question_type.name != 'ORDERING':
+        return jsonify(message="Cannot update non-ORDERING question via this endpoint"), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    if 'text' in data:
+        text = data.get('text')
+        if not isinstance(text, str) or not text.strip():
+            return jsonify(message="Question text must be a non-empty string if provided"), 400
+        question.text = text
+
+    if 'points_per_correct_order' in data:
+        points = data.get('points_per_correct_order')
+        if not isinstance(points, int) or points <= 0:
+            return jsonify(message="points_per_correct_order must be a positive integer if provided"), 400
+        question.points_per_correct_order = points
+
+    if 'bonus_for_full_order' in data:
+        bonus = data.get('bonus_for_full_order')
+        if not isinstance(bonus, int) or bonus < 0:
+            return jsonify(message="bonus_for_full_order must be a non-negative integer if provided"), 400
+        question.bonus_for_full_order = bonus
+
+    if 'is_active' in data:
+        is_active = data.get('is_active')
+        if not isinstance(is_active, bool):
+            return jsonify(message="is_active must be a boolean if provided"), 400
+        question.is_active = is_active
+
+    if 'options' in data:
+        options_data = data.get('options')
+        if not isinstance(options_data, list) or len(options_data) < 2:
+            return jsonify(message="At least two options are required if 'options' are provided for update"), 400
+
+        for opt_data in options_data:
+            if not isinstance(opt_data, dict) or \
+               'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip():
+                return jsonify(message="Each new option must have 'option_text' (string)"), 400
+
+        # Delete old options
+        QuestionOption.query.filter_by(question_id=question_id).delete()
+
+        # Add new options
+        for index, opt_data in enumerate(options_data):
+            q_option = QuestionOption(
+                question_id=question_id,
+                option_text=opt_data['option_text'],
+                correct_order_index=index
+            )
+            db.session.add(q_option)
+
+    try:
+        db.session.commit()
+        return jsonify(_serialize_question(question)), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating ordering question: {e}")
+        return jsonify(message="Error updating ordering question"), 500
 
 @app.route('/api/user/me', methods=['GET'])
 @login_required
@@ -386,6 +947,15 @@ def serve_create_race_page():
         # For now, returning JSON as it's simpler for this step.
         # A better UX would be to show an error page or redirect.
     return render_template('create_race.html')
+
+@app.route('/race/<int:race_id>')
+@login_required
+def serve_race_detail_page(race_id):
+    race = Race.query.get_or_404(race_id)
+    # The segment_details should be accessible via race.segment_details
+    # Each item in race.segment_details will have a .segment attribute for name
+    # and .distance_km for distance.
+    return render_template('race_detail.html', race=race)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

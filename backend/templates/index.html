@@ -66,21 +66,18 @@
         {% if races %}
             <div class="race-list">
                 {% for race in races %}
-                    <div class="race-card">
-                        <h3>{{ race.title }}</h3>
-                        {% if race.promo_image_url %}
-                            <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}">
-                        {% endif %}
-                        <p><strong>Fecha:</strong> {{ race.event_date.strftime('%d %B, %Y') }}</p>
-                        <p><strong>Formato:</strong> {{ race.race_format.name }}</p>
-                        <p><strong>Ubicación:</strong> {{ race.location if race.location else 'No especificada' }}</p>
-                        <p><strong>Género:</strong> {{ race.gender_category }}</p>
-                        <p><strong>Categoría:</strong> {{ race.category }}</p>
-                        {% if race.description %}
-                            <p><strong>Descripción:</strong> {{ race.description }}</p>
-                        {% endif %}
-      
-                    </div>
+                    <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="race-card-link">
+                        <div class="race-card">
+                            <h3>{{ race.title }}</h3>
+                            {% if race.promo_image_url %}
+                                <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}">
+                            {% endif %}
+                            <p><strong>Fecha:</strong> {{ race.event_date.strftime('%d %B, %Y') }}</p>
+                            <p><strong>Formato:</strong> {{ race.race_format.name }}</p>
+                            <p><strong>Ubicación:</strong> {{ race.location if race.location else 'No especificada' }}</p>
+                            <!-- Removed some details for brevity on index page, full details on detail page -->
+                        </div>
+                    </a>
                 {% endfor %}
             </div>
         {% else %}

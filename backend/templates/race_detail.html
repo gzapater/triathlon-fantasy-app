@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ race.title }} - Detalles de Carrera</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> <!-- General stylesheet -->
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding:0; background-color: #f4f4f4; color: #333; }
+        .navbar { background-color: #333; padding: 10px 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .navbar a { color: white; text-decoration: none; padding: 5px 10px; }
+        .navbar a:hover { background-color: #555; border-radius: 4px;}
+        .container { max-width: 900px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2, h3 { color: #333; }
+        p { line-height: 1.6; margin-bottom: 10px; }
+        .button-link {
+            display: inline-block;
+            background-color: #6c757d; /* Secondary button color */
+            color: white !important;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        .button-link:hover { background-color: #5a6268; }
+        .race-image { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 20px; }
+        .race-details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .detail-item { background-color: #f9f9f9; padding: 15px; border-radius: 5px; }
+        .detail-item strong { display: block; color: #007bff; margin-bottom: 5px; }
+        .segments-list { list-style: none; padding-left: 0; }
+        .segments-list li { background-color: #e9ecef; padding: 8px 12px; border-radius: 4px; margin-bottom: 5px; }
+        .questions-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div>
+            <a href="{{ url_for('serve_hello_world_page') }}">Todas las Carreras</a>
+            {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
+                <a href="{{ url_for('serve_create_race_page') }}">Crear Carrera</a>
+            {% endif %}
+        </div>
+        <div>
+            <span style="margin-right:15px;">Hola, {{ current_user.username }}! ({{ current_user.role.description }})</span>
+            <a href="#" id="logoutLinkNavBarDetail">Logout</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>{{ race.title }}</h1>
+        <hr>
+
+        {% if race.promo_image_url %}
+            <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}" class="race-image">
+        {% endif %}
+
+        <div class="race-details-grid">
+            <div class="detail-item">
+                <strong>Formato:</strong> {{ race.race_format.name }}
+            </div>
+            <div class="detail-item">
+                <strong>Fecha del Evento:</strong> {{ race.event_date.strftime('%d %B, %Y') }}
+            </div>
+            <div class="detail-item">
+                <strong>Ubicación:</strong> {{ race.location if race.location else 'No especificada' }}
+            </div>
+            <div class="detail-item">
+                <strong>Categoría:</strong> {{ race.category }}
+            </div>
+            <div class="detail-item">
+                <strong>Género:</strong> {{ race.gender_category }}
+            </div>
+            {% if race.user %} {# Assuming 'user' is the relationship to the creator #}
+            <div class="detail-item">
+                <strong>Organizador:</strong> {{ race.user.username }}
+            </div>
+            {% endif %}
+        </div>
+
+        {% if race.description %}
+            <h2>Descripción</h2>
+            <p>{{ race.description }}</p>
+        {% endif %}
+
+        <h2>Segmentos de la Carrera</h2>
+        {% if race.segment_details and race.segment_details|length > 0 %}
+            <ul class="segments-list">
+                {% for detail in race.segment_details %}
+                    <li>{{ detail.segment.name }}: {{ detail.distance_km }} km</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No hay detalles de segmentos disponibles para esta carrera.</p>
+        {% endif %}
+
+        <div class="questions-section">
+            <h2>Preguntas de la Carrera</h2>
+            {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
+                <button id="addQuestionBtn" class="button">Añadir Nueva Pregunta</button>
+                <!-- Modal/form for adding questions will be handled in a future step -->
+            {% endif %}
+            <div id="questionsLoading" style="text-align: center; padding: 15px;">Cargando preguntas...</div>
+            <div id="questionsError" style="color: red; margin-top: 10px;"></div>
+            <div id="questionsContainer" style="margin-top: 15px;">
+                <!-- Las preguntas se renderizarán aquí por JavaScript -->
+            </div>
+            <!-- <p>Próximamente: Sección de preguntas y respuestas.</p> -->
+        </div>
+
+        <a href="{{ url_for('serve_hello_world_page') }}" class="button-link" style="margin-top:30px;">Volver a Todas las Carreras</a>
+    </div>
+
+    <style>
+        /* Modal styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* 10% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; /* Could be more or less, depending on screen size */
+            max-width: 600px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            right: 15px;
+            top: 5px;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        #questionForm label { display: block; margin-top: 10px; font-weight: bold; }
+        #questionForm input[type="text"],
+        #questionForm input[type="number"],
+        #questionForm textarea,
+        #questionForm select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        #questionForm textarea { resize: vertical; min-height: 80px;}
+        #questionForm button[type="submit"] {
+            background-color: #28a745; /* Green for save */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        #questionForm button[type="submit"]:hover { background-color: #218838; }
+        .error-message { color: red; font-size: 0.9em; margin-top: 5px;}
+
+    </style>
+
+    <div id="questionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeQuestionModalBtn">&times;</span>
+            <h3 id="questionModalTitle">Añadir/Editar Pregunta</h3>
+            <form id="questionForm">
+                <input type="hidden" id="questionIdStore" name="questionIdStore"> <!-- For editing -->
+                <input type="hidden" id="questionTypeStore" name="questionTypeStore">
+
+                <div id="commonQuestionFields">
+                    <div>
+                        <label for="questionText">Texto de la Pregunta:</label>
+                        <textarea id="questionText" name="questionText" required></textarea>
+                    </div>
+                    <div>
+                        <label for="isActiveCheckbox">Activa:</label>
+                        <input type="checkbox" id="isActiveCheckbox" name="isActiveCheckbox" checked style="width:auto; margin-top:10px;">
+                    </div>
+                </div>
+
+                <div id="typeSpecificFieldsContainer">
+                    <!-- Content here will be dynamically populated by JS -->
+                </div>
+                <hr>
+                <button type="submit">Guardar Pregunta</button>
+            </form>
+            <div id="questionFormError" class="error-message" style="margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <script>
+        const currentUserRole = "{{ current_user.role.code }}";
+        const raceId = "{{ race.id }}";
+
+        document.getElementById('logoutLinkNavBarDetail').addEventListener('click', function(event) {
+            event.preventDefault();
+            fetch('/api/logout', { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/login';
+                    } else {
+                        alert('Logout failed. Please try again.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Logout error:', error);
+                    alert('Error during logout. Please try again.');
+                });
+        });
+
+        // Modal elements
+        const questionModal = document.getElementById('questionModal');
+        const questionModalTitle = document.getElementById('questionModalTitle');
+        const questionForm = document.getElementById('questionForm');
+        const questionIdStoreInput = document.getElementById('questionIdStore');
+        const questionTypeStoreInput = document.getElementById('questionTypeStore');
+        const questionTextInput = document.getElementById('questionText');
+        const isActiveCheckbox = document.getElementById('isActiveCheckbox');
+        const typeSpecificFieldsContainer = document.getElementById('typeSpecificFieldsContainer');
+        const questionFormErrorDiv = document.getElementById('questionFormError');
+        const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
+
+        // Main content elements
+        const questionsContainer = document.getElementById('questionsContainer');
+        const questionsLoadingDiv = document.getElementById('questionsLoading');
+        const questionsErrorDiv = document.getElementById('questionsError');
+        const addQuestionBtn = document.getElementById('addQuestionBtn');
+
+        function closeQuestionModal() {
+            questionModal.style.display = 'none';
+            questionForm.reset();
+            typeSpecificFieldsContainer.innerHTML = '';
+            questionFormErrorDiv.textContent = '';
+            questionIdStoreInput.value = '';
+        }
+        if(closeQuestionModalBtn) closeQuestionModalBtn.onclick = closeQuestionModal;
+        // Close modal if user clicks outside of it
+        window.onclick = function(event) {
+            if (event.target == questionModal) {
+                closeQuestionModal();
+            }
+        }
+
+        function renderFreeTextFields(questionData = null) {
+            typeSpecificFieldsContainer.innerHTML = `
+                <div>
+                    <label for="maxScoreFreeText">Puntuación Máxima:</label>
+                    <input type="number" id="maxScoreFreeText" name="maxScoreFreeText" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
+                </div>
+            `;
+        }
+
+        function openQuestionModal(mode, type, questionData = null) {
+            questionForm.reset(); // Reset form for new entry or edit
+            typeSpecificFieldsContainer.innerHTML = '';
+            questionFormErrorDiv.textContent = '';
+            questionIdStoreInput.value = '';
+
+            questionTypeStoreInput.value = type;
+
+            if (mode === 'edit' && questionData) {
+                questionModalTitle.textContent = `Editar Pregunta (${type})`;
+                questionIdStoreInput.value = questionData.id;
+                questionTextInput.value = questionData.text;
+                isActiveCheckbox.checked = questionData.is_active;
+
+                if (type === 'FREE_TEXT') {
+                    renderFreeTextFields(questionData);
+                } else if (type === 'MULTIPLE_CHOICE') {
+                    renderMultipleChoiceFields(questionData);
+                }
+                // TODO: Add else if for ORDERING
+            } else { // mode === 'add'
+                questionModalTitle.textContent = `Añadir Nueva Pregunta (${type})`;
+                isActiveCheckbox.checked = true; // Default for new questions
+                if (type === 'FREE_TEXT') {
+                    renderFreeTextFields();
+                } else if (type === 'MULTIPLE_CHOICE') {
+                    renderMultipleChoiceFields(null); // No existing data for add mode
+                }
+                // TODO: Add else if for ORDERING
+            }
+            questionModal.style.display = 'block';
+        }
+
+        // --- Functions for rendering MULTIPLE_CHOICE specific fields ---
+        function renderMcScoringFields(isMultipleCorrect, scoreData = null) {
+            const container = document.getElementById('mcScoringFieldsContainer');
+            if (!container) return;
+            container.innerHTML = ''; // Clear previous scoring fields
+
+            if (isMultipleCorrect) { // Multiple answers correct (checkboxes)
+                container.innerHTML = `
+                    <div>
+                        <label for="pointsPerCorrectMc">Puntos por Acierto:</label>
+                        <input type="number" id="pointsPerCorrectMc" name="pointsPerCorrectMc" required value="${scoreData && scoreData.points_per_correct_mc !== null ? scoreData.points_per_correct_mc : ''}">
+                    </div>
+                    <div>
+                        <label for="pointsPerIncorrectMc">Puntos por Fallo (puede ser negativo):</label>
+                        <input type="number" id="pointsPerIncorrectMc" name="pointsPerIncorrectMc" value="${scoreData && scoreData.points_per_incorrect_mc !== null ? scoreData.points_per_incorrect_mc : '0'}">
+                    </div>
+                `;
+            } else { // Single answer correct (radio buttons)
+                container.innerHTML = `
+                    <div>
+                        <label for="totalScoreMcSingle">Puntuación Total (por acertar la única opción correcta):</label>
+                        <input type="number" id="totalScoreMcSingle" name="totalScoreMcSingle" required min="1" value="${scoreData && scoreData.total_score_mc_single ? scoreData.total_score_mc_single : ''}">
+                    </div>
+                `;
+            }
+        }
+
+        function addMcOption(optionData = null, isCurrentlyMultipleCorrectType) {
+            const optionsContainer = document.getElementById('mcOptionsContainer');
+            if (!optionsContainer) return;
+
+            const optionDiv = document.createElement('div');
+            optionDiv.classList.add('mc-option-entry');
+            optionDiv.style.display = 'flex';
+            optionDiv.style.alignItems = 'center';
+            optionDiv.style.marginBottom = '5px';
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.name = 'mc_option_text';
+            textInput.placeholder = 'Texto de la opción';
+            textInput.value = optionData ? optionData.option_text : '';
+            textInput.style.flexGrow = '1';
+            textInput.style.marginRight = '10px';
+            textInput.required = true;
+
+            const correctInput = document.createElement('input');
+            correctInput.type = isCurrentlyMultipleCorrectType ? 'checkbox' : 'radio';
+            correctInput.name = 'mc_option_is_correct'; // Radios need same name to be exclusive
+            if (!isCurrentlyMultipleCorrectType) { // For radio group
+                 correctInput.name = `mc_option_is_correct_radio_group_${optionsContainer.children.length}`; // Unique name for radio group if needed by some logic, or just one name
+            }
+
+            if (optionData) {
+                if (isCurrentlyMultipleCorrectType) {
+                    correctInput.checked = optionData.is_correct_mc_multiple || false;
+                } else {
+                    correctInput.checked = optionData.is_correct_mc_single || false;
+                }
+            }
+            correctInput.style.width = 'auto';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.textContent = 'X';
+            removeBtn.style.marginLeft = '10px';
+            removeBtn.onclick = () => optionDiv.remove();
+
+            optionDiv.appendChild(textInput);
+            optionDiv.appendChild(correctInput);
+            optionDiv.appendChild(removeBtn);
+            optionsContainer.appendChild(optionDiv);
+        }
+
+        function updateMcOptionInputTypes(isNowMultipleCorrect) {
+            const optionsContainer = document.getElementById('mcOptionsContainer');
+            if (!optionsContainer) return;
+            const entries = optionsContainer.querySelectorAll('.mc-option-entry');
+            entries.forEach((entry, index) => {
+                const oldCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
+                if (oldCorrectInput) {
+                    const newType = isNowMultipleCorrect ? 'checkbox' : 'radio';
+                    if (oldCorrectInput.type !== newType) {
+                        const newCorrectInput = document.createElement('input');
+                        newCorrectInput.type = newType;
+                        newCorrectInput.name = 'mc_option_is_correct'; // Common name for radios
+                        if (!isNowMultipleCorrect) {
+                           newCorrectInput.name = `mc_option_is_correct_radio_group`; // Ensure single selection
+                        }
+                        newCorrectInput.checked = oldCorrectInput.checked; // Preserve checked state if possible (might need adjustment)
+                        newCorrectInput.style.width = 'auto';
+                        oldCorrectInput.parentNode.replaceChild(newCorrectInput, oldCorrectInput);
+                    }
+                }
+            });
+        }
+
+        function renderMultipleChoiceFields(questionData = null) {
+            typeSpecificFieldsContainer.innerHTML = `
+                <div>
+                    <label>Tipo de Selección Múltiple:</label>
+                    <div style="margin-bottom:10px;">
+                        <input type="radio" id="mcTypeSingle" name="mcQuestionType" value="single" checked>
+                        <label for="mcTypeSingle" style="font-weight:normal; margin-right:15px;">Respuesta Única Correcta</label>
+                        <input type="radio" id="mcTypeMultiple" name="mcQuestionType" value="multiple">
+                        <label for="mcTypeMultiple" style="font-weight:normal;">Múltiples Respuestas Correctas</label>
+                    </div>
+                </div>
+                <div id="mcScoringFieldsContainer"></div>
+                <div>
+                    <label>Opciones:</label>
+                    <div id="mcOptionsContainer" style="margin-top:5px;"></div>
+                    <button type="button" id="addMcOptionBtn" style="margin-top:5px; padding: 5px 10px;">Añadir Opción</button>
+                </div>
+            `;
+
+            const mcTypeSingleRadio = document.getElementById('mcTypeSingle');
+            const mcTypeMultipleRadio = document.getElementById('mcTypeMultiple');
+
+            let currentIsMultipleCorrect = false; // Default to single
+            if (questionData && questionData.is_mc_multiple_correct !== null) {
+                currentIsMultipleCorrect = questionData.is_mc_multiple_correct;
+            }
+
+            if (currentIsMultipleCorrect) {
+                mcTypeMultipleRadio.checked = true;
+            } else {
+                mcTypeSingleRadio.checked = true;
+            }
+
+            renderMcScoringFields(currentIsMultipleCorrect, questionData);
+            updateMcOptionInputTypes(currentIsMultipleCorrect); // Initial setup of radio/checkbox
+
+            document.querySelectorAll('input[name="mcQuestionType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const isMultiple = this.value === 'multiple';
+                    renderMcScoringFields(isMultiple, null); // scoreData might need to be fetched or reset
+                    updateMcOptionInputTypes(isMultiple);
+                });
+            });
+
+            document.getElementById('addMcOptionBtn').addEventListener('click', () => {
+                const isMultiple = document.getElementById('mcTypeMultiple').checked;
+                addMcOption(null, isMultiple);
+            });
+
+            if (questionData && questionData.options) {
+                const isMultiple = mcTypeMultipleRadio.checked;
+                questionData.options.forEach(opt => addMcOption(opt, isMultiple));
+            } else {
+                 // Add a couple of empty options by default for new MC questions
+                const isMultiple = mcTypeMultipleRadio.checked;
+                addMcOption(null, isMultiple);
+                addMcOption(null, isMultiple);
+            }
+        }
+
+        if (addQuestionBtn) {
+            addQuestionBtn.addEventListener('click', () => {
+                // TEMP: For testing MC. Later, use a type selector.
+                // openQuestionModal('add', 'FREE_TEXT');
+                openQuestionModal('add', 'MULTIPLE_CHOICE');
+            });
+        }
+
+        function formatScoringInfo(question) {
+            let scoringHtml = '<strong>Puntuación:</strong> ';
+                switch (question.question_type) {
+                    case 'FREE_TEXT':
+                        scoringHtml += `Máx. ${question.max_score_free_text || 'N/A'} pts.`;
+                        break;
+                    case 'MULTIPLE_CHOICE':
+                        if (question.is_mc_multiple_correct) {
+                            scoringHtml += `Correcta: ${question.points_per_correct_mc || 'N/A'} pts, Incorrecta: ${question.points_per_incorrect_mc || '0'} pts. (Selección Múltiple)`;
+                        } else {
+                            scoringHtml += `Total: ${question.total_score_mc_single || 'N/A'} pts. (Selección Única)`;
+                        }
+                        break;
+                    case 'ORDERING':
+                        scoringHtml += `Por ítem correcto: ${question.points_per_correct_order || 'N/A'} pts, Bonus orden completo: ${question.bonus_for_full_order || '0'} pts.`;
+                        break;
+                    default:
+                        scoringHtml += 'No especificada.';
+                }
+                return scoringHtml;
+            }
+
+            function renderQuestions(questions) {
+                questionsLoadingDiv.style.display = 'none';
+                questionsContainer.innerHTML = '';
+                questionsErrorDiv.textContent = '';
+
+                if (!questions || questions.length === 0) {
+                    questionsContainer.innerHTML = '<p>No hay preguntas configuradas para esta carrera todavía.</p>';
+                    return;
+                }
+
+                questions.forEach(question => {
+                    const questionItem = document.createElement('div');
+                    questionItem.classList.add('question-item');
+                    questionItem.dataset.questionId = question.id;
+                    questionItem.style.border = '1px solid #eee';
+                    questionItem.style.padding = '15px';
+                    questionItem.style.marginBottom = '15px';
+                    questionItem.style.borderRadius = '5px';
+
+                    let adminButtonsHtml = '';
+                    if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
+                        adminButtonsHtml = `
+                            <button class="edit-question-btn" data-question-id="${question.id}" data-question-type="${question.question_type}" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Editar</button>
+                            <button class="delete-question-btn" data-question-id="${question.id}" style="margin-left: 5px; padding: 5px 10px; cursor: pointer; background-color: #dc3545; color:white; border:none;">Borrar</button>
+                        `;
+                    }
+
+                    let optionsHtml = '<div class="question-options" style="margin-top:10px;">';
+                    if (question.options && question.options.length > 0) {
+                        optionsHtml += '<ul style="list-style:none; padding-left:10px;">';
+                        question.options.forEach(opt => {
+                            let correctnessIndicator = '';
+                            if (question.question_type === 'MULTIPLE_CHOICE') {
+                                if (question.is_mc_multiple_correct && opt.is_correct_mc_multiple) {
+                                    correctnessIndicator = ' (Correcta)';
+                                } else if (!question.is_mc_multiple_correct && opt.is_correct_mc_single) {
+                                    correctnessIndicator = ' (Correcta)';
+                                }
+                            } else if (question.question_type === 'ORDERING' && opt.correct_order_index !== null) {
+                                correctnessIndicator = ` (Orden: ${opt.correct_order_index + 1})`; // Assuming 0-indexed
+                            }
+                            optionsHtml += `<li style="background-color:#f9f9f9; padding: 5px; margin-bottom:3px; border-radius:3px;">${opt.option_text}${correctnessIndicator}</li>`;
+                        });
+                        optionsHtml += '</ul>';
+                    } else {
+                        optionsHtml += '<p style="font-size:0.9em; color:#777;">No hay opciones para esta pregunta.</p>';
+                    }
+                    optionsHtml += '</div>';
+
+                    questionItem.innerHTML = `
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h4 style="margin:0;">${question.text} (<em>${question.question_type}</em>) ${question.is_active ? '' : '<span style="color:red;font-size:0.8em;">(Inactiva)</span>'}</h4>
+                            <div>${adminButtonsHtml}</div>
+                        </div>
+                        <p style="font-size:0.9em; margin-top:5px; margin-bottom:5px;">${formatScoringInfo(question)}</p>
+                        ${optionsHtml}
+                    `;
+                    questionsContainer.appendChild(questionItem);
+                });
+
+                // Add event listeners for new edit/delete buttons
+                document.querySelectorAll('.edit-question-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const questionId = btn.dataset.questionId;
+                        const questionType = btn.dataset.questionType; // Added this to know which form to show
+                        // Find the full question data from the fetched questions list
+                        const questionToEdit = questions.find(q => q.id == questionId);
+                        if (questionToEdit) {
+                            openQuestionModal('edit', questionType, questionToEdit);
+                        } else {
+                            alert("Error: No se pudieron encontrar los datos de la pregunta para editar.");
+                        }
+                    });
+                });
+                document.querySelectorAll('.delete-question-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const questionId = btn.dataset.questionId;
+                        if (confirm('¿Estás seguro de que quieres borrar esta pregunta?')) {
+                            fetch(`/api/questions/${questionId}`, { method: 'DELETE' })
+                            .then(response => {
+                                if (response.ok) {
+                                    alert('Pregunta borrada exitosamente.');
+                                    fetchAndRenderQuestions(); // Refresh the list
+                                } else {
+                                    response.json().then(data => {
+                                        alert(`Error al borrar pregunta: ${data.message || response.statusText}`);
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error deleting question:', error);
+                                alert('Error de red al borrar pregunta.');
+                            });
+                        }
+                    });
+                });
+            }
+
+            function fetchAndRenderQuestions() {
+                questionsLoadingDiv.style.display = 'block';
+                questionsErrorDiv.textContent = '';
+                questionsContainer.innerHTML = '';
+
+                fetch(`/api/races/${raceId}/questions`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Error ${response.status}: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(questions => {
+                        renderQuestions(questions);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching questions:', error);
+                        questionsLoadingDiv.style.display = 'none';
+                        questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}. Intente recargar.`;
+                    });
+            }
+
+            // Initial fetch and render
+            fetchAndRenderQuestions();
+
+            // Handle Question Form Submission
+            questionForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                questionFormErrorDiv.textContent = '';
+
+                const qId = questionIdStoreInput.value;
+                const qType = questionTypeStoreInput.value;
+                const text = questionTextInput.value.trim();
+                const isActive = isActiveCheckbox.checked;
+
+                let payload = { text, is_active: isActive };
+                let url = '';
+                let method = '';
+
+                if (qType === 'FREE_TEXT') {
+                    const maxScoreFreeText = document.getElementById('maxScoreFreeText').value;
+                    if (!maxScoreFreeText || parseInt(maxScoreFreeText) <=0) {
+                        questionFormErrorDiv.textContent = "Puntuación Máxima para texto libre debe ser un entero positivo.";
+                        return;
+                    }
+                    payload.max_score_free_text = parseInt(maxScoreFreeText);
+                }
+                // TODO: Add logic for MULTIPLE_CHOICE and ORDERING data collection
+
+                if (qId) { // Editing
+                    url = `/api/questions/${qType.toLowerCase()}/${qId}`; // e.g. /api/questions/free-text/123
+                    method = 'PUT';
+                } else { // Adding
+                    url = `/api/races/${raceId}/questions/${qType.toLowerCase()}`; // e.g. /api/races/1/questions/free-text
+                    method = 'POST';
+                }
+
+                fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(result => {
+                    if (result.status === 201 || result.status === 200) {
+                        alert(`Pregunta ${qId ? 'actualizada' : 'creada'} exitosamente!`);
+                        closeQuestionModal();
+                        fetchAndRenderQuestions(); // Refresh list
+                    } else {
+                        questionFormErrorDiv.textContent = `Error: ${result.body.message || 'Error desconocido.'}`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting question form:', error);
+                    questionFormErrorDiv.textContent = 'Error de red o el servidor no responde.';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -98,3 +98,57 @@ class RaceSegmentDetail(db.Model):
 
     def __repr__(self):
         return f'<RaceSegmentDetail race_id={self.race_id} segment_id={self.segment_id} distance_km={self.distance_km}>'
+
+
+# Question Models
+
+class QuestionType(db.Model):
+    __tablename__ = 'question_types'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)  # e.g., 'FREE_TEXT', 'MULTIPLE_CHOICE', 'ORDERING'
+
+    def __repr__(self):
+        return f'<QuestionType {self.name}>'
+
+class Question(db.Model):
+    __tablename__ = 'questions'
+    id = db.Column(db.Integer, primary_key=True)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    race = db.relationship('Race', backref=db.backref('questions', lazy='dynamic')) # Changed to lazy='dynamic' for questions
+
+    question_type_id = db.Column(db.Integer, db.ForeignKey('question_types.id'), nullable=False)
+    question_type = db.relationship('QuestionType', backref=db.backref('questions', lazy=True))
+
+    text = db.Column(Text, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Scoring fields - Nullable depending on question type
+    max_score_free_text = db.Column(db.Integer, nullable=True)
+    is_mc_multiple_correct = db.Column(db.Boolean, nullable=True) # True if checkboxes (multiple correct), False if radio (single correct)
+    points_per_correct_mc = db.Column(db.Integer, nullable=True) # For MC multiple correct
+    points_per_incorrect_mc = db.Column(db.Integer, nullable=True) # For MC multiple correct (e.g., -3)
+    total_score_mc_single = db.Column(db.Integer, nullable=True) # For MC single correct
+    points_per_correct_order = db.Column(db.Integer, nullable=True) # For Ordering
+    bonus_for_full_order = db.Column(db.Integer, nullable=True) # For Ordering
+
+    def __repr__(self):
+        return f'<Question {self.id}: {self.text[:50]}...>'
+
+class QuestionOption(db.Model):
+    __tablename__ = 'question_options'
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    question = db.relationship('Question', backref=db.backref('options', lazy='dynamic', cascade="all, delete-orphan"))
+
+    option_text = db.Column(db.String(500), nullable=False)
+    is_correct_mc_single = db.Column(db.Boolean, default=False, nullable=True) # For MC single answer type
+    is_correct_mc_multiple = db.Column(db.Boolean, default=False, nullable=True) # For MC multiple answer type
+    correct_order_index = db.Column(db.Integer, nullable=True) # For Ordering questions
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<QuestionOption {self.id}: {self.option_text[:50]}... (QID: {self.question_id})>'
