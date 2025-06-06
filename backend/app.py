@@ -46,7 +46,7 @@ login_manager.login_view = 'serve_login_page' # Crucial for @login_required redi
 login_manager.session_protection = "strong"
 
 app.config['LOGIN_DISABLED'] = False # Asegúrate de que no esté deshabilitado accidentalmente
-app.config['DEBUG_LOGIN'] = True     # <--- AÑADE ESTA LÍNEA TEMPORALMENTE para depuración
+app.config['DEBUG_LOGIN'] = True      # <--- AÑADE ESTA LÍNEA TEMPORALMENTE para depuración
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -57,7 +57,7 @@ def create_initial_roles():
     # Definimos los roles con su código y descripción
     # El 'code' será el identificador interno (ej. ADMIN, LEAGUE_ADMIN, PLAYER)
     # La 'description' será lo que se muestre (ej. Administrador, Admin de liga, Jugador)
-    roles_data = [
+   roles_data = [
         {'code': 'ADMIN', 'description': 'Administrador'},
         {'code': 'LEAGUE_ADMIN', 'description': 'Admin de Liga'},
         {'code': 'PLAYER', 'description': 'Jugador'}
@@ -128,9 +128,9 @@ def create_initial_question_types():
 
 with app.app_context():
     # db.create_all() # Ensures all tables are created based on models - Handled by migrations
-    create_initial_roles()
-    create_initial_race_data()
-    create_initial_question_types() # Call the function to seed question types
+    # create_initial_roles() # Comentado para permitir las migraciones
+    # create_initial_race_data() # Comentado para permitir las migraciones
+    # create_initial_question_types() # Comentado para permitir las migraciones
 
 # --- API Routes ---
 
@@ -184,7 +184,7 @@ def create_race():
     try:
         event_date = datetime.strptime(event_date_str, '%Y-%m-%d')
     except ValueError:
-        return jsonify(message="Invalid event_date format. Required format: YYYY-MM-DD."), 400
+        return jsonify(message="Invalid event_date format. Required format:YYYY-MM-DD."), 400
 
     # Validate gender_category
     if not isinstance(gender_category, str) or not gender_category.strip():
@@ -210,13 +210,13 @@ def create_race():
             # For now, strictly positive as per original prompt for "distance".
             # If 0 is allowed, change to: distance_km >= 0
             if not (isinstance(distance_km, (float, int)) and distance_km >= 0):
-                 return jsonify(message="Each segment's distance_km must be a non-negative number."), 400
+                   return jsonify(message="Each segment's distance_km must be a non-negative number."), 400
             # If distance is optional for some segments, this logic needs adjustment.
             # For now, assuming distance_km is required for all segments listed.
             if distance_km <=0 and segment.name not in ["Transición 1 (T1)", "Transición 2 (T2)"]:
-                 return jsonify(message=f"distance_km for {segment.name} must be a positive number."), 400
+                   return jsonify(message=f"distance_km for {segment.name} must be a positive number."), 400
             elif distance_km <0: # Negative distance is never allowed
-                 return jsonify(message=f"distance_km for {segment.name} cannot be negative."), 400
+                   return jsonify(message=f"distance_km for {segment.name} cannot be negative."), 400
 
 
         race_segment_details_objects.append(RaceSegmentDetail(
@@ -513,9 +513,9 @@ def login_api():
         response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
 
         return response, 200
-    elif user and not user.is_active: 
+    elif user and not user.is_active:  
         return jsonify(message="Account disabled. Please contact support."), 403
-    else: 
+    else:  
         return jsonify(message="Invalid username or password"), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -602,7 +602,7 @@ def create_multiple_choice_question(race_id):
     # Let's try adding to session and then creating options.
 
     try:
-        # Flush to get new_question.id before creating options if needed,
+        # Flush to get new_question.id if needed for options immediately,
         # or add options to new_question.options list and SQLAlchemy will handle it upon commit.
         # For clarity and explicit control, flushing can be an option:
         # db.session.flush() # if new_question.id is needed by QuestionOption constructor directly
