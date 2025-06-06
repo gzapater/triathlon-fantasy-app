@@ -52,7 +52,7 @@ app.config['DEBUG_LOGIN'] = True      # <--- AÑADE ESTA LÍNEA TEMPORALMENTE pa
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-"""def create_initial_roles():
+def create_initial_roles():
     #Checks for existing roles and creates them if not present, using code and description.
     # Definimos los roles con su código y descripción
     # El 'code' será el identificador interno (ej. ADMIN, LEAGUE_ADMIN, PLAYER)
@@ -127,10 +127,10 @@ def create_initial_question_types():
         print("Initial question types already exist. No new data seeded.")
 
 with app.app_context():
-    # db.create_all() # Ensures all tables are created based on models - Handled by migrations
-    # create_initial_roles() # Comentado para permitir las migraciones
-    # create_initial_race_data() # Comentado para permitir las migraciones
-    # create_initial_question_types() # Comentado para permitir las migraciones"""
+     db.create_all() # Ensures all tables are created based on models - Handled by migrations
+     create_initial_roles() # Comentado para permitir las migraciones
+     create_initial_race_data() # Comentado para permitir las migraciones
+     create_initial_question_types() # Comentado para permitir las migraciones
 
 # --- API Routes ---
 
