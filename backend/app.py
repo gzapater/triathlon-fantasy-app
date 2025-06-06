@@ -57,7 +57,7 @@ def create_initial_roles():
     # Definimos los roles con su código y descripción
     # El 'code' será el identificador interno (ej. ADMIN, LEAGUE_ADMIN, PLAYER)
     # La 'description' será lo que se muestre (ej. Administrador, Admin de liga, Jugador)
-   roles_data = [
+    roles_data = [
         {'code': 'ADMIN', 'description': 'Administrador'},
         {'code': 'LEAGUE_ADMIN', 'description': 'Admin de Liga'},
         {'code': 'PLAYER', 'description': 'Jugador'}
@@ -127,11 +127,10 @@ def create_initial_question_types():
         print("Initial question types already exist. No new data seeded.")
 
 with app.app_context():
-     db.create_all() # Ensures all tables are created based on models - Handled by migrations
-     create_initial_roles() # Comentado para permitir las migraciones
-     create_initial_race_data() # Comentado para permitir las migraciones
-     create_initial_question_types() # Comentado para permitir las migraciones
-
+    db.create_all() # Ensures all tables are created based on models - Handled by migrations
+    create_initial_roles() # Comentado para permitir las migraciones
+    create_initial_race_data() # Comentado para permitir las migraciones
+    create_initial_question_types() # Comentado para permitir las migraciones
 # --- API Routes ---
 
 @app.route('/api/race-formats', methods=['GET'])
