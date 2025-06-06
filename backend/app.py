@@ -52,8 +52,8 @@ app.config['DEBUG_LOGIN'] = True      # <--- AÑADE ESTA LÍNEA TEMPORALMENTE pa
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def create_initial_roles():
-    #Checks for existing roles and creates them if not present, using code and description."""
+"""def create_initial_roles():
+    #Checks for existing roles and creates them if not present, using code and description.
     # Definimos los roles con su código y descripción
     # El 'code' será el identificador interno (ej. ADMIN, LEAGUE_ADMIN, PLAYER)
     # La 'description' será lo que se muestre (ej. Administrador, Admin de liga, Jugador)
@@ -85,7 +85,7 @@ def create_initial_roles():
         db.session.commit()
 
 def create_initial_race_data():
-    """Seeds RaceFormat and Segment tables with initial data."""
+    #Seeds RaceFormat and Segment tables with initial data.
     race_formats_data = ["Triatlón", "Duatlón", "Acuatlón"]
     segments_data = ["Natación", "Ciclismo", "Carrera a pie", "Transición 1 (T1)", "Transición 2 (T2)"]
 
@@ -111,7 +111,7 @@ def create_initial_race_data():
         print("Initial race data already exists. No new data seeded.")
 
 def create_initial_question_types():
-    """Seeds QuestionType table with initial data."""
+    #Seeds QuestionType table with initial data.
     question_type_names = ['FREE_TEXT', 'MULTIPLE_CHOICE', 'ORDERING']
     for name in question_type_names:
         if not QuestionType.query.filter_by(name=name).first():
@@ -130,7 +130,7 @@ with app.app_context():
     # db.create_all() # Ensures all tables are created based on models - Handled by migrations
     # create_initial_roles() # Comentado para permitir las migraciones
     # create_initial_race_data() # Comentado para permitir las migraciones
-    # create_initial_question_types() # Comentado para permitir las migraciones
+    # create_initial_question_types() # Comentado para permitir las migraciones"""
 
 # --- API Routes ---
 
