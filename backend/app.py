@@ -552,17 +552,19 @@ def create_multiple_choice_question(race_id):
         return jsonify(message="At least two options are required for a multiple choice question"), 400
 
     # Validate options structure and content
-    num_correct_options_for_single_choice = 0
+    # num_correct_options_for_single_choice = 0 # Removed
     for opt_data in options_data:
         if not isinstance(opt_data, dict) or \
-           'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip() or \
-           'is_correct' not in opt_data or not isinstance(opt_data['is_correct'], bool):
-            return jsonify(message="Each option must have 'option_text' (string) and 'is_correct' (boolean)"), 400
-        if not is_mc_multiple_correct and opt_data['is_correct']:
-            num_correct_options_for_single_choice += 1
+           'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip():
+            # Removed checks for 'is_correct' field: 'is_correct' not in opt_data or not isinstance(opt_data['is_correct'], bool)
+            return jsonify(message="Each option must have 'option_text' (string)"), 400
+        # Removed logic for num_correct_options_for_single_choice
+        # if not is_mc_multiple_correct and opt_data['is_correct']:
+        #     num_correct_options_for_single_choice += 1
 
-    if not is_mc_multiple_correct and num_correct_options_for_single_choice != 1:
-        return jsonify(message="For single-correct multiple choice, exactly one option must be marked as correct"), 400
+    # Removed validation based on num_correct_options_for_single_choice
+    # if not is_mc_multiple_correct and num_correct_options_for_single_choice != 1:
+    #     return jsonify(message="For single-correct multiple choice, exactly one option must be marked as correct"), 400
 
     # Validate scoring fields based on is_mc_multiple_correct
     points_per_correct_mc = None
@@ -610,11 +612,14 @@ def create_multiple_choice_question(race_id):
             q_option = QuestionOption(
                 question=new_question, # Associate with the question object
                 option_text=opt_data['option_text']
+                # is_correct_mc_multiple and is_correct_mc_single will use defaults or remain NULL
+                # as per model, 'is_correct' from opt_data is no longer used here.
             )
-            if is_mc_multiple_correct:
-                q_option.is_correct_mc_multiple = opt_data['is_correct']
-            else:
-                q_option.is_correct_mc_single = opt_data['is_correct']
+            # Removed assignment from opt_data['is_correct']
+            # if is_mc_multiple_correct:
+            #     q_option.is_correct_mc_multiple = opt_data['is_correct']
+            # else:
+            #     q_option.is_correct_mc_single = opt_data['is_correct']
             db.session.add(q_option) # Add option to session
 
         db.session.commit()
@@ -697,17 +702,19 @@ def update_multiple_choice_question(question_id):
         if not isinstance(options_data, list) or len(options_data) < 2:
             return jsonify(message="At least two options are required if 'options' are provided for update"), 400
 
-        num_correct_options_for_single_choice = 0
+        # num_correct_options_for_single_choice = 0 # Removed
         for opt_data in options_data:
             if not isinstance(opt_data, dict) or \
-               'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip() or \
-               'is_correct' not in opt_data or not isinstance(opt_data['is_correct'], bool):
-                return jsonify(message="Each option must have 'option_text' (string) and 'is_correct' (boolean)"), 400
-            if not question.is_mc_multiple_correct and opt_data['is_correct']: # Use the potentially updated question.is_mc_multiple_correct
-                num_correct_options_for_single_choice += 1
+               'option_text' not in opt_data or not isinstance(opt_data['option_text'], str) or not opt_data['option_text'].strip():
+                # Removed checks for 'is_correct' field
+                return jsonify(message="Each option must have 'option_text' (string)"), 400
+            # Removed logic for num_correct_options_for_single_choice
+            # if not question.is_mc_multiple_correct and opt_data['is_correct']:
+            #     num_correct_options_for_single_choice += 1
 
-        if not question.is_mc_multiple_correct and num_correct_options_for_single_choice != 1:
-            return jsonify(message="For single-correct multiple choice, exactly one new option must be marked as correct"), 400
+        # Removed validation based on num_correct_options_for_single_choice
+        # if not question.is_mc_multiple_correct and num_correct_options_for_single_choice != 1:
+        #     return jsonify(message="For single-correct multiple choice, exactly one new option must be marked as correct"), 400
 
         # Delete old options
         QuestionOption.query.filter_by(question_id=question_id).delete()
@@ -717,11 +724,13 @@ def update_multiple_choice_question(question_id):
             q_option = QuestionOption(
                 question_id=question_id,
                 option_text=opt_data['option_text']
+                # is_correct_mc_multiple and is_correct_mc_single will use defaults or remain NULL
             )
-            if question.is_mc_multiple_correct:
-                q_option.is_correct_mc_multiple = opt_data['is_correct']
-            else:
-                q_option.is_correct_mc_single = opt_data['is_correct']
+            # Removed assignment from opt_data['is_correct']
+            # if question.is_mc_multiple_correct:
+            #     q_option.is_correct_mc_multiple = opt_data['is_correct']
+            # else:
+            #     q_option.is_correct_mc_single = opt_data['is_correct']
             db.session.add(q_option)
 
     try:

@@ -355,21 +355,21 @@
             textInput.style.marginRight = '10px';
             textInput.required = true;
 
-            const correctInput = document.createElement('input');
-            correctInput.type = isCurrentlyMultipleCorrectType ? 'checkbox' : 'radio';
-            correctInput.name = 'mc_option_is_correct'; // Radios need same name to be exclusive
-            if (!isCurrentlyMultipleCorrectType) { // For radio group
-                 correctInput.name = `mc_option_is_correct_radio_group_${optionsContainer.children.length}`; // Unique name for radio group if needed by some logic, or just one name
-            }
+            // const correctInput = document.createElement('input'); // Removed
+            // correctInput.type = isCurrentlyMultipleCorrectType ? 'checkbox' : 'radio'; // Removed
+            // correctInput.name = 'mc_option_is_correct'; // Removed
+            // if (!isCurrentlyMultipleCorrectType) { // Removed
+            //      correctInput.name = `mc_option_is_correct_radio_group_${optionsContainer.children.length}`; // Removed
+            // } // Removed
 
-            if (optionData) {
-                if (isCurrentlyMultipleCorrectType) {
-                    correctInput.checked = optionData.is_correct_mc_multiple || false;
-                } else {
-                    correctInput.checked = optionData.is_correct_mc_single || false;
-                }
-            }
-            correctInput.style.width = 'auto';
+            // if (optionData) { // Removed
+            //     if (isCurrentlyMultipleCorrectType) { // Removed
+            //         correctInput.checked = optionData.is_correct_mc_multiple || false; // Removed
+            //     } else { // Removed
+            //         correctInput.checked = optionData.is_correct_mc_single || false; // Removed
+            //     } // Removed
+            // } // Removed
+            // correctInput.style.width = 'auto'; // Removed
 
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
@@ -378,32 +378,33 @@
             removeBtn.onclick = () => optionDiv.remove();
 
             optionDiv.appendChild(textInput);
-            optionDiv.appendChild(correctInput);
+            // optionDiv.appendChild(correctInput); // Removed
             optionDiv.appendChild(removeBtn);
             optionsContainer.appendChild(optionDiv);
         }
 
         function updateMcOptionInputTypes(isNowMultipleCorrect) {
-            const optionsContainer = document.getElementById('mcOptionsContainer');
-            if (!optionsContainer) return;
-            const entries = optionsContainer.querySelectorAll('.mc-option-entry');
-            entries.forEach((entry, index) => {
-                const oldCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
-                if (oldCorrectInput) {
-                    const newType = isNowMultipleCorrect ? 'checkbox' : 'radio';
-                    if (oldCorrectInput.type !== newType) {
-                        const newCorrectInput = document.createElement('input');
-                        newCorrectInput.type = newType;
-                        newCorrectInput.name = 'mc_option_is_correct'; // Common name for radios
-                        if (!isNowMultipleCorrect) {
-                           newCorrectInput.name = `mc_option_is_correct_radio_group`; // Ensure single selection
-                        }
-                        newCorrectInput.checked = oldCorrectInput.checked; // Preserve checked state if possible (might need adjustment)
-                        newCorrectInput.style.width = 'auto';
-                        oldCorrectInput.parentNode.replaceChild(newCorrectInput, oldCorrectInput);
-                    }
-                }
-            });
+            // This function is now a no-op as correctness inputs are removed.
+            // const optionsContainer = document.getElementById('mcOptionsContainer');
+            // if (!optionsContainer) return;
+            // const entries = optionsContainer.querySelectorAll('.mc-option-entry');
+            // entries.forEach((entry, index) => {
+            //     const oldCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
+            //     if (oldCorrectInput) {
+            //         const newType = isNowMultipleCorrect ? 'checkbox' : 'radio';
+            //         if (oldCorrectInput.type !== newType) {
+            //             const newCorrectInput = document.createElement('input');
+            //             newCorrectInput.type = newType;
+            //             newCorrectInput.name = 'mc_option_is_correct';
+            //             if (!isNowMultipleCorrect) {
+            //                newCorrectInput.name = `mc_option_is_correct_radio_group`;
+            //             }
+            //             newCorrectInput.checked = oldCorrectInput.checked;
+            //             newCorrectInput.style.width = 'auto';
+            //             oldCorrectInput.parentNode.replaceChild(newCorrectInput, oldCorrectInput);
+            //         }
+            //     }
+            // });
         }
 
         function renderMultipleChoiceFields(questionData = null) {
@@ -650,24 +651,24 @@
                         questionFormErrorDiv.textContent = "Debe haber al menos dos opciones para una pregunta de opción múltiple.";
                         return;
                     }
-                    let correctOptionForSingleChoiceFound = false;
+                    // let correctOptionForSingleChoiceFound = false; // Removed
                     let allOptionTextsValid = true;
                     optionEntries.forEach(entry => {
                         const optionText = entry.querySelector('input[name="mc_option_text"]').value.trim();
-                        const isCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
+                        // const isCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]'); // Removed
 
                         if (!optionText) {
                             allOptionTextsValid = false;
                         }
-                        const isCorrect = isCorrectInput.checked;
-                        if (!isMultipleCorrect && isCorrect) {
-                            if (correctOptionForSingleChoiceFound) {
-                                // This error will be caught more globally below if not stopping here.
-                                // For immediate feedback, this is fine.
-                            }
-                            correctOptionForSingleChoiceFound = true;
-                        }
-                        options.push({ option_text: optionText, is_correct: isCorrect });
+                        // const isCorrect = isCorrectInput.checked; // Removed
+                        // if (!isMultipleCorrect && isCorrect) { // Removed
+                        //     if (correctOptionForSingleChoiceFound) { // Removed
+                        //         // This error will be caught more globally below if not stopping here.
+                        //         // For immediate feedback, this is fine.
+                        //     } // Removed
+                        //     correctOptionForSingleChoiceFound = true; // Removed
+                        // } // Removed
+                        options.push({ option_text: optionText /*, is_correct: isCorrect */ }); // is_correct removed from payload
                     });
 
                     if (!allOptionTextsValid) {
@@ -675,17 +676,18 @@
                         return;
                     }
 
-                    if (!isMultipleCorrect) {
-                        const correctOptionsCount = options.filter(opt => opt.is_correct).length;
-                        if (correctOptionsCount === 0 && optionEntries.length > 0) {
-                            questionFormErrorDiv.textContent = "Debe seleccionar una opción correcta para el tipo de selección única.";
-                            return;
-                        }
-                        if (correctOptionsCount > 1) {
-                            questionFormErrorDiv.textContent = "Solo una opción puede ser correcta para el tipo de selección única.";
-                            return;
-                        }
-                    }
+                    // Validation for correct option selection removed
+                    // if (!isMultipleCorrect) {
+                    //     const correctOptionsCount = options.filter(opt => opt.is_correct).length;
+                    //     if (correctOptionsCount === 0 && optionEntries.length > 0) {
+                    //         questionFormErrorDiv.textContent = "Debe seleccionar una opción correcta para el tipo de selección única.";
+                    //         return;
+                    //     }
+                    //     if (correctOptionsCount > 1) {
+                    //         questionFormErrorDiv.textContent = "Solo una opción puede ser correcta para el tipo de selección única.";
+                    //         return;
+                    //     }
+                    // }
 
                     payload.options = options;
 
