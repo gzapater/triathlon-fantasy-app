@@ -213,465 +213,585 @@
             <div id="questionFormError" class="error-message" style="margin-top: 10px;"></div>
         </div>
     </div>
+<script>
+    const currentUserRole = "{{ current_user.role.code }}";
+    const raceId = "{{ race.id }}";
 
-    <script>
-        const currentUserRole = "{{ current_user.role.code }}";
-        const raceId = "{{ race.id }}";
+    document.getElementById('logoutLinkNavBarDetail').addEventListener('click', function(event) {
+        event.preventDefault();
+        fetch('/api/logout', { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                alert('Error during logout. Please try again.');
+            });
+    });
 
-        document.getElementById('logoutLinkNavBarDetail').addEventListener('click', function(event) {
-            event.preventDefault();
-            fetch('/api/logout', { method: 'POST' })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.href = '/login';
-                    } else {
-                        alert('Logout failed. Please try again.');
+    // Modal elements
+    const questionModal = document.getElementById('questionModal');
+    const questionModalTitle = document.getElementById('questionModalTitle');
+    const questionForm = document.getElementById('questionForm');
+    const questionIdStoreInput = document.getElementById('questionIdStore');
+    const questionTypeStoreInput = document.getElementById('questionTypeStore');
+    const questionTextInput = document.getElementById('questionText');
+    const isActiveCheckbox = document.getElementById('isActiveCheckbox');
+    const typeSpecificFieldsContainer = document.getElementById('typeSpecificFieldsContainer');
+    const questionFormErrorDiv = document.getElementById('questionFormError');
+    const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
+
+    // Main content elements
+    const questionsContainer = document.getElementById('questionsContainer');
+    const questionsLoadingDiv = document.getElementById('questionsLoading');
+    const questionsErrorDiv = document.getElementById('questionsError');
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+
+    function closeQuestionModal() {
+        questionModal.style.display = 'none';
+        questionForm.reset();
+        typeSpecificFieldsContainer.innerHTML = '';
+        questionFormErrorDiv.textContent = '';
+        questionIdStoreInput.value = '';
+    }
+    if(closeQuestionModalBtn) closeQuestionModalBtn.onclick = closeQuestionModal;
+    // Close modal if user clicks outside of it
+    window.onclick = function(event) {
+        if (event.target == questionModal) {
+            closeQuestionModal();
+        }
+    }
+
+    function renderFreeTextFields(questionData = null) {
+        typeSpecificFieldsContainer.innerHTML = `
+            <div>
+                <label for="maxScoreFreeText">Puntuación Máxima:</label>
+                <input type="number" id="maxScoreFreeText" name="maxScoreFreeText" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
+            </div>
+        `;
+    }
+
+    function openQuestionModal(mode, type, questionData = null) {
+        questionForm.reset(); // Reset form for new entry or edit
+        typeSpecificFieldsContainer.innerHTML = '';
+        questionFormErrorDiv.textContent = '';
+        questionIdStoreInput.value = '';
+
+        questionTypeStoreInput.value = type;
+
+        if (mode === 'edit' && questionData) {
+            questionModalTitle.textContent = `Editar Pregunta (${type})`;
+            questionIdStoreInput.value = questionData.id;
+            questionTextInput.value = questionData.text;
+            isActiveCheckbox.checked = questionData.is_active;
+
+            if (type === 'FREE_TEXT') {
+                renderFreeTextFields(questionData);
+            } else if (type === 'MULTIPLE_CHOICE') {
+                renderMultipleChoiceFields(questionData);
+            }
+            // TODO: Add else if for ORDERING
+        } else { // mode === 'add'
+            questionModalTitle.textContent = `Añadir Nueva Pregunta (${type})`;
+            isActiveCheckbox.checked = true; // Default for new questions
+            if (type === 'FREE_TEXT') {
+                renderFreeTextFields();
+            } else if (type === 'MULTIPLE_CHOICE') {
+                renderMultipleChoiceFields(null); // No existing data for add mode
+            }
+            // TODO: Add else if for ORDERING
+        }
+        questionModal.style.display = 'block';
+    }
+
+    // --- Functions for rendering MULTIPLE_CHOICE specific fields ---
+    function renderMcScoringFields(isMultipleCorrect, scoreData = null) {
+        const container = document.getElementById('mcScoringFieldsContainer');
+        if (!container) return;
+        container.innerHTML = ''; // Clear previous scoring fields
+
+        if (isMultipleCorrect) { // Multiple answers correct (checkboxes)
+            container.innerHTML = `
+                <div>
+                    <label for="pointsPerCorrectMc">Puntos por Acierto:</label>
+                    <input type="number" id="pointsPerCorrectMc" name="pointsPerCorrectMc" required value="<span class="math-inline">\{scoreData && scoreData\.points\_per\_correct\_mc \!\=\= null ? scoreData\.points\_per\_correct\_mc \: ''\}"\>
+                    El error 1:678 Uncaught SyntaxError: Unexpected token '}' persiste y, dado que he revisado el código HTML y JavaScript proporcionado y no encuentro una causa obvia en la sintaxis visible, la causa probable es un carácter invisible, un problema de codificación al guardar/subir el archivo, o una inconsistencia muy sutil en la forma en que el navegador o el servidor procesan el archivo.
+
+Como no puedo depurar caracteres invisibles o problemas de codificación directamente a través de la interfaz de texto, la acción más efectiva para ti es reemplazar el bloque de código JavaScript completo con una versión que he vuelto a escribir con la máxima precaución para evitar cualquier error de este tipo. Esto forzará una "copia limpia" del script.
+
+Paso a Paso para corregir el error:
+
+Abre el archivo backend/templates/race_detail.html en tu EC2.
+
+Bash
+
+nano /home/ubuntu/triathlon-fantasy-app/backend/templates/race_detail.html
+Borra todo el contenido dentro de la etiqueta <script> y </script> (incluidas las propias etiquetas <script> si lo prefieres para una limpieza total). Es decir, desde <script> hasta </script>.
+
+Copia y pega exactamente el siguiente bloque de código JavaScript en su lugar. Asegúrate de que no haya espacios extra o caracteres adicionales antes o después del bloque.
+
+HTML
+
+<script>
+    const currentUserRole = "{{ current_user.role.code }}";
+    const raceId = "{{ race.id }}";
+
+    document.getElementById('logoutLinkNavBarDetail').addEventListener('click', function(event) {
+        event.preventDefault();
+        fetch('/api/logout', { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    alert('Logout failed. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                alert('Error during logout. Please try again.');
+            });
+    });
+
+    // Modal elements
+    const questionModal = document.getElementById('questionModal');
+    const questionModalTitle = document.getElementById('questionModalTitle');
+    const questionForm = document.getElementById('questionForm');
+    const questionIdStoreInput = document.getElementById('questionIdStore');
+    const questionTypeStoreInput = document.getElementById('questionTypeStore');
+    const questionTextInput = document.getElementById('questionText');
+    const isActiveCheckbox = document.getElementById('isActiveCheckbox');
+    const typeSpecificFieldsContainer = document.getElementById('typeSpecificFieldsContainer');
+    const questionFormErrorDiv = document.getElementById('questionFormError');
+    const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
+
+    // Main content elements
+    const questionsContainer = document.getElementById('questionsContainer');
+    const questionsLoadingDiv = document.getElementById('questionsLoading');
+    const questionsErrorDiv = document.getElementById('questionsError');
+    const addQuestionBtn = document.getElementById('addQuestionBtn');
+
+    function closeQuestionModal() {
+        questionModal.style.display = 'none';
+        questionForm.reset();
+        typeSpecificFieldsContainer.innerHTML = '';
+        questionFormErrorDiv.textContent = '';
+        questionIdStoreInput.value = '';
+    }
+    if(closeQuestionModalBtn) closeQuestionModalBtn.onclick = closeQuestionModal;
+    // Close modal if user clicks outside of it
+    window.onclick = function(event) {
+        if (event.target == questionModal) {
+            closeQuestionModal();
+        }
+    }
+
+    function renderFreeTextFields(questionData = null) {
+        typeSpecificFieldsContainer.innerHTML = `
+            <div>
+                <label for="maxScoreFreeText">Puntuación Máxima:</label>
+                <input type="number" id="maxScoreFreeText" name="maxScoreFreeText" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
+            </div>
+        `;
+    }
+
+    function openQuestionModal(mode, type, questionData = null) {
+        questionForm.reset(); // Reset form for new entry or edit
+        typeSpecificFieldsContainer.innerHTML = '';
+        questionFormErrorDiv.textContent = '';
+        questionIdStoreInput.value = '';
+
+        questionTypeStoreInput.value = type;
+
+        if (mode === 'edit' && questionData) {
+            questionModalTitle.textContent = `Editar Pregunta (${type})`;
+            questionIdStoreInput.value = questionData.id;
+            questionTextInput.value = questionData.text;
+            isActiveCheckbox.checked = questionData.is_active;
+
+            if (type === 'FREE_TEXT') {
+                renderFreeTextFields(questionData);
+            } else if (type === 'MULTIPLE_CHOICE') {
+                renderMultipleChoiceFields(questionData);
+            }
+            // TODO: Add else if for ORDERING
+        } else { // mode === 'add'
+            questionModalTitle.textContent = `Añadir Nueva Pregunta (${type})`;
+            isActiveCheckbox.checked = true; // Default for new questions
+            if (type === 'FREE_TEXT') {
+                renderFreeTextFields();
+            } else if (type === 'MULTIPLE_CHOICE') {
+                renderMultipleChoiceFields(null); // No existing data for add mode
+            }
+            // TODO: Add else if for ORDERING
+        }
+        questionModal.style.display = 'block';
+    }
+
+    // --- Functions for rendering MULTIPLE_CHOICE specific fields ---
+    function renderMcScoringFields(isMultipleCorrect, scoreData = null) {
+        const container = document.getElementById('mcScoringFieldsContainer');
+        if (!container) return;
+        container.innerHTML = ''; // Clear previous scoring fields
+
+        if (isMultipleCorrect) { // Multiple answers correct (checkboxes)
+            container.innerHTML = `
+                <div>
+                    <label for="pointsPerCorrectMc">Puntos por Acierto:</label>
+                    <input type="number" id="pointsPerCorrectMc" name="pointsPerCorrectMc" required value="<span class="math-inline">\{scoreData && scoreData\.points\_per\_correct\_mc \!\=\= null ? scoreData\.points\_per\_correct\_mc \: ''\}"\>
+</div>
+<div>
+<label for="pointsPerIncorrectMc">Puntos por Fallo (puede ser negativo):</label>
+<input type="number" id="pointsPerIncorrectMc" name="pointsPerIncorrectMc" value="{scoreData && scoreData.points_per_incorrect_mc !== null ? scoreData.points_per_incorrect_mc : '0'}">
+</div>
+; } else { // Single answer correct (radio buttons) container.innerHTML =
+<div>
+<label for="totalScoreMcSingle">Puntuación Total (por acertar la única opción correcta):</label>
+<input type="number" id="totalScoreMcSingle" name="totalScoreMcSingle" required min="1" value="${scoreData && scoreData.total_score_mc_single ? scoreData.total_score_mc_single : ''}">
+</div>
+`;
+}
+}
+
+    function addMcOption(optionData = null, isCurrentlyMultipleCorrectType) {
+        const optionsContainer = document.getElementById('mcOptionsContainer');
+        if (!optionsContainer) return;
+
+        const optionDiv = document.createElement('div');
+        optionDiv.classList.add('mc-option-entry');
+        optionDiv.style.display = 'flex';
+        optionDiv.style.alignItems = 'center';
+        optionDiv.style.marginBottom = '5px';
+
+        const textInput = document.createElement('input');
+        textInput.type = 'text';
+        textInput.name = 'mc_option_text';
+        textInput.placeholder = 'Texto de la opción';
+        textInput.value = optionData ? optionData.option_text : '';
+        textInput.style.flexGrow = '1';
+        textInput.style.marginRight = '10px';
+        textInput.required = true;
+
+        const correctInput = document.createElement('input');
+        correctInput.type = isCurrentlyMultipleCorrectType ? 'checkbox' : 'radio';
+        correctInput.name = 'mc_option_is_correct'; // Radios need same name to be exclusive
+        if (!isCurrentlyMultipleCorrectType) { // For radio group
+             correctInput.name = `mc_option_is_correct_radio_group_${optionsContainer.children.length}`; // Unique name for radio group if needed by some logic, or just one name
+        }
+
+        if (optionData) {
+            if (isCurrentlyMultipleCorrectType) {
+                correctInput.checked = optionData.is_correct_mc_multiple || false;
+            } else {
+                correctInput.checked = optionData.is_correct_mc_single || false;
+            }
+        }
+        correctInput.style.width = 'auto';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'X';
+        removeBtn.style.marginLeft = '10px';
+        removeBtn.onclick = () => optionDiv.remove();
+
+        optionDiv.appendChild(textInput);
+        optionDiv.appendChild(correctInput);
+        optionDiv.appendChild(removeBtn);
+        optionsContainer.appendChild(optionDiv);
+    }
+
+    function updateMcOptionInputTypes(isNowMultipleCorrect) {
+        const optionsContainer = document.getElementById('mcOptionsContainer');
+        if (!optionsContainer) return;
+        const entries = optionsContainer.querySelectorAll('.mc-option-entry');
+        entries.forEach((entry, index) => {
+            const oldCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
+            if (oldCorrectInput) {
+                const newType = isNowMultipleCorrect ? 'checkbox' : 'radio';
+                if (oldCorrectInput.type !== newType) {
+                    const newCorrectInput = document.createElement('input');
+                    newCorrectInput.type = newType;
+                    newCorrectInput.name = 'mc_option_is_correct'; // Common name for radios
+                    if (!isNowMultipleCorrect) {
+                       newCorrectInput.name = `mc_option_is_correct_radio_group`; // Ensure single selection
                     }
-                })
-                .catch(error => {
-                    console.error('Logout error:', error);
-                    alert('Error during logout. Please try again.');
-                });
+                    newCorrectInput.checked = oldCorrectInput.checked; // Preserve checked state if possible (might need adjustment)
+                    newCorrectInput.style.width = 'auto';
+                    oldCorrectInput.parentNode.replaceChild(newCorrectInput, oldCorrectInput);
+                }
+            }
+        });
+    }
+
+    function renderMultipleChoiceFields(questionData = null) {
+        typeSpecificFieldsContainer.innerHTML = `
+            <div>
+                <label>Tipo de Selección Múltiple:</label>
+                <div style="margin-bottom:10px;">
+                    <input type="radio" id="mcTypeSingle" name="mcQuestionType" value="single" checked>
+                    <label for="mcTypeSingle" style="font-weight:normal; margin-right:15px;">Respuesta Única Correcta</label>
+                    <input type="radio" id="mcTypeMultiple" name="mcQuestionType" value="multiple">
+                    <label for="mcTypeMultiple" style="font-weight:normal;">Múltiples Respuestas Correctas</label>
+                </div>
+            </div>
+            <div id="mcScoringFieldsContainer"></div>
+            <div>
+                <label>Opciones:</label>
+                <div id="mcOptionsContainer" style="margin-top:5px;"></div>
+                <button type="button" id="addMcOptionBtn" style="margin-top:5px; padding: 5px 10px;">Añadir Opción</button>
+            </div>
+        `;
+
+        const mcTypeSingleRadio = document.getElementById('mcTypeSingle');
+        const mcTypeMultipleRadio = document.getElementById('mcTypeMultiple');
+
+        let currentIsMultipleCorrect = false; // Default to single
+        if (questionData && questionData.is_mc_multiple_correct !== null) {
+            currentIsMultipleCorrect = questionData.is_mc_multiple_correct;
+        }
+
+        if (currentIsMultipleCorrect) {
+            mcTypeMultipleRadio.checked = true;
+        } else {
+            mcTypeSingleRadio.checked = true;
+        }
+
+        renderMcScoringFields(currentIsMultipleCorrect, questionData);
+        updateMcOptionInputTypes(currentIsMultipleCorrect); // Initial setup of radio/checkbox
+
+        document.querySelectorAll('input[name="mcQuestionType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const isMultiple = this.value === 'multiple';
+                renderMcScoringFields(isMultiple, null); // scoreData might need to be fetched or reset
+                updateMcOptionInputTypes(isMultiple);
+            });
         });
 
-        // Modal elements
-        const questionModal = document.getElementById('questionModal');
-        const questionModalTitle = document.getElementById('questionModalTitle');
-        const questionForm = document.getElementById('questionForm');
-        const questionIdStoreInput = document.getElementById('questionIdStore');
-        const questionTypeStoreInput = document.getElementById('questionTypeStore');
-        const questionTextInput = document.getElementById('questionText');
-        const isActiveCheckbox = document.getElementById('isActiveCheckbox');
-        const typeSpecificFieldsContainer = document.getElementById('typeSpecificFieldsContainer');
-        const questionFormErrorDiv = document.getElementById('questionFormError');
-        const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
+        document.getElementById('addMcOptionBtn').addEventListener('click', () => {
+            const isMultiple = document.getElementById('mcTypeMultiple').checked;
+            addMcOption(null, isMultiple);
+        });
 
-        // Main content elements
-        const questionsContainer = document.getElementById('questionsContainer');
-        const questionsLoadingDiv = document.getElementById('questionsLoading');
-        const questionsErrorDiv = document.getElementById('questionsError');
-        const addQuestionBtn = document.getElementById('addQuestionBtn');
-
-        function closeQuestionModal() {
-            questionModal.style.display = 'none';
-            questionForm.reset();
-            typeSpecificFieldsContainer.innerHTML = '';
-            questionFormErrorDiv.textContent = '';
-            questionIdStoreInput.value = '';
+        if (questionData && questionData.options) {
+            const isMultiple = mcTypeMultipleRadio.checked;
+            questionData.options.forEach(opt => addMcOption(opt, isMultiple));
+        } else {
+             // Add a couple of empty options by default for new MC questions
+            const isMultiple = mcTypeMultipleRadio.checked;
+            addMcOption(null, isMultiple);
+            addMcOption(null, isMultiple);
         }
-        if(closeQuestionModalBtn) closeQuestionModalBtn.onclick = closeQuestionModal;
-        // Close modal if user clicks outside of it
-        window.onclick = function(event) {
-            if (event.target == questionModal) {
-                closeQuestionModal();
-            }
-        }
+    }
 
-        function renderFreeTextFields(questionData = null) {
-            typeSpecificFieldsContainer.innerHTML = `
-                <div>
-                    <label for="maxScoreFreeText">Puntuación Máxima:</label>
-                    <input type="number" id="maxScoreFreeText" name="maxScoreFreeText" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
-                </div>
-            `;
-        }
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', () => {
+            // TEMP: For testing MC. Later, use a type selector.
+            // openQuestionModal('add', 'FREE_TEXT');
+            openQuestionModal('add', 'MULTIPLE_CHOICE');
+        });
+    }
 
-        function openQuestionModal(mode, type, questionData = null) {
-            questionForm.reset(); // Reset form for new entry or edit
-            typeSpecificFieldsContainer.innerHTML = '';
-            questionFormErrorDiv.textContent = '';
-            questionIdStoreInput.value = '';
-
-            questionTypeStoreInput.value = type;
-
-            if (mode === 'edit' && questionData) {
-                questionModalTitle.textContent = `Editar Pregunta (${type})`;
-                questionIdStoreInput.value = questionData.id;
-                questionTextInput.value = questionData.text;
-                isActiveCheckbox.checked = questionData.is_active;
-
-                if (type === 'FREE_TEXT') {
-                    renderFreeTextFields(questionData);
-                } else if (type === 'MULTIPLE_CHOICE') {
-                    renderMultipleChoiceFields(questionData);
-                }
-                // TODO: Add else if for ORDERING
-            } else { // mode === 'add'
-                questionModalTitle.textContent = `Añadir Nueva Pregunta (${type})`;
-                isActiveCheckbox.checked = true; // Default for new questions
-                if (type === 'FREE_TEXT') {
-                    renderFreeTextFields();
-                } else if (type === 'MULTIPLE_CHOICE') {
-                    renderMultipleChoiceFields(null); // No existing data for add mode
-                }
-                // TODO: Add else if for ORDERING
-            }
-            questionModal.style.display = 'block';
-        }
-
-        // --- Functions for rendering MULTIPLE_CHOICE specific fields ---
-        function renderMcScoringFields(isMultipleCorrect, scoreData = null) {
-            const container = document.getElementById('mcScoringFieldsContainer');
-            if (!container) return;
-            container.innerHTML = ''; // Clear previous scoring fields
-
-            if (isMultipleCorrect) { // Multiple answers correct (checkboxes)
-                container.innerHTML = `
-                    <div>
-                        <label for="pointsPerCorrectMc">Puntos por Acierto:</label>
-                        <input type="number" id="pointsPerCorrectMc" name="pointsPerCorrectMc" required value="${scoreData && scoreData.points_per_correct_mc !== null ? scoreData.points_per_correct_mc : ''}">
-                    </div>
-                    <div>
-                        <label for="pointsPerIncorrectMc">Puntos por Fallo (puede ser negativo):</label>
-                        <input type="number" id="pointsPerIncorrectMc" name="pointsPerIncorrectMc" value="${scoreData && scoreData.points_per_incorrect_mc !== null ? scoreData.points_per_incorrect_mc : '0'}">
-                    </div>
-                `;
-            } else { // Single answer correct (radio buttons)
-                container.innerHTML = `
-                    <div>
-                        <label for="totalScoreMcSingle">Puntuación Total (por acertar la única opción correcta):</label>
-                        <input type="number" id="totalScoreMcSingle" name="totalScoreMcSingle" required min="1" value="${scoreData && scoreData.total_score_mc_single ? scoreData.total_score_mc_single : ''}">
-                    </div>
-                `;
-            }
-        }
-
-        function addMcOption(optionData = null, isCurrentlyMultipleCorrectType) {
-            const optionsContainer = document.getElementById('mcOptionsContainer');
-            if (!optionsContainer) return;
-
-            const optionDiv = document.createElement('div');
-            optionDiv.classList.add('mc-option-entry');
-            optionDiv.style.display = 'flex';
-            optionDiv.style.alignItems = 'center';
-            optionDiv.style.marginBottom = '5px';
-
-            const textInput = document.createElement('input');
-            textInput.type = 'text';
-            textInput.name = 'mc_option_text';
-            textInput.placeholder = 'Texto de la opción';
-            textInput.value = optionData ? optionData.option_text : '';
-            textInput.style.flexGrow = '1';
-            textInput.style.marginRight = '10px';
-            textInput.required = true;
-
-            const correctInput = document.createElement('input');
-            correctInput.type = isCurrentlyMultipleCorrectType ? 'checkbox' : 'radio';
-            correctInput.name = 'mc_option_is_correct'; // Radios need same name to be exclusive
-            if (!isCurrentlyMultipleCorrectType) { // For radio group
-                 correctInput.name = `mc_option_is_correct_radio_group_${optionsContainer.children.length}`; // Unique name for radio group if needed by some logic, or just one name
-            }
-
-            if (optionData) {
-                if (isCurrentlyMultipleCorrectType) {
-                    correctInput.checked = optionData.is_correct_mc_multiple || false;
-                } else {
-                    correctInput.checked = optionData.is_correct_mc_single || false;
-                }
-            }
-            correctInput.style.width = 'auto';
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.textContent = 'X';
-            removeBtn.style.marginLeft = '10px';
-            removeBtn.onclick = () => optionDiv.remove();
-
-            optionDiv.appendChild(textInput);
-            optionDiv.appendChild(correctInput);
-            optionDiv.appendChild(removeBtn);
-            optionsContainer.appendChild(optionDiv);
-        }
-
-        function updateMcOptionInputTypes(isNowMultipleCorrect) {
-            const optionsContainer = document.getElementById('mcOptionsContainer');
-            if (!optionsContainer) return;
-            const entries = optionsContainer.querySelectorAll('.mc-option-entry');
-            entries.forEach((entry, index) => {
-                const oldCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
-                if (oldCorrectInput) {
-                    const newType = isNowMultipleCorrect ? 'checkbox' : 'radio';
-                    if (oldCorrectInput.type !== newType) {
-                        const newCorrectInput = document.createElement('input');
-                        newCorrectInput.type = newType;
-                        newCorrectInput.name = 'mc_option_is_correct'; // Common name for radios
-                        if (!isNowMultipleCorrect) {
-                           newCorrectInput.name = `mc_option_is_correct_radio_group`; // Ensure single selection
-                        }
-                        newCorrectInput.checked = oldCorrectInput.checked; // Preserve checked state if possible (might need adjustment)
-                        newCorrectInput.style.width = 'auto';
-                        oldCorrectInput.parentNode.replaceChild(newCorrectInput, oldCorrectInput);
+    function formatScoringInfo(question) {
+        let scoringHtml = '<strong>Puntuación:</strong> ';
+            switch (question.question_type) {
+                case 'FREE_TEXT':
+                    scoringHtml += `Máx. ${question.max_score_free_text || 'N/A'} pts.`;
+                    break;
+                case 'MULTIPLE_CHOICE':
+                    if (question.is_mc_multiple_correct) {
+                        scoringHtml += `Correcta: ${question.points_per_correct_mc || 'N/A'} pts, Incorrecta: ${question.points_per_incorrect_mc || '0'} pts. (Selección Múltiple)`;
+                    } else {
+                        scoringHtml += `Total: ${question.total_score_mc_single || 'N/A'} pts. (Selección Única)`;
                     }
-                }
-            });
+                    break;
+                case 'ORDERING':
+                    scoringHtml += `Por ítem correcto: ${question.points_per_correct_order || 'N/A'} pts, Bonus orden completo: ${question.bonus_for_full_order || '0'} pts.`;
+                    break;
+                default:
+                    scoringHtml += 'No especificada.';
+            }
+            return scoringHtml;
         }
 
-        function renderMultipleChoiceFields(questionData = null) {
-            typeSpecificFieldsContainer.innerHTML = `
-                <div>
-                    <label>Tipo de Selección Múltiple:</label>
-                    <div style="margin-bottom:10px;">
-                        <input type="radio" id="mcTypeSingle" name="mcQuestionType" value="single" checked>
-                        <label for="mcTypeSingle" style="font-weight:normal; margin-right:15px;">Respuesta Única Correcta</label>
-                        <input type="radio" id="mcTypeMultiple" name="mcQuestionType" value="multiple">
-                        <label for="mcTypeMultiple" style="font-weight:normal;">Múltiples Respuestas Correctas</label>
-                    </div>
-                </div>
-                <div id="mcScoringFieldsContainer"></div>
-                <div>
-                    <label>Opciones:</label>
-                    <div id="mcOptionsContainer" style="margin-top:5px;"></div>
-                    <button type="button" id="addMcOptionBtn" style="margin-top:5px; padding: 5px 10px;">Añadir Opción</button>
-                </div>
-            `;
+        function renderQuestions(questions) {
+            questionsLoadingDiv.style.display = 'none';
+            questionsContainer.innerHTML = '';
+            questionsErrorDiv.textContent = '';
 
-            const mcTypeSingleRadio = document.getElementById('mcTypeSingle');
-            const mcTypeMultipleRadio = document.getElementById('mcTypeMultiple');
-
-            let currentIsMultipleCorrect = false; // Default to single
-            if (questionData && questionData.is_mc_multiple_correct !== null) {
-                currentIsMultipleCorrect = questionData.is_mc_multiple_correct;
+            if (!questions || questions.length === 0) {
+                questionsContainer.innerHTML = '<p>No hay preguntas configuradas para esta carrera todavía.</p>';
+                return;
             }
 
-            if (currentIsMultipleCorrect) {
-                mcTypeMultipleRadio.checked = true;
-            } else {
-                mcTypeSingleRadio.checked = true;
-            }
+            questions.forEach(question => {
+                const questionItem = document.createElement('div');
+                questionItem.classList.add('question-item');
+                questionItem.dataset.questionId = question.id;
+                questionItem.style.border = '1px solid #eee';
+                questionItem.style.padding = '15px';
+                questionItem.style.marginBottom = '15px';
+                questionItem.style.borderRadius = '5px';
 
-            renderMcScoringFields(currentIsMultipleCorrect, questionData);
-            updateMcOptionInputTypes(currentIsMultipleCorrect); // Initial setup of radio/checkbox
+                let adminButtonsHtml = '';
+                if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
+                    adminButtonsHtml = `
+                        <button class="edit-question-btn" data-question-id="<span class="math-inline">\{question\.id\}" data\-question\-type\="</span>{question.question_type}" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Editar</button>
+                        <button class="delete-question-btn" data-question-id="${question.id}" style="margin-left: 5px; padding: 5px 10px; cursor: pointer; background-color: #dc3545; color:white; border:none;">Borrar</button>
+                    `;
+                }
 
-            document.querySelectorAll('input[name="mcQuestionType"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    const isMultiple = this.value === 'multiple';
-                    renderMcScoringFields(isMultiple, null); // scoreData might need to be fetched or reset
-                    updateMcOptionInputTypes(isMultiple);
+                let optionsHtml = '<div class="question-options" style="margin-top:10px;">';
+                if (question.options && question.options.length > 0) {
+                    optionsHtml += '<ul style="list-style:none; padding-left:10px;">';
+                    question.options.forEach(opt => {
+                        let correctnessIndicator = '';
+                        if (question.question_type === 'MULTIPLE_CHOICE') {
+                            if (question.is_mc_multiple_correct && opt.is_correct_mc_multiple) {
+                                correctnessIndicator = ' (Correcta)';
+                            } else if (!question.is_mc_multiple_correct && opt.is_correct_mc_single) {
+                                correctnessIndicator = ' (Correcta)';
+                            }
+                        } else if (question.question_type === 'ORDERING' && opt.correct_order_index !== null) {
+                            correctnessIndicator = ` (Orden: ${opt.correct_order_index + 1})`; // Assuming 0-indexed
+                        }
+                        optionsHtml += `<li style="background-color:#f9f9f9; padding: 5px; margin-bottom:3px; border-radius:3px;"><span class="math-inline">\{opt\.option\_text\}</span>{correctnessIndicator}</li>`;
+                    });
+                    optionsHtml += '</ul>';
+                } else {
+                    optionsHtml += '<p style="font-size:0.9em; color:#777;">No hay opciones para esta pregunta.</p>';
+                }
+                optionsHtml += '</div>';
+
+                questionItem.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h4 style="margin:0;"><span class="math-inline">\{question\.text\} \(<em\></span>{question.question_type}</em>) <span class="math-inline">\{question\.is\_active ? '' \: '<span style\="color\:red;font\-size\:0\.8em;"\>\(Inactiva\)</span\>'\}</h4\>
+<div>{adminButtonsHtml}</div>
+</div>
+<p style="font-size:0.9em; margin-top:5px; margin-bottom:5px;">${formatScoringInfo(question)}</p>
+${optionsHtml}
+`;
+questionsContainer.appendChild(questionItem);
+});
+
+            // Add event listeners for new edit/delete buttons
+            document.querySelectorAll('.edit-question-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const questionId = btn.dataset.questionId;
+                    const questionType = btn.dataset.questionType; // Added this to know which form to show
+                    // Find the full question data from the fetched questions list
+                    const questionToEdit = questions.find(q => q.id == questionId);
+                    if (questionToEdit) {
+                        openQuestionModal('edit', questionType, questionToEdit);
+                    } else {
+                        alert("Error: No se pudieron encontrar los datos de la pregunta para editar.");
+                    }
                 });
             });
-
-            document.getElementById('addMcOptionBtn').addEventListener('click', () => {
-                const isMultiple = document.getElementById('mcTypeMultiple').checked;
-                addMcOption(null, isMultiple);
+            document.querySelectorAll('.delete-question-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const questionId = btn.dataset.questionId;
+                    if (confirm('¿Estás seguro de que quieres borrar esta pregunta?')) {
+                        fetch(`/api/questions/${questionId}`, { method: 'DELETE' })
+                        .then(response => {
+                            if (response.ok) {
+                                alert('Pregunta borrada exitosamente.');
+                                fetchAndRenderQuestions(); // Refresh the list
+                            } else {
+                                response.json().then(data => {
+                                    alert(`Error al borrar pregunta: ${data.message || response.statusText}`);
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deleting question:', error);
+                            alert('Error de red al borrar pregunta.');
+                        });
+                    }
+                });
             });
-
-            if (questionData && questionData.options) {
-                const isMultiple = mcTypeMultipleRadio.checked;
-                questionData.options.forEach(opt => addMcOption(opt, isMultiple));
-            } else {
-                 // Add a couple of empty options by default for new MC questions
-                const isMultiple = mcTypeMultipleRadio.checked;
-                addMcOption(null, isMultiple);
-                addMcOption(null, isMultiple);
-            }
         }
 
-        if (addQuestionBtn) {
-            addQuestionBtn.addEventListener('click', () => {
-                // TEMP: For testing MC. Later, use a type selector.
-                // openQuestionModal('add', 'FREE_TEXT');
-                openQuestionModal('add', 'MULTIPLE_CHOICE');
-            });
+        function fetchAndRenderQuestions() {
+            questionsLoadingDiv.style.display = 'block';
+            questionsErrorDiv.textContent = '';
+            questionsContainer.innerHTML = '';
+
+            fetch(`/api/races/${raceId}/questions`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(questions => {
+                    renderQuestions(questions);
+                })
+                .catch(error => {
+                    console.error('Error fetching questions:', error);
+                    questionsLoadingDiv.style.display = 'none';
+                    questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}. Intente recargar.`;
+                });
         }
 
-        function formatScoringInfo(question) {
-            let scoringHtml = '<strong>Puntuación:</strong> ';
-                switch (question.question_type) {
-                    case 'FREE_TEXT':
-                        scoringHtml += `Máx. ${question.max_score_free_text || 'N/A'} pts.`;
-                        break;
-                    case 'MULTIPLE_CHOICE':
-                        if (question.is_mc_multiple_correct) {
-                            scoringHtml += `Correcta: ${question.points_per_correct_mc || 'N/A'} pts, Incorrecta: ${question.points_per_incorrect_mc || '0'} pts. (Selección Múltiple)`;
-                        } else {
-                            scoringHtml += `Total: ${question.total_score_mc_single || 'N/A'} pts. (Selección Única)`;
-                        }
-                        break;
-                    case 'ORDERING':
-                        scoringHtml += `Por ítem correcto: ${question.points_per_correct_order || 'N/A'} pts, Bonus orden completo: ${question.bonus_for_full_order || '0'} pts.`;
-                        break;
-                    default:
-                        scoringHtml += 'No especificada.';
-                }
-                return scoringHtml;
-            }
+        // Initial fetch and render
+        fetchAndRenderQuestions();
 
-            function renderQuestions(questions) {
-                questionsLoadingDiv.style.display = 'none';
-                questionsContainer.innerHTML = '';
-                questionsErrorDiv.textContent = '';
+        // Handle Question Form Submission
+        questionForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            questionFormErrorDiv.textContent = '';
 
-                if (!questions || questions.length === 0) {
-                    questionsContainer.innerHTML = '<p>No hay preguntas configuradas para esta carrera todavía.</p>';
+            const qId = questionIdStoreInput.value;
+            const qType = questionTypeStoreInput.value;
+            const text = questionTextInput.value.trim();
+            const isActive = isActiveCheckbox.checked;
+
+            let payload = { text, is_active: isActive };
+            let url = '';
+            let method = '';
+
+            if (qType === 'FREE_TEXT') {
+                const maxScoreFreeText = document.getElementById('maxScoreFreeText').value;
+                if (!maxScoreFreeText || parseInt(maxScoreFreeText) <=0) {
+                    questionFormErrorDiv.textContent = "Puntuación Máxima para texto libre debe ser un entero positivo.";
                     return;
                 }
+                payload.max_score_free_text = parseInt(maxScoreFreeText);
+            }
+            // TODO: Add logic for MULTIPLE_CHOICE and ORDERING data collection
 
-                questions.forEach(question => {
-                    const questionItem = document.createElement('div');
-                    questionItem.classList.add('question-item');
-                    questionItem.dataset.questionId = question.id;
-                    questionItem.style.border = '1px solid #eee';
-                    questionItem.style.padding = '15px';
-                    questionItem.style.marginBottom = '15px';
-                    questionItem.style.borderRadius = '5px';
-
-                    let adminButtonsHtml = '';
-                    if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
-                        adminButtonsHtml = `
-                            <button class="edit-question-btn" data-question-id="${question.id}" data-question-type="${question.question_type}" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Editar</button>
-                            <button class="delete-question-btn" data-question-id="${question.id}" style="margin-left: 5px; padding: 5px 10px; cursor: pointer; background-color: #dc3545; color:white; border:none;">Borrar</button>
-                        `;
-                    }
-
-                    let optionsHtml = '<div class="question-options" style="margin-top:10px;">';
-                    if (question.options && question.options.length > 0) {
-                        optionsHtml += '<ul style="list-style:none; padding-left:10px;">';
-                        question.options.forEach(opt => {
-                            let correctnessIndicator = '';
-                            if (question.question_type === 'MULTIPLE_CHOICE') {
-                                if (question.is_mc_multiple_correct && opt.is_correct_mc_multiple) {
-                                    correctnessIndicator = ' (Correcta)';
-                                } else if (!question.is_mc_multiple_correct && opt.is_correct_mc_single) {
-                                    correctnessIndicator = ' (Correcta)';
-                                }
-                            } else if (question.question_type === 'ORDERING' && opt.correct_order_index !== null) {
-                                correctnessIndicator = ` (Orden: ${opt.correct_order_index + 1})`; // Assuming 0-indexed
-                            }
-                            optionsHtml += `<li style="background-color:#f9f9f9; padding: 5px; margin-bottom:3px; border-radius:3px;">${opt.option_text}${correctnessIndicator}</li>`;
-                        });
-                        optionsHtml += '</ul>';
-                    } else {
-                        optionsHtml += '<p style="font-size:0.9em; color:#777;">No hay opciones para esta pregunta.</p>';
-                    }
-                    optionsHtml += '</div>';
-
-                    questionItem.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h4 style="margin:0;">${question.text} (<em>${question.question_type}</em>) ${question.is_active ? '' : '<span style="color:red;font-size:0.8em;">(Inactiva)</span>'}</h4>
-                            <div>${adminButtonsHtml}</div>
-                        </div>
-                        <p style="font-size:0.9em; margin-top:5px; margin-bottom:5px;">${formatScoringInfo(question)}</p>
-                        ${optionsHtml}
-                    `;
-                    questionsContainer.appendChild(questionItem);
-                });
-
-                // Add event listeners for new edit/delete buttons
-                document.querySelectorAll('.edit-question-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const questionId = btn.dataset.questionId;
-                        const questionType = btn.dataset.questionType; // Added this to know which form to show
-                        // Find the full question data from the fetched questions list
-                        const questionToEdit = questions.find(q => q.id == questionId);
-                        if (questionToEdit) {
-                            openQuestionModal('edit', questionType, questionToEdit);
-                        } else {
-                            alert("Error: No se pudieron encontrar los datos de la pregunta para editar.");
-                        }
-                    });
-                });
-                document.querySelectorAll('.delete-question-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const questionId = btn.dataset.questionId;
-                        if (confirm('¿Estás seguro de que quieres borrar esta pregunta?')) {
-                            fetch(`/api/questions/${questionId}`, { method: 'DELETE' })
-                            .then(response => {
-                                if (response.ok) {
-                                    alert('Pregunta borrada exitosamente.');
-                                    fetchAndRenderQuestions(); // Refresh the list
-                                } else {
-                                    response.json().then(data => {
-                                        alert(`Error al borrar pregunta: ${data.message || response.statusText}`);
-                                    });
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error deleting question:', error);
-                                alert('Error de red al borrar pregunta.');
-                            });
-                        }
-                    });
-                });
+            if (qId) { // Editing
+                url = `/api/questions/<span class="math-inline">\{qType\.toLowerCase\(\)\}/</span>{qId}`; // e.g. /api/questions/free-text/123
+                method = 'PUT';
+            } else { // Adding
+                url = `/api/races/<span class="math-inline">\{raceId\}/questions/</span>{qType.toLowerCase()}`; // e.g. /api/races/1/questions/free-text
+                method = 'POST';
             }
 
-            function fetchAndRenderQuestions() {
-                questionsLoadingDiv.style.display = 'block';
-                questionsErrorDiv.textContent = '';
-                questionsContainer.innerHTML = '';
-
-                fetch(`/api/races/${raceId}/questions`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Error ${response.status}: ${response.statusText}`);
-                        }
-                        return response.json();
-                    })
-                    .then(questions => {
-                        renderQuestions(questions);
-                    })
-                    .catch(error => {
-                        console.error('Error fetching questions:', error);
-                        questionsLoadingDiv.style.display = 'none';
-                        questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}. Intente recargar.`;
-                    });
-            }
-
-            // Initial fetch and render
-            fetchAndRenderQuestions();
-
-            // Handle Question Form Submission
-            questionForm.addEventListener('submit', function(event) {
-                event.preventDefault();
-                questionFormErrorDiv.textContent = '';
-
-                const qId = questionIdStoreInput.value;
-                const qType = questionTypeStoreInput.value;
-                const text = questionTextInput.value.trim();
-                const isActive = isActiveCheckbox.checked;
-
-                let payload = { text, is_active: isActive };
-                let url = '';
-                let method = '';
-
-                if (qType === 'FREE_TEXT') {
-                    const maxScoreFreeText = document.getElementById('maxScoreFreeText').value;
-                    if (!maxScoreFreeText || parseInt(maxScoreFreeText) <=0) {
-                        questionFormErrorDiv.textContent = "Puntuación Máxima para texto libre debe ser un entero positivo.";
-                        return;
-                    }
-                    payload.max_score_free_text = parseInt(maxScoreFreeText);
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(result => {
+                if (result.status === 201 || result.status === 200) {
+                    alert(`Pregunta ${qId ? 'actualizada' : 'creada'} exitosamente!`);
+                    closeQuestionModal();
+                    fetchAndRenderQuestions(); // Refresh list
+                } else {
+                    questionFormErrorDiv.textContent = `Error: ${result.body.message || 'Error desconocido.'}`;
                 }
-                // TODO: Add logic for MULTIPLE_CHOICE and ORDERING data collection
-
-                if (qId) { // Editing
-                    url = `/api/questions/${qType.toLowerCase()}/${qId}`; // e.g. /api/questions/free-text/123
-                    method = 'PUT';
-                } else { // Adding
-                    url = `/api/races/${raceId}/questions/${qType.toLowerCase()}`; // e.g. /api/races/1/questions/free-text
-                    method = 'POST';
-                }
-
-                fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json().then(data => ({ status: response.status, body: data })))
-                .then(result => {
-                    if (result.status === 201 || result.status === 200) {
-                        alert(`Pregunta ${qId ? 'actualizada' : 'creada'} exitosamente!`);
-                        closeQuestionModal();
-                        fetchAndRenderQuestions(); // Refresh list
-                    } else {
-                        questionFormErrorDiv.textContent = `Error: ${result.body.message || 'Error desconocido.'}`;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error submitting question form:', error);
-                    questionFormErrorDiv.textContent = 'Error de red o el servidor no responde.';
-                });
+            })
+            .catch(error => {
+                console.error('Error submitting question form:', error);
+                questionFormErrorDiv.textContent = 'Error de red o el servidor no responde.';
             });
         });
-    </script>
+    });
+</script>
 </body>
 </html>
