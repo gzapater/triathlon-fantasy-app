@@ -216,11 +216,13 @@
                 </div>
                 <div class="flex items-center space-x-3">
                     {% if current_user and current_user.is_authenticated %}
-                        {% set badge_class = 'badge-player' %}
-                        {% if current_user.role.code == 'ADMIN' %}{% set badge_class = 'badge-admin' %}
-                        {% elif current_user.role.code == 'LEAGUE_ADMIN' %}{% set badge_class = 'badge-league' %}
+                        {% set badge_class = 'badge-player' %} {# Default #}
+                        {% if current_user.role and current_user.role.code == 'ADMIN' %}
+                            {% set badge_class = 'badge-admin' %}
+                        {% elif current_user.role and current_user.role.code == 'LEAGUE_ADMIN' %}
+                            {% set badge_class = 'badge-league' %}
                         {% endif %}
-                        <span class="badge-role {{ badge_class }} hidden sm:inline">{{ current_user.role.description }}</span>
+                        <span class="badge-role {{ badge_class }} hidden sm:inline">{{ current_user.role.description if current_user.role else 'Rol no definido' }}</span>
                         <span class="text-sm text-gray-700 hidden sm:inline">{{ current_user.username }}</span>
                          <button id="logoutButtonNav" class="text-gray-600 hover:text-orange-500 transition-colors">
                             <i class="fas fa-sign-out-alt"></i>
@@ -290,49 +292,53 @@
                 <div class="bg-white rounded-xl p-6 shadow-lg">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Segmentos de la Carrera</h2>
                     {% if race.segment_details and race.segment_details|length > 0 %}
-                    <div class="timeline-line space-y-6 relative"> <!-- Added relative for z-index context -->
+                    <div class="timeline-line space-y-6 relative">
                         {% for detail in race.segment_details %}
-                            {% set segment_name_lower = detail.segment.name.lower() %}
-                            {% set border_color_class = 'transition-segment' %} {# Default for transitions or unspecified #}
-                            {% set icon_bg_color = 'bg-orange-500' %}
-                            {% set text_color = 'text-orange-500' %}
-                            {% set segment_icon = 'fa-exchange-alt' %}
+                            {% if detail.segment %}
+                                {% set segment_name = detail.segment.name %}
+                                {% set segment_name_lower = segment_name.lower() %}
+                                {% set border_color_class = 'transition-segment' %}
+                                {% set icon_bg_color = 'bg-orange-500' %}
+                                {% set text_color = 'text-orange-500' %}
+                                {% set segment_icon = 'fa-exchange-alt' %}
 
-                            {% if 'natación' in segment_name_lower or 'swim' in segment_name_lower %}
-                                {% set border_color_class = 'swim-segment' %}
-                                {% set icon_bg_color = 'bg-blue-500' %}
-                                {% set text_color = 'text-blue-500' %}
-                                {% set segment_icon = 'fa-swimmer' %}
-                            {% elif 'ciclismo' in segment_name_lower or 'bike' in segment_name_lower %}
-                                {% set border_color_class = 'bike-segment' %}
-                                {% set icon_bg_color = 'bg-gray-700' %}
-                                {% set text_color = 'text-gray-700' %}
-                                {% set segment_icon = 'fa-biking' %}
-                            {% elif 'carrera' in segment_name_lower or 'running' in segment_name_lower or 'run' in segment_name_lower %}
-                                {% set border_color_class = 'run-segment' %}
-                                {% set icon_bg_color = 'bg-green-500' %}
-                                {% set text_color = 'text-green-500' %}
-                                {% set segment_icon = 'fa-running' %}
+                                {% if 'natación' in segment_name_lower or 'swim' in segment_name_lower %}
+                                    {% set border_color_class = 'swim-segment' %}
+                                    {% set icon_bg_color = 'bg-blue-500' %}
+                                    {% set text_color = 'text-blue-500' %}
+                                    {% set segment_icon = 'fa-swimmer' %}
+                                {% elif 'ciclismo' in segment_name_lower or 'bike' in segment_name_lower %}
+                                    {% set border_color_class = 'bike-segment' %}
+                                    {% set icon_bg_color = 'bg-gray-700' %}
+                                    {% set text_color = 'text-gray-700' %}
+                                    {% set segment_icon = 'fa-biking' %}
+                                {% elif 'carrera' in segment_name_lower or 'running' in segment_name_lower or 'run' in segment_name_lower %}
+                                    {% set border_color_class = 'run-segment' %}
+                                    {% set icon_bg_color = 'bg-green-500' %}
+                                    {% set text_color = 'text-green-500' %}
+                                    {% set segment_icon = 'fa-running' %}
+                                {% endif %}
+
+                            <!-- Segment Card -->
+                            <div class="segment-card {{ border_color_class }} bg-white p-4 rounded-lg shadow-md ml-0 md:ml-6 relative pl-16 md:pl-4">
+                                <div class="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 md:-translate-x-1/2 w-12 h-12 {{ icon_bg_color }} rounded-full flex items-center justify-center border-4 border-white">
+                                    <i class="fas {{ segment_icon }} text-white text-lg"></i>
+                                </div>
+                                <div class="flex items-center space-x-4 ml-8 md:ml-10">
+                                    <div class="flex-1">
+                                        <h3 class="font-bold text-gray-800">{{ segment_name }}</h3>
+                                        <p class="text-gray-600 text-sm">{{ detail.distance_km }} km</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-lg font-bold {{ text_color }}">{{ detail.distance_km }} KM</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                                <div class="segment-card bg-white p-4 rounded-lg shadow-md ml-0 md:ml-6 relative pl-16 md:pl-4">
+                                    <p class="text-red-500">Error: Datos del segmento incompletos.</p>
+                                </div>
                             {% endif %}
-
-                        <!-- Segment Card -->
-                        <div class="segment-card {{ border_color_class }} bg-white p-4 rounded-lg shadow-md ml-0 md:ml-6 relative pl-16 md:pl-4">
-                            <!-- Icon absolutely positioned to overlay timeline -->
-                            <div class="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 md:-translate-x-1/2 w-12 h-12 {{ icon_bg_color }} rounded-full flex items-center justify-center border-4 border-white">
-                                <i class="fas {{ segment_icon }} text-white text-lg"></i>
-                            </div>
-                            <!-- Content -->
-                            <div class="flex items-center space-x-4 ml-8 md:ml-10"> {/* Margin to clear the icon */}
-                                <div class="flex-1">
-                                    <h3 class="font-bold text-gray-800">{{ detail.segment.name }}</h3>
-                                    <p class="text-gray-600 text-sm">{{ detail.distance_km }} km</p>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-lg font-bold {{ text_color }}">{{ detail.distance_km }} KM</div>
-                                    <!-- Estimated time can be added later if available -->
-                                </div>
-                            </div>
-                        </div>
                         {% endfor %}
                     </div>
                     {% else %}
@@ -382,7 +388,7 @@
                             <i class="fas fa-user-tie text-orange-500 text-xl"></i>
                         </div>
                         <div>
-                            <div class="font-semibold text-gray-800">{{ race.user.username | default('N/A') }}</div>
+                                <div class="font-semibold text-gray-800">{{ race.user.username if race.user else 'N/A' }}</div>
                             <!-- <div class="text-sm text-gray-600">Rol del organizador</div> Placeholder -->
                         </div>
                     </div>
@@ -417,7 +423,7 @@
 
     <script>
         const raceId = "{{ race.id if race and race.id is defined else '' }}";
-        const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated else 'GUEST' }}";
+        const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
 
         // Logout functionality
         const logoutButtonNav = document.getElementById('logoutButtonNav');
