@@ -1,103 +1,807 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Nueva Carrera</title>
-    <!-- Link to a general stylesheet if available, e.g., styles.css -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Crear Nueva Carrera - Fantasy Triatlón</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        .container { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; }
-        label { display: block; margin-top: 10px; font-weight: bold; }
-        input[type="text"], input[type="date"], input[type="number"], textarea, select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+        :root {
+            --primary-orange: #FF6B35;
+            --secondary-orange: #FF8F65;
+            --accent-orange: #FF4500;
+            --light-orange: #FFB380;
+            --dark-gray: #2C3E50;
+            --medium-gray: #34495E;
+            --light-gray: #7F8C8D;
+            --bg-light: #F8F9FA;
+            --water-blue: #3498DB;
+            --nature-green: #27AE60;
+            --alert-red: #E74C3C;
         }
-        textarea { resize: vertical; }
-        .button {
-            background-color: #007bff;
+
+        body {
+            font-family: 'Roboto', sans-serif; /* Changed from Inter to Roboto to match index */
+            background: linear-gradient(135deg, #F8F9FA 0%, #E8F4FD 100%); /* Match index body background */
+            min-height: 100vh;
+        }
+
+        .brand-font { /* Added from index.html styles */
+            font-family: 'Orbitron', monospace;
+        }
+
+        .triathlon-gradient { /* Kept from new design for specific elements */
+            background: linear-gradient(45deg, #3498DB 0%, #FF6B35 50%, #27AE60 100%);
+        }
+
+        .card-shadow {
+            box-shadow: 0 10px 25px rgba(44, 62, 80, 0.1); /* Adjusted shadow to be less orange-specific */
+        }
+
+        .step-indicator-active { /* Renamed for clarity */
+            background: linear-gradient(90deg, var(--primary-orange) 0%, var(--secondary-orange) 100%);
+        }
+        .step-indicator-inactive {
+            background-color: #E0E0E0; /* Tailwind gray-300 */
+        }
+
+        .step-text-active { color: var(--primary-orange); }
+        .step-text-inactive { color: var(--medium-gray); }
+
+
+        .floating-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .segment-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            background-color: #FFFFFF; /* Ensure white background */
+        }
+
+        .segment-card.selected { /* Style for selected segment card */
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.4);
+        }
+
+        .segment-card:hover {
+            border-color: var(--secondary-orange);
+            transform: translateY(-2px);
+        }
+
+        .question-preview {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .drag-indicator {
+            cursor: grab;
+        }
+
+        .drag-indicator:active {
+            cursor: grabbing;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 5px;
+            padding: 8px 12px; /* Increased padding */
+            background-color: var(--dark-gray); /* Changed from bg-gray-800 */
             color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 20px;
-            font-size: 16px;
+            font-size: 0.75rem; /* text-xs */
+            border-radius: 0.375rem; /* rounded-md */
+            white-space: nowrap;
+            z-index: 20; /* Ensure tooltip is above other elements */
         }
-        .button:hover { background-color: #0056b3; }
-        #errorMessages { color: red; margin-top: 15px; }
-        .segment-entry { border: 1px solid #eee; padding: 10px; margin-top: 10px; border-radius: 4px; }
-        .segment-name { font-weight: bold; }
+
+        .tooltip-trigger:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .rich-editor {
+            min-height: 120px;
+            border: 1px solid #D1D5DB; /* Tailwind gray-300, consistent with input-field */
+            border-radius: 0.5rem; /* Consistent with input-field */
+            padding: 0.875rem 1.25rem; /* Consistent with input-field */
+            background-color: white;
+            color: #1F2937; /* Tailwind gray-800 */
+        }
+
+        .rich-editor:focus {
+            outline: none;
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.3);
+        }
+        .rich-editor[contenteditable=true]:empty:before{ /* Placeholder for contenteditable */
+            content: attr(data-placeholder);
+            pointer-events: none;
+            color: #9CA3AF; /* Tailwind gray-400 */
+            display: block; /* For a correct styling */
+        }
+
+        /* General input field styling (from login page for consistency) */
+        .input-field, .select-field {
+            width: 100%;
+            padding: 0.875rem 1.25rem;
+            border: 1px solid #D1D5DB; /* Tailwind gray-300 */
+            border-radius: 0.5rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            background-color: white;
+        }
+        .input-field:focus, .select-field:focus {
+            outline: none;
+            border-color: var(--primary-orange);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.3);
+        }
+
+        /* Button styling (from login page for consistency) */
+        .btn { /* Generic button base */
+            padding: 0.75rem 1.5rem; /* Slightly smaller than btn-primary */
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 500; /* Medium */
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: 1px solid transparent;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--accent-orange) 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, var(--primary-orange) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(255, 107, 53, 0.3);
+        }
+        .btn-secondary {
+            background-color: #E5E7EB; /* Tailwind gray-200 */
+            color: var(--dark-gray);
+            border-color: #D1D5DB; /* Tailwind gray-300 */
+        }
+        .btn-secondary:hover {
+            background-color: #D1D5DB; /* Tailwind gray-300 */
+            border-color: #9CA3AF; /* Tailwind gray-400 */
+        }
+        .btn-danger {
+            background-color: var(--alert-red);
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #C0392B; /* Darker red */
+        }
+
+
+        @media print {
+            .floating-btn { display: none; }
+            body { background: white; }
+        }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>Crear Nueva Carrera</h1>
-
-        <form id="createRaceForm">
-            <div>
-                <label for="raceTitle">Título de la Carrera:</label>
-                <input type="text" id="raceTitle" name="raceTitle" required>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="bg-white shadow-lg border-b-4 border-orange-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-10 w-auto'> tag -->
+                    <div class="triathlon-gradient w-12 h-12 rounded-full flex items-center justify-center">
+                        <i class="fas fa-trophy text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900 brand-font">Crear Nueva Carrera</h1>
+                        <nav aria-label="Breadcrumb" class="text-sm text-gray-500">
+                            <ol class="list-none p-0 inline-flex">
+                                <li class="flex items-center">
+                                    <a href="{{ url_for('serve_hello_world_page') }}" class="hover:text-orange-500">Dashboard</a>
+                                    <i class="fas fa-chevron-right mx-2"></i>
+                                </li>
+                                <li class="flex items-center text-orange-500" aria-current="page">
+                                    <span>Crear Nueva</span>
+                                </li>
+                            </ol>
+                        </nav>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="text-right">
+                        <p id="headerUsername" class="text-sm font-medium text-gray-900">Usuario</p>
+                        <p id="headerUserRole" class="text-xs text-gray-500">Rol</p>
+                    </div>
+                    <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-user text-white"></i>
+                    </div>
+                </div>
             </div>
+        </div>
+    </header>
 
-            <div>
-                <label for="raceDescription">Descripción Adicional:</label>
-                <textarea id="raceDescription" name="raceDescription" rows="3"></textarea>
+    <!-- Progress Indicator -->
+    <div class="bg-white border-b sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex space-x-4 md:space-x-8">
+                    <div id="stepIndicator1" class="flex items-center">
+                        <div class="w-8 h-8 step-indicator-active rounded-full flex items-center justify-center text-white font-bold text-sm">1</div>
+                        <span class="ml-2 text-sm font-medium step-text-active">Información Básica</span>
+                    </div>
+                    <div id="stepIndicator2" class="flex items-center">
+                        <div class="w-8 h-8 step-indicator-inactive rounded-full flex items-center justify-center text-gray-600 font-bold text-sm">2</div>
+                        <span class="ml-2 text-sm font-medium step-text-inactive">Formato y Segmentos</span>
+                    </div>
+                    <!-- Step 3 (Questions) is hidden for now -->
+                    <div id="stepIndicator3" class="flex items-center hidden">
+                        <div class="w-8 h-8 step-indicator-inactive rounded-full flex items-center justify-center text-gray-600 font-bold text-sm">3</div>
+                        <span class="ml-2 text-sm font-medium step-text-inactive">Preguntas</span>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-500 hidden md:block">
+                    <i class="fas fa-save mr-1"></i>
+                    <span id="autosaveStatus"></span>
+                </div>
             </div>
-
-            <div>
-                <label for="raceFormat">Formato de Carrera:</label>
-                <select id="raceFormat" name="raceFormat" required>
-                    <option value="">-- Seleccione Formato --</option>
-                </select>
-            </div>
-
-            <div id="raceSegmentsContainer">
-                <!-- Segmentos se generarán aquí por JS -->
-            </div>
-
-            <div>
-                <label for="eventDate">Fecha del Evento:</label>
-                <input type="date" id="eventDate" name="eventDate" required>
-            </div>
-
-            <div>
-                <label for="raceLocation">Ubicación:</label>
-                <input type="text" id="raceLocation" name="raceLocation">
-            </div>
-
-            <div>
-                <label for="promoImageUrl">URL de Imagen Promocional:</label>
-                <input type="text" id="promoImageUrl" name="promoImageUrl" placeholder="https://example.com/image.jpg">
-            </div>
-
-            <div>
-                <label>Categoría Principal:</label>
-                <input type="text" id="raceCategory" name="raceCategory" value="Elite" readonly>
-            </div>
-
-            <div>
-                <label for="genderCategory">Género de la Categoría Elite:</label>
-                <select id="genderCategory" name="genderCategory" required>
-                    <option value="">-- Seleccione Género --</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Femenino">Femenino</option>
-                    <option value="Ambos">Ambos</option>
-                </select>
-            </div>
-
-            <div id="errorMessages"></div>
-
-            <button type="submit" id="createRaceButton" class="button">Crear Carrera</button>
-        </form>
+        </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/create_race.js') }}"></script>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <form id="createRaceWizardForm">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Main Content -->
+                <div class="flex-1">
+                    <!-- Step 1: Información Básica -->
+                    <div id="step1Content" class="step-content">
+                        <div class="bg-white rounded-xl card-shadow p-6 sm:p-8 mb-8">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                                <i class="fas fa-info-circle text-orange-500 mr-3"></i>
+                                Información Básica de la Carrera
+                            </h2>
+
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div class="lg:col-span-2">
+                                    <label for="raceTitle" class="block text-sm font-medium text-gray-700 mb-1">
+                                        Título de la Carrera <span class="text-red-500">*</span>
+                                        <span class="tooltip-trigger relative inline-block ml-1 align-middle">
+                                            <i class="fas fa-question-circle text-gray-400"></i>
+                                            <span class="tooltip">Nombre descriptivo y atractivo para la carrera</span>
+                                        </span>
+                                    </label>
+                                    <input type="text" id="raceTitle" name="raceTitle" class="input-field" placeholder="Ej: Triatlón Internacional Costa Brava 2024" required>
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label for="raceDescription" class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                    <div id="raceDescription" class="rich-editor" contenteditable="true" data-placeholder="Describe los detalles de la carrera, el recorrido, las condiciones especiales..."></div>
+                                </div>
+
+                                <div>
+                                    <label for="eventDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha y Hora del Evento <span class="text-red-500">*</span></label>
+                                    <input type="datetime-local" id="eventDate" name="eventDate" class="input-field" required>
+                                </div>
+
+                                <div>
+                                    <label for="raceLocation" class="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
+                                    <input type="text" id="raceLocation" name="raceLocation" class="input-field" placeholder="Ciudad, País">
+                                </div>
+
+                                <div class="lg:col-span-2">
+                                    <label for="promoImageUrl" class="block text-sm font-medium text-gray-700 mb-1">Imagen Promocional (URL)</label>
+                                    <input type="url" id="promoImageUrl" name="promoImageUrl" class="input-field" placeholder="https://ejemplo.com/imagen.jpg">
+                                </div>
+
+                                <!-- Image Preview -->
+                                <div id="imagePreviewContainer" class="lg:col-span-2 mt-2 hidden">
+                                    <p class="block text-sm font-medium text-gray-700 mb-1">Vista Previa:</p>
+                                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-2 inline-block">
+                                        <img id="imagePreview" class="max-w-xs h-auto max-h-48 object-cover rounded" alt="Vista previa de la imagen">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label for="genderCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoría de Género <span class="text-red-500">*</span></label>
+                                    <select id="genderCategory" name="genderCategory" class="select-field" required>
+                                        <option value="" disabled selected>Seleccionar categoría</option>
+                                        <option value="Masculino">Masculino</option>
+                                        <option value="Femenino">Femenino</option>
+                                        <option value="Ambos">Ambos</option>
+                                    </select>
+                                </div>
+                                 <div>
+                                    <label for="raceCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoría Principal</label>
+                                    <input type="text" id="raceCategory" name="raceCategory" class="input-field bg-gray-100" value="Elite" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Formato y Segmentos -->
+                    <div id="step2Content" class="step-content hidden">
+                        <div class="bg-white rounded-xl card-shadow p-6 sm:p-8 mb-8">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                                <i class="fas fa-route text-orange-500 mr-3"></i>
+                                Formato y Segmentos de la Carrera
+                            </h2>
+
+                            <div class="mb-8">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-3">Formato de Carrera <span class="text-red-500">*</span></h3>
+                                <div id="raceFormatContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <!-- Race formats will be populated by JavaScript -->
+                                    <p class="text-gray-500 md:col-span-3">Cargando formatos...</p>
+                                </div>
+                                <input type="hidden" id="selectedRaceFormatId" name="selectedRaceFormatId">
+                            </div>
+
+                            <div id="segmentsConfigContainer" class="hidden">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-3">Configuración de Segmentos <span class="text-red-500">*</span></h3>
+                                <p class="text-sm text-gray-600 mb-4">Define las distancias para cada segmento del formato seleccionado.</p>
+                                <div id="segmentsList" class="space-y-4">
+                                    <!-- Segments will be populated by JavaScript -->
+                                </div>
+                                <!-- Route Preview (optional, can be enhanced later) -->
+                                <div id="routePreview" class="mt-6 hidden">
+                                    <h4 class="text-md font-semibold text-gray-800 mb-2">Visualización del Recorrido</h4>
+                                    <div class="bg-gray-50 rounded-lg p-4">
+                                        <div id="routeVisualization" class="flex items-center justify-start space-x-2 overflow-x-auto pb-2">
+                                            <!-- Route visualization will be populated dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Preguntas (Hidden for now as per plan) -->
+                    <div id="step3Content" class="step-content hidden">
+                         <div class="bg-white rounded-xl card-shadow p-8 mb-8">
+                            <h2 class="text-xl font-bold text-gray-900 mb-6">Preguntas (Deshabilitado Temporalmente)</h2>
+                            <p class="text-gray-600">La configuración de preguntas se habilitará en una fase posterior.</p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="flex justify-between items-center mt-8">
+                        <button type="button" id="prevBtn" class="btn btn-secondary hidden">
+                            <i class="fas fa-chevron-left mr-2"></i>Anterior
+                        </button>
+                        <div id="formActionButtons" class="flex space-x-3 ml-auto">
+                             <button type="button" id="nextBtn" class="btn btn-primary">
+                                Siguiente <i class="fas fa-chevron-right ml-2"></i>
+                            </button>
+                            <!-- This button will be relabeled and its action changed in JS for the last step -->
+                            <button type="submit" id="finishBtn" class="btn btn-primary hidden">
+                                Crear Carrera <i class="fas fa-check ml-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                     <div id="formErrorMessages" class="mt-4 text-red-600 text-sm"></div>
+                </div>
+
+                <!-- Sidebar -->
+                <aside class="w-full lg:w-80 flex-shrink-0">
+                    <div class="sticky top-24 space-y-6">
+                        <div class="bg-white rounded-xl card-shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
+                                Tips para Crear Carreras
+                            </h3>
+                            <ul class="space-y-2 text-sm text-gray-600 list-disc list-inside">
+                                <li>Usa títulos descriptivos y atractivos.</li>
+                                <li>Incluye imágenes de alta calidad si es posible.</li>
+                                <li>Configura distancias realistas para los segmentos.</li>
+                                <!-- <li>Crea preguntas variadas y desafiantes. (Commented out as questions are deferred)</li> -->
+                            </ul>
+                        </div>
+                        <div class="bg-white rounded-xl card-shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                                <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                                Información Adicional
+                            </h3>
+                            <p class="text-sm text-gray-600">
+                                Asegúrate de que todos los campos marcados con <span class="text-red-500">*</span> son completados.
+                                La carrera creada será visible para los usuarios de la plataforma.
+                            </p>
+                        </div>
+                         <div class="bg-orange-50 border border-orange-200 rounded-xl p-6">
+                            <h3 class="text-lg font-semibold text-orange-700 mb-2">¿Necesitas Ayuda?</h3>
+                            <p class="text-sm text-orange-600 mb-3">Consulta nuestra guía para crear carreras.</p>
+                            <a href="#" class="text-sm text-orange-600 hover:text-orange-800 font-medium hover:underline">
+                                Ver Guía <i class="fas fa-external-link-alt ml-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </form>
+    </main>
+
+    <!-- Floating Save Button (Optional, if autosave is implemented later) -->
+    <!--
+    <button class="floating-btn bg-orange-500 hover:bg-orange-600 text-white p-4 rounded-full transition-colors">
+        <i class="fas fa-save text-xl"></i>
+    </button>
+    -->
+
+    <script>
+        // Placeholder for backend data - will be populated by Flask
+        let ALL_RACE_FORMATS = []; // e.g., [{id: 1, name: "Triatlón"}, ...]
+        let ALL_SEGMENTS = []; // e.g., [{id: 1, name: "Natación"}, {id:2, name:"Ciclismo"}, ...]
+        // Predefined mapping of format names to an array of segment names (as in new design)
+        // This helps define the *order* and *type* of segments for known race formats.
+        // The actual segment IDs will be looked up from ALL_SEGMENTS.
+        const RACE_FORMAT_TO_SEGMENT_NAMES = {
+            "Triatlón": ["Natación", "Transición 1 (T1)", "Ciclismo", "Transición 2 (T2)", "Carrera a pie"],
+            "Duatlón": ["Carrera a pie", "Transición 1 (T1)", "Ciclismo", "Transición 2 (T2)", "Carrera a pie"], // Note: Duathlon often has 2 run segments. Name them uniquely if IDs differ.
+            "Acuatlón": ["Natación", "Transición 1 (T1)", "Carrera a pie"]
+        };
+
+        // DOM Elements
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const finishBtn = document.getElementById('finishBtn'); // This is the submit button
+        const formErrorMessages = document.getElementById('formErrorMessages');
+        const createRaceWizardForm = document.getElementById('createRaceWizardForm');
+
+        const stepContents = [
+            document.getElementById('step1Content'),
+            document.getElementById('step2Content'),
+            // document.getElementById('step3Content') // Step 3 hidden for now
+        ];
+        const stepIndicators = [
+            document.getElementById('stepIndicator1'),
+            document.getElementById('stepIndicator2'),
+            // document.getElementById('stepIndicator3') // Step 3 hidden for now
+        ];
+
+        let currentStep = 1; // Initial step is 1
+
+        function updateStepUI() {
+            stepContents.forEach((content, index) => {
+                content.classList.toggle('hidden', index + 1 !== currentStep);
+            });
+
+            stepIndicators.forEach((indicator, index) => {
+                const stepNum = index + 1;
+                const circle = indicator.querySelector('div');
+                const text = indicator.querySelector('span');
+
+                if (stepNum === currentStep) {
+                    circle.className = 'w-8 h-8 step-indicator-active rounded-full flex items-center justify-center text-white font-bold text-sm';
+                    text.className = 'ml-2 text-sm font-medium step-text-active';
+                } else {
+                    circle.className = 'w-8 h-8 step-indicator-inactive rounded-full flex items-center justify-center text-gray-600 font-bold text-sm';
+                    text.className = 'ml-2 text-sm font-medium step-text-inactive';
+                }
+            });
+
+            prevBtn.classList.toggle('hidden', currentStep === 1);
+            nextBtn.classList.toggle('hidden', currentStep === stepContents.length);
+            finishBtn.classList.toggle('hidden', currentStep !== stepContents.length);
+        }
+
+        // Image Preview Logic
+        const promoImageUrlInput = document.getElementById('promoImageUrl');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+
+        if (promoImageUrlInput) {
+            promoImageUrlInput.addEventListener('input', function() {
+                const url = this.value.trim();
+                if (url) {
+                    imagePreview.src = url;
+                    imagePreviewContainer.classList.remove('hidden');
+                } else {
+                    imagePreviewContainer.classList.add('hidden');
+                }
+            });
+        }
+
+        // Rich Text Editor Content Retrieval
+        function getDescriptionContent() {
+            const editor = document.getElementById('raceDescription');
+            return editor ? editor.innerHTML : ''; // Or editor.textContent for plain text
+        }
+
+        // Race Format and Segment Logic
+        const raceFormatContainer = document.getElementById('raceFormatContainer');
+        const segmentsConfigContainer = document.getElementById('segmentsConfigContainer');
+        const segmentsListDiv = document.getElementById('segmentsList');
+        const selectedRaceFormatIdInput = document.getElementById('selectedRaceFormatId');
+        const routeVisualizationDiv = document.getElementById('routeVisualization');
+
+
+        function populateRaceFormats() {
+            if (!raceFormatContainer) return;
+            raceFormatContainer.innerHTML = ''; // Clear loading/previous
+            if (ALL_RACE_FORMATS.length === 0) {
+                raceFormatContainer.innerHTML = '<p class="text-red-500 md:col-span-3">Error: No se pudieron cargar los formatos de carrera.</p>';
+                return;
+            }
+
+            ALL_RACE_FORMATS.forEach(format => {
+                const label = document.createElement('label');
+                label.className = 'segment-card bg-gray-50 p-4 rounded-lg cursor-pointer flex flex-col items-center justify-center text-center';
+                // Basic icon - can be improved
+                let iconClass = 'fa-question-circle';
+                if (format.name.toLowerCase().includes('triatlón')) iconClass = 'fa-swimmer';
+                else if (format.name.toLowerCase().includes('duatlón')) iconClass = 'fa-biking';
+                else if (format.name.toLowerCase().includes('acuatlón')) iconClass = 'fa-running';
+
+
+                label.innerHTML = `
+                    <input type="radio" name="raceFormat" value="${format.id}" class="sr-only">
+                    <i class="fas ${iconClass} text-3xl mb-2 text-orange-500"></i>
+                    <h4 class="font-medium text-gray-900">${format.name}</h4>
+                `;
+                label.addEventListener('click', () => {
+                    document.querySelectorAll('#raceFormatContainer label.segment-card').forEach(l => l.classList.remove('selected'));
+                    label.classList.add('selected');
+                    selectedRaceFormatIdInput.value = format.id;
+                    displaySegmentsForFormat(format.name);
+                });
+                raceFormatContainer.appendChild(label);
+            });
+        }
+
+        function displaySegmentsForFormat(formatName) {
+            segmentsListDiv.innerHTML = ''; // Clear previous
+            routeVisualizationDiv.innerHTML = '';
+            segmentsConfigContainer.classList.remove('hidden');
+
+            const segmentNamesForFormat = RACE_FORMAT_TO_SEGMENT_NAMES[formatName];
+            if (!segmentNamesForFormat || ALL_SEGMENTS.length === 0) {
+                segmentsListDiv.innerHTML = '<p class="text-gray-500">No hay segmentos definidos para este formato o no se pudieron cargar los segmentos.</p>';
+                return;
+            }
+
+            let routeHtml = '';
+
+            segmentNamesForFormat.forEach((segmentName, index) => {
+                const segmentData = ALL_SEGMENTS.find(s => s.name === segmentName);
+                if (!segmentData) {
+                    console.warn(`Segment data for "${segmentName}" not found in ALL_SEGMENTS.`);
+                    return; // Skip if segment master data not found
+                }
+
+                // Determine icon based on name (can be more sophisticated)
+                let iconClass = 'fa-road';
+                if (segmentName.toLowerCase().includes('natación')) iconClass = 'fa-swimmer';
+                else if (segmentName.toLowerCase().includes('ciclismo')) iconClass = 'fa-biking';
+                else if (segmentName.toLowerCase().includes('carrera') || segmentName.toLowerCase().includes('run')) iconClass = 'fa-running';
+                else if (segmentName.toLowerCase().includes('transición')) iconClass = 'fa-exchange-alt';
+
+                let color = 'gray'; // Default color
+                if (iconClass === 'fa-swimmer') color = 'blue';
+                else if (iconClass === 'fa-biking') color = 'green';
+                else if (iconClass === 'fa-running') color = 'red';
+
+
+                const segmentEntry = document.createElement('div');
+                segmentEntry.className = 'flex items-center space-x-3 p-3 bg-gray-50 rounded-lg';
+                segmentEntry.innerHTML = `
+                    <div class="w-10 h-10 bg-${color}-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <i class="fas ${iconClass} text-${color}-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-medium text-gray-800 truncate">${segmentName}</h4>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" step="0.01" min="0" placeholder="0.0"
+                               class="segment-distance input-field p-2 w-24 text-center"
+                               data-segment-id="${segmentData.id}"
+                               data-segment-name="${segmentData.name}"
+                               ${segmentName.toLowerCase().includes("transición") ? 'value="0"' : 'required'}>
+                        <span class="text-sm text-gray-500">km</span>
+                    </div>
+                `;
+                segmentsListDiv.appendChild(segmentEntry);
+
+                // Add to route visualization
+                routeHtml += `
+                    <div class="flex flex-col items-center text-center flex-shrink-0 w-20">
+                        <div class="w-12 h-12 bg-${color}-100 rounded-full flex items-center justify-center mb-1">
+                            <i class="fas ${iconClass} text-${color}-600 text-lg"></i>
+                        </div>
+                        <span class="text-xs text-gray-600 truncate w-full">${segmentName}</span>
+                    </div>
+                `;
+                if (index < segmentNamesForFormat.length - 1) {
+                     routeHtml += '<div class="flex items-center justify-center h-12"><i class="fas fa-arrow-right text-gray-400 mx-1 sm:mx-2"></i></div>';
+                }
+            });
+            routeVisualizationDiv.innerHTML = routeHtml;
+            document.getElementById('routePreview').classList.remove('hidden');
+        }
+
+
+        // Navigation Logic
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                // Basic validation for current step before proceeding
+                if (currentStep === 1 && !validateStep1()) return;
+                if (currentStep === 2 && !validateStep2()) return;
+
+                if (currentStep < stepContents.length) {
+                    currentStep++;
+                    updateStepUI();
+                }
+            });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (currentStep > 1) {
+                    currentStep--;
+                    updateStepUI();
+                }
+            });
+        }
+
+        // Form Submission Logic
+        if (createRaceWizardForm) {
+            createRaceWizardForm.addEventListener('submit', function(event) { // Changed finishBtn to form submit
+                event.preventDefault();
+                formErrorMessages.textContent = '';
+
+                if (!validateStep1() || !validateStep2()) { // Validate all relevant steps before submitting
+                    // Errors are displayed by validation functions
+                    return;
+                }
+
+                const raceData = {
+                    title: document.getElementById('raceTitle').value.trim(),
+                    description: getDescriptionContent().trim() || null,
+                    race_format_id: parseInt(selectedRaceFormatIdInput.value),
+                    event_date: document.getElementById('eventDate').value ? document.getElementById('eventDate').value.split('T')[0] : '',
+                    location: document.getElementById('raceLocation').value.trim() || null,
+                    promo_image_url: document.getElementById('promoImageUrl').value.trim() || null,
+                    gender_category: document.getElementById('genderCategory').value,
+                    // category: document.getElementById('raceCategory').value, // Already "Elite" by default
+                    segments: []
+                };
+
+                const segmentDistanceInputs = segmentsListDiv.querySelectorAll('.segment-distance');
+                segmentDistanceInputs.forEach(input => {
+                    raceData.segments.push({
+                        segment_id: parseInt(input.dataset.segmentId),
+                        distance_km: parseFloat(input.value)
+                    });
+                });
+
+                console.log("Submitting Race Data:", raceData); // For debugging
+
+                // Disable submit button to prevent multiple submissions
+                finishBtn.disabled = true;
+                finishBtn.textContent = 'Creando...';
+
+
+                fetch("{{ url_for('create_race') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(raceData)
+                })
+                .then(response => response.json().then(data => ({ok: response.ok, status: response.status, data})))
+                .then(result => {
+                    if (result.ok && result.status === 201) {
+                        alert('¡Carrera creada exitosamente!');
+                        window.location.href = `{{ url_for('serve_race_detail_page', race_id=0) }}`.replace('0', result.data.race_id);
+                    } else {
+                        formErrorMessages.textContent = result.data.message || `Error (${result.status}) al crear la carrera.`;
+                        // Display more detailed errors if available
+                        if (result.data.errors) {
+                            let errorHtml = '<ul>';
+                            for (const field in result.data.errors) {
+                                errorHtml += `<li>${field}: ${result.data.errors[field].join(', ')}</li>`;
+                            }
+                            errorHtml += '</ul>';
+                            formErrorMessages.innerHTML += errorHtml;
+                        }
+                         finishBtn.disabled = false;
+                         finishBtn.innerHTML = 'Crear Carrera <i class="fas fa-check ml-2"></i>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting race:', error);
+                    formErrorMessages.textContent = 'Error de red o el servidor no responde.';
+                    finishBtn.disabled = false;
+                    finishBtn.innerHTML = 'Crear Carrera <i class="fas fa-check ml-2"></i>';
+                });
+            });
+        }
+
+        // Validation functions (basic examples)
+        function validateStep1() {
+            let isValid = true;
+            formErrorMessages.textContent = '';
+            const title = document.getElementById('raceTitle').value.trim();
+            const eventDate = document.getElementById('eventDate').value;
+            const genderCategory = document.getElementById('genderCategory').value;
+
+            if (!title) {
+                formErrorMessages.textContent += 'El título de la carrera es obligatorio. ';
+                isValid = false;
+            }
+            if (!eventDate) {
+                formErrorMessages.textContent += 'La fecha del evento es obligatoria. ';
+                isValid = false;
+            }
+            if (!genderCategory) {
+                formErrorMessages.textContent += 'La categoría de género es obligatoria. ';
+                isValid = false;
+            }
+            return isValid;
+        }
+
+        function validateStep2() {
+            let isValid = true;
+            formErrorMessages.textContent = ''; // Clear previous step errors if re-validating
+            const formatId = selectedRaceFormatIdInput.value;
+            if (!formatId) {
+                formErrorMessages.textContent += 'Debe seleccionar un formato de carrera. ';
+                isValid = false;
+            }
+
+            const segmentInputs = segmentsListDiv.querySelectorAll('.segment-distance');
+            if (segmentInputs.length === 0 && formatId) { // If a format is selected, expect segments
+                 formErrorMessages.textContent += 'No se han configurado segmentos para el formato seleccionado. ';
+                 isValid = false;
+            }
+            segmentInputs.forEach(input => {
+                const distance = parseFloat(input.value);
+                const segmentName = input.dataset.segmentName;
+                if (isNaN(distance) || distance < 0) {
+                    formErrorMessages.textContent += `La distancia para ${segmentName} debe ser un número no negativo. `;
+                    isValid = false;
+                } else if (distance <= 0 && !segmentName.toLowerCase().includes("transición")) {
+                    formErrorMessages.textContent += `La distancia para ${segmentName} debe ser un número positivo. `;
+                    isValid = false;
+                }
+            });
+            return isValid;
+        }
+
+
+        // Initial UI setup
+        function initializeCreateRacePage() {
+            // Fetch initial data (Race Formats and Segments) and then set up the UI
+            // This requires ALL_RACE_FORMATS and ALL_SEGMENTS to be populated by Flask
+            // Example:
+            // ALL_RACE_FORMATS = {{ all_race_formats_json | safe }};
+            // ALL_SEGMENTS = {{ all_segments_json | safe }};
+
+            // User info in header (if current_user is available)
+            const usernameEl = document.getElementById('headerUsername');
+            const userRoleEl = document.getElementById('headerUserRole');
+            {% if current_user and current_user.is_authenticated %}
+                if(usernameEl) usernameEl.textContent = "{{ current_user.username }}";
+                if(userRoleEl) userRoleEl.textContent = "{{ current_user.role.description }}";
+            {% else %}
+                if(usernameEl) usernameEl.textContent = "Invitado";
+                if(userRoleEl) userRoleEl.textContent = "No autenticado";
+            {% endif %}
+
+            populateRaceFormats(); // This will populate format choices
+            updateStepUI(); // Set initial step display
+        }
+
+        // Call initialization when the DOM is ready
+        // Note: Flask data (ALL_RACE_FORMATS, ALL_SEGMENTS) must be defined before this script runs
+        // or fetched asynchronously if not embedded. For now, assume they will be embedded.
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCreateRacePage();
+        });
+
+    </script>
 </body>
 </html>
