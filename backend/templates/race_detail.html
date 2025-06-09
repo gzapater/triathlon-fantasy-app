@@ -640,14 +640,90 @@
                         return;
                     }
                     payload.max_score_free_text = parseInt(maxScoreFreeText);
+                } else if (qType === 'MULTIPLE_CHOICE') {
+                    const isMultipleCorrect = document.getElementById('mcTypeMultiple').checked;
+                    payload.is_mc_multiple_correct = isMultipleCorrect;
+
+                    const options = [];
+                    const optionEntries = document.querySelectorAll('#mcOptionsContainer .mc-option-entry');
+                    if (optionEntries.length < 2) {
+                        questionFormErrorDiv.textContent = "Debe haber al menos dos opciones para una pregunta de opción múltiple.";
+                        return;
+                    }
+                    let correctOptionForSingleChoiceFound = false;
+                    let allOptionTextsValid = true;
+                    optionEntries.forEach(entry => {
+                        const optionText = entry.querySelector('input[name="mc_option_text"]').value.trim();
+                        const isCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
+
+                        if (!optionText) {
+                            allOptionTextsValid = false;
+                        }
+                        const isCorrect = isCorrectInput.checked;
+                        if (!isMultipleCorrect && isCorrect) {
+                            if (correctOptionForSingleChoiceFound) {
+                                // This error will be caught more globally below if not stopping here.
+                                // For immediate feedback, this is fine.
+                            }
+                            correctOptionForSingleChoiceFound = true;
+                        }
+                        options.push({ option_text: optionText, is_correct: isCorrect });
+                    });
+
+                    if (!allOptionTextsValid) {
+                        questionFormErrorDiv.textContent = "El texto de todas las opciones es obligatorio.";
+                        return;
+                    }
+
+                    if (!isMultipleCorrect) {
+                        const correctOptionsCount = options.filter(opt => opt.is_correct).length;
+                        if (correctOptionsCount === 0 && optionEntries.length > 0) {
+                            questionFormErrorDiv.textContent = "Debe seleccionar una opción correcta para el tipo de selección única.";
+                            return;
+                        }
+                        if (correctOptionsCount > 1) {
+                            questionFormErrorDiv.textContent = "Solo una opción puede ser correcta para el tipo de selección única.";
+                            return;
+                        }
+                    }
+
+                    payload.options = options;
+
+                    if (isMultipleCorrect) {
+                        const pointsPerCorrect = document.getElementById('pointsPerCorrectMc').value;
+                        const pointsPerIncorrect = document.getElementById('pointsPerIncorrectMc').value;
+                        if (pointsPerCorrect === '' || pointsPerCorrect === null) {
+                             questionFormErrorDiv.textContent = "Puntos por Acierto es obligatorio para selección múltiple.";
+                             return;
+                        }
+                        payload.points_per_correct_mc = parseInt(pointsPerCorrect);
+                        payload.points_per_incorrect_mc = pointsPerIncorrect !== '' && pointsPerIncorrect !== null ? parseInt(pointsPerIncorrect) : 0;
+                    } else {
+                        const totalScoreSingle = document.getElementById('totalScoreMcSingle').value;
+                        if (!totalScoreSingle || parseInt(totalScoreSingle) <= 0) {
+                            questionFormErrorDiv.textContent = "Puntuación Total para selección única debe ser un entero positivo.";
+                            return;
+                        }
+                        payload.total_score_mc_single = parseInt(totalScoreSingle);
+                    }
                 }
-                // TODO: Add logic for MULTIPLE_CHOICE and ORDERING data collection
+                // TODO: Add logic for ORDERING data collection
+
+                let pathSegment = '';
+                switch(qType) {
+                    case 'FREE_TEXT': pathSegment = 'free-text'; break;
+                    case 'MULTIPLE_CHOICE': pathSegment = 'multiple-choice'; break;
+                    case 'ORDERING': pathSegment = 'ordering'; break;
+                    default:
+                        questionFormErrorDiv.textContent = `Tipo de pregunta desconocido: ${qType}`;
+                        return;
+                }
 
                 if (qId) { // Editing
-                    url = `/api/questions/${qType.toLowerCase()}/${qId}`; // e.g. /api/questions/free-text/123
+                    url = `/api/questions/${pathSegment}/${qId}`;
                     method = 'PUT';
                 } else { // Adding
-                    url = `/api/races/${raceId}/questions/${qType.toLowerCase()}`; // e.g. /api/races/1/questions/free-text
+                    url = `/api/races/${raceId}/questions/${pathSegment}`;
                     method = 'POST';
                 }
 
