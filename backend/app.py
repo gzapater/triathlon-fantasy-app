@@ -949,12 +949,21 @@ def serve_hello_world_page():
 @login_required
 def serve_create_race_page():
     if current_user.role.code not in ['LEAGUE_ADMIN', 'ADMIN']:
+        # For a page serving route, redirecting to an error page or flashing a message might be better
+        # For now, returning JSON as per existing possible pattern, but could be improved for UX.
         return jsonify(message="Forbidden: You do not have permission to access this page."), 403
-        # Or redirect to a more user-friendly error page:
-        # return render_template('errors/403.html'), 403
-        # For now, returning JSON as it's simpler for this step.
-        # A better UX would be to show an error page or redirect.
-    return render_template('create_race.html')
+
+    race_formats = RaceFormat.query.all()
+    all_segments = Segment.query.all()
+
+    # Prepare data for JavaScript
+    # This will be converted to JSON array of objects by |tojson filter in template
+    race_formats_data = [{'id': rf.id, 'name': rf.name} for rf in race_formats]
+    all_segments_data = [{'id': s.id, 'name': s.name} for s in all_segments]
+
+    return render_template('create_race.html',
+                           all_race_formats_data=race_formats_data,
+                           all_segments_data=all_segments_data)
 
 @app.route('/race/<int:race_id>')
 @login_required
