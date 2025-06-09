@@ -380,7 +380,7 @@
                                 <button type="button" id="addMultipleChoiceQuestionBtn" class="btn btn-secondary">
                                     <i class="fas fa-list-ul mr-2"></i>Opción Múltiple
                                 </button>
-                                <button type="button" class="btn btn-secondary opacity-50 cursor-not-allowed" title="Próximamente">
+                                <button type="button" id="addOrderingQuestionBtn" onclick="openQuestionModal('ORDERING')" class="btn btn-secondary">
                                     <i class="fas fa-sort-amount-down mr-2"></i>Ordenamiento
                                 </button>
                             </div>
@@ -921,8 +921,7 @@
             } else if (questionType === 'MULTIPLE_CHOICE') {
                 renderMultipleChoiceFieldsModal(questionData);
             } else if (questionType === 'ORDERING') {
-                // renderOrderingFieldsModal(questionData); // Placeholder
-                if(modalTypeSpecificFieldsContainer) modalTypeSpecificFieldsContainer.innerHTML = '<p>Configuración para preguntas de Ordenamiento no implementada aún.</p>';
+                renderOrderingFieldsModal(questionData);
             }
 
             if (questionModal) questionModal.classList.remove('hidden');
@@ -1027,6 +1026,68 @@
         if(addMultipleChoiceQuestionBtn) addMultipleChoiceQuestionBtn.addEventListener('click', () => openQuestionModal('MULTIPLE_CHOICE'));
         if(addOrderingQuestionBtn) addOrderingQuestionBtn.addEventListener('click', () => openQuestionModal('ORDERING'));
 
+        function addOrderingItemModal(itemText = '') {
+            const itemsContainer = document.getElementById('orderingItemsListModal');
+            if (!itemsContainer) return;
+
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex items-center space-x-2 mb-2 ordering-item-entry-modal';
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.placeholder = `Texto del Elemento ${itemsContainer.children.length + 1}`;
+            textInput.className = 'flex-1 input-field item-text-modal';
+            textInput.value = itemText;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-danger p-2 text-xs';
+            removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            removeBtn.onclick = () => itemDiv.remove();
+
+            itemDiv.appendChild(textInput);
+            itemDiv.appendChild(removeBtn);
+            itemsContainer.appendChild(itemDiv);
+        }
+
+        function renderOrderingFieldsModal(questionData) {
+            if (!modalTypeSpecificFieldsContainer) return;
+
+            const pointsPerCorrect = (questionData && questionData.points_per_correct_order !== undefined) ? questionData.points_per_correct_order : '';
+            const bonusForFull = (questionData && questionData.bonus_for_full_order !== undefined) ? questionData.bonus_for_full_order : '0';
+
+            modalTypeSpecificFieldsContainer.innerHTML = `
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Elementos a Ordenar (mínimo 2, en el orden correcto) <span class="text-red-500">*</span></label>
+                    <div id="orderingItemsListModal" class="space-y-2">
+                        <!-- Items will be added here by JS -->
+                    </div>
+                    <button type="button" id="addOrderingItemModalBtn" class="btn btn-secondary text-xs mt-2"><i class="fas fa-plus mr-1"></i>Añadir Elemento</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="modalPointsPerCorrectOrder" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Posición Correcta <span class="text-red-500">*</span></label>
+                        <input type="number" id="modalPointsPerCorrectOrder" class="input-field w-full" min="0" value="${pointsPerCorrect}" required>
+                    </div>
+                    <div>
+                        <label for="modalBonusForFullOrder" class="block text-sm font-medium text-gray-700 mb-1">Bonus por Orden Completo (opcional)</label>
+                        <input type="number" id="modalBonusForFullOrder" class="input-field w-full" min="0" value="${bonusForFull}">
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('addOrderingItemModalBtn').addEventListener('click', () => addOrderingItemModal());
+
+            if (questionData && questionData.options && questionData.options.length > 0) {
+                questionData.options.forEach(opt => {
+                    addOrderingItemModal(opt.option_text);
+                });
+            } else {
+                addOrderingItemModal();
+                addOrderingItemModal();
+            }
+        }
+
         function renderQuestionsPreview() {
             if (!questionsPreviewContainer || !noQuestionsMessage) return;
             questionsPreviewContainer.innerHTML = ''; // Clear previous previews
@@ -1058,7 +1119,23 @@
                         } else {
                             scoringHtml = `Única Correcta: ${q.total_score_mc_single || 'N/A'} pts total.`;
                         }
-                    } // Add ORDERING later
+                        if (q.options && q.options.length > 0) { // This was missing before for MC options in preview
+                            optionsHtml = '<ul class="list-disc list-inside pl-4 mt-2 text-sm text-gray-700">';
+                            q.options.forEach(opt => {
+                                optionsHtml += `<li>${opt.option_text}</li>`;
+                            });
+                            optionsHtml += '</ul>';
+                        }
+                    } else if (q.type === 'ORDERING') {
+                        scoringHtml = `Ordenamiento: ${q.points_per_correct_order || 'N/A'} pts/posición, ${q.bonus_for_full_order || '0'} pts bonus total.`;
+                        if (q.options && q.options.length > 0) {
+                            optionsHtml = '<p class="mt-2 text-sm text-gray-700"><strong>Elementos a ordenar (en el orden correcto):</strong></p><ul class="list-decimal list-inside pl-4 mt-1 text-sm text-gray-700">';
+                            q.options.forEach(item => {
+                                optionsHtml += `<li>${item.option_text}</li>`;
+                            });
+                            optionsHtml += '</ul>';
+                        }
+                    }
 
                     previewDiv.innerHTML = `
                         <div class="flex justify-between items-center">
@@ -1149,8 +1226,44 @@
                     }
                     questionData.total_score_mc_single = parseInt(totalScoreInput.value);
                 }
+            } else if (type === 'ORDERING') {
+                const itemNodes = document.querySelectorAll('#orderingItemsListModal .ordering-item-entry-modal');
+                if (itemNodes.length < 2) {
+                    modalQuestionFormError.textContent = "Debe haber al menos dos elementos para una pregunta de ordenamiento.";
+                    return;
+                }
+
+                questionData.options = []; // Re-using 'options' array for items
+                let allItemsValid = true;
+                itemNodes.forEach(node => {
+                    const itemTextInput = node.querySelector('.item-text-modal');
+                    if (!itemTextInput || !itemTextInput.value.trim()) {
+                        allItemsValid = false; // Flagging, error handled below
+                        return;
+                    }
+                    questionData.options.push({ option_text: itemTextInput.value.trim() });
+                });
+
+                if (!allItemsValid) {
+                    modalQuestionFormError.textContent = "El texto de todos los elementos es obligatorio.";
+                    return; // Stop if any item text is empty
+                }
+
+                const pointsPerCorrectOrderInput = document.getElementById('modalPointsPerCorrectOrder');
+                const bonusForFullOrderInput = document.getElementById('modalBonusForFullOrder');
+
+                if (!pointsPerCorrectOrderInput || pointsPerCorrectOrderInput.value === '' || parseInt(pointsPerCorrectOrderInput.value) < 0) {
+                    modalQuestionFormError.textContent = "Puntos por posición correcta debe ser un número no negativo.";
+                    return;
+                }
+                questionData.points_per_correct_order = parseInt(pointsPerCorrectOrderInput.value);
+
+                questionData.bonus_for_full_order = (bonusForFullOrderInput && bonusForFullOrderInput.value !== '') ? parseInt(bonusForFullOrderInput.value) : 0;
+                if (questionData.bonus_for_full_order < 0) {
+                     modalQuestionFormError.textContent = "El bonus por orden completo debe ser un número no negativo.";
+                    return;
+                }
             }
-            // Add ORDERING logic here later if needed
 
             const editIndex = parseInt(currentQuestionIndexInput.value);
             if (editIndex !== -1) { // Editing existing question
