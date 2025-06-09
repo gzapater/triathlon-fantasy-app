@@ -969,10 +969,11 @@ def serve_create_race_page():
 @login_required
 def serve_race_detail_page(race_id):
     race = Race.query.get_or_404(race_id)
+    current_year = datetime.utcnow().year
     # The segment_details should be accessible via race.segment_details
     # Each item in race.segment_details will have a .segment attribute for name
     # and .distance_km for distance.
-    return render_template('race_detail.html', race=race)
+    return render_template('race_detail.html', race=race, current_year=current_year)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
