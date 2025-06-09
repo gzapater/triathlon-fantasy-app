@@ -1,39 +1,167 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Login - TriFantasy</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
-        .container { width: 300px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        label { display: block; margin-bottom: 5px; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
-        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .message { margin-top: 15px; }
-        .error { color: red; }
-        .success { color: green; }
+        :root {
+            --orange-primary: #FF6B35;
+            --orange-light: #FF8F65;
+            --orange-dark: #FF4500;
+            --orange-pale: #FFB380;
+            --gray-dark: #2C3E50;
+            --gray-medium: #34495E;
+            --gray-light: #7F8C8D;
+            --blue-water: #3498DB;
+            --green-run: #27AE60;
+            --red-accent: #E74C3C;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #F8F9FA 0%, #E8F4FD 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .brand-font {
+            font-family: 'Orbitron', monospace;
+        }
+        .gradient-orange-text {
+            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .login-container {
+            background-color: white;
+            padding: 2.5rem; /* Increased padding */
+            border-radius: 0.75rem; /* More rounded corners */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 420px; /* Slightly wider */
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.875rem 1.25rem; /* Increased padding */
+            margin-bottom: 1.25rem; /* More space */
+            border: 1px solid #D1D5DB; /* Tailwind gray-300 */
+            border-radius: 0.5rem; /* More rounded */
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: var(--orange-primary);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.3); /* Orange focus ring */
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: 600; /* Semibold */
+            transition: all 0.3s ease;
+            text-transform: uppercase; /* Uppercase text */
+            letter-spacing: 0.05em; /* Slight letter spacing */
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange-primary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(255, 107, 53, 0.4), 0 4px 6px -2px rgba(255, 107, 53, 0.2);
+        }
+        .message-area {
+            margin-top: 1.25rem;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            text-align: center;
+        }
+        .message-area.error {
+            background-color: #FEE2E2; /* Tailwind red-100 */
+            color: #B91C1C; /* Tailwind red-700 */
+            border: 1px solid #FCA5A5; /* Tailwind red-300 */
+        }
+        .message-area.success {
+            background-color: #D1FAE5; /* Tailwind green-100 */
+            color: #047857; /* Tailwind green-700 */
+            border: 1px solid #6EE7B7; /* Tailwind green-300 */
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .footer-link {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: var(--gray-medium);
+        }
+        .footer-link a {
+            color: var(--orange-primary);
+            font-weight: 500;
+            text-decoration: none;
+        }
+        .footer-link a:hover {
+            text-decoration: underline;
+            color: var(--orange-dark);
+        }
     </style>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h2>Login</h2>
+    <div class="login-container">
+        <div class="logo-container">
+            <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-16 w-auto inline-block'> tag -->
+            <h1 class="brand-font gradient-orange-text text-4xl font-bold">TriFantasy</h1>
+        </div>
+
         <form id="loginForm">
             <div>
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" required>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+                <input type="text" id="username" name="username" class="input-field" placeholder="Tu nombre de usuario" required>
             </div>
             <div>
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                <input type="password" id="password" name="password" class="input-field" placeholder="Tu contraseña" required>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit" class="btn-primary mt-2">Login</button>
         </form>
-        <div id="messageArea" class="message"></div>
-        <p>Don't have an account? <a href="/register">Register here</a></p>
+
+        <div id="messageArea" class="message-area" style="display: none;"></div>
+        <!-- Initially hidden, JS will show it if there's a message -->
+
+        <p class="footer-link">
+            ¿No tienes una cuenta? <a href="{{ url_for('register_page') }}">Regístrate aquí</a>
+        </p>
     </div>
+
+    <!-- The existing login.js will be loaded here and should work with the IDs preserved -->
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+    <script>
+        // Small script to make messageArea visible only when it has content
+        const messageArea = document.getElementById('messageArea');
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                    if (messageArea.textContent.trim() !== '') {
+                        messageArea.style.display = 'block';
+                    } else {
+                        messageArea.style.display = 'none';
+                    }
+                }
+            });
+        });
+        observer.observe(messageArea, { childList: true, characterData: true, subtree: true });
+    </script>
 </body>
 </html>
