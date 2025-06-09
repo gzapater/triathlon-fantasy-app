@@ -1,754 +1,639 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ race.title }} - Detalles de Carrera</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> <!-- General stylesheet -->
+    <title>Fantasy Triatlón - {{ race.title if race else 'Detalle de Carrera' }}</title> <!-- Dynamic Title -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding:0; background-color: #f4f4f4; color: #333; }
-        .navbar { background-color: #333; padding: 10px 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
-        .navbar a { color: white; text-decoration: none; padding: 5px 10px; }
-        .navbar a:hover { background-color: #555; border-radius: 4px;}
-        .container { max-width: 900px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        h1, h2, h3 { color: #333; }
-        p { line-height: 1.6; margin-bottom: 10px; }
-        .button-link {
-            display: inline-block;
-            background-color: #6c757d; /* Secondary button color */
-            color: white !important;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 16px;
-            margin-top: 20px;
-            margin-bottom: 10px;
+        :root {
+            --orange-primary: #FF6B35;
+            --orange-light: #FF8F65;
+            --orange-dark: #FF4500;
+            --orange-pale: #FFB380;
+            --gray-dark: #2C3E50;
+            --gray-medium: #34495E;
+            --gray-light: #7F8C8D;
+            --blue-water: #3498DB;
+            --green-run: #27AE60;
+            --red-accent: #E74C3C;
         }
-        .button-link:hover { background-color: #5a6268; }
-        .race-image { max-width: 100%; height: auto; border-radius: 8px; margin-bottom: 20px; }
-        .race-details-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 20px;
+
+        * {
+            font-family: 'Inter', sans-serif;
         }
-        .detail-item { background-color: #f9f9f9; padding: 15px; border-radius: 5px; }
-        .detail-item strong { display: block; color: #007bff; margin-bottom: 5px; }
-        .segments-list { list-style: none; padding-left: 0; }
-        .segments-list li { background-color: #e9ecef; padding: 8px 12px; border-radius: 4px; margin-bottom: 5px; }
-        .questions-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
-    </style>
-</head>
-<body>
-    <div class="navbar">
-        <div>
-            <a href="{{ url_for('serve_hello_world_page') }}">Todas las Carreras</a>
-            {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
-                <a href="{{ url_for('serve_create_race_page') }}">Crear Carrera</a>
-            {% endif %}
-        </div>
-        <div>
-            <span style="margin-right:15px;">Hola, {{ current_user.username }}! ({{ current_user.role.description }})</span>
-            <a href="#" id="logoutLinkNavBarDetail">Logout</a>
-        </div>
-    </div>
 
-    <div class="container">
-        <h1>{{ race.title }}</h1>
-        <hr>
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+        }
 
-        {% if race.promo_image_url %}
-            <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}" class="race-image">
-        {% endif %}
+        .hero-bg {
+            background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange-primary) 50%, var(--orange-light) 100%);
+            position: relative;
+            overflow: hidden;
+        }
 
-        <div class="race-details-grid">
-            <div class="detail-item">
-                <strong>Formato:</strong> {{ race.race_format.name }}
-            </div>
-            <div class="detail-item">
-                <strong>Fecha del Evento:</strong> {{ race.event_date.strftime('%d %B, %Y') }}
-            </div>
-            <div class="detail-item">
-                <strong>Ubicación:</strong> {{ race.location if race.location else 'No especificada' }}
-            </div>
-            <div class="detail-item">
-                <strong>Categoría:</strong> {{ race.category }}
-            </div>
-            <div class="detail-item">
-                <strong>Género:</strong> {{ race.gender_category }}
-            </div>
-            {% if race.user %} {# Assuming 'user' is the relationship to the creator #}
-            <div class="detail-item">
-                <strong>Organizador:</strong> {{ race.user.username }}
-            </div>
-            {% endif %}
-        </div>
-
-        {% if race.description %}
-            <h2>Descripción</h2>
-            <p>{{ race.description }}</p>
-        {% endif %}
-
-        <h2>Segmentos de la Carrera</h2>
-        {% if race.segment_details and race.segment_details|length > 0 %}
-            <ul class="segments-list">
-                {% for detail in race.segment_details %}
-                    <li>{{ detail.segment.name }}: {{ detail.distance_km }} km</li>
-                {% endfor %}
-            </ul>
-        {% else %}
-            <p>No hay detalles de segmentos disponibles para esta carrera.</p>
-        {% endif %}
-
-        <div class="questions-section">
-            <h2>Preguntas de la Carrera</h2>
-            {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
-                <button id="addQuestionBtn" class="button">Añadir Nueva Pregunta</button>
-                <!-- Modal/form for adding questions will be handled in a future step -->
-            {% endif %}
-            <div id="questionsLoading" style="text-align: center; padding: 15px;">Cargando preguntas...</div>
-            <div id="questionsError" style="color: red; margin-top: 10px;"></div>
-            <div id="questionsContainer" style="margin-top: 15px;">
-                <!-- Las preguntas se renderizarán aquí por JavaScript -->
-            </div>
-            <!-- <p>Próximamente: Sección de preguntas y respuestas.</p> -->
-        </div>
-
-        <a href="{{ url_for('serve_hello_world_page') }}" class="button-link" style="margin-top:30px;">Volver a Todas las Carreras</a>
-    </div>
-
-    <style>
-        /* Modal styles */
-        .modal {
-            display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
-            z-index: 1000; /* Sit on top */
-            left: 0;
+        .hero-bg::before {
+            content: '';
+            position: absolute;
             top: 0;
-            width: 100%; /* Full width */
-            height: 100%; /* Full height */
-            overflow: auto; /* Enable scroll if needed */
-            background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><pattern id="triPattern" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="25" r="2" fill="rgba(255,255,255,0.1)"/><path d="M25,75 L75,75 L50,25 Z" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23triPattern)"/></svg>') repeat;
+            opacity: 0.3;
         }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 10% auto; /* 10% from the top and centered */
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%; /* Could be more or less, depending on screen size */
-            max-width: 600px;
-            border-radius: 8px;
+
+        .segment-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--orange-primary);
+        }
+
+        .segment-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.15);
+        }
+
+        .swim-segment { border-left-color: var(--blue-water); }
+        .bike-segment { border-left-color: var(--gray-dark); }
+        .run-segment { border-left-color: var(--green-run); }
+        .transition-segment { border-left-color: var(--orange-primary); } /* Orange for transitions */
+
+        .question-card {
+            border: 1px solid #e5e7eb; /* Tailwind gray-200 */
+            border-radius: 12px;      /* Slightly larger radius */
+            transition: all 0.3s ease;
+            background-color: white; /* Ensure questions have white background */
+        }
+
+        .question-card:hover {
+            border-color: var(--orange-primary);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.1);
+        }
+
+        .btn { /* Base button style */
+            padding: 0.625rem 1.25rem; /* py-2.5 px-5 */
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 600; /* font-semibold */
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: #E5E7EB; /* Tailwind gray-200 */
+            color: var(--gray-dark);
+            border: 1px solid #D1D5DB; /* Tailwind gray-300 */
+        }
+        .btn-secondary:hover {
+            background-color: #D1D5DB;
+        }
+
+
+        .timeline-line {
             position: relative;
         }
-        .close-button {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
+
+        /* Adjusted timeline for better responsiveness and alignment */
+        .timeline-line::before {
+            content: '';
             position: absolute;
-            right: 15px;
-            top: 5px;
+            left: calc(1.5rem + 1px); /* Aligns with center of 12-width icon container (w-12 -> 3rem, half is 1.5rem) + half of line width */
+            top: 0;
+            bottom: 0;
+            width: 2px; /* Line width */
+            background: linear-gradient(to bottom, var(--blue-water), var(--gray-dark), var(--green-run));
+            transform: translateX(-50%);
+            z-index: -1; /* Place line behind cards */
         }
-        .close-button:hover,
-        .close-button:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
+
+        .drag-item {
+            cursor: move;
+            transition: all 0.3s ease;
         }
-        #questionForm label { display: block; margin-top: 10px; font-weight: bold; }
-        #questionForm input[type="text"],
-        #questionForm input[type="number"],
-        #questionForm textarea,
-        #questionForm select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+
+        .drag-item:hover {
+            background-color: #f8f9fa;
         }
-        #questionForm textarea { resize: vertical; min-height: 80px;}
-        #questionForm button[type="submit"] {
-            background-color: #28a745; /* Green for save */
+
+        .drag-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .stats-card:hover {
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        @media (max-width: 768px) {
+            /* In mobile, make timeline vertical and align to left of segment cards */
+            .timeline-line::before {
+                left: calc(1.5rem); /* Align with icon center */
+            }
+            .segment-card { /* Remove margin for mobile timeline */
+                margin-left: 0 !important;
+            }
+        }
+
+
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out; /* Smoother transition */
+        }
+
+        .expandable-content.expanded {
+            max-height: 2000px; /* Large enough for content */
+        }
+
+        .badge-role { /* Copied from index.html for consistency */
             color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 20px;
-            font-size: 16px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
         }
-        #questionForm button[type="submit"]:hover { background-color: #218838; }
-        .error-message { color: red; font-size: 0.9em; margin-top: 5px;}
+        .badge-admin { background: linear-gradient(135deg, var(--red-accent) 0%, #F1948A 100%); }
+        .badge-league { background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-light) 100%); }
+        .badge-player { background: linear-gradient(135deg, var(--blue-water) 0%, #5DADE2 100%); }
 
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            stroke-dasharray: 251.2 251.2; /* Circumference of circle with r=40 */
+            stroke-dashoffset: 251.2;
+            transition: stroke-dashoffset 0.3s ease;
+        }
+        /* Ensure Font Awesome icons align well with text */
+        .fas, .fab {
+            vertical-align: -0.125em; /* default is -0.125em, adjust if needed */
+        }
     </style>
+</head>
+<body class="text-gray-700">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('serve_hello_world_page') }}" class="flex items-center space-x-2">
+                        <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-8 w-auto'> tag -->
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center">
+                            <i class="fas fa-trophy text-white text-lg"></i> <!-- Changed icon to trophy -->
+                        </div>
+                        <span class="text-xl font-bold text-gray-800">Fantasy Tri</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="{{ url_for('serve_hello_world_page') }}" class="text-gray-600 hover:text-orange-500 transition-colors">Dashboard</a>
+                    <a href="{{ url_for('serve_hello_world_page') }}" class="text-orange-500 font-medium">Carreras</a>
+                    <a href="#" class="text-gray-600 hover:text-orange-500 transition-colors">Ligas (Próx.)</a>
+                    <a href="#" class="text-gray-600 hover:text-orange-500 transition-colors">Perfil (Próx.)</a>
+                </div>
+                <div class="flex items-center space-x-3">
+                    {% if current_user and current_user.is_authenticated %}
+                        {% set badge_class = 'badge-player' %}
+                        {% if current_user.role.code == 'ADMIN' %}{% set badge_class = 'badge-admin' %}
+                        {% elif current_user.role.code == 'LEAGUE_ADMIN' %}{% set badge_class = 'badge-league' %}
+                        {% endif %}
+                        <span class="badge-role {{ badge_class }} hidden sm:inline">{{ current_user.role.description }}</span>
+                        <span class="text-sm text-gray-700 hidden sm:inline">{{ current_user.username }}</span>
+                         <button id="logoutButtonNav" class="text-gray-600 hover:text-orange-500 transition-colors">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    {% else %}
+                        <a href="{{ url_for('serve_login_page') }}" class="text-gray-600 hover:text-orange-500 transition-colors">Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
 
-    <div id="questionModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" id="closeQuestionModalBtn">&times;</span>
-            <h3 id="questionModalTitle">Añadir/Editar Pregunta</h3>
-            <form id="questionForm">
-                <input type="hidden" id="questionIdStore" name="questionIdStore"> <!-- For editing -->
-                <input type="hidden" id="questionTypeStore" name="questionTypeStore">
-
-                <div id="commonQuestionFields">
-                    <div>
-                        <label for="questionText">Texto de la Pregunta:</label>
-                        <textarea id="questionText" name="questionText" required></textarea>
+    <!-- Hero Section -->
+    <div class="hero-bg text-white py-12 md:py-16 lg:py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col lg:flex-row items-center justify-between">
+                <div class="flex-1 text-center lg:text-left mb-6 lg:mb-0">
+                    <div class="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
+                        <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.race_format.name | default('Formato no especificado') }}</span>
+                        <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.gender_category | default('N/A') }}</span>
+                        <!-- Example status badge - make dynamic later if needed -->
+                        <span class="bg-green-500 px-3 py-1 rounded-full text-xs sm:text-sm">Activa</span>
                     </div>
-                    <div>
-                        <label for="isActiveCheckbox">Activa:</label>
-                        <input type="checkbox" id="isActiveCheckbox" name="isActiveCheckbox" checked style="width:auto; margin-top:10px;">
+                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">{{ race.title | default('Título de la Carrera no Disponible') }}</h1>
+                    <p class="text-lg sm:text-xl mb-5 opacity-90">{{ race.description | truncate(150) if race.description else 'Descripción no disponible.' }}</p>
+                    <div class="flex flex-wrap justify-center lg:justify-start gap-x-4 gap-y-2 text-sm mb-6">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-calendar"></i>
+                            <span>{{ race.event_date.strftime('%d %B, %Y %H:%M') if race.event_date else 'Fecha no especificada' }}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>{{ race.location if race.location else 'Ubicación no especificada' }}</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap justify-center lg:justify-start gap-3">
+                        <button class="btn btn-primary px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-play mr-2"></i>Participar (Próx.)
+                        </button>
+                        <button class="bg-white bg-opacity-20 px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-semibold hover:bg-opacity-30 transition-colors">
+                            <i class="fas fa-heart mr-2"></i>Favorito (Próx.)
+                        </button>
                     </div>
                 </div>
-
-                <div id="typeSpecificFieldsContainer">
-                    <!-- Content here will be dynamically populated by JS -->
+                {% if race.promo_image_url %}
+                <div class="flex-shrink-0 lg:ml-12 mt-6 lg:mt-0">
+                    <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}" class="rounded-lg shadow-xl w-full max-w-md lg:max-w-sm object-cover h-64 lg:h-auto">
                 </div>
-                <hr>
-                <button type="submit">Guardar Pregunta</button>
-            </form>
-            <div id="questionFormError" class="error-message" style="margin-top: 10px;"></div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Content -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- Race Full Description (if different from hero) -->
+                {% if race.description and race.description|length > 150 %}
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Descripción Detallada</h2>
+                    <p class="text-gray-600 leading-relaxed whitespace-pre-line">{{ race.description }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Race Segments -->
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Segmentos de la Carrera</h2>
+                    {% if race.segment_details and race.segment_details|length > 0 %}
+                    <div class="timeline-line space-y-6 relative"> <!-- Added relative for z-index context -->
+                        {% for detail in race.segment_details %}
+                            {% set segment_name_lower = detail.segment.name.lower() %}
+                            {% set border_color_class = 'transition-segment' %} {# Default for transitions or unspecified #}
+                            {% set icon_bg_color = 'bg-orange-500' %}
+                            {% set text_color = 'text-orange-500' %}
+                            {% set segment_icon = 'fa-exchange-alt' %}
+
+                            {% if 'natación' in segment_name_lower or 'swim' in segment_name_lower %}
+                                {% set border_color_class = 'swim-segment' %}
+                                {% set icon_bg_color = 'bg-blue-500' %}
+                                {% set text_color = 'text-blue-500' %}
+                                {% set segment_icon = 'fa-swimmer' %}
+                            {% elif 'ciclismo' in segment_name_lower or 'bike' in segment_name_lower %}
+                                {% set border_color_class = 'bike-segment' %}
+                                {% set icon_bg_color = 'bg-gray-700' %}
+                                {% set text_color = 'text-gray-700' %}
+                                {% set segment_icon = 'fa-biking' %}
+                            {% elif 'carrera' in segment_name_lower or 'running' in segment_name_lower or 'run' in segment_name_lower %}
+                                {% set border_color_class = 'run-segment' %}
+                                {% set icon_bg_color = 'bg-green-500' %}
+                                {% set text_color = 'text-green-500' %}
+                                {% set segment_icon = 'fa-running' %}
+                            {% endif %}
+
+                        <!-- Segment Card -->
+                        <div class="segment-card {{ border_color_class }} bg-white p-4 rounded-lg shadow-md ml-0 md:ml-6 relative pl-16 md:pl-4">
+                            <!-- Icon absolutely positioned to overlay timeline -->
+                            <div class="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2 md:-translate-x-1/2 w-12 h-12 {{ icon_bg_color }} rounded-full flex items-center justify-center border-4 border-white">
+                                <i class="fas {{ segment_icon }} text-white text-lg"></i>
+                            </div>
+                            <!-- Content -->
+                            <div class="flex items-center space-x-4 ml-8 md:ml-10"> {/* Margin to clear the icon */}
+                                <div class="flex-1">
+                                    <h3 class="font-bold text-gray-800">{{ detail.segment.name }}</h3>
+                                    <p class="text-gray-600 text-sm">{{ detail.distance_km }} km</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold {{ text_color }}">{{ detail.distance_km }} KM</div>
+                                    <!-- Estimated time can be added later if available -->
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-gray-500">No hay detalles de segmentos para esta carrera.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Prediction Questions -->
+                <div id="predictionQuestionsSection" class="bg-white rounded-xl p-6 shadow-lg">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-gray-800">Preguntas de Predicción</h2>
+                        <button onclick="toggleQuestions()" id="toggleQuestionsBtn" class="text-orange-500 hover:text-orange-600 font-medium">
+                            <i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas
+                        </button>
+                    </div>
+                    <div id="questionsLoading" class="text-center py-4">Cargando preguntas...</div>
+                    <div id="questionsError" class="text-center py-4 text-red-600" style="display:none;"></div>
+                    <div id="questionsContent" class="expandable-content space-y-6">
+                        <!-- Questions will be rendered here by JavaScript -->
+                    </div>
+                    <div id="noQuestionsMessage" class="text-center py-6 text-gray-500" style="display:none;">
+                        <i class="fas fa-question-circle text-3xl mb-3"></i>
+                        <p>No hay preguntas de predicción para esta carrera todavía.</p>
+                    </div>
+
+                    <!-- Submit Predictions (static for now) -->
+                    <div class="mt-6 flex justify-end hidden" id="submitPredictionsContainer">
+                        <button class="btn btn-primary px-6 py-2">
+                            Enviar Predicciones (Próx.)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Statistics (Placeholder for now) -->
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Estadísticas de Participación (Próx.)</h2>
+                    <canvas id="predictionsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="space-y-6 lg:sticky lg:top-24 self-start"> <!-- Added self-start for sticky behavior -->
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h3 class="font-bold text-gray-800 mb-4">Organizador</h3>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user-tie text-orange-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <div class="font-semibold text-gray-800">{{ race.user.username | default('N/A') }}</div>
+                            <!-- <div class="text-sm text-gray-600">Rol del organizador</div> Placeholder -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h3 class="font-bold text-gray-800 mb-4">Estadísticas de la Carrera (Próx.)</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center"><span class="text-gray-600">Participantes:</span> <span class="font-semibold text-gray-800">N/A</span></div>
+                        <div class="flex justify-between items-center"><span class="text-gray-600">Predicciones:</span> <span class="font-semibold text-green-600">N/A</span></div>
+                        <div class="flex justify-between items-center"><span class="text-gray-600">Tiempo Restante:</span> <span class="font-semibold text-orange-600">N/A</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h3 class="font-bold text-gray-800 mb-4">Enlaces Rápidos (Próx.)</h3>
+                    <div class="space-y-2">
+                        <a href="#" class="flex items-center space-x-2 text-sm text-gray-600 hover:text-orange-500"><i class="fas fa-info-circle w-4"></i><span>Reglamento</span></a>
+                        <a href="#" class="flex items-center space-x-2 text-sm text-gray-600 hover:text-orange-500"><i class="fas fa-map w-4"></i><span>Mapa</span></a>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p>&copy; {{ "now"|date("Y") }} Fantasy Tri. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
     <script>
-        const currentUserRole = "{{ current_user.role.code }}";
-        const raceId = "{{ race.id }}";
+        const raceId = "{{ race.id if race and race.id is defined else '' }}";
+        const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated else 'GUEST' }}";
 
-        document.getElementById('logoutLinkNavBarDetail').addEventListener('click', function(event) {
-            event.preventDefault();
-            fetch('/api/logout', { method: 'POST' })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.href = '/login';
-                    } else {
-                        alert('Logout failed. Please try again.');
-                    }
-                })
-                .catch(error => {
-                    console.error('Logout error:', error);
-                    alert('Error during logout. Please try again.');
-                });
-        });
+        // Logout functionality
+        const logoutButtonNav = document.getElementById('logoutButtonNav');
+        if (logoutButtonNav) {
+            logoutButtonNav.addEventListener('click', function(event) {
+                event.preventDefault();
+                fetch("{{ url_for('logout_api') }}", { method: 'POST' })
+                    .then(response => {
+                        if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
+                        else alert('Logout failed.');
+                    })
+                    .catch(error => console.error('Logout error:', error));
+            });
+        }
 
-        // Modal elements
-        const questionModal = document.getElementById('questionModal');
-        const questionModalTitle = document.getElementById('questionModalTitle');
-        const questionForm = document.getElementById('questionForm');
-        const questionIdStoreInput = document.getElementById('questionIdStore');
-        const questionTypeStoreInput = document.getElementById('questionTypeStore');
-        const questionTextInput = document.getElementById('questionText');
-        const isActiveCheckbox = document.getElementById('isActiveCheckbox');
-        const typeSpecificFieldsContainer = document.getElementById('typeSpecificFieldsContainer');
-        const questionFormErrorDiv = document.getElementById('questionFormError');
-        const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
+        // Toggle questions expansion
+        const questionsContent = document.getElementById('questionsContent');
+        const expandIcon = document.getElementById('expandIcon');
+        const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn');
+        const submitPredictionsContainer = document.getElementById('submitPredictionsContainer');
 
-        // Main content elements
-        const questionsContainer = document.getElementById('questionsContainer');
+
+        function toggleQuestions() {
+            if (questionsContent.classList.contains('expanded')) {
+                questionsContent.classList.remove('expanded');
+                if(expandIcon) expandIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+                if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas';
+
+            } else {
+                questionsContent.classList.add('expanded');
+                if(expandIcon) expandIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+                if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas';
+            }
+        }
+        if(toggleQuestionsBtn) { // Ensure button exists before adding listener
+             toggleQuestionsBtn.addEventListener('click', toggleQuestions);
+        }
+
+
+        // Fetch and Render Questions
         const questionsLoadingDiv = document.getElementById('questionsLoading');
         const questionsErrorDiv = document.getElementById('questionsError');
-        const addQuestionBtn = document.getElementById('addQuestionBtn');
+        const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage');
 
-        function closeQuestionModal() {
-            questionModal.style.display = 'none';
-            questionForm.reset();
-            typeSpecificFieldsContainer.innerHTML = '';
-            questionFormErrorDiv.textContent = '';
-            questionIdStoreInput.value = '';
-        }
-        if(closeQuestionModalBtn) closeQuestionModalBtn.onclick = closeQuestionModal;
-        // Close modal if user clicks outside of it
-        window.onclick = function(event) {
-            if (event.target == questionModal) {
-                closeQuestionModal();
+        function formatScoringInfoForDisplay(question) {
+            // Simplified version from create_race, focused on display
+            // This will be enhanced when answer submission is implemented
+            let scoringText = '';
+            switch (question.question_type) {
+                case 'FREE_TEXT':
+                    scoringText = `Máx. ${question.max_score_free_text || 'N/A'} pts.`;
+                    break;
+                case 'MULTIPLE_CHOICE':
+                    if (question.is_mc_multiple_correct) {
+                        scoringText = `Selección Múltiple. ${question.points_per_correct_mc || 'N/A'} pts/correcta, ${question.points_per_incorrect_mc || '0'} pts/incorrecta.`;
+                    } else {
+                        scoringText = `Selección Única. ${question.total_score_mc_single || 'N/A'} pts total.`;
+                    }
+                    break;
+                case 'ORDERING':
+                    scoringText = `Ordenamiento. ${question.points_per_correct_order || 'N/A'} pts/item, ${question.bonus_for_full_order || '0'} pts bonus.`;
+                    break;
+                default:
+                    scoringText = 'Puntuación no especificada.';
             }
+            return `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${scoringText}</span>`;
         }
 
-        function renderFreeTextFields(questionData = null) {
-            typeSpecificFieldsContainer.innerHTML = `
-                <div>
-                    <label for="maxScoreFreeText">Puntuación Máxima:</label>
-                    <input type="number" id="maxScoreFreeText" name="maxScoreFreeText" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
-                </div>
-            `;
-        }
 
-        function openQuestionModal(mode, type, questionData = null) {
-            questionForm.reset(); // Reset form for new entry or edit
-            typeSpecificFieldsContainer.innerHTML = '';
-            questionFormErrorDiv.textContent = '';
-            questionIdStoreInput.value = '';
+        function renderQuestions(questions) {
+            if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'none';
+            questionsContent.innerHTML = ''; // Clear previous
 
-            questionTypeStoreInput.value = type;
-
-            if (mode === 'edit' && questionData) {
-                questionModalTitle.textContent = `Editar Pregunta (${type})`;
-                questionIdStoreInput.value = questionData.id;
-                questionTextInput.value = questionData.text;
-                isActiveCheckbox.checked = questionData.is_active;
-
-                if (type === 'FREE_TEXT') {
-                    renderFreeTextFields(questionData);
-                } else if (type === 'MULTIPLE_CHOICE') {
-                    renderMultipleChoiceFields(questionData);
-                }
-                // TODO: Add else if for ORDERING
-            } else { // mode === 'add'
-                questionModalTitle.textContent = `Añadir Nueva Pregunta (${type})`;
-                isActiveCheckbox.checked = true; // Default for new questions
-                if (type === 'FREE_TEXT') {
-                    renderFreeTextFields();
-                } else if (type === 'MULTIPLE_CHOICE') {
-                    renderMultipleChoiceFields(null); // No existing data for add mode
-                }
-                // TODO: Add else if for ORDERING
-            }
-            questionModal.style.display = 'block';
-        }
-
-        // --- Functions for rendering MULTIPLE_CHOICE specific fields ---
-        function renderMcScoringFields(isMultipleCorrect, scoreData = null) {
-            const container = document.getElementById('mcScoringFieldsContainer');
-            if (!container) return;
-            container.innerHTML = ''; // Clear previous scoring fields
-
-            if (isMultipleCorrect) { // Multiple answers correct (checkboxes)
-                container.innerHTML = `
-                    <div>
-                        <label for="pointsPerCorrectMc">Puntos por Acierto:</label>
-                        <input type="number" id="pointsPerCorrectMc" name="pointsPerCorrectMc" required value="${scoreData && scoreData.points_per_correct_mc !== null ? scoreData.points_per_correct_mc : ''}">
-                    </div>
-                    <div>
-                        <label for="pointsPerIncorrectMc">Puntos por Fallo (puede ser negativo):</label>
-                        <input type="number" id="pointsPerIncorrectMc" name="pointsPerIncorrectMc" value="${scoreData && scoreData.points_per_incorrect_mc !== null ? scoreData.points_per_incorrect_mc : '0'}">
-                    </div>
-                `;
-            } else { // Single answer correct (radio buttons)
-                container.innerHTML = `
-                    <div>
-                        <label for="totalScoreMcSingle">Puntuación Total (por acertar la única opción correcta):</label>
-                        <input type="number" id="totalScoreMcSingle" name="totalScoreMcSingle" required min="1" value="${scoreData && scoreData.total_score_mc_single ? scoreData.total_score_mc_single : ''}">
-                    </div>
-                `;
-            }
-        }
-
-        function addMcOption(optionData = null, isCurrentlyMultipleCorrectType) {
-            const optionsContainer = document.getElementById('mcOptionsContainer');
-            if (!optionsContainer) return;
-
-            const optionDiv = document.createElement('div');
-            optionDiv.classList.add('mc-option-entry');
-            optionDiv.style.display = 'flex';
-            optionDiv.style.alignItems = 'center';
-            optionDiv.style.marginBottom = '5px';
-
-            const textInput = document.createElement('input');
-            textInput.type = 'text';
-            textInput.name = 'mc_option_text';
-            textInput.placeholder = 'Texto de la opción';
-            textInput.value = optionData ? optionData.option_text : '';
-            textInput.style.flexGrow = '1';
-            textInput.style.marginRight = '10px';
-            textInput.required = true;
-
-            // const correctInput = document.createElement('input'); // Removed
-            // correctInput.type = isCurrentlyMultipleCorrectType ? 'checkbox' : 'radio'; // Removed
-            // correctInput.name = 'mc_option_is_correct'; // Removed
-            // if (!isCurrentlyMultipleCorrectType) { // Removed
-            //      correctInput.name = `mc_option_is_correct_radio_group_${optionsContainer.children.length}`; // Removed
-            // } // Removed
-
-            // if (optionData) { // Removed
-            //     if (isCurrentlyMultipleCorrectType) { // Removed
-            //         correctInput.checked = optionData.is_correct_mc_multiple || false; // Removed
-            //     } else { // Removed
-            //         correctInput.checked = optionData.is_correct_mc_single || false; // Removed
-            //     } // Removed
-            // } // Removed
-            // correctInput.style.width = 'auto'; // Removed
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.textContent = 'X';
-            removeBtn.style.marginLeft = '10px';
-            removeBtn.onclick = () => optionDiv.remove();
-
-            optionDiv.appendChild(textInput);
-            // optionDiv.appendChild(correctInput); // Removed
-            optionDiv.appendChild(removeBtn);
-            optionsContainer.appendChild(optionDiv);
-        }
-
-        function updateMcOptionInputTypes(isNowMultipleCorrect) {
-            // This function is now a no-op as correctness inputs are removed.
-            // const optionsContainer = document.getElementById('mcOptionsContainer');
-            // if (!optionsContainer) return;
-            // const entries = optionsContainer.querySelectorAll('.mc-option-entry');
-            // entries.forEach((entry, index) => {
-            //     const oldCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]');
-            //     if (oldCorrectInput) {
-            //         const newType = isNowMultipleCorrect ? 'checkbox' : 'radio';
-            //         if (oldCorrectInput.type !== newType) {
-            //             const newCorrectInput = document.createElement('input');
-            //             newCorrectInput.type = newType;
-            //             newCorrectInput.name = 'mc_option_is_correct';
-            //             if (!isNowMultipleCorrect) {
-            //                newCorrectInput.name = `mc_option_is_correct_radio_group`;
-            //             }
-            //             newCorrectInput.checked = oldCorrectInput.checked;
-            //             newCorrectInput.style.width = 'auto';
-            //             oldCorrectInput.parentNode.replaceChild(newCorrectInput, oldCorrectInput);
-            //         }
-            //     }
-            // });
-        }
-
-        function renderMultipleChoiceFields(questionData = null) {
-            typeSpecificFieldsContainer.innerHTML = `
-                <div>
-                    <label>Tipo de Selección Múltiple:</label>
-                    <div style="margin-bottom:10px;">
-                        <input type="radio" id="mcTypeSingle" name="mcQuestionType" value="single" checked>
-                        <label for="mcTypeSingle" style="font-weight:normal; margin-right:15px;">Respuesta Única Correcta</label>
-                        <input type="radio" id="mcTypeMultiple" name="mcQuestionType" value="multiple">
-                        <label for="mcTypeMultiple" style="font-weight:normal;">Múltiples Respuestas Correctas</label>
-                    </div>
-                </div>
-                <div id="mcScoringFieldsContainer"></div>
-                <div>
-                    <label>Opciones:</label>
-                    <div id="mcOptionsContainer" style="margin-top:5px;"></div>
-                    <button type="button" id="addMcOptionBtn" style="margin-top:5px; padding: 5px 10px;">Añadir Opción</button>
-                </div>
-            `;
-
-            const mcTypeSingleRadio = document.getElementById('mcTypeSingle');
-            const mcTypeMultipleRadio = document.getElementById('mcTypeMultiple');
-
-            let currentIsMultipleCorrect = false; // Default to single
-            if (questionData && questionData.is_mc_multiple_correct !== null) {
-                currentIsMultipleCorrect = questionData.is_mc_multiple_correct;
+            if (!questions || questions.length === 0) {
+                if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'block';
+                if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-info-circle mr-1"></i>No hay preguntas';
+                if(submitPredictionsContainer) submitPredictionsContainer.classList.add('hidden');
+                return;
             }
 
-            if (currentIsMultipleCorrect) {
-                mcTypeMultipleRadio.checked = true;
-            } else {
-                mcTypeSingleRadio.checked = true;
-            }
+            if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'none';
+            if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = `<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver todas (${questions.length})`;
+            if(submitPredictionsContainer) submitPredictionsContainer.classList.remove('hidden');
 
-            renderMcScoringFields(currentIsMultipleCorrect, questionData);
-            updateMcOptionInputTypes(currentIsMultipleCorrect); // Initial setup of radio/checkbox
 
-            document.querySelectorAll('input[name="mcQuestionType"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    const isMultiple = this.value === 'multiple';
-                    renderMcScoringFields(isMultiple, null); // scoreData might need to be fetched or reset
-                    updateMcOptionInputTypes(isMultiple);
-                });
-            });
+            questions.forEach(q => {
+                const questionCard = document.createElement('div');
+                questionCard.className = 'question-card p-5'; // Adjusted padding
 
-            document.getElementById('addMcOptionBtn').addEventListener('click', () => {
-                const isMultiple = document.getElementById('mcTypeMultiple').checked;
-                addMcOption(null, isMultiple);
-            });
-
-            if (questionData && questionData.options) {
-                const isMultiple = mcTypeMultipleRadio.checked;
-                questionData.options.forEach(opt => addMcOption(opt, isMultiple));
-            } else {
-                 // Add a couple of empty options by default for new MC questions
-                const isMultiple = mcTypeMultipleRadio.checked;
-                addMcOption(null, isMultiple);
-                addMcOption(null, isMultiple);
-            }
-        }
-
-        if (addQuestionBtn) {
-            addQuestionBtn.addEventListener('click', () => {
-                // TEMP: For testing MC. Later, use a type selector.
-                // openQuestionModal('add', 'FREE_TEXT');
-                openQuestionModal('add', 'MULTIPLE_CHOICE');
-            });
-        }
-
-        function formatScoringInfo(question) {
-            let scoringHtml = '<strong>Puntuación:</strong> ';
-                switch (question.question_type) {
-                    case 'FREE_TEXT':
-                        scoringHtml += `Máx. ${question.max_score_free_text || 'N/A'} pts.`;
-                        break;
-                    case 'MULTIPLE_CHOICE':
-                        if (question.is_mc_multiple_correct) {
-                            scoringHtml += `Correcta: ${question.points_per_correct_mc || 'N/A'} pts, Incorrecta: ${question.points_per_incorrect_mc || '0'} pts. (Selección Múltiple)`;
-                        } else {
-                            scoringHtml += `Total: ${question.total_score_mc_single || 'N/A'} pts. (Selección Única)`;
-                        }
-                        break;
-                    case 'ORDERING':
-                        scoringHtml += `Por ítem correcto: ${question.points_per_correct_order || 'N/A'} pts, Bonus orden completo: ${question.bonus_for_full_order || '0'} pts.`;
-                        break;
-                    default:
-                        scoringHtml += 'No especificada.';
-                }
-                return scoringHtml;
-            }
-
-            function renderQuestions(questions) {
-                questionsLoadingDiv.style.display = 'none';
-                questionsContainer.innerHTML = '';
-                questionsErrorDiv.textContent = '';
-
-                if (!questions || questions.length === 0) {
-                    questionsContainer.innerHTML = '<p>No hay preguntas configuradas para esta carrera todavía.</p>';
-                    return;
-                }
-
-                questions.forEach(question => {
-                    const questionItem = document.createElement('div');
-                    questionItem.classList.add('question-item');
-                    questionItem.dataset.questionId = question.id;
-                    questionItem.style.border = '1px solid #eee';
-                    questionItem.style.padding = '15px';
-                    questionItem.style.marginBottom = '15px';
-                    questionItem.style.borderRadius = '5px';
-
-                    let adminButtonsHtml = '';
-                    if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
-                        adminButtonsHtml = `
-                            <button class="edit-question-btn" data-question-id="${question.id}" data-question-type="${question.question_type}" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">Editar</button>
-                            <button class="delete-question-btn" data-question-id="${question.id}" style="margin-left: 5px; padding: 5px 10px; cursor: pointer; background-color: #dc3545; color:white; border:none;">Borrar</button>
+                let optionsHtml = '';
+                if (q.question_type === 'MULTIPLE_CHOICE') {
+                    optionsHtml += '<div class="space-y-2 mt-3">';
+                    q.options.forEach(opt => {
+                        const inputType = q.is_mc_multiple_correct ? 'checkbox' : 'radio';
+                        optionsHtml += `
+                            <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300">
+                                <input type="${inputType}" name="question_${q.id}" value="${opt.id}" class="text-orange-500 focus:ring-orange-400 focus:ring-offset-0">
+                                <span class="text-gray-700">${opt.option_text}</span>
+                            </label>
                         `;
-                    }
-
-                    let optionsHtml = '<div class="question-options" style="margin-top:10px;">';
-                    if (question.options && question.options.length > 0) {
-                        optionsHtml += '<ul style="list-style:none; padding-left:10px;">';
-                        question.options.forEach(opt => {
-                            let correctnessIndicator = '';
-                            if (question.question_type === 'MULTIPLE_CHOICE') {
-                                if (question.is_mc_multiple_correct && opt.is_correct_mc_multiple) {
-                                    correctnessIndicator = ' (Correcta)';
-                                } else if (!question.is_mc_multiple_correct && opt.is_correct_mc_single) {
-                                    correctnessIndicator = ' (Correcta)';
-                                }
-                            } else if (question.question_type === 'ORDERING' && opt.correct_order_index !== null) {
-                                correctnessIndicator = ` (Orden: ${opt.correct_order_index + 1})`; // Assuming 0-indexed
-                            }
-                            optionsHtml += `<li style="background-color:#f9f9f9; padding: 5px; margin-bottom:3px; border-radius:3px;">${opt.option_text}${correctnessIndicator}</li>`;
-                        });
-                        optionsHtml += '</ul>';
-                    } else {
-                        optionsHtml += '<p style="font-size:0.9em; color:#777;">No hay opciones para esta pregunta.</p>';
-                    }
+                    });
                     optionsHtml += '</div>';
-
-                    questionItem.innerHTML = `
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h4 style="margin:0;">${question.text} (<em>${question.question_type}</em>) ${question.is_active ? '' : '<span style="color:red;font-size:0.8em;">(Inactiva)</span>'}</h4>
-                            <div>${adminButtonsHtml}</div>
+                } else if (q.question_type === 'FREE_TEXT') {
+                    optionsHtml = `
+                        <textarea class="w-full p-3 mt-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                  rows="3" placeholder="Escribe tu predicción..."></textarea>
+                        <div class="flex justify-between items-center mt-1 text-xs text-gray-500">
+                            <span>Texto libre</span>
+                            <span>0/200 caracteres</span>
                         </div>
-                        <p style="font-size:0.9em; margin-top:5px; margin-bottom:5px;">${formatScoringInfo(question)}</p>
-                        ${optionsHtml}
                     `;
-                    questionsContainer.appendChild(questionItem);
-                });
-
-                // Add event listeners for new edit/delete buttons
-                document.querySelectorAll('.edit-question-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const questionId = btn.dataset.questionId;
-                        const questionType = btn.dataset.questionType; // Added this to know which form to show
-                        // Find the full question data from the fetched questions list
-                        const questionToEdit = questions.find(q => q.id == questionId);
-                        if (questionToEdit) {
-                            openQuestionModal('edit', questionType, questionToEdit);
-                        } else {
-                            alert("Error: No se pudieron encontrar los datos de la pregunta para editar.");
-                        }
-                    });
-                });
-                document.querySelectorAll('.delete-question-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const questionId = btn.dataset.questionId;
-                        if (confirm('¿Estás seguro de que quieres borrar esta pregunta?')) {
-                            fetch(`/api/questions/${questionId}`, { method: 'DELETE' })
-                            .then(response => {
-                                if (response.ok) {
-                                    alert('Pregunta borrada exitosamente.');
-                                    fetchAndRenderQuestions(); // Refresh the list
-                                } else {
-                                    response.json().then(data => {
-                                        alert(`Error al borrar pregunta: ${data.message || response.statusText}`);
-                                    });
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error deleting question:', error);
-                                alert('Error de red al borrar pregunta.');
-                            });
-                        }
-                    });
-                });
-            }
-
-            function fetchAndRenderQuestions() {
-                questionsLoadingDiv.style.display = 'block';
-                questionsErrorDiv.textContent = '';
-                questionsContainer.innerHTML = '';
-
-                fetch(`/api/races/${raceId}/questions`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`Error ${response.status}: ${response.statusText}`);
-                        }
-                        return response.json();
-                    })
-                    .then(questions => {
-                        renderQuestions(questions);
-                    })
-                    .catch(error => {
-                        console.error('Error fetching questions:', error);
-                        questionsLoadingDiv.style.display = 'none';
-                        questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}. Intente recargar.`;
-                    });
-            }
-
-            // Initial fetch and render
-            fetchAndRenderQuestions();
-
-            // Handle Question Form Submission
-            questionForm.addEventListener('submit', function(event) {
-                event.preventDefault();
-                questionFormErrorDiv.textContent = '';
-
-                const qId = questionIdStoreInput.value;
-                const qType = questionTypeStoreInput.value;
-                const text = questionTextInput.value.trim();
-                const isActive = isActiveCheckbox.checked;
-
-                let payload = { text, is_active: isActive };
-                let url = '';
-                let method = '';
-
-                if (qType === 'FREE_TEXT') {
-                    const maxScoreFreeText = document.getElementById('maxScoreFreeText').value;
-                    if (!maxScoreFreeText || parseInt(maxScoreFreeText) <=0) {
-                        questionFormErrorDiv.textContent = "Puntuación Máxima para texto libre debe ser un entero positivo.";
-                        return;
-                    }
-                    payload.max_score_free_text = parseInt(maxScoreFreeText);
-                } else if (qType === 'MULTIPLE_CHOICE') {
-                    const isMultipleCorrect = document.getElementById('mcTypeMultiple').checked;
-                    payload.is_mc_multiple_correct = isMultipleCorrect;
-
-                    const options = [];
-                    const optionEntries = document.querySelectorAll('#mcOptionsContainer .mc-option-entry');
-                    if (optionEntries.length < 2) {
-                        questionFormErrorDiv.textContent = "Debe haber al menos dos opciones para una pregunta de opción múltiple.";
-                        return;
-                    }
-                    // let correctOptionForSingleChoiceFound = false; // Removed
-                    let allOptionTextsValid = true;
-                    optionEntries.forEach(entry => {
-                        const optionText = entry.querySelector('input[name="mc_option_text"]').value.trim();
-                        // const isCorrectInput = entry.querySelector('input[name^="mc_option_is_correct"]'); // Removed
-
-                        if (!optionText) {
-                            allOptionTextsValid = false;
-                        }
-                        // const isCorrect = isCorrectInput.checked; // Removed
-                        // if (!isMultipleCorrect && isCorrect) { // Removed
-                        //     if (correctOptionForSingleChoiceFound) { // Removed
-                        //         // This error will be caught more globally below if not stopping here.
-                        //         // For immediate feedback, this is fine.
-                        //     } // Removed
-                        //     correctOptionForSingleChoiceFound = true; // Removed
-                        // } // Removed
-                        options.push({ option_text: optionText /*, is_correct: isCorrect */ }); // is_correct removed from payload
-                    });
-
-                    if (!allOptionTextsValid) {
-                        questionFormErrorDiv.textContent = "El texto de todas las opciones es obligatorio.";
-                        return;
-                    }
-
-                    // Validation for correct option selection removed
-                    // if (!isMultipleCorrect) {
-                    //     const correctOptionsCount = options.filter(opt => opt.is_correct).length;
-                    //     if (correctOptionsCount === 0 && optionEntries.length > 0) {
-                    //         questionFormErrorDiv.textContent = "Debe seleccionar una opción correcta para el tipo de selección única.";
-                    //         return;
-                    //     }
-                    //     if (correctOptionsCount > 1) {
-                    //         questionFormErrorDiv.textContent = "Solo una opción puede ser correcta para el tipo de selección única.";
-                    //         return;
-                    //     }
-                    // }
-
-                    payload.options = options;
-
-                    if (isMultipleCorrect) {
-                        const pointsPerCorrect = document.getElementById('pointsPerCorrectMc').value;
-                        const pointsPerIncorrect = document.getElementById('pointsPerIncorrectMc').value;
-                        if (pointsPerCorrect === '' || pointsPerCorrect === null) {
-                             questionFormErrorDiv.textContent = "Puntos por Acierto es obligatorio para selección múltiple.";
-                             return;
-                        }
-                        payload.points_per_correct_mc = parseInt(pointsPerCorrect);
-                        payload.points_per_incorrect_mc = pointsPerIncorrect !== '' && pointsPerIncorrect !== null ? parseInt(pointsPerIncorrect) : 0;
-                    } else {
-                        const totalScoreSingle = document.getElementById('totalScoreMcSingle').value;
-                        if (!totalScoreSingle || parseInt(totalScoreSingle) <= 0) {
-                            questionFormErrorDiv.textContent = "Puntuación Total para selección única debe ser un entero positivo.";
-                            return;
-                        }
-                        payload.total_score_mc_single = parseInt(totalScoreSingle);
-                    }
-                }
-                // TODO: Add logic for ORDERING data collection
-
-                let pathSegment = '';
-                switch(qType) {
-                    case 'FREE_TEXT': pathSegment = 'free-text'; break;
-                    case 'MULTIPLE_CHOICE': pathSegment = 'multiple-choice'; break;
-                    case 'ORDERING': pathSegment = 'ordering'; break;
-                    default:
-                        questionFormErrorDiv.textContent = `Tipo de pregunta desconocido: ${qType}`;
-                        return;
+                } else if (q.question_type === 'ORDERING') {
+                     optionsHtml += '<div id="sortableList_' + q.id + '" class="space-y-2 mt-3">';
+                     q.options.forEach(opt => { // Assuming options are items for ordering here
+                        optionsHtml += `
+                            <div class="drag-item bg-gray-50 p-3 rounded-lg border-2 border-gray-200 cursor-move flex items-center justify-between">
+                                <span class="text-gray-700">${opt.option_text}</span>
+                                <i class="fas fa-grip-vertical text-gray-400"></i>
+                            </div>
+                        `;
+                     });
+                     optionsHtml += '</div>';
                 }
 
-                if (qId) { // Editing
-                    url = `/api/questions/${pathSegment}/${qId}`;
-                    method = 'PUT';
-                } else { // Adding
-                    url = `/api/races/${raceId}/questions/${pathSegment}`;
-                    method = 'POST';
-                }
+                questionCard.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-semibold text-gray-800 flex-1 pr-2">${q.text}</h3>
+                        ${formatScoringInfoForDisplay(q)}
+                    </div>
+                    ${optionsHtml}
+                    <div class="mt-2 text-xs text-gray-500">${q.question_type.replace('_', ' ').toLowerCase()}</div>
+                `;
+                questionsContent.appendChild(questionCard);
+            });
+        }
 
-                fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+        function fetchAndRenderQuestions() {
+            if(!raceId || !document.getElementById('predictionQuestionsSection')) return; // Don't run if no raceId or section
+
+            if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'block';
+            if(questionsErrorDiv) questionsErrorDiv.style.display = 'none';
+            if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'none';
+
+
+            fetch(`/api/races/${raceId}/questions`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    return response.json();
                 })
-                .then(response => response.json().then(data => ({ status: response.status, body: data })))
-                .then(result => {
-                    if (result.status === 201 || result.status === 200) {
-                        alert(`Pregunta ${qId ? 'actualizada' : 'creada'} exitosamente!`);
-                        closeQuestionModal();
-                        fetchAndRenderQuestions(); // Refresh list
-                    } else {
-                        questionFormErrorDiv.textContent = `Error: ${result.body.message || 'Error desconocido.'}`;
-                    }
+                .then(questions => {
+                    renderQuestions(questions);
                 })
                 .catch(error => {
-                    console.error('Error submitting question form:', error);
-                    questionFormErrorDiv.textContent = 'Error de red o el servidor no responde.';
+                    console.error('Error fetching questions:', error);
+                    if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'none';
+                    if(questionsErrorDiv) {
+                        questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}.`;
+                        questionsErrorDiv.style.display = 'block';
+                    }
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchAndRenderQuestions();
+
+            // Drag and drop for ordering questions (basic setup, needs to be re-initialized if questions are re-rendered)
+            // This is a placeholder and would need more robust implementation if answers were submitted
+            const sortableLists = document.querySelectorAll('[id^="sortableList_"]');
+            sortableLists.forEach(list => {
+                const items = list.querySelectorAll('.drag-item');
+                items.forEach(item => {
+                    item.setAttribute('draggable', true);
+                    item.addEventListener('dragstart', (e) => {
+                        draggedElement = e.target.closest('.drag-item');
+                        e.target.closest('.drag-item').classList.add('dragging');
+                    });
+                    item.addEventListener('dragend', (e) => {
+                        e.target.closest('.drag-item').classList.remove('dragging');
+                        draggedElement = null;
+                    });
+                });
+                list.addEventListener('dragover', (e) => e.preventDefault());
+                list.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    const targetItem = e.target.closest('.drag-item');
+                    if (draggedElement && targetItem && draggedElement !== targetItem) {
+                        if (Array.from(this.children).indexOf(draggedElement) < Array.from(this.children).indexOf(targetItem)) {
+                            targetItem.after(draggedElement);
+                        } else {
+                            targetItem.before(draggedElement);
+                        }
+                    }
                 });
             });
+
+            // Initialize chart (static data as per design)
+            const ctx = document.getElementById('predictionsChart')?.getContext('2d');
+            if (ctx) {
+                 new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Completadas', 'Pendientes', 'En progreso'],
+                        datasets: [{
+                            data: [987, 200, 60], // Static data
+                            backgroundColor: ['#FF6B35', '#E5E7EB', '#FFB380'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { padding: 20, font: { size: 12 }}}}
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>
