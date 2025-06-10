@@ -265,6 +265,11 @@
                         <button class="bg-white bg-opacity-20 px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-semibold hover:bg-opacity-30 transition-colors">
                             <i class="fas fa-heart mr-2"></i>Favorito (Próx.)
                         </button>
+                        {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                        <button id="openEditRaceModalBtn" class="btn btn-secondary px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-edit mr-2"></i>Editar Detalles Carrera
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
                 {% if race.promo_image_url %}
@@ -350,9 +355,16 @@
                 <div id="predictionQuestionsSection" class="bg-white rounded-xl p-6 shadow-lg">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">Preguntas de Predicción</h2>
-                        <button onclick="toggleQuestions()" id="toggleQuestionsBtn" class="text-orange-500 hover:text-orange-600 font-medium">
-                            <i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas
-                        </button>
+                        <div class="flex items-center space-x-4">
+                            {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                            <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2">
+                                <i class="fas fa-plus mr-2"></i>Añadir Pregunta
+                            </button>
+                            {% endif %}
+                            <button onclick="toggleQuestions()" id="toggleQuestionsBtn" class="text-orange-500 hover:text-orange-600 font-medium">
+                                <i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas
+                            </button>
+                        </div>
                     </div>
                     <div id="questionsLoading" class="text-center py-4">Cargando preguntas...</div>
                     <div id="questionsError" class="text-center py-4 text-red-600" style="display:none;"></div>
@@ -421,9 +433,65 @@
         </div>
     </footer>
 
+    <!-- Edit Race Details Modal -->
+    {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+    <div id="editRaceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 100;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Editar Detalles de la Carrera</h2>
+                <button id="closeEditRaceModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+            <form id="editRaceForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="raceTitle" class="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                        <input type="text" id="raceTitle" name="title" value="{{ race.title | default('') }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="raceLocation" class="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
+                        <input type="text" id="raceLocation" name="location" value="{{ race.location | default('') }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label for="raceDescription" class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                    <textarea id="raceDescription" name="description" rows="4" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">{{ race.description | default('') }}</textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="raceEventDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha y Hora del Evento</label>
+                        <input type="datetime-local" id="raceEventDate" name="event_date" value="{{ race.event_date.strftime('%Y-%m-%dT%H:%M') if race.event_date else '' }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="raceGenderCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoría de Género</label>
+                        <select id="raceGenderCategory" name="gender_category" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                            <option value="MIXED" {% if race.gender_category == 'MIXED' %}selected{% endif %}>Mixta</option>
+                            <option value="MALE_ONLY" {% if race.gender_category == 'MALE_ONLY' %}selected{% endif %}>Solo Hombres</option>
+                            <option value="FEMALE_ONLY" {% if race.gender_category == 'FEMALE_ONLY' %}selected{% endif %}>Solo Mujeres</option>
+                            <option value="OTHER" {% if race.gender_category == 'OTHER' %}selected{% endif %}>Otra</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <label for="racePromoImageUrl" class="block text-sm font-medium text-gray-700 mb-1">URL Imagen Promocional</label>
+                    <input type="url" id="racePromoImageUrl" name="promo_image_url" value="{{ race.promo_image_url | default('') }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="https://ejemplo.com/imagen.jpg">
+                </div>
+
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelEditRaceBtn" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" id="saveRaceChangesBtn" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <script>
-        const raceId = "{{ race.id if race and race.id is defined else '' }}";
+        const raceId = "{{ race.id | default('') }}"; // Ensure raceId is always defined, even if empty string
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
+
+        let allRaceQuestions = []; // To store fetched questions globally for editing
 
         // Logout functionality
         const logoutButtonNav = document.getElementById('logoutButtonNav');
@@ -554,9 +622,32 @@
                         ${formatScoringInfoForDisplay(q)}
                     </div>
                     ${optionsHtml}
-                    <div class="mt-2 text-xs text-gray-500">${q.question_type.replace('_', ' ').toLowerCase()}</div>
+                    <div class="flex justify-between items-center mt-4">
+                        <div class="text-xs text-gray-500">${q.question_type.replace('_', ' ').toLowerCase()}</div>
+                        {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                        <div class="space-x-2">
+                            <button id="editQuestionBtn_${q.id}" class="text-blue-500 hover:text-blue-700 text-sm font-medium">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button id="deleteQuestionBtn_${q.id}" class="text-red-500 hover:text-red-700 text-sm font-medium">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
                 `;
                 questionsContent.appendChild(questionCard);
+
+                if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
+                    const editBtn = document.getElementById(`editQuestionBtn_${q.id}`);
+                    if (editBtn) {
+                        editBtn.addEventListener('click', () => openEditQuestionModal(q.id));
+                    }
+                    const deleteBtn = document.getElementById(`deleteQuestionBtn_${q.id}`);
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', () => openDeleteConfirmModal(q.id));
+                    }
+                }
             });
         }
 
@@ -574,6 +665,7 @@
                     return response.json();
                 })
                 .then(questions => {
+                    allRaceQuestions = questions; // Store questions globally
                     renderQuestions(questions);
                 })
                 .catch(error => {
@@ -586,8 +678,503 @@
                 });
         }
 
+        // --- Add/Edit Question Modal ---
+        const addEditQuestionModal = document.getElementById('addEditQuestionModal');
+        const addNewQuestionBtn = document.getElementById('addNewQuestionBtn');
+        const closeAddEditQuestionModalBtn = document.getElementById('closeAddEditQuestionModalBtn');
+        const cancelAddEditQuestionBtn = document.getElementById('cancelAddEditQuestionBtn');
+        const addEditQuestionForm = document.getElementById('addEditQuestionForm');
+        const saveQuestionBtn = document.getElementById('saveQuestionBtn');
+        const addEditQuestionModalTitle = document.getElementById('addEditQuestionModalTitle');
+        const editingQuestionIdInput = document.getElementById('editingQuestionId');
+
+        const questionTextInput = document.getElementById('questionText');
+        const questionTypeSelect = document.getElementById('questionTypeSelect');
+        // Specific field containers
+        const multipleChoiceFieldsContainer = document.getElementById('multipleChoiceFieldsContainer');
+        const orderingFieldsContainer = document.getElementById('orderingFieldsContainer');
+        const freeTextFieldsContainer = document.getElementById('freeTextFieldsContainer');
+        // MC specific inputs
+        const mcOptionsContainer = document.getElementById('mcOptionsContainer');
+        const addMcOptionBtn = document.getElementById('addMcOptionBtn');
+        const isMcMultipleCorrectCheckbox = document.getElementById('isMcMultipleCorrect');
+        const pointsPerCorrectMcInput = document.getElementById('pointsPerCorrectMc');
+        const pointsPerIncorrectMcInput = document.getElementById('pointsPerIncorrectMc');
+        const totalScoreMcSingleInput = document.getElementById('totalScoreMcSingle');
+        // Ordering specific inputs
+        const orderingOptionsContainer = document.getElementById('orderingOptionsContainer');
+        const addOrderingOptionBtn = document.getElementById('addOrderingOptionBtn');
+        const pointsPerCorrectOrderInput = document.getElementById('pointsPerCorrectOrder');
+        const bonusForFullOrderInput = document.getElementById('bonusForFullOrder');
+        // Free Text specific input
+        const maxScoreFreeTextInput = document.getElementById('maxScoreFreeText');
+
+        function handleQuestionTypeChange() {
+            if (!multipleChoiceFieldsContainer || !orderingFieldsContainer || !freeTextFieldsContainer || !questionTypeSelect) return;
+            multipleChoiceFieldsContainer.style.display = 'none';
+            orderingFieldsContainer.style.display = 'none';
+            freeTextFieldsContainer.style.display = 'none';
+
+            const selectedType = questionTypeSelect.value;
+            if (selectedType === 'MULTIPLE_CHOICE') {
+                multipleChoiceFieldsContainer.style.display = 'block';
+            } else if (selectedType === 'ORDERING') {
+                orderingFieldsContainer.style.display = 'block';
+            } else if (selectedType === 'FREE_TEXT') {
+                freeTextFieldsContainer.style.display = 'block';
+            }
+        }
+
+        function resetAddEditQuestionForm() {
+            if(addEditQuestionForm) addEditQuestionForm.reset();
+            if(editingQuestionIdInput) editingQuestionIdInput.value = '';
+                if(mcOptionsContainer) mcOptionsContainer.innerHTML = '';
+            if(orderingOptionsContainer) orderingOptionsContainer.innerHTML = '';
+                // Also explicitly reset scoring fields that might not be part of a .reset() on the form if they were disabled.
+                if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = '';
+                if(pointsPerIncorrectMcInput) pointsPerIncorrectMcInput.value = '';
+                if(totalScoreMcSingleInput) totalScoreMcSingleInput.value = '';
+                if(pointsPerCorrectOrderInput) pointsPerCorrectOrderInput.value = '';
+                if(bonusForFullOrderInput) bonusForFullOrderInput.value = '';
+                if(maxScoreFreeTextInput) maxScoreFreeTextInput.value = '';
+
+            if(questionTypeSelect) handleQuestionTypeChange(); // Ensure correct fields shown after reset
+        }
+
+            function createOptionInputDiv(optionText = "", optionId = null, isCorrect = false, questionType = "MULTIPLE_CHOICE") {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'flex items-center space-x-2 mb-2';
+
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.className = 'mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flex-grow';
+                textInput.value = optionText;
+                textInput.placeholder = (questionType === "ORDERING") ? "Texto del ítem" : "Texto de la opción";
+
+                optionDiv.appendChild(textInput);
+
+                // TODO: Add is_correct checkbox for MULTIPLE_CHOICE options if needed by backend for single-correct.
+                // For now, just text and remove. Backend handles correct_order_index for ORDERING by array order.
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'text-red-500 hover:text-red-700';
+                removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                removeBtn.onclick = () => optionDiv.remove();
+                optionDiv.appendChild(removeBtn);
+
+                return optionDiv;
+            }
+
+            if(addMcOptionBtn) {
+                addMcOptionBtn.addEventListener('click', () => {
+                    if(mcOptionsContainer) mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+                });
+            }
+
+            if(addOrderingOptionBtn) {
+                addOrderingOptionBtn.addEventListener('click', () => {
+                    if(orderingOptionsContainer) orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+                });
+            }
+
+        function openAddQuestionModal() {
+            if (!addEditQuestionModal) return;
+            resetAddEditQuestionForm();
+            if(addEditQuestionModalTitle) addEditQuestionModalTitle.textContent = 'Añadir Nueva Pregunta';
+                // Add one or two blank options by default for MC/Ordering if desired
+                if (questionTypeSelect && questionTypeSelect.value === 'MULTIPLE_CHOICE' && mcOptionsContainer) {
+                    mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+                    mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+                } else if (questionTypeSelect && questionTypeSelect.value === 'ORDERING' && orderingOptionsContainer) {
+                    orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+                    orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+                }
+            addEditQuestionModal.style.display = 'flex';
+            if(questionTypeSelect) handleQuestionTypeChange();
+        }
+
+        function openEditQuestionModal(questionId) {
+            if (!addEditQuestionModal || !allRaceQuestions) return;
+            resetAddEditQuestionForm();
+            const question = allRaceQuestions.find(q => q.id === questionId);
+            if (!question) {
+                alert('Error: No se encontró la pregunta.');
+                return;
+            }
+
+            if(addEditQuestionModalTitle) addEditQuestionModalTitle.textContent = 'Editar Pregunta';
+            if(editingQuestionIdInput) editingQuestionIdInput.value = question.id;
+            if(questionTextInput) questionTextInput.value = question.text;
+            if(questionTypeSelect) questionTypeSelect.value = question.question_type;
+
+            handleQuestionTypeChange(); // Show correct section first
+
+            if (question.question_type === 'FREE_TEXT') {
+                if(maxScoreFreeTextInput) maxScoreFreeTextInput.value = question.max_score_free_text || '';
+            } else if (question.question_type === 'MULTIPLE_CHOICE') {
+                if(isMcMultipleCorrectCheckbox) isMcMultipleCorrectCheckbox.checked = question.is_mc_multiple_correct;
+                if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = question.points_per_correct_mc || '';
+                if(pointsPerIncorrectMcInput) pointsPerIncorrectMcInput.value = question.points_per_incorrect_mc || '';
+                if(totalScoreMcSingleInput) totalScoreMcSingleInput.value = question.total_score_mc_single || '';
+                if(mcOptionsContainer) {
+                    mcOptionsContainer.innerHTML = ''; // Clear before populating
+                    question.options.forEach(opt => {
+                        // Assuming is_correct_mc_single/multiple are part of opt object if needed
+                        mcOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, opt.is_correct_mc_single || opt.is_correct_mc_multiple, "MULTIPLE_CHOICE"));
+                    });
+                }
+            } else if (question.question_type === 'ORDERING') {
+                if(pointsPerCorrectOrderInput) pointsPerCorrectOrderInput.value = question.points_per_correct_order || '';
+                if(bonusForFullOrderInput) bonusForFullOrderInput.value = question.bonus_for_full_order || '';
+                if(orderingOptionsContainer) {
+                    orderingOptionsContainer.innerHTML = ''; // Clear
+                    question.options.forEach(opt => { // Options should be pre-sorted by correct_order_index from backend
+                        orderingOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
+                    });
+                }
+            }
+            // TODO: is_active checkbox, e.g. if(questionIsActiveCheckbox) questionIsActiveCheckbox.checked = question.is_active;
+
+            addEditQuestionModal.style.display = 'flex';
+        }
+
+        function closeAddEditQuestionModal() {
+            if (!addEditQuestionModal) return;
+            addEditQuestionModal.style.display = 'none';
+        }
+
+        // --- Delete Question Confirmation Modal ---
+        const deleteQuestionConfirmModal = document.getElementById('deleteQuestionConfirmModal');
+        const questionIdToDeleteInput = document.getElementById('questionIdToDelete');
+        const cancelDeleteQuestionBtn = document.getElementById('cancelDeleteQuestionBtn');
+        const confirmDeleteQuestionBtn = document.getElementById('confirmDeleteQuestionBtn');
+
+        function openDeleteConfirmModal(questionId) {
+            if(!deleteQuestionConfirmModal) return;
+            if(questionIdToDeleteInput) questionIdToDeleteInput.value = questionId;
+            deleteQuestionConfirmModal.style.display = 'flex';
+        }
+
+        function closeDeleteConfirmModal() {
+            if(!deleteQuestionConfirmModal) return;
+            deleteQuestionConfirmModal.style.display = 'none';
+        }
+
+
         document.addEventListener('DOMContentLoaded', function() {
-            fetchAndRenderQuestions();
+            // --- Edit Race Details Modal ---
+            const editRaceModal = document.getElementById('editRaceModal');
+            const openEditRaceModalBtn = document.getElementById('openEditRaceModalBtn');
+            const closeEditRaceModalBtn = document.getElementById('closeEditRaceModalBtn');
+            const cancelEditRaceBtn = document.getElementById('cancelEditRaceBtn');
+            const editRaceForm = document.getElementById('editRaceForm');
+            const saveRaceChangesBtn = document.getElementById('saveRaceChangesBtn');
+
+            // Form fields - Edit Race
+            const raceTitleInput = document.getElementById('raceTitle');
+            const raceLocationInput = document.getElementById('raceLocation');
+            const raceDescriptionInput = document.getElementById('raceDescription');
+            const raceEventDateInput = document.getElementById('raceEventDate');
+            const raceGenderCategoryInput = document.getElementById('raceGenderCategory');
+            const racePromoImageUrlInput = document.getElementById('racePromoImageUrl'); // Already defined
+
+            function openEditRaceModal() { // Already defined
+                if (!editRaceModal) return;
+                // Pre-fill form - Assuming 'race' object is available from Jinja
+                // Values are already set by `value` attribute in HTML for initial load.
+                // This ensures that if JS opens it, it re-populates with original or last saved state if we decide to cache.
+                // For now, relying on the `value` attributes set by Jinja.
+                // Example of explicit prefill if needed:
+                // raceTitleInput.value = "{{ race.title | escapejs | default('') }}";
+                // raceLocationInput.value = "{{ race.location | escapejs | default('') }}";
+                // raceDescriptionInput.value = `{{ race.description | escapejs | default('') }}`; // Use backticks for multiline
+                // raceEventDateInput.value = "{{ race.event_date.strftime('%Y-%m-%dT%H:%M') if race.event_date else '' }}";
+                // raceGenderCategoryInput.value = "{{ race.gender_category | default('MIXED') }}";
+                // racePromoImageUrlInput.value = "{{ race.promo_image_url | escapejs | default('') }}";
+
+                editRaceModal.style.display = 'flex';
+            }
+
+            function closeEditRaceModal() {
+                if (!editRaceModal) return;
+                editRaceModal.style.display = 'none';
+            }
+
+            if (openEditRaceModalBtn) {
+                openEditRaceModalBtn.addEventListener('click', openEditRaceModal);
+            }
+            if (closeEditRaceModalBtn) {
+                closeEditRaceModalBtn.addEventListener('click', closeEditRaceModal);
+            }
+            if (cancelEditRaceBtn) {
+                cancelEditRaceBtn.addEventListener('click', closeEditRaceModal);
+            }
+
+            if (editRaceForm) {
+                editRaceForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    saveRaceChangesBtn.disabled = true;
+                    saveRaceChangesBtn.classList.add('opacity-50');
+
+                    const formData = {
+                        title: raceTitleInput.value,
+                        location: raceLocationInput.value,
+                        description: raceDescriptionInput.value,
+                        event_date: raceEventDateInput.value,
+                        gender_category: raceGenderCategoryInput.value,
+                        promo_image_url: racePromoImageUrlInput.value
+                    };
+
+                    // Basic client-side validation
+                    if (!formData.title.trim()) {
+                        alert('El título de la carrera es obligatorio.');
+                        saveRaceChangesBtn.disabled = false;
+                        saveRaceChangesBtn.classList.remove('opacity-50');
+                        return;
+                    }
+                     if (!formData.event_date) {
+                        alert('La fecha del evento es obligatoria.');
+                        saveRaceChangesBtn.disabled = false;
+                        saveRaceChangesBtn.classList.remove('opacity-50');
+                        return;
+                    }
+
+
+                    fetch(`/api/races/${raceId}/details`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // Add CSRF token header if your Flask-WTF or similar is configured for APIs
+                        },
+                        body: JSON.stringify(formData)
+                    })
+                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                    .then(result => {
+                        if (result.ok) {
+                            alert(result.body.message || 'Detalles de la carrera actualizados con éxito.');
+                            closeEditRaceModal();
+                            // Dynamically update page content
+                            document.querySelector('.hero-bg h1').textContent = result.body.race.title;
+                            // Update description (handle truncation if needed)
+                            const heroDescription = document.querySelector('.hero-bg p.opacity-90');
+                            if (heroDescription) heroDescription.textContent = result.body.race.description.substring(0,150) + (result.body.race.description.length > 150 ? '...' : '');
+
+                            const detailedDescriptionP = document.querySelector('#mainContentRaceDescription'); // Assuming you add an ID here
+                            if (detailedDescriptionP) detailedDescriptionP.textContent = result.body.race.description;
+                            else { // Or update the existing one if it matches the condition
+                                const descContainer = document.querySelector('.bg-white.rounded-xl.p-6.shadow-lg > p.text-gray-600.leading-relaxed.whitespace-pre-line');
+                                if(descContainer && result.body.race.description.length > 150) {
+                                    descContainer.textContent = result.body.race.description;
+                                } else if (descContainer && result.body.race.description.length <= 150) {
+                                     // If description becomes short, potentially hide this section or clear it
+                                     const detailedDescSection = descContainer.closest('.bg-white.rounded-xl.p-6.shadow-lg');
+                                     if(detailedDescSection) detailedDescSection.style.display = 'none';
+                                }
+                            }
+
+
+                            // Update date and location in hero
+                            const heroDateSpan = document.querySelector('.hero-bg .fa-calendar').nextElementSibling;
+                            if (heroDateSpan && result.body.race.event_date) {
+                                const eventDate = new Date(result.body.race.event_date);
+                                heroDateSpan.textContent = eventDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) + ' ' + eventDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                            } else if (heroDateSpan) {
+                                heroDateSpan.textContent = 'Fecha no especificada';
+                            }
+
+                            const heroLocationSpan = document.querySelector('.hero-bg .fa-map-marker-alt').nextElementSibling;
+                            if (heroLocationSpan) heroLocationSpan.textContent = result.body.race.location || 'Ubicación no especificada';
+
+                            // Update gender category badge
+                            const genderBadge = document.querySelector('.hero-bg span.bg-white.bg-opacity-20:nth-of-type(2)'); // This selector might be fragile
+                            if(genderBadge) genderBadge.textContent = result.body.race.gender_category;
+
+                            // Update promo image
+                            const promoImage = document.querySelector('.hero-bg img');
+                            if (promoImage && result.body.race.promo_image_url) {
+                                promoImage.src = result.body.race.promo_image_url;
+                                promoImage.alt = `Imagen de ${result.body.race.title}`;
+                                promoImage.parentElement.style.display = ''; // Show if it was hidden
+                            } else if (promoImage && !result.body.race.promo_image_url) {
+                                promoImage.parentElement.style.display = 'none'; // Hide if no image
+                            }
+
+
+                        } else {
+                            alert(`Error: ${result.body.message || 'No se pudo actualizar la carrera.'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving race details:', error);
+                        alert('Error de conexión al guardar los detalles de la carrera.');
+                    })
+                    .finally(() => {
+                        saveRaceChangesBtn.disabled = false;
+                        saveRaceChangesBtn.classList.remove('opacity-50');
+                    });
+                });
+            }
+
+            // Add/Edit Question Modal Listeners
+            if (addNewQuestionBtn) {
+                addNewQuestionBtn.addEventListener('click', openAddQuestionModal);
+            }
+            if (closeAddEditQuestionModalBtn) {
+                closeAddEditQuestionModalBtn.addEventListener('click', closeAddEditQuestionModal);
+            }
+            if (cancelAddEditQuestionBtn) {
+                cancelAddEditQuestionBtn.addEventListener('click', closeAddEditQuestionModal);
+            }
+            if(questionTypeSelect) { // Also re-attach if it was missed, though defined above
+                questionTypeSelect.addEventListener('change', handleQuestionTypeChange);
+            }
+
+            // Delete Question Modal Listeners
+            if(cancelDeleteQuestionBtn) {
+                cancelDeleteQuestionBtn.addEventListener('click', closeDeleteConfirmModal);
+            }
+            if(addEditQuestionForm) {
+                addEditQuestionForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    if(!saveQuestionBtn) return;
+
+                    saveQuestionBtn.disabled = true;
+                    saveQuestionBtn.classList.add('opacity-50');
+
+                    const editingId = editingQuestionIdInput.value;
+                    const type = questionTypeSelect.value;
+                    let questionData = {
+                        text: questionTextInput.value,
+                        is_active: true, // Default, consider adding a checkbox for this
+                        // Scoring and options will be added based on type
+                    };
+
+                    // Basic Validations
+                    if (!questionData.text.trim()) {
+                        alert('El texto de la pregunta es obligatorio.');
+                        saveQuestionBtn.disabled = false;
+                        saveQuestionBtn.classList.remove('opacity-50');
+                        return;
+                    }
+
+                    let options = [];
+                    if (type === 'MULTIPLE_CHOICE') {
+                        mcOptionsContainer.querySelectorAll('input[type="text"]').forEach(input => {
+                            if(input.value.trim()) options.push({ option_text: input.value.trim() });
+                        });
+                        if (options.length < 2) {
+                            alert('Las preguntas de opción múltiple deben tener al menos 2 opciones con texto.');
+                            saveQuestionBtn.disabled = false;
+                            saveQuestionBtn.classList.remove('opacity-50');
+                            return;
+                        }
+                        questionData.options = options;
+                        questionData.is_mc_multiple_correct = isMcMultipleCorrectCheckbox.checked;
+                        if (questionData.is_mc_multiple_correct) {
+                            questionData.points_per_correct_mc = parseInt(pointsPerCorrectMcInput.value) || 0;
+                            questionData.points_per_incorrect_mc = parseInt(pointsPerIncorrectMcInput.value) || 0;
+                        } else {
+                            questionData.total_score_mc_single = parseInt(totalScoreMcSingleInput.value) || 0;
+                            if (questionData.total_score_mc_single <= 0) {
+                                alert('La puntuación total para opción única debe ser un número positivo.');
+                                saveQuestionBtn.disabled = false;
+                                saveQuestionBtn.classList.remove('opacity-50');
+                                return;
+                            }
+                            // TODO: Add logic to mark one option as correct if single choice,
+                            // this currently isn't supported by the simple option text inputs.
+                            // The backend expects one of the options to have `is_correct_mc_single = true`.
+                        }
+                    } else if (type === 'ORDERING') {
+                        orderingOptionsContainer.querySelectorAll('input[type="text"]').forEach(input => {
+                           if(input.value.trim()) options.push({ option_text: input.value.trim() });
+                        });
+                        if (options.length < 2) {
+                            alert('Las preguntas de ordenamiento deben tener al menos 2 ítems con texto.');
+                            saveQuestionBtn.disabled = false;
+                            saveQuestionBtn.classList.remove('opacity-50');
+                            return;
+                        }
+                        questionData.options = options; // Order is implicit by array position
+                        questionData.points_per_correct_order = parseInt(pointsPerCorrectOrderInput.value) || 0;
+                        questionData.bonus_for_full_order = parseInt(bonusForFullOrderInput.value) || 0;
+                        if (questionData.points_per_correct_order <= 0) {
+                             alert('Los puntos por ítem correcto en ordenamiento deben ser un número positivo.');
+                            saveQuestionBtn.disabled = false;
+                            saveQuestionBtn.classList.remove('opacity-50');
+                            return;
+                        }
+                    } else if (type === 'FREE_TEXT') {
+                        questionData.max_score_free_text = parseInt(maxScoreFreeTextInput.value) || 0;
+                        if (questionData.max_score_free_text <= 0) {
+                             alert('La puntuación máxima para texto libre debe ser un número positivo.');
+                            saveQuestionBtn.disabled = false;
+                            saveQuestionBtn.classList.remove('opacity-50');
+                            return;
+                        }
+                    }
+
+                    const url = editingId ? `/api/questions/${type.toLowerCase().replace('_', '-')}/${editingId}` : `/api/races/${raceId}/questions/${type.toLowerCase().replace('_', '-')}`;
+                    const method = editingId ? 'PUT' : 'POST';
+
+                    fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(questionData)
+                    })
+                    .then(response => response.json().then(data => ({ok: response.ok, status: response.status, body: data})))
+                    .then(result => {
+                        if (result.ok) {
+                            alert(result.body.message || `Pregunta ${editingId ? 'actualizada' : 'creada'} con éxito.`);
+                            closeAddEditQuestionModal();
+                            fetchAndRenderQuestions();
+                        } else {
+                            alert(`Error: ${result.body.message || 'No se pudo guardar la pregunta.'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving question:', error);
+                        alert('Error de conexión al guardar la pregunta.');
+                    })
+                    .finally(() => {
+                        saveQuestionBtn.disabled = false;
+                        saveQuestionBtn.classList.remove('opacity-50');
+                    });
+                });
+            }
+
+            if(confirmDeleteQuestionBtn) {
+                confirmDeleteQuestionBtn.addEventListener('click', function() {
+                    const questionIdVal = questionIdToDeleteInput.value;
+                    if (!questionIdVal) return;
+
+                    confirmDeleteQuestionBtn.disabled = true;
+                    confirmDeleteQuestionBtn.classList.add('opacity-50');
+
+                    fetch(`/api/questions/${questionIdVal}`, { method: 'DELETE' })
+                    .then(response => response.json().then(data => ({ok: response.ok, status: response.status, body: data})))
+                    .then(result => {
+                        if (result.ok) {
+                            alert(result.body.message || 'Pregunta eliminada con éxito.');
+                            closeDeleteConfirmModal();
+                            fetchAndRenderQuestions();
+                        } else {
+                            alert(`Error: ${result.body.message || 'No se pudo eliminar la pregunta.'}`);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting question:', error);
+                        alert('Error de conexión al eliminar la pregunta.');
+                    })
+                    .finally(() => {
+                        confirmDeleteQuestionBtn.disabled = false;
+                        confirmDeleteQuestionBtn.classList.remove('opacity-50');
+                    });
+                });
+            }
+
+            fetchAndRenderQuestions(); // Initial fetch of questions
 
             // Drag and drop for ordering questions (basic setup, needs to be re-initialized if questions are re-rendered)
             // This is a placeholder and would need more robust implementation if answers were submitted
@@ -641,5 +1228,116 @@
             }
         });
     </script>
-</body>
-</html>
+
+    <!-- Add/Edit Question Modal -->
+    {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+    <div id="addEditQuestionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 100;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-3xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="addEditQuestionModalTitle" class="text-2xl font-bold text-gray-800">Añadir Nueva Pregunta</h2>
+                <button id="closeAddEditQuestionModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+            <form id="addEditQuestionForm">
+                <input type="hidden" id="editingQuestionId" value="">
+                <div class="mb-4">
+                    <label for="questionText" class="block text-sm font-medium text-gray-700 mb-1">Texto de la Pregunta</label>
+                    <textarea id="questionText" name="text" rows="3" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Ej: ¿Quién ganará la carrera?"></textarea>
+                </div>
+
+                <div class="mb-4">
+                    <label for="questionTypeSelect" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Pregunta</label>
+                    <select id="questionTypeSelect" name="question_type" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                        <option value="FREE_TEXT">Texto Libre</option>
+                        <option value="MULTIPLE_CHOICE">Opción Múltiple</option>
+                        <option value="ORDERING">Ordenamiento</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic fields based on question type -->
+                <div id="questionTypeSpecificFields" class="space-y-4 mb-4">
+                    <!-- Fields for MULTIPLE_CHOICE -->
+                    <div id="multipleChoiceFieldsContainer" style="display:none;" class="p-4 border border-gray-200 rounded-md">
+                        <h4 class="font-semibold text-gray-700 mb-2">Opciones de Opción Múltiple:</h4>
+                        <div id="mcOptionsContainer" class="space-y-2">
+                            <!-- JS will add option input fields here -->
+                        </div>
+                        <button type="button" id="addMcOptionBtn" class="btn btn-secondary btn-sm mt-2"><i class="fas fa-plus mr-1"></i>Añadir Opción</button>
+                        <div class="mt-3">
+                             <label class="flex items-center">
+                                <input type="checkbox" id="isMcMultipleCorrect" name="is_mc_multiple_correct" class="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                <span class="ml-2 text-sm text-gray-700">Permitir múltiples respuestas correctas</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                            <div>
+                                <label for="pointsPerCorrectMc" class="block text-sm font-medium text-gray-700">Puntos por opción correcta (si múltiple)</label>
+                                <input type="number" id="pointsPerCorrectMc" name="points_per_correct_mc" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 10">
+                            </div>
+                            <div>
+                                <label for="pointsPerIncorrectMc" class="block text-sm font-medium text-gray-700">Puntos por opción incorrecta (si múltiple)</label>
+                                <input type="number" id="pointsPerIncorrectMc" name="points_per_incorrect_mc" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: -5">
+                            </div>
+                             <div>
+                                <label for="totalScoreMcSingle" class="block text-sm font-medium text-gray-700">Puntuación total (si única respuesta)</label>
+                                <input type="number" id="totalScoreMcSingle" name="total_score_mc_single" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 25">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fields for ORDERING -->
+                    <div id="orderingFieldsContainer" style="display:none;" class="p-4 border border-gray-200 rounded-md">
+                        <h4 class="font-semibold text-gray-700 mb-2">Items para Ordenar:</h4>
+                        <div id="orderingOptionsContainer" class="space-y-2">
+                            <!-- JS will add item input fields here -->
+                        </div>
+                        <button type="button" id="addOrderingOptionBtn" class="btn btn-secondary btn-sm mt-2"><i class="fas fa-plus mr-1"></i>Añadir Item</button>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                           <div>
+                                <label for="pointsPerCorrectOrder" class="block text-sm font-medium text-gray-700">Puntos por item en posición correcta</label>
+                                <input type="number" id="pointsPerCorrectOrder" name="points_per_correct_order" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 5">
+                            </div>
+                            <div>
+                                <label for="bonusForFullOrder" class="block text-sm font-medium text-gray-700">Bonus por orden completo correcto</label>
+                                <input type="number" id="bonusForFullOrder" name="bonus_for_full_order" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 15">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fields for FREE_TEXT -->
+                    <div id="freeTextFieldsContainer" style="display:none;" class="p-4 border border-gray-200 rounded-md">
+                        <h4 class="font-semibold text-gray-700 mb-2">Configuración de Texto Libre:</h4>
+                        <div>
+                            <label for="maxScoreFreeText" class="block text-sm font-medium text-gray-700">Puntuación Máxima</label>
+                            <input type="number" id="maxScoreFreeText" name="max_score_free_text" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 50">
+                        </div>
+                        <!-- Potentially add fields for keywords, case sensitivity etc. later -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" id="cancelAddEditQuestionBtn" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" id="saveQuestionBtn" class="btn btn-primary">Guardar Pregunta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Delete Question Confirmation Modal -->
+    <div id="deleteQuestionConfirmModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 105;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-auto">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Confirmar Eliminación</h2>
+            <p class="text-gray-600 mb-6">¿Estás seguro de que quieres eliminar esta pregunta? Esta acción no se puede deshacer.</p>
+            <input type="hidden" id="questionIdToDelete" value="">
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancelDeleteQuestionBtn" class="btn btn-secondary">Cancelar</button>
+                <button type="button" id="confirmDeleteQuestionBtn" class="btn btn-danger bg-red-600 hover:bg-red-700 text-white">Eliminar</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <script>
+        const raceId = "{{ race.id | default('') }}"; // Ensure raceId is always defined, even if empty string

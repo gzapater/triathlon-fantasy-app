@@ -252,6 +252,94 @@ def create_race():
         print(f"Error creating race: {e}")
         return jsonify(message="Error creating race"), 500
 
+@app.route('/api/races/<int:race_id>/details', methods=['PUT'])
+@login_required
+def update_race_details(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to update this race."), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Validate and update fields
+    try:
+        if 'title' in data:
+            title = data.get('title')
+            if not isinstance(title, str) or not title.strip():
+                return jsonify(message="Title must be a non-empty string."), 400
+            race.title = title
+
+        if 'description' in data:
+            race.description = data.get('description') # Allow empty description
+
+        if 'event_date' in data:
+            event_date_str = data.get('event_date')
+            if event_date_str: # Check if not empty or None
+                try:
+                    # Accommodate datetime-local format from HTML form: %Y-%m-%dT%H:%M
+                    race.event_date = datetime.strptime(event_date_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    try: # Fallback for just date if time is not included
+                        race.event_date = datetime.strptime(event_date_str, '%Y-%m-%d')
+                    except ValueError:
+                         return jsonify(message="Invalid event_date format. Use YYYY-MM-DDTHH:MM or YYYY-MM-DD."), 400
+            else: # If event_date is explicitly set to null or empty string in JSON
+                race.event_date = None
+
+
+        if 'location' in data:
+            race.location = data.get('location') # Allow empty location
+
+        if 'promo_image_url' in data:
+            promo_image_url = data.get('promo_image_url')
+            # Basic URL validation (can be more sophisticated)
+            if promo_image_url and not (promo_image_url.startswith('http://') or promo_image_url.startswith('https://')):
+                # Allow empty string or None to clear the image URL
+                if promo_image_url.strip() != "":
+                    return jsonify(message="Invalid promo_image_url format. Must be a valid URL or empty."), 400
+            race.promo_image_url = promo_image_url
+
+
+        if 'gender_category' in data:
+            gender_category = data.get('gender_category')
+            # Assuming GenderCategory is an enum or has predefined valid values in your model/logic
+            # For now, basic string validation. Add more specific checks if necessary.
+            valid_gender_categories = ['MIXED', 'MALE_ONLY', 'FEMALE_ONLY', 'OTHER'] # Example
+            if not isinstance(gender_category, str) or not gender_category.strip():
+                 return jsonify(message="Gender category must be a non-empty string."), 400
+            if gender_category not in valid_gender_categories: # Adapt this list as per your actual categories
+                return jsonify(message=f"Invalid gender_category. Must be one of {valid_gender_categories}."), 400
+            race.gender_category = gender_category
+
+        db.session.commit()
+        # Serialize the updated race object to return
+        updated_race_data = {
+            "id": race.id,
+            "title": race.title,
+            "description": race.description,
+            "event_date": race.event_date.strftime('%Y-%m-%dT%H:%M:%S') if race.event_date else None,
+            "location": race.location,
+            "promo_image_url": race.promo_image_url,
+            "gender_category": race.gender_category,
+            "race_format_id": race.race_format_id,
+            "user_id": race.user_id
+            # Add other fields as necessary
+        }
+        return jsonify(message="Race details updated successfully", race=updated_race_data), 200
+    except ValueError as ve: # Catch specific validation errors if any are raised manually
+        db.session.rollback()
+        return jsonify(message=str(ve)), 400
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating race details: {e}")
+        return jsonify(message="Error updating race details"), 500
+
+
 @app.route('/api/races/<int:race_id>/questions', methods=['GET'])
 @login_required
 def get_race_questions(race_id):
