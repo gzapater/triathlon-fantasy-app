@@ -563,23 +563,33 @@
 
         function renderQuestions(questions) {
             if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'none';
-            questionsContent.innerHTML = ''; // Clear previous
+            if(questionsContent) questionsContent.innerHTML = ''; // Clear previous content
+
+            allRaceQuestions = questions; // Update global variable
+
+            // Ensure elements are defined within this scope if not already global consts or if they can be null
+            const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage');
+            const currentQuestionsContent = document.getElementById('questionsContent'); // Use a local var if questionsContent is global const
+            const currentToggleQuestionsBtn = document.getElementById('toggleQuestionsBtn'); // Use a local var
+            const currentSubmitPredictionsContainer = document.getElementById('submitPredictionsContainer'); // Use a local var
 
             if (!questions || questions.length === 0) {
                 if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'block';
-                if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-info-circle mr-1"></i>No hay preguntas';
-                if(submitPredictionsContainer) submitPredictionsContainer.classList.add('hidden');
-                return;
+                if(currentToggleQuestionsBtn) {
+                    // Note: The id "expandIcon" is preserved here if toggleQuestions() relies on it.
+                    currentToggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-info-circle mr-1"></i>No hay preguntas';
+                }
+                if(currentQuestionsContent) currentQuestionsContent.classList.remove('expanded'); // Ensure collapsed
+                if(currentSubmitPredictionsContainer) currentSubmitPredictionsContainer.classList.add('hidden');
+                return; // Exit if no questions
             }
 
-            if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'none';
-            if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = `<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver todas (${questions.length})`;
-            if(submitPredictionsContainer) submitPredictionsContainer.classList.remove('hidden');
-
+            // This part executes if questions && questions.length > 0
+            if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'none'; // Hide no questions message
 
             questions.forEach(q => {
                 const questionCard = document.createElement('div');
-                questionCard.className = 'question-card p-5'; // Adjusted padding
+                questionCard.className = 'question-card p-5';
 
                 let optionsHtml = '';
                 if (q.question_type === 'MULTIPLE_CHOICE') {
@@ -605,7 +615,7 @@
                     `;
                 } else if (q.question_type === 'ORDERING') {
                      optionsHtml += '<div id="sortableList_' + q.id + '" class="space-y-2 mt-3">';
-                     q.options.forEach(opt => { // Assuming options are items for ordering here
+                     q.options.forEach(opt => {
                         optionsHtml += `
                             <div class="drag-item bg-gray-50 p-3 rounded-lg border-2 border-gray-200 cursor-move flex items-center justify-between">
                                 <span class="text-gray-700">${opt.option_text}</span>
@@ -636,7 +646,7 @@
                         {% endif %}
                     </div>
                 `;
-                questionsContent.appendChild(questionCard);
+                if(currentQuestionsContent) currentQuestionsContent.appendChild(questionCard); // Append to the correct content element
 
                 if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
                     const editBtn = document.getElementById(`editQuestionBtn_${q.id}`);
@@ -649,6 +659,21 @@
                     }
                 }
             });
+
+            // After loop, force expand and update button/container visibility
+            if(currentQuestionsContent) currentQuestionsContent.classList.add('expanded');
+
+            if(currentToggleQuestionsBtn) {
+                // The id "expandIcon" is updated here. If global expandIcon var is used by toggleQuestions, it might be stale.
+                // However, toggleQuestions itself also manipulates innerHTML, so it should be fine.
+                currentToggleQuestionsBtn.innerHTML = `<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas (${questions.length})`;
+            }
+            // No need to separately update expandIcon's class if it's part of innerHTML.
+            // const expandIcon = document.getElementById('expandIcon');
+            // if (expandIcon) expandIcon.className = 'fas fa-chevron-up mr-1';
+
+
+            if(currentSubmitPredictionsContainer) currentSubmitPredictionsContainer.classList.remove('hidden');
         }
 
         function fetchAndRenderQuestions() {
