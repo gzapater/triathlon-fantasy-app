@@ -499,6 +499,7 @@
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
 
         let allRaceQuestions = []; // To store fetched questions globally for editing
+        let isFetchingQuestions = false; // Re-entrancy guard for fetchAndRenderQuestions
 
         // Logout functionality
         const logoutButtonNav = document.getElementById('logoutButtonNav');
@@ -684,7 +685,13 @@
         }
 
         function fetchAndRenderQuestions() {
-            if(!raceId || !document.getElementById('predictionQuestionsSection')) return; // Don't run if no raceId or section
+            if(!raceId || !document.getElementById('predictionQuestionsSection')) return; // Existing guard
+
+            if (isFetchingQuestions) {
+                // console.log("Fetch already in progress, skipping."); // Optional: for debugging
+                return;
+            }
+            isFetchingQuestions = true;
 
             if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'block';
             if(questionsErrorDiv) questionsErrorDiv.style.display = 'none';
@@ -707,6 +714,9 @@
                         questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}.`;
                         questionsErrorDiv.style.display = 'block';
                     }
+                })
+                .finally(() => {
+                    isFetchingQuestions = false;
                 });
         }
 
