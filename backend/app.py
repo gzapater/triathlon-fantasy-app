@@ -316,6 +316,14 @@ def update_race_details(race_id):
                 return jsonify(message=f"Invalid gender_category. Must be one of {valid_gender_categories}."), 400
             race.gender_category = gender_category
 
+        if 'category' in data:
+            # Assuming category can be any string, including empty.
+            # If category needs specific validation (e.g., not empty, or from a predefined list), add it here.
+            # For example, if it cannot be empty when provided:
+            # if data['category'] is not None and not data['category'].strip():
+            #     return jsonify(message="Category cannot be empty if provided."), 400
+            race.category = data['category']
+
         db.session.commit()
         # Serialize the updated race object to return
         updated_race_data = {
@@ -326,6 +334,7 @@ def update_race_details(race_id):
             "location": race.location,
             "promo_image_url": race.promo_image_url,
             "gender_category": race.gender_category,
+            "category": race.category, # Added category field
             "race_format_id": race.race_format_id,
             "user_id": race.user_id
             # Add other fields as necessary
@@ -338,6 +347,49 @@ def update_race_details(race_id):
         db.session.rollback()
         print(f"Error updating race details: {e}")
         return jsonify(message="Error updating race details"), 500
+
+
+@app.route('/api/races/<int:race_id>', methods=['DELETE'])
+@login_required
+def delete_race(race_id):
+    # 1. Check user role
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to delete this race."), 403
+
+    # 2. Fetch the Race object
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    try:
+        # 3. Explicitly delete associated RaceSegmentDetail objects
+        #    SQLAlchemy ORM will handle this through cascades if configured,
+        #    but explicit deletion is safer if cascades are not perfectly set for all related items.
+        #    Given RaceSegmentDetail.race relationship has backref 'segment_details' with lazy=True (default),
+        #    and no explicit cascade="all, delete-orphan" on that backref in Race model for segment_details.
+        RaceSegmentDetail.query.filter_by(race_id=race.id).delete(synchronize_session='fetch')
+
+        # 4. Explicitly delete associated Question objects
+        #    Question.race relationship has backref 'questions' with lazy='dynamic'.
+        #    QuestionOption.question relationship has cascade="all, delete-orphan".
+        #    So deleting Questions should cascade to QuestionOptions.
+        Question.query.filter_by(race_id=race.id).delete(synchronize_session='fetch')
+        # Note: Using synchronize_session='fetch' or 'evaluate' can be important
+        # if the session is to be used further before commit. 'fetch' is generally safer.
+
+        # 5. Delete the Race object itself
+        db.session.delete(race)
+
+        # 6. Commit the database session
+        db.session.commit()
+        # HTTP 204 No Content is also appropriate for DELETE success if no message body is needed.
+        # Returning 200 with a message is also common and acceptable.
+        return jsonify(message="Race deleted successfully"), 200
+    except Exception as e:
+        # 7. Handle potential errors
+        db.session.rollback()
+        print(f"Error deleting race {race_id}: {e}") # Log the error
+        return jsonify(message="Error deleting race"), 500
 
 
 @app.route('/api/races/<int:race_id>/questions', methods=['GET'])
@@ -1022,16 +1074,62 @@ def register_page():
 @app.route('/Hello-world')
 @login_required
 def serve_hello_world_page():
-    all_races = []
+    filter_date_from_str = request.args.get('filter_date_from')
+    filter_date_to_str = request.args.get('filter_date_to')
+    filter_race_format_id_str = request.args.get('filter_race_format_id')
+
+    all_race_formats = RaceFormat.query.order_by(RaceFormat.name).all() # Fetch all formats
+
+    date_from_obj = None
+    date_to_obj = None
+    race_format_id_int = None
+
+    if filter_date_from_str:
+        try:
+            date_from_obj = datetime.strptime(filter_date_from_str, '%Y-%m-%d')
+        except ValueError:
+            print(f"Invalid 'from' date format received: {filter_date_from_str}")
+            pass
+
+    if filter_date_to_str:
+        try:
+            parsed_date_to = datetime.strptime(filter_date_to_str, '%Y-%m-%d')
+            date_to_obj = datetime.combine(parsed_date_to.date(), datetime.max.time())
+        except ValueError:
+            print(f"Invalid 'to' date format received: {filter_date_to_str}")
+            pass
+
+    if filter_race_format_id_str and filter_race_format_id_str.strip():
+        try:
+            race_format_id_int = int(filter_race_format_id_str)
+        except ValueError:
+            print(f"Invalid 'race_format_id' format received: {filter_race_format_id_str}")
+            pass # Ignore if not a valid integer
+
+    query = Race.query
+
+    if date_from_obj:
+        query = query.filter(Race.event_date >= date_from_obj)
+
+    if date_to_obj:
+        query = query.filter(Race.event_date <= date_to_obj)
+
+    if race_format_id_int is not None:
+        query = query.filter(Race.race_format_id == race_format_id_int)
+
     try:
-        # Query all races, ordered by event_date descending
-        all_races = Race.query.order_by(Race.event_date.desc()).all()
+        all_races = query.order_by(Race.event_date.desc()).all()
     except Exception as e:
         print(f"Error fetching races for index page: {e}")
-        # Optionally, flash a message to the user or handle more gracefully
-        pass # Render the page with an empty list of races if DB query fails
+        all_races = []
+        pass
 
-    return render_template('index.html', races=all_races)
+    return render_template('index.html',
+                           races=all_races,
+                           all_race_formats=all_race_formats, # Pass formats to template
+                           filter_date_from_str=filter_date_from_str,
+                           filter_date_to_str=filter_date_to_str,
+                           filter_race_format_id_str=filter_race_format_id_str) # Pass format ID for repopulation
 
 @app.route('/create-race')
 @login_required

@@ -269,6 +269,9 @@
                         <button id="openEditRaceModalBtn" class="btn btn-secondary px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-edit mr-2"></i>Editar Detalles Carrera
                         </button>
+                        <button id="deleteRaceBtn" class="btn bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-trash-alt mr-2"></i>Eliminar Carrera
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -453,6 +456,10 @@
                         <label for="raceLocation" class="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
                         <input type="text" id="raceLocation" name="location" value="{{ race.location | default('') }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
                     </div>
+                </div>
+                <div class="mb-6"> <!-- New field for Category -->
+                    <label for="raceCategory" class="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                    <input type="text" id="raceCategory" name="category" value="{{ race.category | default('Elite') }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Ej: Elite, Sub-23, General">
                 </div>
                 <div class="mb-6">
                     <label for="raceDescription" class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
@@ -948,7 +955,8 @@
                         description: raceDescriptionInput.value,
                         event_date: raceEventDateInput.value,
                         gender_category: raceGenderCategoryInput.value,
-                        promo_image_url: racePromoImageUrlInput.value
+                        promo_image_url: racePromoImageUrlInput.value,
+                        category: document.getElementById('raceCategory').value // Added category
                     };
 
                     // Basic client-side validation
@@ -1024,6 +1032,14 @@
                             } else if (promoImage && !result.body.race.promo_image_url) {
                                 promoImage.parentElement.style.display = 'none'; // Hide if no image
                             }
+
+                            // Update category (if displayed on page - currently not, but good for completeness)
+                            // For example, if there was an element <span id="raceCategoryDisplay"></span>:
+                            // const raceCategoryDisplay = document.getElementById('raceCategoryDisplay');
+                            // if (raceCategoryDisplay) raceCategoryDisplay.textContent = result.body.race.category;
+                            // Also, update the value in the modal's input field in case the user reopens it without page reload
+                            const raceCategoryInput = document.getElementById('raceCategory');
+                            if (raceCategoryInput) raceCategoryInput.value = result.body.race.category;
 
 
                         } else {
@@ -1248,6 +1264,44 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: { legend: { position: 'bottom', labels: { padding: 20, font: { size: 12 }}}}
+                    }
+                });
+            }
+
+            // --- Delete Race Functionality ---
+            const deleteRaceBtn = document.getElementById('deleteRaceBtn');
+            if (deleteRaceBtn) {
+                deleteRaceBtn.addEventListener('click', function() {
+                    const confirmationMessage = '¿Estás seguro de que quieres eliminar esta carrera? Esta acción no se puede deshacer y eliminará todos los datos asociados (segmentos, preguntas, etc.).';
+                    if (confirm(confirmationMessage)) {
+                        if (!raceId) {
+                            alert('Error: ID de la carrera no encontrado.');
+                            return;
+                        }
+                        fetch(`/api/races/${raceId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                // CSRF token might be needed here if your app uses them for DELETE requests
+                                // e.g., 'X-CSRFToken': '{{ csrf_token() }}' if Flask-WTF is setup for AJAX
+                            }
+                        })
+                        .then(response => {
+                            // Try to parse JSON regardless of response.ok, as error messages might be in JSON body
+                            return response.json().then(data => ({ ok: response.ok, status: response.status, body: data }));
+                        })
+                        .then(result => {
+                            if (result.ok) {
+                                alert(result.body.message || 'Carrera eliminada con éxito.');
+                                window.location.href = "{{ url_for('serve_hello_world_page') }}";
+                            } else {
+                                alert(`Error al eliminar la carrera: ${result.body.message || `Error de servidor ${result.status}`}`);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error en la solicitud de eliminación:', error);
+                            // This catch handles network errors or issues with the fetch promise chain itself
+                            alert('Error en la conexión o al procesar la solicitud de eliminación. Intenta de nuevo.');
+                        });
                     }
                 });
             }
