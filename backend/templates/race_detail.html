@@ -1282,7 +1282,7 @@
                             method: 'DELETE',
                             headers: {
                                 // CSRF token might be needed here if your app uses them for DELETE requests
-                                // e.g., 'X-CSRFToken': '{{ csrf_token() }}' if Flask-WTF is setup for AJAX
+                                // e.g., 'X-CSRFToken': '{% raw %}{{ csrf_token() }}{% endraw %}' if Flask-WTF is setup for AJAX
                             }
                         })
                         .then(response => {
