@@ -886,7 +886,7 @@
                 // This ensures that if JS opens it, it re-populates with original or last saved state if we decide to cache.
                 // For now, relying on the `value` attributes set by Jinja.
                 // Example of explicit prefill if needed:
-                // raceTitleInput.value = "{{ race.title | escapejs | default('') }}";
+                // raceTitleInput.value = "{{ race.title | default('') }}";
                 // raceLocationInput.value = "{{ race.location | escapejs | default('') }}";
                 // raceDescriptionInput.value = `{{ race.description | escapejs | default('') }}`; // Use backticks for multiline
                 // raceEventDateInput.value = "{{ race.event_date.strftime('%Y-%m-%dT%H:%M') if race.event_date else '' }}";
