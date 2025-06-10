@@ -483,35 +483,13 @@
     {% endif %}
 
     <script>
-        const raceId = "{{ race.id | default('') }}"; // Ensure raceId is always defined, even if empty string
+        const raceId = "{{ race.id | default('') }}";
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
+        let allRaceQuestions = [];
+        let isFetchingQuestions = false;
 
-        let allRaceQuestions = []; // To store fetched questions globally for editing
-        let isFetchingQuestions = false; // Re-entrancy guard for fetchAndRenderQuestions
-
-        // Logout functionality
-        // const logoutButtonNav = document.getElementById('logoutButtonNav'); // Moved to DOMContentLoaded
-        // if (logoutButtonNav) { // Moved to DOMContentLoaded
-        //     logoutButtonNav.addEventListener('click', function(event) {
-        //         event.preventDefault();
-        //         fetch("{{ url_for('logout_api') }}", { method: 'POST' })
-        //             .then(response => {
-        //                 if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
-        //                 else alert('Logout failed.');
-        //             })
-        //             .catch(error => console.error('Logout error:', error));
-        //     });
-        // }
-
-        // Toggle questions expansion
-        // const questionsContent = document.getElementById('questionsContent'); // Moved to DOMContentLoaded
-        // const expandIcon = document.getElementById('expandIcon'); // Moved to DOMContentLoaded
-        // const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn'); // Moved to DOMContentLoaded
-        // const submitPredictionsContainer = document.getElementById('submitPredictionsContainer'); // Moved to DOMContentLoaded
-
-
+        // Global Helper Functions
         function toggleQuestions() {
-            // Access to questionsContent, expandIcon, toggleQuestionsBtn will be from DOMContentLoaded scope
             const questionsContentElem = document.getElementById('questionsContent');
             const expandIconElem = document.getElementById('expandIcon');
             const toggleQuestionsBtnElem = document.getElementById('toggleQuestionsBtn');
@@ -520,26 +498,14 @@
                 questionsContentElem.classList.remove('expanded');
                 if(expandIconElem) expandIconElem.classList.replace('fa-chevron-up', 'fa-chevron-down');
                 if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas';
-
             } else {
                 questionsContentElem.classList.add('expanded');
                 if(expandIconElem) expandIconElem.classList.replace('fa-chevron-down', 'fa-chevron-up');
                 if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas';
             }
         }
-        // if(toggleQuestionsBtn) { // Listener moved to DOMContentLoaded
-        //      toggleQuestionsBtn.addEventListener('click', toggleQuestions);
-        // }
-
-
-        // Fetch and Render Questions
-        // const questionsLoadingDiv = document.getElementById('questionsLoading'); // Moved to DOMContentLoaded
-        // const questionsErrorDiv = document.getElementById('questionsError'); // Moved to DOMContentLoaded
-        // const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage'); // Moved to DOMContentLoaded
 
         function formatScoringInfoForDisplay(question) {
-            // Simplified version from create_race, focused on display
-            // This will be enhanced when answer submission is implemented
             let scoringText = '';
             switch (question.question_type) {
                 case 'FREE_TEXT':
@@ -561,40 +527,33 @@
             return `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${scoringText}</span>`;
         }
 
-
         function renderQuestions(questions) {
             const questionsLoadingDivElem = document.getElementById('questionsLoading');
             const questionsContentElem = document.getElementById('questionsContent');
-
-            if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'none';
-            if(questionsContentElem) questionsContentElem.innerHTML = ''; // Clear previous content
-
-            allRaceQuestions = questions; // Update global variable
-
-            // Ensure elements are defined within this scope if not already global consts or if they can be null
             const noQuestionsMessageDivElem = document.getElementById('noQuestionsMessage');
-            const currentQuestionsContentElem = document.getElementById('questionsContent');
             const currentToggleQuestionsBtnElem = document.getElementById('toggleQuestionsBtn');
             const currentSubmitPredictionsContainerElem = document.getElementById('submitPredictionsContainer');
+
+            if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'none';
+            if(questionsContentElem) questionsContentElem.innerHTML = '';
+
+            allRaceQuestions = questions;
 
             if (!questions || questions.length === 0) {
                 if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'block';
                 if(currentToggleQuestionsBtnElem) {
-                    // Note: The id "expandIcon" is preserved here if toggleQuestions() relies on it.
                     currentToggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-info-circle mr-1"></i>No hay preguntas';
                 }
-                if(currentQuestionsContentElem) currentQuestionsContentElem.classList.remove('expanded'); // Ensure collapsed
+                if(questionsContentElem) questionsContentElem.classList.remove('expanded');
                 if(currentSubmitPredictionsContainerElem) currentSubmitPredictionsContainerElem.classList.add('hidden');
-                return; // Exit if no questions
+                return;
             }
 
-            // This part executes if questions && questions.length > 0
-            if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'none'; // Hide no questions message
+            if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'none';
 
             questions.forEach(q => {
                 const questionCard = document.createElement('div');
                 questionCard.className = 'question-card p-5';
-
                 let optionsHtml = '';
                 if (q.question_type === 'MULTIPLE_CHOICE') {
                     optionsHtml += '<div class="space-y-2 mt-3">';
@@ -650,7 +609,7 @@
                         {% endif %}
                     </div>
                 `;
-                if(currentQuestionsContentElem) currentQuestionsContentElem.appendChild(questionCard); // Append to the correct content element
+                if(questionsContentElem) questionsContentElem.appendChild(questionCard);
 
                 if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
                     const editBtn = document.getElementById(`editQuestionBtn_${q.id}`);
@@ -664,19 +623,10 @@
                 }
             });
 
-            // After loop, force expand and update button/container visibility
-            if(currentQuestionsContentElem) currentQuestionsContentElem.classList.add('expanded');
-
+            if(questionsContentElem) questionsContentElem.classList.add('expanded');
             if(currentToggleQuestionsBtnElem) {
-                // The id "expandIcon" is updated here. If global expandIcon var is used by toggleQuestions, it might be stale.
-                // However, toggleQuestions itself also manipulates innerHTML, so it should be fine.
                 currentToggleQuestionsBtnElem.innerHTML = `<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas (${questions.length})`;
             }
-            // No need to separately update expandIcon's class if it's part of innerHTML.
-            // const expandIcon = document.getElementById('expandIcon');
-            // if (expandIcon) expandIcon.className = 'fas fa-chevron-up mr-1';
-
-
             if(currentSubmitPredictionsContainerElem) currentSubmitPredictionsContainerElem.classList.remove('hidden');
         }
 
@@ -685,18 +635,14 @@
             const questionsErrorDivElem = document.getElementById('questionsError');
             const noQuestionsMessageDivElem = document.getElementById('noQuestionsMessage');
 
-            if(!raceId || !document.getElementById('predictionQuestionsSection')) return; // Existing guard
+            if(!raceId || !document.getElementById('predictionQuestionsSection')) return;
 
-            if (isFetchingQuestions) {
-                // console.log("Fetch already in progress, skipping."); // Optional: for debugging
-                return;
-            }
+            if (isFetchingQuestions) return;
             isFetchingQuestions = true;
 
             if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'block';
             if(questionsErrorDivElem) questionsErrorDivElem.style.display = 'none';
             if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'none';
-
 
             fetch(`/api/races/${raceId}/questions`)
                 .then(response => {
@@ -704,13 +650,11 @@
                     return response.json();
                 })
                 .then(questions => {
-                    allRaceQuestions = questions; // Store questions globally
+                    allRaceQuestions = questions;
                     renderQuestions(questions);
                 })
                 .catch(error => {
                     console.error('Error fetching questions:', error);
-                    const questionsLoadingDivElem = document.getElementById('questionsLoading');
-                    const questionsErrorDivElem = document.getElementById('questionsError');
                     if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'none';
                     if(questionsErrorDivElem) {
                         questionsErrorDivElem.textContent = `Error al cargar preguntas: ${error.message}.`;
@@ -721,37 +665,6 @@
                     isFetchingQuestions = false;
                 });
         }
-
-        // --- Add/Edit Question Modal ---
-        // const addEditQuestionModal = document.getElementById('addEditQuestionModal'); // Moved to DOMContentLoaded
-        // const addNewQuestionBtn = document.getElementById('addNewQuestionBtn'); // Moved to DOMContentLoaded
-        // const closeAddEditQuestionModalBtn = document.getElementById('closeAddEditQuestionModalBtn'); // Moved to DOMContentLoaded
-        // const cancelAddEditQuestionBtn = document.getElementById('cancelAddEditQuestionBtn'); // Moved to DOMContentLoaded
-        // const addEditQuestionForm = document.getElementById('addEditQuestionForm'); // Moved to DOMContentLoaded
-        // const saveQuestionBtn = document.getElementById('saveQuestionBtn'); // Moved to DOMContentLoaded
-        // const addEditQuestionModalTitle = document.getElementById('addEditQuestionModalTitle'); // Moved to DOMContentLoaded
-        // const editingQuestionIdInput = document.getElementById('editingQuestionId'); // Moved to DOMContentLoaded
-
-        // const questionTextInput = document.getElementById('questionText'); // Moved to DOMContentLoaded
-        // const questionTypeSelect = document.getElementById('questionTypeSelect'); // Moved to DOMContentLoaded
-        // // Specific field containers
-        // const multipleChoiceFieldsContainer = document.getElementById('multipleChoiceFieldsContainer'); // Moved to DOMContentLoaded
-        // const orderingFieldsContainer = document.getElementById('orderingFieldsContainer'); // Moved to DOMContentLoaded
-        // const freeTextFieldsContainer = document.getElementById('freeTextFieldsContainer'); // Moved to DOMContentLoaded
-        // // MC specific inputs
-        // const mcOptionsContainer = document.getElementById('mcOptionsContainer'); // Moved to DOMContentLoaded
-        // const addMcOptionBtn = document.getElementById('addMcOptionBtn'); // Moved to DOMContentLoaded
-        // const isMcMultipleCorrectCheckbox = document.getElementById('isMcMultipleCorrect'); // Moved to DOMContentLoaded
-        // const pointsPerCorrectMcInput = document.getElementById('pointsPerCorrectMc'); // Moved to DOMContentLoaded
-        // const pointsPerIncorrectMcInput = document.getElementById('pointsPerIncorrectMc'); // Moved to DOMContentLoaded
-        // const totalScoreMcSingleInput = document.getElementById('totalScoreMcSingle'); // Moved to DOMContentLoaded
-        // // Ordering specific inputs
-        // const orderingOptionsContainer = document.getElementById('orderingOptionsContainer'); // Moved to DOMContentLoaded
-        // const addOrderingOptionBtn = document.getElementById('addOrderingOptionBtn'); // Moved to DOMContentLoaded
-        // const pointsPerCorrectOrderInput = document.getElementById('pointsPerCorrectOrder'); // Moved to DOMContentLoaded
-        // const bonusForFullOrderInput = document.getElementById('bonusForFullOrder'); // Moved to DOMContentLoaded
-        // // Free Text specific input
-        // const maxScoreFreeTextInput = document.getElementById('maxScoreFreeText'); // Moved to DOMContentLoaded
 
         function handleQuestionTypeChange() {
             const mcFieldsContainer = document.getElementById('multipleChoiceFieldsContainer');
@@ -780,7 +693,6 @@
             const qTypeSelect = document.getElementById('questionTypeSelect');
             const mcOptContainer = document.getElementById('mcOptionsContainer');
             const oOptContainer = document.getElementById('orderingOptionsContainer');
-            // Scoring fields
             const ptsPerCorrectMc = document.getElementById('pointsPerCorrectMc');
             const ptsPerIncorrectMc = document.getElementById('pointsPerIncorrectMc');
             const totalScoreMc = document.getElementById('totalScoreMcSingle');
@@ -788,52 +700,37 @@
             const bonusFullOrd = document.getElementById('bonusForFullOrder');
             const maxScoreFt = document.getElementById('maxScoreFreeText');
 
-
             if(form) form.reset();
             if(editingIdInput) editingIdInput.value = '';
-
-            // Ensure question type dropdown is re-enabled
             if(qTypeSelect) qTypeSelect.disabled = false;
-
             if(mcOptContainer) mcOptContainer.innerHTML = '';
             if(oOptContainer) oOptContainer.innerHTML = '';
-                // Also explicitly reset scoring fields that might not be part of a .reset() on the form if they were disabled.
-                if(ptsPerCorrectMc) ptsPerCorrectMc.value = '';
-                if(ptsPerIncorrectMc) ptsPerIncorrectMc.value = '';
-                if(totalScoreMc) totalScoreMc.value = '';
-                if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = '';
-                if(bonusFullOrd) bonusFullOrd.value = '';
-                if(maxScoreFt) maxScoreFt.value = '';
-
-            if(qTypeSelect) handleQuestionTypeChange(); // Ensure correct fields shown after reset
+            if(ptsPerCorrectMc) ptsPerCorrectMc.value = '';
+            if(ptsPerIncorrectMc) ptsPerIncorrectMc.value = '';
+            if(totalScoreMc) totalScoreMc.value = '';
+            if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = '';
+            if(bonusFullOrd) bonusFullOrd.value = '';
+            if(maxScoreFt) maxScoreFt.value = '';
+            if(qTypeSelect) handleQuestionTypeChange();
         }
 
-            function createOptionInputDiv(optionText = "", optionId = null, isCorrect = false, questionType = "MULTIPLE_CHOICE") {
-                const optionDiv = document.createElement('div');
-                optionDiv.className = 'flex items-center space-x-2 mb-2';
-
-                const textInput = document.createElement('input');
-                textInput.type = 'text';
-                textInput.className = 'mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flex-grow';
-                textInput.value = optionText;
-                textInput.placeholder = (questionType === "ORDERING") ? "Texto del ítem" : "Texto de la opción";
-
-                optionDiv.appendChild(textInput);
-
-                // TODO: Add is_correct checkbox for MULTIPLE_CHOICE options if needed by backend for single-correct.
-                // For now, just text and remove. Backend handles correct_order_index for ORDERING by array order.
-
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'text-red-500 hover:text-red-700';
-                removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-                removeBtn.onclick = () => optionDiv.remove();
-                optionDiv.appendChild(removeBtn);
-
-                return optionDiv;
-            }
-
-            // Event listeners for addMcOptionBtn and addOrderingOptionBtn moved to DOMContentLoaded
+        function createOptionInputDiv(optionText = "", optionId = null, isCorrect = false, questionType = "MULTIPLE_CHOICE") {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'flex items-center space-x-2 mb-2';
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.className = 'mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flex-grow';
+            textInput.value = optionText;
+            textInput.placeholder = (questionType === "ORDERING") ? "Texto del ítem" : "Texto de la opción";
+            optionDiv.appendChild(textInput);
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'text-red-500 hover:text-red-700';
+            removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            removeBtn.onclick = () => optionDiv.remove();
+            optionDiv.appendChild(removeBtn);
+            return optionDiv;
+        }
 
         function openAddQuestionModal() {
             const modal = document.getElementById('addEditQuestionModal');
@@ -845,24 +742,12 @@
             const qTypeSelect = document.getElementById('questionTypeSelect');
 
             if (!modal) return;
-
-            // Explicitly set editingId to empty for "add new" mode
             if(editingIdInput) editingIdInput.value = '';
-
             if(title) title.textContent = 'Añadir Nueva Pregunta';
-
-            // Reset form fields (includes standard inputs)
             if(form) form.reset();
-
-            // Explicitly clear any dynamically added options/items
             if(mcOptContainer) mcOptContainer.innerHTML = '';
             if(oOptContainer) oOptContainer.innerHTML = '';
-
-            // Call handleQuestionTypeChange() to set initial visibility of type-specific fields
-            // and then add default options if applicable for the *current* default type.
             if(qTypeSelect) handleQuestionTypeChange();
-
-            // Add default empty options based on the *currently selected* type in the reset form
             const currentSelectedType = qTypeSelect ? qTypeSelect.value : null;
             if (currentSelectedType === 'MULTIPLE_CHOICE' && mcOptContainer) {
                 mcOptContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
@@ -871,9 +756,7 @@
                 oOptContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
                 oOptContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
             }
-
             modal.style.display = 'flex';
-            // handleQuestionTypeChange() was already called, so UI should be correct.
         }
 
         function openEditQuestionModal(questionId) {
@@ -882,7 +765,6 @@
             const editingIdInput = document.getElementById('editingQuestionId');
             const qTextInput = document.getElementById('questionText');
             const qTypeSelect = document.getElementById('questionTypeSelect');
-            // Type specific fields
             const maxScoreFtInput = document.getElementById('maxScoreFreeText');
             const isMcMultiCorrectCb = document.getElementById('isMcMultipleCorrect');
             const ptsPerCorrectMc = document.getElementById('pointsPerCorrectMc');
@@ -893,29 +775,21 @@
             const bonusForFullOrd = document.getElementById('bonusForFullOrder');
             const oOptContainer = document.getElementById('orderingOptionsContainer');
 
-
             if (!modal || !allRaceQuestions) return;
-
             const question = allRaceQuestions.find(q => q.id === questionId);
             if (!question) {
                 alert('Error: No se encontró la pregunta para editar.');
                 return;
             }
-
-            resetAddEditQuestionForm(); // Clear form and enable type select initially
-
+            resetAddEditQuestionForm();
             if(title) title.textContent = 'Editar Pregunta';
             if(editingIdInput) editingIdInput.value = question.id;
             if(qTextInput) qTextInput.value = question.text;
-
             if(qTypeSelect) {
                 qTypeSelect.value = question.question_type;
-                qTypeSelect.disabled = true; // Disable type change during edit
+                qTypeSelect.disabled = true;
             }
-
-            handleQuestionTypeChange(); // Show correct fields based on question's type
-
-            // Pre-fill type-specific fields
+            handleQuestionTypeChange();
             if (question.question_type === 'FREE_TEXT') {
                 if(maxScoreFtInput) maxScoreFtInput.value = question.max_score_free_text !== null ? question.max_score_free_text : '';
             } else if (question.question_type === 'MULTIPLE_CHOICE') {
@@ -923,9 +797,8 @@
                 if(ptsPerCorrectMc) ptsPerCorrectMc.value = question.points_per_correct_mc !== null ? question.points_per_correct_mc : '';
                 if(ptsPerIncorrectMc) ptsPerIncorrectMc.value = question.points_per_incorrect_mc !== null ? question.points_per_incorrect_mc : '';
                 if(totalScoreMcSingle) totalScoreMcSingle.value = question.total_score_mc_single !== null ? question.total_score_mc_single : '';
-
                 if(mcOptContainer) {
-                    mcOptContainer.innerHTML = ''; // Clear before populating
+                    mcOptContainer.innerHTML = '';
                     question.options.forEach(opt => {
                         mcOptContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "MULTIPLE_CHOICE"));
                     });
@@ -933,19 +806,13 @@
             } else if (question.question_type === 'ORDERING') {
                 if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = question.points_per_correct_order !== null ? question.points_per_correct_order : '';
                 if(bonusForFullOrd) bonusForFullOrd.value = question.bonus_for_full_order !== null ? question.bonus_for_full_order : '';
-
                 if(oOptContainer) {
-                    oOptContainer.innerHTML = ''; // Clear
-                    // Assuming options from backend are already in correct order for ORDERING type
+                    oOptContainer.innerHTML = '';
                     question.options.forEach(opt => {
                         oOptContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
                     });
                 }
             }
-            // Example for is_active if a checkbox #modalIsActiveCheckbox exists in the modal
-            // const modalIsActiveCheckbox = document.getElementById('modalIsActiveCheckbox');
-            // if(modalIsActiveCheckbox) modalIsActiveCheckbox.checked = question.is_active;
-
             modal.style.display = 'flex';
         }
 
@@ -954,15 +821,8 @@
             const qTypeSelect = document.getElementById('questionTypeSelect');
             if (!modal) return;
             modal.style.display = 'none';
-            // Ensure question type select is enabled when modal is closed
             if(qTypeSelect) qTypeSelect.disabled = false;
         }
-
-        // --- Delete Question Confirmation Modal ---
-        // const deleteQuestionConfirmModal = document.getElementById('deleteQuestionConfirmModal'); // Moved to DOMContentLoaded
-        // const questionIdToDeleteInput = document.getElementById('questionIdToDelete'); // Moved to DOMContentLoaded
-        // const cancelDeleteQuestionBtn = document.getElementById('cancelDeleteQuestionBtn'); // Moved to DOMContentLoaded
-        // const confirmDeleteQuestionBtn = document.getElementById('confirmDeleteQuestionBtn'); // Moved to DOMContentLoaded
 
         function openDeleteConfirmModal(questionId) {
             const modal = document.getElementById('deleteQuestionConfirmModal');
@@ -978,12 +838,11 @@
             modal.style.display = 'none';
         }
 
-
         document.addEventListener('DOMContentLoaded', function() {
-            // Moved DOM element declarations here
+            // DOM Element Declarations
             const logoutButtonNav = document.getElementById('logoutButtonNav');
             const questionsContent = document.getElementById('questionsContent');
-            const expandIcon = document.getElementById('expandIcon'); // Note: this might be an issue if innerHTML replaces it.
+            const expandIcon = document.getElementById('expandIcon');
             const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn');
             const submitPredictionsContainer = document.getElementById('submitPredictionsContainer');
             const questionsLoadingDiv = document.getElementById('questionsLoading');
@@ -1021,25 +880,21 @@
             const cancelDeleteQuestionBtn = document.getElementById('cancelDeleteQuestionBtn');
             const confirmDeleteQuestionBtn = document.getElementById('confirmDeleteQuestionBtn');
 
-            // --- Edit Race Details Modal ---
-            const editRaceModal = document.getElementById('editRaceModal'); // Already here
-            const openEditRaceModalBtn = document.getElementById('openEditRaceModalBtn'); // Already here
-            const closeEditRaceModalBtn = document.getElementById('closeEditRaceModalBtn'); // Already here
-            const cancelEditRaceBtn = document.getElementById('cancelEditRaceBtn'); // Already here
-            const editRaceForm = document.getElementById('editRaceForm'); // Already here
-            const saveRaceChangesBtn = document.getElementById('saveRaceChangesBtn'); // Already here
+            const editRaceModal = document.getElementById('editRaceModal');
+            const openEditRaceModalBtn = document.getElementById('openEditRaceModalBtn');
+            const closeEditRaceModalBtn = document.getElementById('closeEditRaceModalBtn');
+            const cancelEditRaceBtn = document.getElementById('cancelEditRaceBtn');
+            const editRaceForm = document.getElementById('editRaceForm');
+            const saveRaceChangesBtn = document.getElementById('saveRaceChangesBtn');
+            const raceTitleInput = document.getElementById('raceTitle');
+            const raceLocationInput = document.getElementById('raceLocation');
+            const raceDescriptionInput = document.getElementById('raceDescription');
+            const raceEventDateInput = document.getElementById('raceEventDate');
+            const raceGenderCategoryInput = document.getElementById('raceGenderCategory');
+            const racePromoImageUrlInput = document.getElementById('racePromoImageUrl');
+            const deleteRaceBtn = document.getElementById('deleteRaceBtn');
 
-            // Form fields - Edit Race
-            const raceTitleInput = document.getElementById('raceTitle'); // Already here
-            const raceLocationInput = document.getElementById('raceLocation'); // Already here
-            const raceDescriptionInput = document.getElementById('raceDescription'); // Already here
-            const raceEventDateInput = document.getElementById('raceEventDate'); // Already here
-            const raceGenderCategoryInput = document.getElementById('raceGenderCategory'); // Already here
-            const racePromoImageUrlInput = document.getElementById('racePromoImageUrl'); // Already here
-            const deleteRaceBtn = document.getElementById('deleteRaceBtn'); // Already here but good to confirm position
-
-
-            // Re-attach event listeners for elements moved
+            // Event Listener Attachments
             if (logoutButtonNav) {
                 logoutButtonNav.addEventListener('click', function(event) {
                     event.preventDefault();
@@ -1056,33 +911,21 @@
                  toggleQuestionsBtn.addEventListener('click', toggleQuestions);
             }
 
-            if(addMcOptionBtn && mcOptionsContainer) { // mcOptionsContainer check ensures it's available
+            if(addMcOptionBtn && mcOptionsContainer) {
                 addMcOptionBtn.addEventListener('click', () => {
                     mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
                 });
             }
 
-            if(addOrderingOptionBtn && orderingOptionsContainer) { // orderingOptionsContainer check
+            if(addOrderingOptionBtn && orderingOptionsContainer) {
                 addOrderingOptionBtn.addEventListener('click', () => {
                     orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
                 });
             }
 
-
+            // Edit Race Modal Functions (defined locally as they use DOMContentLoaded-defined consts)
             function openEditRaceModal() {
                 if (!editRaceModal) return;
-                // Pre-fill form - Assuming 'race' object is available from Jinja
-                // Values are already set by `value` attribute in HTML for initial load.
-                // This ensures that if JS opens it, it re-populates with original or last saved state if we decide to cache.
-                // For now, relying on the `value` attributes set by Jinja.
-                // Example of explicit prefill if needed:
-                // raceTitleInput.value = "{{ race.title | default('') }}";
-                // raceLocationInput.value = "{{ race.location | default('') }}";
-                // raceDescriptionInput.value = `{{ race.description | default('') }}`; // Use backticks for multiline
-                // raceEventDateInput.value = "{{ race.event_date.strftime('%Y-%m-%dT%H:%M') if race.event_date else '' }}";
-                // raceGenderCategoryInput.value = "{{ race.gender_category | default('MIXED') }}";
-                // racePromoImageUrlInput.value = "{{ race.promo_image_url | default('') }}";
-
                 editRaceModal.style.display = 'flex';
             }
 
@@ -1104,7 +947,7 @@
             if (editRaceForm) {
                 editRaceForm.addEventListener('submit', function(event) {
                     event.preventDefault();
-                    console.log('editRaceForm submitted. Current saveRaceChangesBtn state: disabled=true, classList should include opacity-50.');
+                    if(!saveRaceChangesBtn) return;
                     saveRaceChangesBtn.disabled = true;
                     saveRaceChangesBtn.classList.add('opacity-50');
 
@@ -1117,88 +960,57 @@
                         promo_image_url: racePromoImageUrlInput.value,
                         category: document.getElementById('raceCategory').value
                     };
-                    console.log('FormData before sending fetch request:', formData);
 
-                    // Basic client-side validation
                     if (!formData.title.trim()) {
                         alert('El título de la carrera es obligatorio.');
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
-                        console.log('Validation failed. saveRaceChangesBtn state: disabled=false, classList should not include opacity-50.');
                         return;
                     }
                      if (!formData.event_date) {
                         alert('La fecha del evento es obligatoria.');
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
-                        console.log('Validation failed. saveRaceChangesBtn state: disabled=false, classList should not include opacity-50.');
                         return;
                     }
 
                     fetch(`/api/races/${raceId}/details`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json', },
                         body: JSON.stringify(formData)
                     })
-                    .then(response => {
-                        console.log('Raw response object from fetch:', response);
-                        return response.json().then(data => ({ ok: response.ok, status: response.status, body: data }));
-                    })
+                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
                     .then(result => {
-                        console.log('Parsed result object:', result);
                         if (result.ok) {
                             alert(result.body.message || 'Detalles de la carrera actualizados con éxito.');
                             closeEditRaceModal();
-
+                            // Update page content dynamically
                             const titleElement = document.querySelector('.hero-bg h1');
-                            console.log('Updating title. Selector: ".hero-bg h1", Found:', titleElement !== null);
                             if (titleElement) titleElement.textContent = result.body.race.title;
-
                             const heroDescription = document.querySelector('.hero-bg p.opacity-90');
-                            console.log('Updating hero description. Selector: ".hero-bg p.opacity-90", Found:', heroDescription !== null);
                             if (heroDescription) heroDescription.textContent = result.body.race.description.substring(0,150) + (result.body.race.description.length > 150 ? '...' : '');
-
-                            const detailedDescriptionP = document.querySelector('#mainContentRaceDescription');
-                            console.log('Updating detailed description (by ID). Selector: "#mainContentRaceDescription", Found:', detailedDescriptionP !== null);
-                            if (detailedDescriptionP) {
+                            const detailedDescriptionP = document.querySelector('.bg-white.rounded-xl.p-6.shadow-lg > p.text-gray-600.leading-relaxed.whitespace-pre-line');
+                            if(detailedDescriptionP && result.body.race.description.length > 150) {
                                 detailedDescriptionP.textContent = result.body.race.description;
-                            } else {
-                                const descContainer = document.querySelector('.bg-white.rounded-xl.p-6.shadow-lg > p.text-gray-600.leading-relaxed.whitespace-pre-line');
-                                console.log('Updating detailed description (by class). Selector: ".bg-white.rounded-xl.p-6.shadow-lg > p.text-gray-600.leading-relaxed.whitespace-pre-line", Found:', descContainer !== null);
-                                if(descContainer && result.body.race.description.length > 150) {
-                                    descContainer.textContent = result.body.race.description;
-                                    const detailedDescSection = descContainer.closest('.bg-white.rounded-xl.p-6.shadow-lg');
-                                     if(detailedDescSection) detailedDescSection.style.display = 'block'; // Ensure it's visible
-                                } else if (descContainer && result.body.race.description.length <= 150) {
-                                     const detailedDescSection = descContainer.closest('.bg-white.rounded-xl.p-6.shadow-lg');
-                                     if(detailedDescSection) detailedDescSection.style.display = 'none';
-                                }
+                                const detailedDescSection = detailedDescriptionP.closest('.bg-white.rounded-xl.p-6.shadow-lg');
+                                if(detailedDescSection) detailedDescSection.style.display = 'block';
+                            } else if (detailedDescriptionP && result.body.race.description.length <= 150) {
+                                const detailedDescSection = detailedDescriptionP.closest('.bg-white.rounded-xl.p-6.shadow-lg');
+                                if(detailedDescSection) detailedDescSection.style.display = 'none';
                             }
-
                             const heroDateSpan = document.querySelector('.hero-bg .fa-calendar').nextElementSibling;
-                            console.log('Updating hero date. Selector: ".hero-bg .fa-calendar" (then nextElementSibling), Found:', heroDateSpan !== null);
                             if (heroDateSpan && result.body.race.event_date) {
                                 const eventDate = new Date(result.body.race.event_date);
                                 heroDateSpan.textContent = eventDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) + ' ' + eventDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                             } else if (heroDateSpan) {
                                 heroDateSpan.textContent = 'Fecha no especificada';
                             }
-
                             const heroLocationSpan = document.querySelector('.hero-bg .fa-map-marker-alt').nextElementSibling;
-                            console.log('Updating hero location. Selector: ".hero-bg .fa-map-marker-alt" (then nextElementSibling), Found:', heroLocationSpan !== null);
                             if (heroLocationSpan) heroLocationSpan.textContent = result.body.race.location || 'Ubicación no especificada';
-
                             const genderBadge = document.querySelector('.hero-bg span.bg-white.bg-opacity-20:nth-of-type(2)');
-                            console.log('Updating gender badge. Selector: ".hero-bg span.bg-white.bg-opacity-20:nth-of-type(2)", Found:', genderBadge !== null);
                             if(genderBadge) genderBadge.textContent = result.body.race.gender_category;
-
                             const promoImage = document.querySelector('.hero-bg img');
                             const promoImageContainer = promoImage ? promoImage.parentElement : null;
-                            console.log('Updating promo image. Selector: ".hero-bg img", Found:', promoImage !== null);
-                            console.log('Promo image container found:', promoImageContainer !== null);
-
                             if (promoImage && result.body.race.promo_image_url) {
                                 promoImage.src = result.body.race.promo_image_url;
                                 promoImage.alt = `Imagen de ${result.body.race.title}`;
@@ -1206,23 +1018,22 @@
                             } else if (promoImage && !result.body.race.promo_image_url) {
                                 if(promoImageContainer) promoImageContainer.style.display = 'none';
                             }
-
-                            const raceCategoryInput = document.getElementById('raceCategory');
-                            console.log('Updating race category input in modal. Selector: "#raceCategory", Found:', raceCategoryInput !== null);
-                            if (raceCategoryInput) raceCategoryInput.value = result.body.race.category;
+                            const raceCategoryInputModal = document.getElementById('raceCategory');
+                            if (raceCategoryInputModal) raceCategoryInputModal.value = result.body.race.category;
 
                         } else {
                             alert(`Error: ${result.body.message || 'No se pudo actualizar la carrera.'}`);
                         }
                     })
                     .catch(error => {
-                        console.error('Error in fetch .catch() block for saving race details:', error);
+                        console.error('Error saving race details:', error);
                         alert('Error de conexión al guardar los detalles de la carrera.');
                     })
                     .finally(() => {
-                        saveRaceChangesBtn.disabled = false;
-                        saveRaceChangesBtn.classList.remove('opacity-50');
-                        console.log('In finally block. saveRaceChangesBtn state: disabled=false, classList should not include opacity-50.');
+                        if(saveRaceChangesBtn) {
+                            saveRaceChangesBtn.disabled = false;
+                            saveRaceChangesBtn.classList.remove('opacity-50');
+                        }
                     });
                 });
             }
@@ -1237,7 +1048,7 @@
             if (cancelAddEditQuestionBtn) {
                 cancelAddEditQuestionBtn.addEventListener('click', closeAddEditQuestionModal);
             }
-            if(questionTypeSelect) { // Also re-attach if it was missed, though defined above
+            if(questionTypeSelect) {
                 questionTypeSelect.addEventListener('change', handleQuestionTypeChange);
             }
 
@@ -1254,16 +1065,12 @@
                     saveQuestionBtn.classList.add('opacity-50');
 
                     const editingId = editingQuestionIdInput.value;
-                    const type = questionTypeSelect.value; // e.g., "MULTIPLE_CHOICE"
-
+                    const type = questionTypeSelect.value;
                     let questionData = {
                         text: questionTextInput.value.trim(),
-                        is_active: true, // Default for new/edited questions; manage via UI if needed
-                        // `question_type` is implied by the endpoint for creation, not part of payload body.
-                        // For PUT, it's also implied or part of URL.
+                        is_active: true,
                     };
 
-                    // --- Basic Validations ---
                     if (!questionData.text) {
                         alert('El texto de la pregunta es obligatorio.');
                         saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
@@ -1284,26 +1091,23 @@
                         if (questionData.is_mc_multiple_correct) {
                             const pointsCorrect = parseInt(pointsPerCorrectMcInput.value);
                             const pointsIncorrect = parseInt(pointsPerIncorrectMcInput.value);
-                            if (isNaN(pointsCorrect)) { // Points per correct can be 0 or positive
+                            if (isNaN(pointsCorrect)) {
                                 alert('Puntos por opción correcta debe ser un número para selección múltiple.');
                                 saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                             }
-                            if (isNaN(pointsIncorrect)) { // Points per incorrect can be negative, 0 or positive
+                            if (isNaN(pointsIncorrect)) {
                                 alert('Puntos por opción incorrecta debe ser un número para selección múltiple.');
                                 saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                             }
                             questionData.points_per_correct_mc = pointsCorrect;
                             questionData.points_per_incorrect_mc = pointsIncorrect;
-                        } else { // Single correct
+                        } else {
                             const totalScore = parseInt(totalScoreMcSingleInput.value);
                             if (isNaN(totalScore) || totalScore <= 0) {
                                 alert('La puntuación total para opción única debe ser un número entero positivo.');
                                 saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                             }
                             questionData.total_score_mc_single = totalScore;
-                            // Note: The backend API for creating single-correct MCQs currently does not
-                            // expect which option is_correct_mc_single. This is a simplification.
-                            // If the backend required it, the UI would need checkboxes/radios next to each option text input.
                         }
                     } else if (type === 'ORDERING') {
                         orderingOptionsContainer.querySelectorAll('input[type="text"]').forEach(input => {
@@ -1313,22 +1117,19 @@
                             alert('Las preguntas de ordenamiento deben tener al menos 2 ítems con texto.');
                             saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
-                        questionData.options = options; // Order is implicit by array position
-
+                        questionData.options = options;
                         const pointsPerCorrect = parseInt(pointsPerCorrectOrderInput.value);
                         const bonusFullOrder = parseInt(bonusForFullOrderInput.value);
-
-                        if (isNaN(pointsPerCorrect) || pointsPerCorrect <= 0) { // Typically positive
+                        if (isNaN(pointsPerCorrect) || pointsPerCorrect <= 0) {
                              alert('Los puntos por ítem correcto en ordenamiento deben ser un número entero positivo.');
                             saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
-                        if (isNaN(bonusFullOrder) || bonusFullOrder < 0) { // Bonus can be 0 or positive
+                        if (isNaN(bonusFullOrder) || bonusFullOrder < 0) {
                              alert('El bonus por orden completo debe ser un número entero no negativo.');
                             saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
                         questionData.points_per_correct_order = pointsPerCorrect;
                         questionData.bonus_for_full_order = bonusFullOrder;
-
                     } else if (type === 'FREE_TEXT') {
                         const maxScore = parseInt(maxScoreFreeTextInput.value);
                         if (isNaN(maxScore) || maxScore <= 0) {
@@ -1338,29 +1139,22 @@
                         questionData.max_score_free_text = maxScore;
                     }
 
-                    // Determine URL and Method based on editingId
                     let url, method;
-                    // For PUT, type comes from the disabled select; for POST, it's the current selection.
                     const currentQuestionType = questionTypeSelect.value;
                     const typeSlug = currentQuestionType.toLowerCase().replace('_', '-');
 
-                    if (editingId) { // PUT for editing existing question
+                    if (editingId) {
                         url = `/api/questions/${typeSlug}/${editingId}`;
                         method = 'PUT';
-                        // is_active might be part of questionData if a checkbox is added to the modal
-                        // questionData.is_active = document.getElementById('modalIsActiveCheckbox').checked;
-                    } else { // POST for creating new question
+                    } else {
                         if (!raceId) {
                             alert("Error: El ID de la carrera no está definido. No se puede crear la pregunta.");
                             saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
                         url = `/api/races/${raceId}/questions/${typeSlug}`;
                         method = 'POST';
-                        // is_active for new questions defaults to true on backend or can be set here
                         questionData.is_active = true;
                     }
-
-                    console.log(`Submitting question. URL: ${url}, Method: ${method}, Payload:`, JSON.stringify(questionData));
 
                     fetch(url, {
                         method: method,
@@ -1382,8 +1176,10 @@
                         alert('Error de conexión al guardar la pregunta.');
                     })
                     .finally(() => {
-                        saveQuestionBtn.disabled = false;
-                        saveQuestionBtn.classList.remove('opacity-50');
+                        if(saveQuestionBtn) {
+                            saveQuestionBtn.disabled = false;
+                            saveQuestionBtn.classList.remove('opacity-50');
+                        }
                     });
                 });
             }
@@ -1392,6 +1188,7 @@
                 confirmDeleteQuestionBtn.addEventListener('click', function() {
                     const questionIdVal = questionIdToDeleteInput.value;
                     if (!questionIdVal) return;
+                    if(!confirmDeleteQuestionBtn) return;
 
                     confirmDeleteQuestionBtn.disabled = true;
                     confirmDeleteQuestionBtn.classList.add('opacity-50');
@@ -1412,98 +1209,52 @@
                         alert('Error de conexión al eliminar la pregunta.');
                     })
                     .finally(() => {
-                        confirmDeleteQuestionBtn.disabled = false;
-                        confirmDeleteQuestionBtn.classList.remove('opacity-50');
+                        if(confirmDeleteQuestionBtn) {
+                            confirmDeleteQuestionBtn.disabled = false;
+                            confirmDeleteQuestionBtn.classList.remove('opacity-50');
+                        }
                     });
                 });
             }
 
-            fetchAndRenderQuestions(); // Initial fetch of questions
-
-            /*
-            // Drag and drop for ordering questions (basic setup, needs to be re-initialized if questions are re-rendered)
-            // This is a placeholder and would need more robust implementation if answers were submitted
-            const sortableLists = document.querySelectorAll('[id^="sortableList_"]');
-            sortableLists.forEach(list => {
-                const items = list.querySelectorAll('.drag-item');
-                items.forEach(item => {
-                    item.setAttribute('draggable', true);
-                    item.addEventListener('dragstart', (e) => {
-                        draggedElement = e.target.closest('.drag-item');
-                        e.target.closest('.drag-item').classList.add('dragging');
-                    });
-                    item.addEventListener('dragend', (e) => {
-                        e.target.closest('.drag-item').classList.remove('dragging');
-                        draggedElement = null;
-                    });
-                });
-                list.addEventListener('dragover', (e) => e.preventDefault());
-                list.addEventListener('drop', function(e) {
-                    e.preventDefault();
-                    const targetItem = e.target.closest('.drag-item');
-                    if (draggedElement && targetItem && draggedElement !== targetItem) {
-                        if (Array.from(this.children).indexOf(draggedElement) < Array.from(this.children).indexOf(targetItem)) {
-                            targetItem.after(draggedElement);
-                        } else {
-                            targetItem.before(draggedElement);
-                        }
-                    }
-                });
-            });
-            */
-
-            // --- Delete Race Functionality ---
-            const deleteRaceBtn = document.getElementById('deleteRaceBtn');
             if (deleteRaceBtn) {
                 deleteRaceBtn.addEventListener('click', function() {
                     const confirmationMessage = '¿Estás seguro de que quieres eliminar esta carrera? Esta acción no se puede deshacer y eliminará todos los datos asociados (segmentos, preguntas, etc.).';
                     if (confirm(confirmationMessage)) {
-                        console.log(`Attempting to delete race with raceId: ${raceId}`);
                         if (!raceId) {
                             alert('Error: ID de la carrera no encontrado.');
-                            console.error('raceId is missing or empty.');
                             return;
                         }
-                        fetch(`/api/races/${raceId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                // CSRF token might be needed here if your app uses them for DELETE requests
-                            }
-                        })
+                        fetch(`/api/races/${raceId}`, { method: 'DELETE' })
                         .then(response => {
-                            console.log('Raw response from delete fetch:', response);
-                            // Clone the response to be able to parse it as JSON and still use it if JSON parsing fails
                             const clonedResponse = response.clone();
                             return response.json()
                                 .then(data => ({ ok: response.ok, status: response.status, body: data }))
-                                .catch(err => {
-                                    console.error('Error parsing JSON from delete response:', err);
-                                    // If JSON parsing fails, try to get text, but body might have been consumed by .json()
-                                    return clonedResponse.text().then(textData => ({
+                                .catch(() => clonedResponse.text().then(textData => ({
                                         ok: response.ok,
                                         status: response.status,
                                         body: { message: `Could not parse JSON. Raw text: ${textData}` }
-                                    }));
-                                });
+                                    }))
+                                );
                         })
                         .then(result => {
-                            console.log('Parsed result from delete fetch:', result);
                             if (result.ok) {
                                 alert(result.body.message || 'Carrera eliminada con éxito.');
-                                console.log('Race deleted successfully, redirecting...');
                                 window.location.href = "{{ url_for('serve_hello_world_page') }}";
                             } else {
                                 alert(`Error al eliminar la carrera: ${result.body.message || `Error de servidor ${result.status}`}`);
-                                console.error('Failed to delete race:', result);
                             }
                         })
                         .catch(error => {
-                            console.error('Error in .catch() block for delete race request:', error);
-                            alert('Error en la conexión o al procesar la solicitud de eliminación. Intenta de nuevo.');
+                            console.error('Error deleting race:', error);
+                            alert('Error en la conexión o al procesar la solicitud de eliminación.');
                         });
                     }
                 });
             }
+
+            // Initial data fetch
+            fetchAndRenderQuestions();
         });
     </script>
 
