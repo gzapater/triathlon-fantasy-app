@@ -490,47 +490,52 @@
         let isFetchingQuestions = false; // Re-entrancy guard for fetchAndRenderQuestions
 
         // Logout functionality
-        const logoutButtonNav = document.getElementById('logoutButtonNav');
-        if (logoutButtonNav) {
-            logoutButtonNav.addEventListener('click', function(event) {
-                event.preventDefault();
-                fetch("{{ url_for('logout_api') }}", { method: 'POST' })
-                    .then(response => {
-                        if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
-                        else alert('Logout failed.');
-                    })
-                    .catch(error => console.error('Logout error:', error));
-            });
-        }
+        // const logoutButtonNav = document.getElementById('logoutButtonNav'); // Moved to DOMContentLoaded
+        // if (logoutButtonNav) { // Moved to DOMContentLoaded
+        //     logoutButtonNav.addEventListener('click', function(event) {
+        //         event.preventDefault();
+        //         fetch("{{ url_for('logout_api') }}", { method: 'POST' })
+        //             .then(response => {
+        //                 if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
+        //                 else alert('Logout failed.');
+        //             })
+        //             .catch(error => console.error('Logout error:', error));
+        //     });
+        // }
 
         // Toggle questions expansion
-        const questionsContent = document.getElementById('questionsContent');
-        const expandIcon = document.getElementById('expandIcon');
-        const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn');
-        const submitPredictionsContainer = document.getElementById('submitPredictionsContainer');
+        // const questionsContent = document.getElementById('questionsContent'); // Moved to DOMContentLoaded
+        // const expandIcon = document.getElementById('expandIcon'); // Moved to DOMContentLoaded
+        // const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn'); // Moved to DOMContentLoaded
+        // const submitPredictionsContainer = document.getElementById('submitPredictionsContainer'); // Moved to DOMContentLoaded
 
 
         function toggleQuestions() {
-            if (questionsContent.classList.contains('expanded')) {
-                questionsContent.classList.remove('expanded');
-                if(expandIcon) expandIcon.classList.replace('fa-chevron-up', 'fa-chevron-down');
-                if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas';
+            // Access to questionsContent, expandIcon, toggleQuestionsBtn will be from DOMContentLoaded scope
+            const questionsContentElem = document.getElementById('questionsContent');
+            const expandIconElem = document.getElementById('expandIcon');
+            const toggleQuestionsBtnElem = document.getElementById('toggleQuestionsBtn');
+
+            if (questionsContentElem.classList.contains('expanded')) {
+                questionsContentElem.classList.remove('expanded');
+                if(expandIconElem) expandIconElem.classList.replace('fa-chevron-up', 'fa-chevron-down');
+                if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas';
 
             } else {
-                questionsContent.classList.add('expanded');
-                if(expandIcon) expandIcon.classList.replace('fa-chevron-down', 'fa-chevron-up');
-                if(toggleQuestionsBtn) toggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas';
+                questionsContentElem.classList.add('expanded');
+                if(expandIconElem) expandIconElem.classList.replace('fa-chevron-down', 'fa-chevron-up');
+                if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas';
             }
         }
-        if(toggleQuestionsBtn) { // Ensure button exists before adding listener
-             toggleQuestionsBtn.addEventListener('click', toggleQuestions);
-        }
+        // if(toggleQuestionsBtn) { // Listener moved to DOMContentLoaded
+        //      toggleQuestionsBtn.addEventListener('click', toggleQuestions);
+        // }
 
 
         // Fetch and Render Questions
-        const questionsLoadingDiv = document.getElementById('questionsLoading');
-        const questionsErrorDiv = document.getElementById('questionsError');
-        const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage');
+        // const questionsLoadingDiv = document.getElementById('questionsLoading'); // Moved to DOMContentLoaded
+        // const questionsErrorDiv = document.getElementById('questionsError'); // Moved to DOMContentLoaded
+        // const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage'); // Moved to DOMContentLoaded
 
         function formatScoringInfoForDisplay(question) {
             // Simplified version from create_race, focused on display
@@ -558,30 +563,33 @@
 
 
         function renderQuestions(questions) {
-            if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'none';
-            if(questionsContent) questionsContent.innerHTML = ''; // Clear previous content
+            const questionsLoadingDivElem = document.getElementById('questionsLoading');
+            const questionsContentElem = document.getElementById('questionsContent');
+
+            if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'none';
+            if(questionsContentElem) questionsContentElem.innerHTML = ''; // Clear previous content
 
             allRaceQuestions = questions; // Update global variable
 
             // Ensure elements are defined within this scope if not already global consts or if they can be null
-            const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage');
-            const currentQuestionsContent = document.getElementById('questionsContent'); // Use a local var if questionsContent is global const
-            const currentToggleQuestionsBtn = document.getElementById('toggleQuestionsBtn'); // Use a local var
-            const currentSubmitPredictionsContainer = document.getElementById('submitPredictionsContainer'); // Use a local var
+            const noQuestionsMessageDivElem = document.getElementById('noQuestionsMessage');
+            const currentQuestionsContentElem = document.getElementById('questionsContent');
+            const currentToggleQuestionsBtnElem = document.getElementById('toggleQuestionsBtn');
+            const currentSubmitPredictionsContainerElem = document.getElementById('submitPredictionsContainer');
 
             if (!questions || questions.length === 0) {
-                if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'block';
-                if(currentToggleQuestionsBtn) {
+                if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'block';
+                if(currentToggleQuestionsBtnElem) {
                     // Note: The id "expandIcon" is preserved here if toggleQuestions() relies on it.
-                    currentToggleQuestionsBtn.innerHTML = '<i id="expandIcon" class="fas fa-info-circle mr-1"></i>No hay preguntas';
+                    currentToggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-info-circle mr-1"></i>No hay preguntas';
                 }
-                if(currentQuestionsContent) currentQuestionsContent.classList.remove('expanded'); // Ensure collapsed
-                if(currentSubmitPredictionsContainer) currentSubmitPredictionsContainer.classList.add('hidden');
+                if(currentQuestionsContentElem) currentQuestionsContentElem.classList.remove('expanded'); // Ensure collapsed
+                if(currentSubmitPredictionsContainerElem) currentSubmitPredictionsContainerElem.classList.add('hidden');
                 return; // Exit if no questions
             }
 
             // This part executes if questions && questions.length > 0
-            if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'none'; // Hide no questions message
+            if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'none'; // Hide no questions message
 
             questions.forEach(q => {
                 const questionCard = document.createElement('div');
@@ -642,7 +650,7 @@
                         {% endif %}
                     </div>
                 `;
-                if(currentQuestionsContent) currentQuestionsContent.appendChild(questionCard); // Append to the correct content element
+                if(currentQuestionsContentElem) currentQuestionsContentElem.appendChild(questionCard); // Append to the correct content element
 
                 if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
                     const editBtn = document.getElementById(`editQuestionBtn_${q.id}`);
@@ -657,22 +665,26 @@
             });
 
             // After loop, force expand and update button/container visibility
-            if(currentQuestionsContent) currentQuestionsContent.classList.add('expanded');
+            if(currentQuestionsContentElem) currentQuestionsContentElem.classList.add('expanded');
 
-            if(currentToggleQuestionsBtn) {
+            if(currentToggleQuestionsBtnElem) {
                 // The id "expandIcon" is updated here. If global expandIcon var is used by toggleQuestions, it might be stale.
                 // However, toggleQuestions itself also manipulates innerHTML, so it should be fine.
-                currentToggleQuestionsBtn.innerHTML = `<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas (${questions.length})`;
+                currentToggleQuestionsBtnElem.innerHTML = `<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas (${questions.length})`;
             }
             // No need to separately update expandIcon's class if it's part of innerHTML.
             // const expandIcon = document.getElementById('expandIcon');
             // if (expandIcon) expandIcon.className = 'fas fa-chevron-up mr-1';
 
 
-            if(currentSubmitPredictionsContainer) currentSubmitPredictionsContainer.classList.remove('hidden');
+            if(currentSubmitPredictionsContainerElem) currentSubmitPredictionsContainerElem.classList.remove('hidden');
         }
 
         function fetchAndRenderQuestions() {
+            const questionsLoadingDivElem = document.getElementById('questionsLoading');
+            const questionsErrorDivElem = document.getElementById('questionsError');
+            const noQuestionsMessageDivElem = document.getElementById('noQuestionsMessage');
+
             if(!raceId || !document.getElementById('predictionQuestionsSection')) return; // Existing guard
 
             if (isFetchingQuestions) {
@@ -681,9 +693,9 @@
             }
             isFetchingQuestions = true;
 
-            if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'block';
-            if(questionsErrorDiv) questionsErrorDiv.style.display = 'none';
-            if(noQuestionsMessageDiv) noQuestionsMessageDiv.style.display = 'none';
+            if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'block';
+            if(questionsErrorDivElem) questionsErrorDivElem.style.display = 'none';
+            if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'none';
 
 
             fetch(`/api/races/${raceId}/questions`)
@@ -697,10 +709,12 @@
                 })
                 .catch(error => {
                     console.error('Error fetching questions:', error);
-                    if(questionsLoadingDiv) questionsLoadingDiv.style.display = 'none';
-                    if(questionsErrorDiv) {
-                        questionsErrorDiv.textContent = `Error al cargar preguntas: ${error.message}.`;
-                        questionsErrorDiv.style.display = 'block';
+                    const questionsLoadingDivElem = document.getElementById('questionsLoading');
+                    const questionsErrorDivElem = document.getElementById('questionsError');
+                    if(questionsLoadingDivElem) questionsLoadingDivElem.style.display = 'none';
+                    if(questionsErrorDivElem) {
+                        questionsErrorDivElem.textContent = `Error al cargar preguntas: ${error.message}.`;
+                        questionsErrorDivElem.style.display = 'block';
                     }
                 })
                 .finally(() => {
@@ -709,70 +723,89 @@
         }
 
         // --- Add/Edit Question Modal ---
-        const addEditQuestionModal = document.getElementById('addEditQuestionModal');
-        const addNewQuestionBtn = document.getElementById('addNewQuestionBtn');
-        const closeAddEditQuestionModalBtn = document.getElementById('closeAddEditQuestionModalBtn');
-        const cancelAddEditQuestionBtn = document.getElementById('cancelAddEditQuestionBtn');
-        const addEditQuestionForm = document.getElementById('addEditQuestionForm');
-        const saveQuestionBtn = document.getElementById('saveQuestionBtn');
-        const addEditQuestionModalTitle = document.getElementById('addEditQuestionModalTitle');
-        const editingQuestionIdInput = document.getElementById('editingQuestionId');
+        // const addEditQuestionModal = document.getElementById('addEditQuestionModal'); // Moved to DOMContentLoaded
+        // const addNewQuestionBtn = document.getElementById('addNewQuestionBtn'); // Moved to DOMContentLoaded
+        // const closeAddEditQuestionModalBtn = document.getElementById('closeAddEditQuestionModalBtn'); // Moved to DOMContentLoaded
+        // const cancelAddEditQuestionBtn = document.getElementById('cancelAddEditQuestionBtn'); // Moved to DOMContentLoaded
+        // const addEditQuestionForm = document.getElementById('addEditQuestionForm'); // Moved to DOMContentLoaded
+        // const saveQuestionBtn = document.getElementById('saveQuestionBtn'); // Moved to DOMContentLoaded
+        // const addEditQuestionModalTitle = document.getElementById('addEditQuestionModalTitle'); // Moved to DOMContentLoaded
+        // const editingQuestionIdInput = document.getElementById('editingQuestionId'); // Moved to DOMContentLoaded
 
-        const questionTextInput = document.getElementById('questionText');
-        const questionTypeSelect = document.getElementById('questionTypeSelect');
-        // Specific field containers
-        const multipleChoiceFieldsContainer = document.getElementById('multipleChoiceFieldsContainer');
-        const orderingFieldsContainer = document.getElementById('orderingFieldsContainer');
-        const freeTextFieldsContainer = document.getElementById('freeTextFieldsContainer');
-        // MC specific inputs
-        const mcOptionsContainer = document.getElementById('mcOptionsContainer');
-        const addMcOptionBtn = document.getElementById('addMcOptionBtn');
-        const isMcMultipleCorrectCheckbox = document.getElementById('isMcMultipleCorrect');
-        const pointsPerCorrectMcInput = document.getElementById('pointsPerCorrectMc');
-        const pointsPerIncorrectMcInput = document.getElementById('pointsPerIncorrectMc');
-        const totalScoreMcSingleInput = document.getElementById('totalScoreMcSingle');
-        // Ordering specific inputs
-        const orderingOptionsContainer = document.getElementById('orderingOptionsContainer');
-        const addOrderingOptionBtn = document.getElementById('addOrderingOptionBtn');
-        const pointsPerCorrectOrderInput = document.getElementById('pointsPerCorrectOrder');
-        const bonusForFullOrderInput = document.getElementById('bonusForFullOrder');
-        // Free Text specific input
-        const maxScoreFreeTextInput = document.getElementById('maxScoreFreeText');
+        // const questionTextInput = document.getElementById('questionText'); // Moved to DOMContentLoaded
+        // const questionTypeSelect = document.getElementById('questionTypeSelect'); // Moved to DOMContentLoaded
+        // // Specific field containers
+        // const multipleChoiceFieldsContainer = document.getElementById('multipleChoiceFieldsContainer'); // Moved to DOMContentLoaded
+        // const orderingFieldsContainer = document.getElementById('orderingFieldsContainer'); // Moved to DOMContentLoaded
+        // const freeTextFieldsContainer = document.getElementById('freeTextFieldsContainer'); // Moved to DOMContentLoaded
+        // // MC specific inputs
+        // const mcOptionsContainer = document.getElementById('mcOptionsContainer'); // Moved to DOMContentLoaded
+        // const addMcOptionBtn = document.getElementById('addMcOptionBtn'); // Moved to DOMContentLoaded
+        // const isMcMultipleCorrectCheckbox = document.getElementById('isMcMultipleCorrect'); // Moved to DOMContentLoaded
+        // const pointsPerCorrectMcInput = document.getElementById('pointsPerCorrectMc'); // Moved to DOMContentLoaded
+        // const pointsPerIncorrectMcInput = document.getElementById('pointsPerIncorrectMc'); // Moved to DOMContentLoaded
+        // const totalScoreMcSingleInput = document.getElementById('totalScoreMcSingle'); // Moved to DOMContentLoaded
+        // // Ordering specific inputs
+        // const orderingOptionsContainer = document.getElementById('orderingOptionsContainer'); // Moved to DOMContentLoaded
+        // const addOrderingOptionBtn = document.getElementById('addOrderingOptionBtn'); // Moved to DOMContentLoaded
+        // const pointsPerCorrectOrderInput = document.getElementById('pointsPerCorrectOrder'); // Moved to DOMContentLoaded
+        // const bonusForFullOrderInput = document.getElementById('bonusForFullOrder'); // Moved to DOMContentLoaded
+        // // Free Text specific input
+        // const maxScoreFreeTextInput = document.getElementById('maxScoreFreeText'); // Moved to DOMContentLoaded
 
         function handleQuestionTypeChange() {
-            if (!multipleChoiceFieldsContainer || !orderingFieldsContainer || !freeTextFieldsContainer || !questionTypeSelect) return;
-            multipleChoiceFieldsContainer.style.display = 'none';
-            orderingFieldsContainer.style.display = 'none';
-            freeTextFieldsContainer.style.display = 'none';
+            const mcFieldsContainer = document.getElementById('multipleChoiceFieldsContainer');
+            const oFieldsContainer = document.getElementById('orderingFieldsContainer');
+            const ftFieldsContainer = document.getElementById('freeTextFieldsContainer');
+            const qTypeSelect = document.getElementById('questionTypeSelect');
 
-            const selectedType = questionTypeSelect.value;
+            if (!mcFieldsContainer || !oFieldsContainer || !ftFieldsContainer || !qTypeSelect) return;
+            mcFieldsContainer.style.display = 'none';
+            oFieldsContainer.style.display = 'none';
+            ftFieldsContainer.style.display = 'none';
+
+            const selectedType = qTypeSelect.value;
             if (selectedType === 'MULTIPLE_CHOICE') {
-                multipleChoiceFieldsContainer.style.display = 'block';
+                mcFieldsContainer.style.display = 'block';
             } else if (selectedType === 'ORDERING') {
-                orderingFieldsContainer.style.display = 'block';
+                oFieldsContainer.style.display = 'block';
             } else if (selectedType === 'FREE_TEXT') {
-                freeTextFieldsContainer.style.display = 'block';
+                ftFieldsContainer.style.display = 'block';
             }
         }
 
         function resetAddEditQuestionForm() {
-            if(addEditQuestionForm) addEditQuestionForm.reset();
-            if(editingQuestionIdInput) editingQuestionIdInput.value = '';
+            const form = document.getElementById('addEditQuestionForm');
+            const editingIdInput = document.getElementById('editingQuestionId');
+            const qTypeSelect = document.getElementById('questionTypeSelect');
+            const mcOptContainer = document.getElementById('mcOptionsContainer');
+            const oOptContainer = document.getElementById('orderingOptionsContainer');
+            // Scoring fields
+            const ptsPerCorrectMc = document.getElementById('pointsPerCorrectMc');
+            const ptsPerIncorrectMc = document.getElementById('pointsPerIncorrectMc');
+            const totalScoreMc = document.getElementById('totalScoreMcSingle');
+            const ptsPerCorrectOrd = document.getElementById('pointsPerCorrectOrder');
+            const bonusFullOrd = document.getElementById('bonusForFullOrder');
+            const maxScoreFt = document.getElementById('maxScoreFreeText');
+
+
+            if(form) form.reset();
+            if(editingIdInput) editingIdInput.value = '';
 
             // Ensure question type dropdown is re-enabled
-            if(questionTypeSelect) questionTypeSelect.disabled = false;
+            if(qTypeSelect) qTypeSelect.disabled = false;
 
-            if(mcOptionsContainer) mcOptionsContainer.innerHTML = '';
-            if(orderingOptionsContainer) orderingOptionsContainer.innerHTML = '';
+            if(mcOptContainer) mcOptContainer.innerHTML = '';
+            if(oOptContainer) oOptContainer.innerHTML = '';
                 // Also explicitly reset scoring fields that might not be part of a .reset() on the form if they were disabled.
-                if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = '';
-                if(pointsPerIncorrectMcInput) pointsPerIncorrectMcInput.value = '';
-                if(totalScoreMcSingleInput) totalScoreMcSingleInput.value = '';
-                if(pointsPerCorrectOrderInput) pointsPerCorrectOrderInput.value = '';
-                if(bonusForFullOrderInput) bonusForFullOrderInput.value = '';
-                if(maxScoreFreeTextInput) maxScoreFreeTextInput.value = '';
+                if(ptsPerCorrectMc) ptsPerCorrectMc.value = '';
+                if(ptsPerIncorrectMc) ptsPerIncorrectMc.value = '';
+                if(totalScoreMc) totalScoreMc.value = '';
+                if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = '';
+                if(bonusFullOrd) bonusFullOrd.value = '';
+                if(maxScoreFt) maxScoreFt.value = '';
 
-            if(questionTypeSelect) handleQuestionTypeChange(); // Ensure correct fields shown after reset
+            if(qTypeSelect) handleQuestionTypeChange(); // Ensure correct fields shown after reset
         }
 
             function createOptionInputDiv(optionText = "", optionId = null, isCorrect = false, questionType = "MULTIPLE_CHOICE") {
@@ -800,53 +833,68 @@
                 return optionDiv;
             }
 
-            if(addMcOptionBtn) {
-                addMcOptionBtn.addEventListener('click', () => {
-                    if(mcOptionsContainer) mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
-                });
-            }
-
-            if(addOrderingOptionBtn) {
-                addOrderingOptionBtn.addEventListener('click', () => {
-                    if(orderingOptionsContainer) orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
-                });
-            }
+            // Event listeners for addMcOptionBtn and addOrderingOptionBtn moved to DOMContentLoaded
 
         function openAddQuestionModal() {
-            if (!addEditQuestionModal) return;
+            const modal = document.getElementById('addEditQuestionModal');
+            const title = document.getElementById('addEditQuestionModalTitle');
+            const editingIdInput = document.getElementById('editingQuestionId');
+            const form = document.getElementById('addEditQuestionForm');
+            const mcOptContainer = document.getElementById('mcOptionsContainer');
+            const oOptContainer = document.getElementById('orderingOptionsContainer');
+            const qTypeSelect = document.getElementById('questionTypeSelect');
+
+            if (!modal) return;
 
             // Explicitly set editingId to empty for "add new" mode
-            if(editingQuestionIdInput) editingQuestionIdInput.value = '';
+            if(editingIdInput) editingIdInput.value = '';
 
-            if(addEditQuestionModalTitle) addEditQuestionModalTitle.textContent = 'Añadir Nueva Pregunta';
+            if(title) title.textContent = 'Añadir Nueva Pregunta';
 
             // Reset form fields (includes standard inputs)
-            if(addEditQuestionForm) addEditQuestionForm.reset();
+            if(form) form.reset();
 
             // Explicitly clear any dynamically added options/items
-            if(mcOptionsContainer) mcOptionsContainer.innerHTML = '';
-            if(orderingOptionsContainer) orderingOptionsContainer.innerHTML = '';
+            if(mcOptContainer) mcOptContainer.innerHTML = '';
+            if(oOptContainer) oOptContainer.innerHTML = '';
 
             // Call handleQuestionTypeChange() to set initial visibility of type-specific fields
             // and then add default options if applicable for the *current* default type.
-            if(questionTypeSelect) handleQuestionTypeChange();
+            if(qTypeSelect) handleQuestionTypeChange();
 
             // Add default empty options based on the *currently selected* type in the reset form
-            const currentSelectedType = questionTypeSelect ? questionTypeSelect.value : null;
-            if (currentSelectedType === 'MULTIPLE_CHOICE' && mcOptionsContainer) {
-                mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
-                mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
-            } else if (currentSelectedType === 'ORDERING' && orderingOptionsContainer) {
-                orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
-                orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+            const currentSelectedType = qTypeSelect ? qTypeSelect.value : null;
+            if (currentSelectedType === 'MULTIPLE_CHOICE' && mcOptContainer) {
+                mcOptContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+                mcOptContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+            } else if (currentSelectedType === 'ORDERING' && oOptContainer) {
+                oOptContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+                oOptContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
             }
 
-            addEditQuestionModal.style.display = 'flex';
+            modal.style.display = 'flex';
             // handleQuestionTypeChange() was already called, so UI should be correct.
         }
 
         function openEditQuestionModal(questionId) {
-            if (!addEditQuestionModal || !allRaceQuestions) return;
+            const modal = document.getElementById('addEditQuestionModal');
+            const title = document.getElementById('addEditQuestionModalTitle');
+            const editingIdInput = document.getElementById('editingQuestionId');
+            const qTextInput = document.getElementById('questionText');
+            const qTypeSelect = document.getElementById('questionTypeSelect');
+            // Type specific fields
+            const maxScoreFtInput = document.getElementById('maxScoreFreeText');
+            const isMcMultiCorrectCb = document.getElementById('isMcMultipleCorrect');
+            const ptsPerCorrectMc = document.getElementById('pointsPerCorrectMc');
+            const ptsPerIncorrectMc = document.getElementById('pointsPerIncorrectMc');
+            const totalScoreMcSingle = document.getElementById('totalScoreMcSingle');
+            const mcOptContainer = document.getElementById('mcOptionsContainer');
+            const ptsPerCorrectOrd = document.getElementById('pointsPerCorrectOrder');
+            const bonusForFullOrd = document.getElementById('bonusForFullOrder');
+            const oOptContainer = document.getElementById('orderingOptionsContainer');
+
+
+            if (!modal || !allRaceQuestions) return;
 
             const question = allRaceQuestions.find(q => q.id === questionId);
             if (!question) {
@@ -856,41 +904,41 @@
 
             resetAddEditQuestionForm(); // Clear form and enable type select initially
 
-            if(addEditQuestionModalTitle) addEditQuestionModalTitle.textContent = 'Editar Pregunta';
-            if(editingQuestionIdInput) editingQuestionIdInput.value = question.id;
-            if(questionTextInput) questionTextInput.value = question.text;
+            if(title) title.textContent = 'Editar Pregunta';
+            if(editingIdInput) editingIdInput.value = question.id;
+            if(qTextInput) qTextInput.value = question.text;
 
-            if(questionTypeSelect) {
-                questionTypeSelect.value = question.question_type;
-                questionTypeSelect.disabled = true; // Disable type change during edit
+            if(qTypeSelect) {
+                qTypeSelect.value = question.question_type;
+                qTypeSelect.disabled = true; // Disable type change during edit
             }
 
             handleQuestionTypeChange(); // Show correct fields based on question's type
 
             // Pre-fill type-specific fields
             if (question.question_type === 'FREE_TEXT') {
-                if(maxScoreFreeTextInput) maxScoreFreeTextInput.value = question.max_score_free_text !== null ? question.max_score_free_text : '';
+                if(maxScoreFtInput) maxScoreFtInput.value = question.max_score_free_text !== null ? question.max_score_free_text : '';
             } else if (question.question_type === 'MULTIPLE_CHOICE') {
-                if(isMcMultipleCorrectCheckbox) isMcMultipleCorrectCheckbox.checked = question.is_mc_multiple_correct;
-                if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = question.points_per_correct_mc !== null ? question.points_per_correct_mc : '';
-                if(pointsPerIncorrectMcInput) pointsPerIncorrectMcInput.value = question.points_per_incorrect_mc !== null ? question.points_per_incorrect_mc : '';
-                if(totalScoreMcSingleInput) totalScoreMcSingleInput.value = question.total_score_mc_single !== null ? question.total_score_mc_single : '';
+                if(isMcMultiCorrectCb) isMcMultiCorrectCb.checked = question.is_mc_multiple_correct;
+                if(ptsPerCorrectMc) ptsPerCorrectMc.value = question.points_per_correct_mc !== null ? question.points_per_correct_mc : '';
+                if(ptsPerIncorrectMc) ptsPerIncorrectMc.value = question.points_per_incorrect_mc !== null ? question.points_per_incorrect_mc : '';
+                if(totalScoreMcSingle) totalScoreMcSingle.value = question.total_score_mc_single !== null ? question.total_score_mc_single : '';
 
-                if(mcOptionsContainer) {
-                    mcOptionsContainer.innerHTML = ''; // Clear before populating
+                if(mcOptContainer) {
+                    mcOptContainer.innerHTML = ''; // Clear before populating
                     question.options.forEach(opt => {
-                        mcOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "MULTIPLE_CHOICE"));
+                        mcOptContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "MULTIPLE_CHOICE"));
                     });
                 }
             } else if (question.question_type === 'ORDERING') {
-                if(pointsPerCorrectOrderInput) pointsPerCorrectOrderInput.value = question.points_per_correct_order !== null ? question.points_per_correct_order : '';
-                if(bonusForFullOrderInput) bonusForFullOrderInput.value = question.bonus_for_full_order !== null ? question.bonus_for_full_order : '';
+                if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = question.points_per_correct_order !== null ? question.points_per_correct_order : '';
+                if(bonusForFullOrd) bonusForFullOrd.value = question.bonus_for_full_order !== null ? question.bonus_for_full_order : '';
 
-                if(orderingOptionsContainer) {
-                    orderingOptionsContainer.innerHTML = ''; // Clear
+                if(oOptContainer) {
+                    oOptContainer.innerHTML = ''; // Clear
                     // Assuming options from backend are already in correct order for ORDERING type
                     question.options.forEach(opt => {
-                        orderingOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
+                        oOptContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
                     });
                 }
             }
@@ -898,52 +946,130 @@
             // const modalIsActiveCheckbox = document.getElementById('modalIsActiveCheckbox');
             // if(modalIsActiveCheckbox) modalIsActiveCheckbox.checked = question.is_active;
 
-            addEditQuestionModal.style.display = 'flex';
+            modal.style.display = 'flex';
         }
 
         function closeAddEditQuestionModal() {
-            if (!addEditQuestionModal) return;
-            addEditQuestionModal.style.display = 'none';
+            const modal = document.getElementById('addEditQuestionModal');
+            const qTypeSelect = document.getElementById('questionTypeSelect');
+            if (!modal) return;
+            modal.style.display = 'none';
             // Ensure question type select is enabled when modal is closed
-            if(questionTypeSelect) questionTypeSelect.disabled = false;
+            if(qTypeSelect) qTypeSelect.disabled = false;
         }
 
         // --- Delete Question Confirmation Modal ---
-        const deleteQuestionConfirmModal = document.getElementById('deleteQuestionConfirmModal');
-        const questionIdToDeleteInput = document.getElementById('questionIdToDelete');
-        const cancelDeleteQuestionBtn = document.getElementById('cancelDeleteQuestionBtn');
-        const confirmDeleteQuestionBtn = document.getElementById('confirmDeleteQuestionBtn');
+        // const deleteQuestionConfirmModal = document.getElementById('deleteQuestionConfirmModal'); // Moved to DOMContentLoaded
+        // const questionIdToDeleteInput = document.getElementById('questionIdToDelete'); // Moved to DOMContentLoaded
+        // const cancelDeleteQuestionBtn = document.getElementById('cancelDeleteQuestionBtn'); // Moved to DOMContentLoaded
+        // const confirmDeleteQuestionBtn = document.getElementById('confirmDeleteQuestionBtn'); // Moved to DOMContentLoaded
 
         function openDeleteConfirmModal(questionId) {
-            if(!deleteQuestionConfirmModal) return;
-            if(questionIdToDeleteInput) questionIdToDeleteInput.value = questionId;
-            deleteQuestionConfirmModal.style.display = 'flex';
+            const modal = document.getElementById('deleteQuestionConfirmModal');
+            const input = document.getElementById('questionIdToDelete');
+            if(!modal) return;
+            if(input) input.value = questionId;
+            modal.style.display = 'flex';
         }
 
         function closeDeleteConfirmModal() {
-            if(!deleteQuestionConfirmModal) return;
-            deleteQuestionConfirmModal.style.display = 'none';
+            const modal = document.getElementById('deleteQuestionConfirmModal');
+            if(!modal) return;
+            modal.style.display = 'none';
         }
 
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Moved DOM element declarations here
+            const logoutButtonNav = document.getElementById('logoutButtonNav');
+            const questionsContent = document.getElementById('questionsContent');
+            const expandIcon = document.getElementById('expandIcon'); // Note: this might be an issue if innerHTML replaces it.
+            const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn');
+            const submitPredictionsContainer = document.getElementById('submitPredictionsContainer');
+            const questionsLoadingDiv = document.getElementById('questionsLoading');
+            const questionsErrorDiv = document.getElementById('questionsError');
+            const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage');
+
+            const addEditQuestionModal = document.getElementById('addEditQuestionModal');
+            const addNewQuestionBtn = document.getElementById('addNewQuestionBtn');
+            const closeAddEditQuestionModalBtn = document.getElementById('closeAddEditQuestionModalBtn');
+            const cancelAddEditQuestionBtn = document.getElementById('cancelAddEditQuestionBtn');
+            const addEditQuestionForm = document.getElementById('addEditQuestionForm');
+            const saveQuestionBtn = document.getElementById('saveQuestionBtn');
+            const addEditQuestionModalTitle = document.getElementById('addEditQuestionModalTitle');
+            const editingQuestionIdInput = document.getElementById('editingQuestionId');
+
+            const questionTextInput = document.getElementById('questionText');
+            const questionTypeSelect = document.getElementById('questionTypeSelect');
+            const multipleChoiceFieldsContainer = document.getElementById('multipleChoiceFieldsContainer');
+            const orderingFieldsContainer = document.getElementById('orderingFieldsContainer');
+            const freeTextFieldsContainer = document.getElementById('freeTextFieldsContainer');
+            const mcOptionsContainer = document.getElementById('mcOptionsContainer');
+            const addMcOptionBtn = document.getElementById('addMcOptionBtn');
+            const isMcMultipleCorrectCheckbox = document.getElementById('isMcMultipleCorrect');
+            const pointsPerCorrectMcInput = document.getElementById('pointsPerCorrectMc');
+            const pointsPerIncorrectMcInput = document.getElementById('pointsPerIncorrectMc');
+            const totalScoreMcSingleInput = document.getElementById('totalScoreMcSingle');
+            const orderingOptionsContainer = document.getElementById('orderingOptionsContainer');
+            const addOrderingOptionBtn = document.getElementById('addOrderingOptionBtn');
+            const pointsPerCorrectOrderInput = document.getElementById('pointsPerCorrectOrder');
+            const bonusForFullOrderInput = document.getElementById('bonusForFullOrder');
+            const maxScoreFreeTextInput = document.getElementById('maxScoreFreeText');
+
+            const deleteQuestionConfirmModal = document.getElementById('deleteQuestionConfirmModal');
+            const questionIdToDeleteInput = document.getElementById('questionIdToDelete');
+            const cancelDeleteQuestionBtn = document.getElementById('cancelDeleteQuestionBtn');
+            const confirmDeleteQuestionBtn = document.getElementById('confirmDeleteQuestionBtn');
+
             // --- Edit Race Details Modal ---
-            const editRaceModal = document.getElementById('editRaceModal');
-            const openEditRaceModalBtn = document.getElementById('openEditRaceModalBtn');
-            const closeEditRaceModalBtn = document.getElementById('closeEditRaceModalBtn');
-            const cancelEditRaceBtn = document.getElementById('cancelEditRaceBtn');
-            const editRaceForm = document.getElementById('editRaceForm');
-            const saveRaceChangesBtn = document.getElementById('saveRaceChangesBtn');
+            const editRaceModal = document.getElementById('editRaceModal'); // Already here
+            const openEditRaceModalBtn = document.getElementById('openEditRaceModalBtn'); // Already here
+            const closeEditRaceModalBtn = document.getElementById('closeEditRaceModalBtn'); // Already here
+            const cancelEditRaceBtn = document.getElementById('cancelEditRaceBtn'); // Already here
+            const editRaceForm = document.getElementById('editRaceForm'); // Already here
+            const saveRaceChangesBtn = document.getElementById('saveRaceChangesBtn'); // Already here
 
             // Form fields - Edit Race
-            const raceTitleInput = document.getElementById('raceTitle');
-            const raceLocationInput = document.getElementById('raceLocation');
-            const raceDescriptionInput = document.getElementById('raceDescription');
-            const raceEventDateInput = document.getElementById('raceEventDate');
-            const raceGenderCategoryInput = document.getElementById('raceGenderCategory');
-            const racePromoImageUrlInput = document.getElementById('racePromoImageUrl'); // Already defined
+            const raceTitleInput = document.getElementById('raceTitle'); // Already here
+            const raceLocationInput = document.getElementById('raceLocation'); // Already here
+            const raceDescriptionInput = document.getElementById('raceDescription'); // Already here
+            const raceEventDateInput = document.getElementById('raceEventDate'); // Already here
+            const raceGenderCategoryInput = document.getElementById('raceGenderCategory'); // Already here
+            const racePromoImageUrlInput = document.getElementById('racePromoImageUrl'); // Already here
+            const deleteRaceBtn = document.getElementById('deleteRaceBtn'); // Already here but good to confirm position
 
-            function openEditRaceModal() { // Already defined
+
+            // Re-attach event listeners for elements moved
+            if (logoutButtonNav) {
+                logoutButtonNav.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    fetch("{{ url_for('logout_api') }}", { method: 'POST' })
+                        .then(response => {
+                            if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
+                            else alert('Logout failed.');
+                        })
+                        .catch(error => console.error('Logout error:', error));
+                });
+            }
+
+            if(toggleQuestionsBtn) {
+                 toggleQuestionsBtn.addEventListener('click', toggleQuestions);
+            }
+
+            if(addMcOptionBtn && mcOptionsContainer) { // mcOptionsContainer check ensures it's available
+                addMcOptionBtn.addEventListener('click', () => {
+                    mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+                });
+            }
+
+            if(addOrderingOptionBtn && orderingOptionsContainer) { // orderingOptionsContainer check
+                addOrderingOptionBtn.addEventListener('click', () => {
+                    orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+                });
+            }
+
+
+            function openEditRaceModal() {
                 if (!editRaceModal) return;
                 // Pre-fill form - Assuming 'race' object is available from Jinja
                 // Values are already set by `value` attribute in HTML for initial load.
