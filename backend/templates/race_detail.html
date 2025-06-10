@@ -378,13 +378,6 @@
                         <i class="fas fa-question-circle text-3xl mb-3"></i>
                         <p>No hay preguntas de predicción para esta carrera todavía.</p>
                     </div>
-
-                    <!-- Submit Predictions (static for now) -->
-                    <div class="mt-6 flex justify-end hidden" id="submitPredictionsContainer">
-                        <button class="btn btn-primary px-6 py-2">
-                            Enviar Predicciones (Próx.)
-                        </button>
-                    </div>
                 </div>
 
                 <!-- Statistics (Placeholder for now) -->
@@ -636,7 +629,7 @@
 
                 questionCard.innerHTML = `
                     <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-semibold text-gray-800 flex-1 pr-2">${q.text}</h3>
+                        <h3 class="font-semibold text-gray-800 flex-1 pr-2">${q.text} ${q.is_active ? '' : '<span class="text-red-500 text-xs font-normal">(Inactiva)</span>'}</h3>
                         ${formatScoringInfoForDisplay(q)}
                     </div>
                     ${optionsHtml}
@@ -770,7 +763,11 @@
         function resetAddEditQuestionForm() {
             if(addEditQuestionForm) addEditQuestionForm.reset();
             if(editingQuestionIdInput) editingQuestionIdInput.value = '';
-                if(mcOptionsContainer) mcOptionsContainer.innerHTML = '';
+
+            // Ensure question type dropdown is re-enabled
+            if(questionTypeSelect) questionTypeSelect.disabled = false;
+
+            if(mcOptionsContainer) mcOptionsContainer.innerHTML = '';
             if(orderingOptionsContainer) orderingOptionsContainer.innerHTML = '';
                 // Also explicitly reset scoring fields that might not be part of a .reset() on the form if they were disabled.
                 if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = '';
@@ -822,61 +819,89 @@
 
         function openAddQuestionModal() {
             if (!addEditQuestionModal) return;
-            resetAddEditQuestionForm();
+
+            // Explicitly set editingId to empty for "add new" mode
+            if(editingQuestionIdInput) editingQuestionIdInput.value = '';
+
             if(addEditQuestionModalTitle) addEditQuestionModalTitle.textContent = 'Añadir Nueva Pregunta';
-                // Add one or two blank options by default for MC/Ordering if desired
-                if (questionTypeSelect && questionTypeSelect.value === 'MULTIPLE_CHOICE' && mcOptionsContainer) {
-                    mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
-                    mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
-                } else if (questionTypeSelect && questionTypeSelect.value === 'ORDERING' && orderingOptionsContainer) {
-                    orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
-                    orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
-                }
-            addEditQuestionModal.style.display = 'flex';
+
+            // Reset form fields (includes standard inputs)
+            if(addEditQuestionForm) addEditQuestionForm.reset();
+
+            // Explicitly clear any dynamically added options/items
+            if(mcOptionsContainer) mcOptionsContainer.innerHTML = '';
+            if(orderingOptionsContainer) orderingOptionsContainer.innerHTML = '';
+
+            // Call handleQuestionTypeChange() to set initial visibility of type-specific fields
+            // and then add default options if applicable for the *current* default type.
             if(questionTypeSelect) handleQuestionTypeChange();
+
+            // Add default empty options based on the *currently selected* type in the reset form
+            const currentSelectedType = questionTypeSelect ? questionTypeSelect.value : null;
+            if (currentSelectedType === 'MULTIPLE_CHOICE' && mcOptionsContainer) {
+                mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+                mcOptionsContainer.appendChild(createOptionInputDiv("", null, false, "MULTIPLE_CHOICE"));
+            } else if (currentSelectedType === 'ORDERING' && orderingOptionsContainer) {
+                orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+                orderingOptionsContainer.appendChild(createOptionInputDiv("", null, false, "ORDERING"));
+            }
+
+            addEditQuestionModal.style.display = 'flex';
+            // handleQuestionTypeChange() was already called, so UI should be correct.
         }
 
         function openEditQuestionModal(questionId) {
             if (!addEditQuestionModal || !allRaceQuestions) return;
-            resetAddEditQuestionForm();
+
             const question = allRaceQuestions.find(q => q.id === questionId);
             if (!question) {
-                alert('Error: No se encontró la pregunta.');
+                alert('Error: No se encontró la pregunta para editar.');
                 return;
             }
+
+            resetAddEditQuestionForm(); // Clear form and enable type select initially
 
             if(addEditQuestionModalTitle) addEditQuestionModalTitle.textContent = 'Editar Pregunta';
             if(editingQuestionIdInput) editingQuestionIdInput.value = question.id;
             if(questionTextInput) questionTextInput.value = question.text;
-            if(questionTypeSelect) questionTypeSelect.value = question.question_type;
 
-            handleQuestionTypeChange(); // Show correct section first
+            if(questionTypeSelect) {
+                questionTypeSelect.value = question.question_type;
+                questionTypeSelect.disabled = true; // Disable type change during edit
+            }
 
+            handleQuestionTypeChange(); // Show correct fields based on question's type
+
+            // Pre-fill type-specific fields
             if (question.question_type === 'FREE_TEXT') {
-                if(maxScoreFreeTextInput) maxScoreFreeTextInput.value = question.max_score_free_text || '';
+                if(maxScoreFreeTextInput) maxScoreFreeTextInput.value = question.max_score_free_text !== null ? question.max_score_free_text : '';
             } else if (question.question_type === 'MULTIPLE_CHOICE') {
                 if(isMcMultipleCorrectCheckbox) isMcMultipleCorrectCheckbox.checked = question.is_mc_multiple_correct;
-                if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = question.points_per_correct_mc || '';
-                if(pointsPerIncorrectMcInput) pointsPerIncorrectMcInput.value = question.points_per_incorrect_mc || '';
-                if(totalScoreMcSingleInput) totalScoreMcSingleInput.value = question.total_score_mc_single || '';
+                if(pointsPerCorrectMcInput) pointsPerCorrectMcInput.value = question.points_per_correct_mc !== null ? question.points_per_correct_mc : '';
+                if(pointsPerIncorrectMcInput) pointsPerIncorrectMcInput.value = question.points_per_incorrect_mc !== null ? question.points_per_incorrect_mc : '';
+                if(totalScoreMcSingleInput) totalScoreMcSingleInput.value = question.total_score_mc_single !== null ? question.total_score_mc_single : '';
+
                 if(mcOptionsContainer) {
                     mcOptionsContainer.innerHTML = ''; // Clear before populating
                     question.options.forEach(opt => {
-                        // Assuming is_correct_mc_single/multiple are part of opt object if needed
-                        mcOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, opt.is_correct_mc_single || opt.is_correct_mc_multiple, "MULTIPLE_CHOICE"));
+                        mcOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "MULTIPLE_CHOICE"));
                     });
                 }
             } else if (question.question_type === 'ORDERING') {
-                if(pointsPerCorrectOrderInput) pointsPerCorrectOrderInput.value = question.points_per_correct_order || '';
-                if(bonusForFullOrderInput) bonusForFullOrderInput.value = question.bonus_for_full_order || '';
+                if(pointsPerCorrectOrderInput) pointsPerCorrectOrderInput.value = question.points_per_correct_order !== null ? question.points_per_correct_order : '';
+                if(bonusForFullOrderInput) bonusForFullOrderInput.value = question.bonus_for_full_order !== null ? question.bonus_for_full_order : '';
+
                 if(orderingOptionsContainer) {
                     orderingOptionsContainer.innerHTML = ''; // Clear
-                    question.options.forEach(opt => { // Options should be pre-sorted by correct_order_index from backend
+                    // Assuming options from backend are already in correct order for ORDERING type
+                    question.options.forEach(opt => {
                         orderingOptionsContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
                     });
                 }
             }
-            // TODO: is_active checkbox, e.g. if(questionIsActiveCheckbox) questionIsActiveCheckbox.checked = question.is_active;
+            // Example for is_active if a checkbox #modalIsActiveCheckbox exists in the modal
+            // const modalIsActiveCheckbox = document.getElementById('modalIsActiveCheckbox');
+            // if(modalIsActiveCheckbox) modalIsActiveCheckbox.checked = question.is_active;
 
             addEditQuestionModal.style.display = 'flex';
         }
@@ -884,6 +909,8 @@
         function closeAddEditQuestionModal() {
             if (!addEditQuestionModal) return;
             addEditQuestionModal.style.display = 'none';
+            // Ensure question type select is enabled when modal is closed
+            if(questionTypeSelect) questionTypeSelect.disabled = false;
         }
 
         // --- Delete Question Confirmation Modal ---
@@ -1106,19 +1133,19 @@
                     saveQuestionBtn.classList.add('opacity-50');
 
                     const editingId = editingQuestionIdInput.value;
-                    const type = questionTypeSelect.value;
+                    const type = questionTypeSelect.value; // e.g., "MULTIPLE_CHOICE"
+
                     let questionData = {
-                        text: questionTextInput.value,
-                        is_active: true, // Default, consider adding a checkbox for this
-                        // Scoring and options will be added based on type
+                        text: questionTextInput.value.trim(),
+                        is_active: true, // Default for new/edited questions; manage via UI if needed
+                        // `question_type` is implied by the endpoint for creation, not part of payload body.
+                        // For PUT, it's also implied or part of URL.
                     };
 
-                    // Basic Validations
-                    if (!questionData.text.trim()) {
+                    // --- Basic Validations ---
+                    if (!questionData.text) {
                         alert('El texto de la pregunta es obligatorio.');
-                        saveQuestionBtn.disabled = false;
-                        saveQuestionBtn.classList.remove('opacity-50');
-                        return;
+                        saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                     }
 
                     let options = [];
@@ -1128,26 +1155,34 @@
                         });
                         if (options.length < 2) {
                             alert('Las preguntas de opción múltiple deben tener al menos 2 opciones con texto.');
-                            saveQuestionBtn.disabled = false;
-                            saveQuestionBtn.classList.remove('opacity-50');
-                            return;
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
                         questionData.options = options;
                         questionData.is_mc_multiple_correct = isMcMultipleCorrectCheckbox.checked;
+
                         if (questionData.is_mc_multiple_correct) {
-                            questionData.points_per_correct_mc = parseInt(pointsPerCorrectMcInput.value) || 0;
-                            questionData.points_per_incorrect_mc = parseInt(pointsPerIncorrectMcInput.value) || 0;
-                        } else {
-                            questionData.total_score_mc_single = parseInt(totalScoreMcSingleInput.value) || 0;
-                            if (questionData.total_score_mc_single <= 0) {
-                                alert('La puntuación total para opción única debe ser un número positivo.');
-                                saveQuestionBtn.disabled = false;
-                                saveQuestionBtn.classList.remove('opacity-50');
-                                return;
+                            const pointsCorrect = parseInt(pointsPerCorrectMcInput.value);
+                            const pointsIncorrect = parseInt(pointsPerIncorrectMcInput.value);
+                            if (isNaN(pointsCorrect)) { // Points per correct can be 0 or positive
+                                alert('Puntos por opción correcta debe ser un número para selección múltiple.');
+                                saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                             }
-                            // TODO: Add logic to mark one option as correct if single choice,
-                            // this currently isn't supported by the simple option text inputs.
-                            // The backend expects one of the options to have `is_correct_mc_single = true`.
+                            if (isNaN(pointsIncorrect)) { // Points per incorrect can be negative, 0 or positive
+                                alert('Puntos por opción incorrecta debe ser un número para selección múltiple.');
+                                saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                            }
+                            questionData.points_per_correct_mc = pointsCorrect;
+                            questionData.points_per_incorrect_mc = pointsIncorrect;
+                        } else { // Single correct
+                            const totalScore = parseInt(totalScoreMcSingleInput.value);
+                            if (isNaN(totalScore) || totalScore <= 0) {
+                                alert('La puntuación total para opción única debe ser un número entero positivo.');
+                                saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                            }
+                            questionData.total_score_mc_single = totalScore;
+                            // Note: The backend API for creating single-correct MCQs currently does not
+                            // expect which option is_correct_mc_single. This is a simplification.
+                            // If the backend required it, the UI would need checkboxes/radios next to each option text input.
                         }
                     } else if (type === 'ORDERING') {
                         orderingOptionsContainer.querySelectorAll('input[type="text"]').forEach(input => {
@@ -1155,31 +1190,56 @@
                         });
                         if (options.length < 2) {
                             alert('Las preguntas de ordenamiento deben tener al menos 2 ítems con texto.');
-                            saveQuestionBtn.disabled = false;
-                            saveQuestionBtn.classList.remove('opacity-50');
-                            return;
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
                         questionData.options = options; // Order is implicit by array position
-                        questionData.points_per_correct_order = parseInt(pointsPerCorrectOrderInput.value) || 0;
-                        questionData.bonus_for_full_order = parseInt(bonusForFullOrderInput.value) || 0;
-                        if (questionData.points_per_correct_order <= 0) {
-                             alert('Los puntos por ítem correcto en ordenamiento deben ser un número positivo.');
-                            saveQuestionBtn.disabled = false;
-                            saveQuestionBtn.classList.remove('opacity-50');
-                            return;
+
+                        const pointsPerCorrect = parseInt(pointsPerCorrectOrderInput.value);
+                        const bonusFullOrder = parseInt(bonusForFullOrderInput.value);
+
+                        if (isNaN(pointsPerCorrect) || pointsPerCorrect <= 0) { // Typically positive
+                             alert('Los puntos por ítem correcto en ordenamiento deben ser un número entero positivo.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
+                        if (isNaN(bonusFullOrder) || bonusFullOrder < 0) { // Bonus can be 0 or positive
+                             alert('El bonus por orden completo debe ser un número entero no negativo.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
+                        questionData.points_per_correct_order = pointsPerCorrect;
+                        questionData.bonus_for_full_order = bonusFullOrder;
+
                     } else if (type === 'FREE_TEXT') {
-                        questionData.max_score_free_text = parseInt(maxScoreFreeTextInput.value) || 0;
-                        if (questionData.max_score_free_text <= 0) {
-                             alert('La puntuación máxima para texto libre debe ser un número positivo.');
-                            saveQuestionBtn.disabled = false;
-                            saveQuestionBtn.classList.remove('opacity-50');
-                            return;
+                        const maxScore = parseInt(maxScoreFreeTextInput.value);
+                        if (isNaN(maxScore) || maxScore <= 0) {
+                             alert('La puntuación máxima para texto libre debe ser un número entero positivo.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
+                        questionData.max_score_free_text = maxScore;
                     }
 
-                    const url = editingId ? `/api/questions/${type.toLowerCase().replace('_', '-')}/${editingId}` : `/api/races/${raceId}/questions/${type.toLowerCase().replace('_', '-')}`;
-                    const method = editingId ? 'PUT' : 'POST';
+                    // Determine URL and Method based on editingId
+                    let url, method;
+                    // For PUT, type comes from the disabled select; for POST, it's the current selection.
+                    const currentQuestionType = questionTypeSelect.value;
+                    const typeSlug = currentQuestionType.toLowerCase().replace('_', '-');
+
+                    if (editingId) { // PUT for editing existing question
+                        url = `/api/questions/${typeSlug}/${editingId}`;
+                        method = 'PUT';
+                        // is_active might be part of questionData if a checkbox is added to the modal
+                        // questionData.is_active = document.getElementById('modalIsActiveCheckbox').checked;
+                    } else { // POST for creating new question
+                        if (!raceId) {
+                            alert("Error: El ID de la carrera no está definido. No se puede crear la pregunta.");
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
+                        url = `/api/races/${raceId}/questions/${typeSlug}`;
+                        method = 'POST';
+                        // is_active for new questions defaults to true on backend or can be set here
+                        questionData.is_active = true;
+                    }
+
+                    console.log(`Submitting question. URL: ${url}, Method: ${method}, Payload:`, JSON.stringify(questionData));
 
                     fetch(url, {
                         method: method,
