@@ -1156,10 +1156,15 @@ def serve_create_race_page():
 def serve_race_detail_page(race_id):
     race = Race.query.get_or_404(race_id)
     current_year = datetime.utcnow().year
-    # The segment_details should be accessible via race.segment_details
-    # Each item in race.segment_details will have a .segment attribute for name
-    # and .distance_km for distance.
-    return render_template('race_detail.html', race=race, current_year=current_year)
+
+    user_role_code = 'GUEST' # Default role if not authenticated or no role
+    if current_user and current_user.is_authenticated and hasattr(current_user, 'role') and current_user.role:
+        user_role_code = current_user.role.code
+
+    return render_template('race_detail.html',
+                           race=race,
+                           current_year=current_year,
+                           currentUserRole=user_role_code)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
