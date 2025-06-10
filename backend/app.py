@@ -150,6 +150,7 @@ def create_race():
         return jsonify(message="Forbidden: You do not have permission to create races."), 403
 
     data = request.get_json()
+    questions_data = data.get('questions', []) # Extract questions data
     if not data:
         return jsonify(message="Invalid input: No data provided"), 400
 
@@ -244,6 +245,68 @@ def create_race():
         for rsd in race_segment_details_objects:
             rsd.race = new_race # Associate with the race
             db.session.add(rsd)
+
+        if questions_data:  # Check if there are any questions to process
+            for question_payload in questions_data:
+                question_type_name = question_payload.get('type')
+                if not question_type_name:
+                    # Consider how to handle this error; maybe return a 400 or log
+                    app.logger.warning(f"Skipping question due to missing type: {question_payload.get('text')}")
+                    continue
+
+                question_type_obj = QuestionType.query.filter_by(name=question_type_name).first()
+                if not question_type_obj:
+                    # Consider how to handle this error
+                    app.logger.warning(f"Skipping question due to invalid type '{question_type_name}': {question_payload.get('text')}")
+                    continue
+
+                new_question = Question(
+                    race_id=new_race.id, # new_race is defined earlier in the function
+                    question_type_id=question_type_obj.id,
+                    text=question_payload.get('text'),
+                    is_active=question_payload.get('is_active', True)
+                )
+
+                # Populate scoring fields based on type
+                if question_type_name == 'FREE_TEXT':
+                    new_question.max_score_free_text = question_payload.get('max_score_free_text')
+                elif question_type_name == 'MULTIPLE_CHOICE':
+                    new_question.is_mc_multiple_correct = question_payload.get('is_mc_multiple_correct')
+                    if new_question.is_mc_multiple_correct:
+                        new_question.points_per_correct_mc = question_payload.get('points_per_correct_mc')
+                        new_question.points_per_incorrect_mc = question_payload.get('points_per_incorrect_mc', 0)
+                    else:
+                        new_question.total_score_mc_single = question_payload.get('total_score_mc_single')
+                elif question_type_name == 'ORDERING':
+                    new_question.points_per_correct_order = question_payload.get('points_per_correct_order')
+                    new_question.bonus_for_full_order = question_payload.get('bonus_for_full_order', 0)
+
+                db.session.add(new_question)
+                # Flushing here can be useful if new_question.id is needed immediately by options
+                # that are not being associated via backref.
+                # db.session.flush()
+
+                options_payload = question_payload.get('options', [])
+                if options_payload:
+                    for index, option_data in enumerate(options_payload):
+                        option_text_value = option_data.get('option_text')
+                        if not option_text_value:
+                            app.logger.warning(f"Skipping option for question '{new_question.text}' due to missing option_text.")
+                            continue
+
+                        new_option = QuestionOption(
+                            question=new_question,
+                            option_text=option_text_value
+                        )
+                        if question_type_name == 'ORDERING':
+                            new_option.correct_order_index = index
+
+                        # As noted before, client-side JS for create_race wizard doesn't currently send
+                        # correctness data for MC options during initial race creation.
+                        # If it did, you would set new_option.is_correct_mc_single or
+                        # new_option.is_correct_mc_multiple here based on payload.
+
+                        db.session.add(new_option)
 
         db.session.commit()
         return jsonify(message="Race created successfully", race_id=new_race.id), 201
@@ -493,6 +556,73 @@ def _serialize_question(question):
         options_output.append(option_data)
     question_data["options"] = options_output
     return question_data
+
+# --- Helper function for creating question and options from payload ---
+def _create_question_and_options_from_payload(question_payload, race_id):
+    """
+    Creates a Question and its QuestionOption objects from a payload.
+    Adds them to the db.session but does not commit.
+    Returns the Question object or None if a critical error occurs.
+    """
+    question_type_name = question_payload.get('type')
+    if not question_type_name:
+        app.logger.warning(f"Skipping question due to missing type: {question_payload.get('text')}")
+        return None
+
+    question_type_obj = QuestionType.query.filter_by(name=question_type_name).first()
+    if not question_type_obj:
+        app.logger.warning(f"Skipping question due to invalid type '{question_type_name}': {question_payload.get('text')}")
+        return None
+
+    new_question = Question(
+        race_id=race_id,
+        question_type_id=question_type_obj.id,
+        text=question_payload.get('text'),
+        is_active=question_payload.get('is_active', True)
+    )
+
+    # Populate scoring fields based on type
+    if question_type_name == 'FREE_TEXT':
+        new_question.max_score_free_text = question_payload.get('max_score_free_text')
+    elif question_type_name == 'MULTIPLE_CHOICE':
+        new_question.is_mc_multiple_correct = question_payload.get('is_mc_multiple_correct')
+        if new_question.is_mc_multiple_correct:
+            new_question.points_per_correct_mc = question_payload.get('points_per_correct_mc')
+            new_question.points_per_incorrect_mc = question_payload.get('points_per_incorrect_mc', 0)
+        else:
+            new_question.total_score_mc_single = question_payload.get('total_score_mc_single')
+    elif question_type_name == 'ORDERING':
+        new_question.points_per_correct_order = question_payload.get('points_per_correct_order')
+        new_question.bonus_for_full_order = question_payload.get('bonus_for_full_order', 0)
+
+    db.session.add(new_question)
+    # db.session.flush() # Optional: if new_question.id is needed by options not using backref
+
+    options_payload = question_payload.get('options', [])
+    if options_payload:
+        for index, option_data in enumerate(options_payload):
+            option_text_value = option_data.get('option_text')
+            if not option_text_value:
+                app.logger.warning(f"Skipping option for question '{new_question.text}' due to missing option_text.")
+                continue
+
+            new_option = QuestionOption(
+                question=new_question,  # Relies on SQLAlchemy to handle association
+                option_text=option_text_value
+            )
+            if question_type_name == 'ORDERING':
+                new_option.correct_order_index = index
+
+            # Placeholder for future: MC option correctness if sent in payload
+            # if question_type_name == 'MULTIPLE_CHOICE':
+            #     if new_question.is_mc_multiple_correct:
+            #         new_option.is_correct_mc_multiple = option_data.get('is_correct', False)
+            #     else:
+            #         new_option.is_correct_mc_single = option_data.get('is_correct', False)
+
+            db.session.add(new_option)
+
+    return new_question
 
 # --- CRUD for Free Text Questions ---
 @app.route('/api/races/<int:race_id>/questions/free-text', methods=['POST'])
