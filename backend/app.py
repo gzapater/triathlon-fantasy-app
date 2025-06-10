@@ -255,15 +255,23 @@ def create_race():
 @app.route('/api/races/<int:race_id>/details', methods=['PUT'])
 @login_required
 def update_race_details(race_id):
+    app.logger.info(f"update_race_details called for race_id: {race_id}")
+    data = request.get_json()
+    app.logger.info(f"Received JSON data: {data}")
+
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.username} forbidden to update race {race_id}")
         return jsonify(message="Forbidden: You do not have permission to update this race."), 403
 
     race = Race.query.get(race_id)
     if not race:
+        app.logger.warning(f"Race with id {race_id} not found.")
         return jsonify(message="Race not found"), 404
 
-    data = request.get_json()
+    app.logger.info(f"Race object before modifications: {race.to_dict() if hasattr(race, 'to_dict') else race}")
+
     if not data:
+        app.logger.warning("Invalid input: No data provided")
         return jsonify(message="Invalid input: No data provided"), 400
 
     # Validate and update fields
@@ -275,7 +283,7 @@ def update_race_details(race_id):
             race.title = title
 
         if 'description' in data:
-            race.description = data.get('description') # Allow empty description
+            race.description = data.get('description')
 
         if 'event_date' in data:
             event_date_str = data.get('event_date')
@@ -301,31 +309,28 @@ def update_race_details(race_id):
             if promo_image_url and not (promo_image_url.startswith('http://') or promo_image_url.startswith('https://')):
                 # Allow empty string or None to clear the image URL
                 if promo_image_url.strip() != "":
+                    app.logger.warning(f"Invalid promo_image_url format: {promo_image_url}")
                     return jsonify(message="Invalid promo_image_url format. Must be a valid URL or empty."), 400
             race.promo_image_url = promo_image_url
 
 
         if 'gender_category' in data:
             gender_category = data.get('gender_category')
-            # Assuming GenderCategory is an enum or has predefined valid values in your model/logic
-            # For now, basic string validation. Add more specific checks if necessary.
-            valid_gender_categories = ['MIXED', 'MALE_ONLY', 'FEMALE_ONLY', 'OTHER'] # Example
+            valid_gender_categories = ['MIXED', 'MALE_ONLY', 'FEMALE_ONLY', 'OTHER']
             if not isinstance(gender_category, str) or not gender_category.strip():
+                 app.logger.warning(f"Invalid gender_category: {gender_category}")
                  return jsonify(message="Gender category must be a non-empty string."), 400
-            if gender_category not in valid_gender_categories: # Adapt this list as per your actual categories
+            if gender_category not in valid_gender_categories:
+                app.logger.warning(f"Invalid gender_category: {gender_category}. Must be one of {valid_gender_categories}.")
                 return jsonify(message=f"Invalid gender_category. Must be one of {valid_gender_categories}."), 400
             race.gender_category = gender_category
 
         if 'category' in data:
-            # Assuming category can be any string, including empty.
-            # If category needs specific validation (e.g., not empty, or from a predefined list), add it here.
-            # For example, if it cannot be empty when provided:
-            # if data['category'] is not None and not data['category'].strip():
-            #     return jsonify(message="Category cannot be empty if provided."), 400
             race.category = data['category']
 
+        app.logger.info(f"Race object after modifications: {race.to_dict() if hasattr(race, 'to_dict') else race}")
         db.session.commit()
-        # Serialize the updated race object to return
+
         updated_race_data = {
             "id": race.id,
             "title": race.title,
@@ -337,29 +342,34 @@ def update_race_details(race_id):
             "category": race.category, # Added category field
             "race_format_id": race.race_format_id,
             "user_id": race.user_id
-            # Add other fields as necessary
         }
+        app.logger.info(f"Returning updated_race_data: {updated_race_data}")
         return jsonify(message="Race details updated successfully", race=updated_race_data), 200
-    except ValueError as ve: # Catch specific validation errors if any are raised manually
+    except ValueError as ve:
         db.session.rollback()
+        app.logger.error(f"ValueError updating race details for race_id {race_id}: {ve}")
         return jsonify(message=str(ve)), 400
     except Exception as e:
         db.session.rollback()
-        print(f"Error updating race details: {e}")
+        app.logger.error(f"Exception updating race details for race_id {race_id}: {e}", exc_info=True)
         return jsonify(message="Error updating race details"), 500
 
 
 @app.route('/api/races/<int:race_id>', methods=['DELETE'])
 @login_required
 def delete_race(race_id):
+    app.logger.info(f"delete_race called for race_id: {race_id}")
     # 1. Check user role
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.username} forbidden to delete race {race_id}")
         return jsonify(message="Forbidden: You do not have permission to delete this race."), 403
 
     # 2. Fetch the Race object
     race = Race.query.get(race_id)
     if not race:
+        app.logger.warning(f"Race with id {race_id} not found for deletion.")
         return jsonify(message="Race not found"), 404
+    app.logger.info(f"Fetched race object for deletion: {race.to_dict() if hasattr(race, 'to_dict') else race}")
 
     try:
         # 3. Explicitly delete associated RaceSegmentDetail objects
@@ -378,17 +388,19 @@ def delete_race(race_id):
         # if the session is to be used further before commit. 'fetch' is generally safer.
 
         # 5. Delete the Race object itself
+        app.logger.info(f"Attempting to delete race object: {race.id}")
         db.session.delete(race)
 
         # 6. Commit the database session
         db.session.commit()
+        app.logger.info(f"Race {race_id} deleted and session committed successfully.")
         # HTTP 204 No Content is also appropriate for DELETE success if no message body is needed.
         # Returning 200 with a message is also common and acceptable.
         return jsonify(message="Race deleted successfully"), 200
     except Exception as e:
         # 7. Handle potential errors
         db.session.rollback()
-        print(f"Error deleting race {race_id}: {e}") # Log the error
+        app.logger.error(f"Exception deleting race {race_id}: {e}", exc_info=True)
         return jsonify(message="Error deleting race"), 500
 
 

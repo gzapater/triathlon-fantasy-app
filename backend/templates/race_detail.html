@@ -956,6 +956,7 @@
             if (editRaceForm) {
                 editRaceForm.addEventListener('submit', function(event) {
                     event.preventDefault();
+                    console.log('editRaceForm submitted. Current saveRaceChangesBtn state: disabled=true, classList should include opacity-50.');
                     saveRaceChangesBtn.disabled = true;
                     saveRaceChangesBtn.classList.add('opacity-50');
 
@@ -966,59 +967,70 @@
                         event_date: raceEventDateInput.value,
                         gender_category: raceGenderCategoryInput.value,
                         promo_image_url: racePromoImageUrlInput.value,
-                        category: document.getElementById('raceCategory').value // Added category
+                        category: document.getElementById('raceCategory').value
                     };
+                    console.log('FormData before sending fetch request:', formData);
 
                     // Basic client-side validation
                     if (!formData.title.trim()) {
                         alert('El título de la carrera es obligatorio.');
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
+                        console.log('Validation failed. saveRaceChangesBtn state: disabled=false, classList should not include opacity-50.');
                         return;
                     }
                      if (!formData.event_date) {
                         alert('La fecha del evento es obligatoria.');
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
+                        console.log('Validation failed. saveRaceChangesBtn state: disabled=false, classList should not include opacity-50.');
                         return;
                     }
-
 
                     fetch(`/api/races/${raceId}/details`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
-                            // Add CSRF token header if your Flask-WTF or similar is configured for APIs
                         },
                         body: JSON.stringify(formData)
                     })
-                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                    .then(response => {
+                        console.log('Raw response object from fetch:', response);
+                        return response.json().then(data => ({ ok: response.ok, status: response.status, body: data }));
+                    })
                     .then(result => {
+                        console.log('Parsed result object:', result);
                         if (result.ok) {
                             alert(result.body.message || 'Detalles de la carrera actualizados con éxito.');
                             closeEditRaceModal();
-                            // Dynamically update page content
-                            document.querySelector('.hero-bg h1').textContent = result.body.race.title;
-                            // Update description (handle truncation if needed)
+
+                            const titleElement = document.querySelector('.hero-bg h1');
+                            console.log('Updating title. Selector: ".hero-bg h1", Found:', titleElement !== null);
+                            if (titleElement) titleElement.textContent = result.body.race.title;
+
                             const heroDescription = document.querySelector('.hero-bg p.opacity-90');
+                            console.log('Updating hero description. Selector: ".hero-bg p.opacity-90", Found:', heroDescription !== null);
                             if (heroDescription) heroDescription.textContent = result.body.race.description.substring(0,150) + (result.body.race.description.length > 150 ? '...' : '');
 
-                            const detailedDescriptionP = document.querySelector('#mainContentRaceDescription'); // Assuming you add an ID here
-                            if (detailedDescriptionP) detailedDescriptionP.textContent = result.body.race.description;
-                            else { // Or update the existing one if it matches the condition
+                            const detailedDescriptionP = document.querySelector('#mainContentRaceDescription');
+                            console.log('Updating detailed description (by ID). Selector: "#mainContentRaceDescription", Found:', detailedDescriptionP !== null);
+                            if (detailedDescriptionP) {
+                                detailedDescriptionP.textContent = result.body.race.description;
+                            } else {
                                 const descContainer = document.querySelector('.bg-white.rounded-xl.p-6.shadow-lg > p.text-gray-600.leading-relaxed.whitespace-pre-line');
+                                console.log('Updating detailed description (by class). Selector: ".bg-white.rounded-xl.p-6.shadow-lg > p.text-gray-600.leading-relaxed.whitespace-pre-line", Found:', descContainer !== null);
                                 if(descContainer && result.body.race.description.length > 150) {
                                     descContainer.textContent = result.body.race.description;
+                                    const detailedDescSection = descContainer.closest('.bg-white.rounded-xl.p-6.shadow-lg');
+                                     if(detailedDescSection) detailedDescSection.style.display = 'block'; // Ensure it's visible
                                 } else if (descContainer && result.body.race.description.length <= 150) {
-                                     // If description becomes short, potentially hide this section or clear it
                                      const detailedDescSection = descContainer.closest('.bg-white.rounded-xl.p-6.shadow-lg');
                                      if(detailedDescSection) detailedDescSection.style.display = 'none';
                                 }
                             }
 
-
-                            // Update date and location in hero
                             const heroDateSpan = document.querySelector('.hero-bg .fa-calendar').nextElementSibling;
+                            console.log('Updating hero date. Selector: ".hero-bg .fa-calendar" (then nextElementSibling), Found:', heroDateSpan !== null);
                             if (heroDateSpan && result.body.race.event_date) {
                                 const eventDate = new Date(result.body.race.event_date);
                                 heroDateSpan.textContent = eventDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) + ' ' + eventDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
@@ -1027,42 +1039,42 @@
                             }
 
                             const heroLocationSpan = document.querySelector('.hero-bg .fa-map-marker-alt').nextElementSibling;
+                            console.log('Updating hero location. Selector: ".hero-bg .fa-map-marker-alt" (then nextElementSibling), Found:', heroLocationSpan !== null);
                             if (heroLocationSpan) heroLocationSpan.textContent = result.body.race.location || 'Ubicación no especificada';
 
-                            // Update gender category badge
-                            const genderBadge = document.querySelector('.hero-bg span.bg-white.bg-opacity-20:nth-of-type(2)'); // This selector might be fragile
+                            const genderBadge = document.querySelector('.hero-bg span.bg-white.bg-opacity-20:nth-of-type(2)');
+                            console.log('Updating gender badge. Selector: ".hero-bg span.bg-white.bg-opacity-20:nth-of-type(2)", Found:', genderBadge !== null);
                             if(genderBadge) genderBadge.textContent = result.body.race.gender_category;
 
-                            // Update promo image
                             const promoImage = document.querySelector('.hero-bg img');
+                            const promoImageContainer = promoImage ? promoImage.parentElement : null;
+                            console.log('Updating promo image. Selector: ".hero-bg img", Found:', promoImage !== null);
+                            console.log('Promo image container found:', promoImageContainer !== null);
+
                             if (promoImage && result.body.race.promo_image_url) {
                                 promoImage.src = result.body.race.promo_image_url;
                                 promoImage.alt = `Imagen de ${result.body.race.title}`;
-                                promoImage.parentElement.style.display = ''; // Show if it was hidden
+                                if(promoImageContainer) promoImageContainer.style.display = '';
                             } else if (promoImage && !result.body.race.promo_image_url) {
-                                promoImage.parentElement.style.display = 'none'; // Hide if no image
+                                if(promoImageContainer) promoImageContainer.style.display = 'none';
                             }
 
-                            // Update category (if displayed on page - currently not, but good for completeness)
-                            // For example, if there was an element <span id="raceCategoryDisplay"></span>:
-                            // const raceCategoryDisplay = document.getElementById('raceCategoryDisplay');
-                            // if (raceCategoryDisplay) raceCategoryDisplay.textContent = result.body.race.category;
-                            // Also, update the value in the modal's input field in case the user reopens it without page reload
                             const raceCategoryInput = document.getElementById('raceCategory');
+                            console.log('Updating race category input in modal. Selector: "#raceCategory", Found:', raceCategoryInput !== null);
                             if (raceCategoryInput) raceCategoryInput.value = result.body.race.category;
-
 
                         } else {
                             alert(`Error: ${result.body.message || 'No se pudo actualizar la carrera.'}`);
                         }
                     })
                     .catch(error => {
-                        console.error('Error saving race details:', error);
+                        console.error('Error in fetch .catch() block for saving race details:', error);
                         alert('Error de conexión al guardar los detalles de la carrera.');
                     })
                     .finally(() => {
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
+                        console.log('In finally block. saveRaceChangesBtn state: disabled=false, classList should not include opacity-50.');
                     });
                 });
             }
@@ -1286,32 +1298,47 @@
                 deleteRaceBtn.addEventListener('click', function() {
                     const confirmationMessage = '¿Estás seguro de que quieres eliminar esta carrera? Esta acción no se puede deshacer y eliminará todos los datos asociados (segmentos, preguntas, etc.).';
                     if (confirm(confirmationMessage)) {
+                        console.log(`Attempting to delete race with raceId: ${raceId}`);
                         if (!raceId) {
                             alert('Error: ID de la carrera no encontrado.');
+                            console.error('raceId is missing or empty.');
                             return;
                         }
                         fetch(`/api/races/${raceId}`, {
                             method: 'DELETE',
                             headers: {
                                 // CSRF token might be needed here if your app uses them for DELETE requests
-                                // e.g., 'X-CSRFToken': '{% raw %}{{ csrf_token() }}{% endraw %}' if Flask-WTF is setup for AJAX
                             }
                         })
                         .then(response => {
-                            // Try to parse JSON regardless of response.ok, as error messages might be in JSON body
-                            return response.json().then(data => ({ ok: response.ok, status: response.status, body: data }));
+                            console.log('Raw response from delete fetch:', response);
+                            // Clone the response to be able to parse it as JSON and still use it if JSON parsing fails
+                            const clonedResponse = response.clone();
+                            return response.json()
+                                .then(data => ({ ok: response.ok, status: response.status, body: data }))
+                                .catch(err => {
+                                    console.error('Error parsing JSON from delete response:', err);
+                                    // If JSON parsing fails, try to get text, but body might have been consumed by .json()
+                                    return clonedResponse.text().then(textData => ({
+                                        ok: response.ok,
+                                        status: response.status,
+                                        body: { message: `Could not parse JSON. Raw text: ${textData}` }
+                                    }));
+                                });
                         })
                         .then(result => {
+                            console.log('Parsed result from delete fetch:', result);
                             if (result.ok) {
                                 alert(result.body.message || 'Carrera eliminada con éxito.');
+                                console.log('Race deleted successfully, redirecting...');
                                 window.location.href = "{{ url_for('serve_hello_world_page') }}";
                             } else {
                                 alert(`Error al eliminar la carrera: ${result.body.message || `Error de servidor ${result.status}`}`);
+                                console.error('Failed to delete race:', result);
                             }
                         })
                         .catch(error => {
-                            console.error('Error en la solicitud de eliminación:', error);
-                            // This catch handles network errors or issues with the fetch promise chain itself
+                            console.error('Error in .catch() block for delete race request:', error);
                             alert('Error en la conexión o al procesar la solicitud de eliminación. Intenta de nuevo.');
                         });
                     }
