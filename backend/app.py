@@ -447,6 +447,9 @@ def delete_race(race_id):
         #    QuestionOption.question relationship has cascade="all, delete-orphan".
         #    So deleting Questions should cascade to QuestionOptions.
         Question.query.filter_by(race_id=race.id).delete(synchronize_session='fetch')
+
+        # Flush the session to execute the delete operations for related objects in the DB
+        db.session.flush()
         # Note: Using synchronize_session='fetch' or 'evaluate' can be important
         # if the session is to be used further before commit. 'fetch' is generally safer.
 
