@@ -1216,14 +1216,15 @@ def register_page():
     return render_template('register.html', roles=all_roles)
 
 
-@app.route('/Hello-world')
+@app.route('/Hello-world') # This is the main dashboard route after login
 @login_required
 def serve_hello_world_page():
+    # Keep existing filter and data fetching logic
     filter_date_from_str = request.args.get('filter_date_from')
     filter_date_to_str = request.args.get('filter_date_to')
     filter_race_format_id_str = request.args.get('filter_race_format_id')
 
-    all_race_formats = RaceFormat.query.order_by(RaceFormat.name).all() # Fetch all formats
+    all_race_formats = RaceFormat.query.order_by(RaceFormat.name).all()
 
     date_from_obj = None
     date_to_obj = None
@@ -1233,48 +1234,75 @@ def serve_hello_world_page():
         try:
             date_from_obj = datetime.strptime(filter_date_from_str, '%Y-%m-%d')
         except ValueError:
-            print(f"Invalid 'from' date format received: {filter_date_from_str}")
+            app.logger.warning(f"Invalid 'from' date format received: {filter_date_from_str}") # Added logger
             pass
 
     if filter_date_to_str:
         try:
             parsed_date_to = datetime.strptime(filter_date_to_str, '%Y-%m-%d')
+            # To include events on the 'to' date, set time to end of day
             date_to_obj = datetime.combine(parsed_date_to.date(), datetime.max.time())
         except ValueError:
-            print(f"Invalid 'to' date format received: {filter_date_to_str}")
+            app.logger.warning(f"Invalid 'to' date format received: {filter_date_to_str}") # Added logger
             pass
 
     if filter_race_format_id_str and filter_race_format_id_str.strip():
         try:
             race_format_id_int = int(filter_race_format_id_str)
         except ValueError:
-            print(f"Invalid 'race_format_id' format received: {filter_race_format_id_str}")
-            pass # Ignore if not a valid integer
+            app.logger.warning(f"Invalid 'race_format_id' format received: {filter_race_format_id_str}") # Added logger
+            pass
 
     query = Race.query
 
     if date_from_obj:
         query = query.filter(Race.event_date >= date_from_obj)
-
     if date_to_obj:
         query = query.filter(Race.event_date <= date_to_obj)
-
     if race_format_id_int is not None:
         query = query.filter(Race.race_format_id == race_format_id_int)
 
     try:
         all_races = query.order_by(Race.event_date.desc()).all()
     except Exception as e:
-        print(f"Error fetching races for index page: {e}")
+        app.logger.error(f"Error fetching races for index page: {e}") # Added logger
         all_races = []
+        # Consider flashing a message to the user or rendering an error template
         pass
 
-    return render_template('index.html',
-                           races=all_races,
-                           all_race_formats=all_race_formats, # Pass formats to template
-                           filter_date_from_str=filter_date_from_str,
-                           filter_date_to_str=filter_date_to_str,
-                           filter_race_format_id_str=filter_race_format_id_str) # Pass format ID for repopulation
+    current_year = datetime.utcnow().year
+    app.logger.info(f"Serving dashboard for user {current_user.username} with role {current_user.role.code}")
+
+    # Role-based rendering
+    if current_user.role.code == 'ADMIN':
+        return render_template('admin.html', current_year=current_year)
+    elif current_user.role.code == 'LEAGUE_ADMIN':
+        return render_template('index.html',
+                               races=all_races,
+                               all_race_formats=all_race_formats,
+                               filter_date_from_str=filter_date_from_str,
+                               filter_date_to_str=filter_date_to_str,
+                               filter_race_format_id_str=filter_race_format_id_str,
+                               current_year=current_year)
+    elif current_user.role.code == 'PLAYER':
+        return render_template('player.html',
+                               races=all_races,
+                               all_race_formats=all_race_formats,
+                               filter_date_from_str=filter_date_from_str,
+                               filter_date_to_str=filter_date_to_str,
+                               filter_race_format_id_str=filter_race_format_id_str,
+                               current_year=current_year)
+    else:
+        # Fallback for any other authenticated role, or if roles are added in the future
+        # Could also redirect to login or an error page
+        app.logger.warning(f"User {current_user.username} with unhandled role {current_user.role.code} accessing dashboard. Defaulting to player view.")
+        return render_template('player.html',
+                               races=all_races,
+                               all_race_formats=all_race_formats,
+                               filter_date_from_str=filter_date_from_str,
+                               filter_date_to_str=filter_date_to_str,
+                               filter_race_format_id_str=filter_race_format_id_str,
+                               current_year=current_year)
 
 @app.route('/create-race')
 @login_required
