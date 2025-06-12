@@ -137,7 +137,9 @@ def create_race():
     race_segment_details_objects = []
     for seg_data in segments_data:
         segment_id = seg_data.get('segment_id')
-        distance_km = seg_data.get('distance_km')
+        distance_km = seg_data.get('distance_km') # This is before float conversion
+
+        app.logger.info(f"Processing segment for RaceSegmentDetail: segment_id='{segment_id}', raw distance_km='{distance_km}'")
 
         if not isinstance(segment_id, int):
             return jsonify(message="Each segment's segment_id must be an integer."), 400
@@ -164,7 +166,12 @@ def create_race():
             distance_km=float(distance_km) # Ensure it's float
         ))
 
+    if not current_user or not current_user.is_authenticated or current_user.id is None:
+        app.logger.error(f"Race creation attempt by unauthenticated or invalid user. current_user: {current_user}, is_authenticated: {current_user.is_authenticated if current_user else 'N/A'}, user_id: {current_user.id if current_user else 'N/A'}")
+        return jsonify(message="Forbidden: User authentication issue. Cannot create race."), 403
+
     # Create Race object
+    app.logger.info(f"Attempting to create Race with parameters: title='{title}', description='{description}', race_format_id={race_format_id}, event_date='{event_date}', location='{location}', promo_image_url='{promo_image_url}', gender_category='{gender_category}', is_general={is_general}, user_id={current_user.id}, category='Elite'")
     new_race = Race(
         title=title,
         description=description,
@@ -253,7 +260,7 @@ def create_race():
         return jsonify(message="Race created successfully", race_id=new_race.id), 201
     except Exception as e:
         db.session.rollback()
-        print(f"Error creating race: {e}")
+        app.logger.error(f"Error creating race: {e}", exc_info=True)
         return jsonify(message="Error creating race"), 500
 
 @app.route('/api/races/<int:race_id>/details', methods=['PUT'])
