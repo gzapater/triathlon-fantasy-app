@@ -52,86 +52,14 @@ app.config['DEBUG_LOGIN'] = True      # <--- AÑADE ESTA LÍNEA TEMPORALMENTE pa
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def create_initial_roles():
-    #Checks for existing roles and creates them if not present, using code and description.
-    # Definimos los roles con su código y descripción
-    # El 'code' será el identificador interno (ej. ADMIN, LEAGUE_ADMIN, PLAYER)
-    # La 'description' será lo que se muestre (ej. Administrador, Admin de liga, Jugador)
-    roles_data = [
-        {'code': 'ADMIN', 'description': 'Administrador'},
-        {'code': 'LEAGUE_ADMIN', 'description': 'Admin de Liga'},
-        {'code': 'PLAYER', 'description': 'Jugador'}
-    ]
+# Seeding functions (create_initial_roles, create_initial_race_data, create_initial_question_types)
+# have been moved to backend/seed.py and will be run via CLI.
 
-    for role_info in roles_data:
-        # Buscamos el rol usando la nueva columna 'code'
-        role = Role.query.filter_by(code=role_info['code']).first()
-        
-        if not role:
-            # Si el rol no existe, lo creamos con 'code' y 'description'
-            new_role = Role(code=role_info['code'], description=role_info['description'])
-            db.session.add(new_role)
-            print(f"Role '{role_info['description']}' with code '{role_info['code']}' created.")
-        else:
-            print(f"Role '{role_info['description']}' with code '{role_info['code']}' already exists.")
+# The with app.app_context() block that called these functions is also removed
+# as it's no longer needed here for initial data seeding.
+# If it was used for other purposes like db.create_all(), ensure those are handled
+# appropriately (e.g., by Flask-Migrate).
 
-    db.session.commit()
-    print("Initial roles check and creation complete.")
-    # Commit after checking/adding all roles
-    # Check if there were any roles added to avoid empty commit
-    if db.session.new: # or check if any new_role was created
-        db.session.commit()
-    elif db.session.dirty: # For safety, if other changes were pending (should not be here ideally)
-        db.session.commit()
-
-def create_initial_race_data():
-    #Seeds RaceFormat and Segment tables with initial data.
-    race_formats_data = ["Triatlón", "Duatlón", "Acuatlón"]
-    segments_data = ["Natación", "Ciclismo", "Carrera a pie", "Transición 1 (T1)", "Transición 2 (T2)"]
-
-    for name in race_formats_data:
-        if not RaceFormat.query.filter_by(name=name).first():
-            db.session.add(RaceFormat(name=name))
-            print(f"RaceFormat '{name}' created.")
-        else:
-            print(f"RaceFormat '{name}' already exists.")
-
-    for name in segments_data:
-        if not Segment.query.filter_by(name=name).first():
-            db.session.add(Segment(name=name))
-            print(f"Segment '{name}' created.")
-        else:
-            print(f"Segment '{name}' already exists.")
-
-    # Check if any new data was added before committing
-    if db.session.new:
-        db.session.commit()
-        print("Initial race data seeding complete.")
-    else:
-        print("Initial race data already exists. No new data seeded.")
-
-def create_initial_question_types():
-    #Seeds QuestionType table with initial data.
-    question_type_names = ['FREE_TEXT', 'MULTIPLE_CHOICE', 'ORDERING']
-    for name in question_type_names:
-        if not QuestionType.query.filter_by(name=name).first():
-            db.session.add(QuestionType(name=name))
-            print(f"QuestionType '{name}' created.")
-        else:
-            print(f"QuestionType '{name}' already exists.")
-
-    if db.session.new: # Check if any new data was added
-        db.session.commit()
-        print("Initial question types seeding complete.")
-    else:
-        print("Initial question types already exist. No new data seeded.")
-
-with app.app_context():
-    pass
-    # db.create_all() # Ensures all tables are created based on models - Handled by migrations
-    # create_initial_roles() # Comentado para permitir las migraciones
-    # create_initial_race_data() # Comentado para permitir las migraciones
-    # create_initial_question_types() # Comentado para permitir las migraciones
 # --- API Routes ---
 
 @app.route('/api/race-formats', methods=['GET'])

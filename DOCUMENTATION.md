@@ -104,8 +104,23 @@ The project uses Flask-Migrate to manage database schema changes. The `migration
   This command applies any pending migration scripts to your database, updating the schema. This is usually the main command needed after cloning and setting up, or after generating a new migration.
   ```bash
   flask db upgrade
+  # or, using the management script:
+  python backend/manage.py db upgrade
   ```
-  *Note: `app.py` also contains `db.create_all()`, which can create tables. However, for structured schema management, Flask-Migrate commands (`flask db upgrade`) are preferred.*
+  *Note: `app.py` also contains `db.create_all()`, which can create tables. However, for structured schema management, Flask-Migrate commands (`flask db upgrade` or `python backend/manage.py db upgrade`) are preferred.*
+
+## 7.1. Database Seeding (Initial Data)
+After ensuring your database schema is up to date using the migration commands, you can populate the database with initial necessary data such as default roles, race formats, segments, and question types.
+
+To seed the database, run the following command from the project's root directory (the one containing the `backend` folder):
+
+```bash
+python backend/manage.py seed_data
+```
+
+**Note:**
+- Ensure that the `DATABASE_URL` environment variable is correctly set before running this command, as it needs to connect to your database. The `FLASK_SECRET_KEY` might also be required by the underlying Flask app initialization within `manage.py`.
+- This command should typically be run once after the initial database setup and migrations (`flask db upgrade` or `python backend/manage.py db upgrade`).
 
 ## 8. Run the Application
 Once the setup is complete, you can run the Flask development server from the `backend` directory.

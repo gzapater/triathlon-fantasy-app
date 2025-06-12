@@ -6,3 +6,4 @@ psycopg2-binary
 gunicorn 
 Flask-Migrate>=3.0.0
 bcrypt>=3.2.0
+Flask-Script==2.0.6
