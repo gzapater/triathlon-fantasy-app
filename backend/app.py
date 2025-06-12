@@ -127,10 +127,11 @@ def create_initial_question_types():
         print("Initial question types already exist. No new data seeded.")
 
 with app.app_context():
-    db.create_all() # Ensures all tables are created based on models - Handled by migrations
-    create_initial_roles() # Comentado para permitir las migraciones
-    create_initial_race_data() # Comentado para permitir las migraciones
-    create_initial_question_types() # Comentado para permitir las migraciones
+    pass
+    # db.create_all() # Ensures all tables are created based on models - Handled by migrations
+    # create_initial_roles() # Comentado para permitir las migraciones
+    # create_initial_race_data() # Comentado para permitir las migraciones
+    # create_initial_question_types() # Comentado para permitir las migraciones
 # --- API Routes ---
 
 @app.route('/api/race-formats', methods=['GET'])
@@ -150,6 +151,17 @@ def create_race():
         return jsonify(message="Forbidden: You do not have permission to create races."), 403
 
     data = request.get_json()
+
+    is_general_from_form = data.get('is_general', False) # Get value, default to False if not present
+
+    if current_user.role.code == 'ADMIN':
+        is_general = bool(is_general_from_form) # Convert to boolean, respect admin's choice
+    elif current_user.role.code == 'LEAGUE_ADMIN':
+        is_general = False # League admins always create local races
+    else:
+        # This case should ideally not happen if only ADMIN and LEAGUE_ADMIN can access this route
+        is_general = False
+
     questions_data = data.get('questions', []) # Extract questions data
     if not data:
         return jsonify(message="Invalid input: No data provided"), 400
@@ -233,6 +245,7 @@ def create_race():
         location=location,
         promo_image_url=promo_image_url,
         gender_category=gender_category,
+        is_general=is_general, # Add the new field here
         user_id=current_user.id,
         category="Elite" # Default as per requirement
     )
@@ -1253,30 +1266,45 @@ def serve_hello_world_page():
             app.logger.warning(f"Invalid 'race_format_id' format received: {filter_race_format_id_str}") # Added logger
             pass
 
-    query = Race.query
-
-    if date_from_obj:
-        query = query.filter(Race.event_date >= date_from_obj)
-    if date_to_obj:
-        query = query.filter(Race.event_date <= date_to_obj)
-    if race_format_id_int is not None:
-        query = query.filter(Race.race_format_id == race_format_id_int)
-
-    try:
-        all_races = query.order_by(Race.event_date.desc()).all()
-    except Exception as e:
-        app.logger.error(f"Error fetching races for index page: {e}") # Added logger
-        all_races = []
-        # Consider flashing a message to the user or rendering an error template
-        pass
-
     current_year = datetime.utcnow().year
     app.logger.info(f"Serving dashboard for user {current_user.username} with role {current_user.role.code}")
 
+    all_races = [] # Initialize all_races
+
     # Role-based rendering
     if current_user.role.code == 'ADMIN':
-        return render_template('admin.html', current_year=current_year)
+        query = Race.query.filter_by(is_general=True) # Filter for general races
+        if date_from_obj:
+            query = query.filter(Race.event_date >= date_from_obj)
+        if date_to_obj:
+            query = query.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None:
+            query = query.filter(Race.race_format_id == race_format_id_int)
+        try:
+            all_races = query.order_by(Race.event_date.desc()).all()
+        except Exception as e:
+            app.logger.error(f"Error fetching general races for admin dashboard: {e}")
+
+        return render_template('admin_dashboard.html',
+                               races=all_races,
+                               all_race_formats=all_race_formats,
+                               filter_date_from_str=filter_date_from_str,
+                               filter_date_to_str=filter_date_to_str,
+                               filter_race_format_id_str=filter_race_format_id_str,
+                               current_year=current_year)
     elif current_user.role.code == 'LEAGUE_ADMIN':
+        query = Race.query.filter_by(is_general=False, user_id=current_user.id) # Filter for their local races
+        if date_from_obj:
+            query = query.filter(Race.event_date >= date_from_obj)
+        if date_to_obj:
+            query = query.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None:
+            query = query.filter(Race.race_format_id == race_format_id_int)
+        try:
+            all_races = query.order_by(Race.event_date.desc()).all()
+        except Exception as e:
+            app.logger.error(f"Error fetching local races for league admin: {e}")
+
         return render_template('index.html',
                                races=all_races,
                                all_race_formats=all_race_formats,
@@ -1285,6 +1313,18 @@ def serve_hello_world_page():
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year)
     elif current_user.role.code == 'PLAYER':
+        query = Race.query.filter_by(is_general=True) # Filter for general races
+        if date_from_obj:
+            query = query.filter(Race.event_date >= date_from_obj)
+        if date_to_obj:
+            query = query.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None:
+            query = query.filter(Race.race_format_id == race_format_id_int)
+        try:
+            all_races = query.order_by(Race.event_date.desc()).all()
+        except Exception as e:
+            app.logger.error(f"Error fetching general races for player: {e}")
+
         return render_template('player.html',
                                races=all_races,
                                all_race_formats=all_race_formats,
@@ -1294,8 +1334,20 @@ def serve_hello_world_page():
                                current_year=current_year)
     else:
         # Fallback for any other authenticated role, or if roles are added in the future
-        # Could also redirect to login or an error page
-        app.logger.warning(f"User {current_user.username} with unhandled role {current_user.role.code} accessing dashboard. Defaulting to player view.")
+        # Defaulting to player view (general races)
+        app.logger.warning(f"User {current_user.username} with unhandled role {current_user.role.code} accessing dashboard. Defaulting to player view (general races).")
+        query = Race.query.filter_by(is_general=True)
+        if date_from_obj:
+            query = query.filter(Race.event_date >= date_from_obj)
+        if date_to_obj:
+            query = query.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None:
+            query = query.filter(Race.race_format_id == race_format_id_int)
+        try:
+            all_races = query.order_by(Race.event_date.desc()).all()
+        except Exception as e:
+            app.logger.error(f"Error fetching general races for fallback/unhandled role: {e}")
+
         return render_template('player.html',
                                races=all_races,
                                all_race_formats=all_race_formats,

@@ -79,6 +79,7 @@ class Race(db.Model):
     gender_category = db.Column(db.String(255), nullable=False)  # e.g., "Masculino", "Femenino", "Ambos"
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('races', lazy=True))
+    is_general = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

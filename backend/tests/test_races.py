@@ -142,6 +142,7 @@ def test_create_race_success_league_admin(authenticated_client, db_session):
     assert race_in_db is not None
     assert race_in_db.title == race_data["title"]
     assert race_in_db.user_id == league_admin.id
+    assert race_in_db.is_general is False # League Admin created races are always local
     assert race_in_db.category == "Elite" # Default
     assert len(race_in_db.segment_details) == 3
 
@@ -183,7 +184,41 @@ def test_create_race_success_admin(authenticated_client, db_session):
     assert race_in_db is not None
     assert race_in_db.title == race_data["title"]
     assert race_in_db.user_id == admin.id
+    assert race_in_db.is_general is False # Admin created races default to local if not specified
     assert len(race_in_db.segment_details) == 3
+
+def test_create_race_admin_can_create_general_race(authenticated_client, db_session):
+    test_client, admin = authenticated_client("ADMIN")
+
+    triatlon_format = RaceFormat.query.filter_by(name="Triatlón").first()
+    natacion_segment = Segment.query.filter_by(name="Natación").first()
+
+    assert triatlon_format, "Triatlón format not found"
+    assert natacion_segment, "Natación segment not found"
+
+    race_data = {
+        "title": "Admin's Public Grand Event",
+        "description": "A major public event for all to see.",
+        "race_format_id": triatlon_format.id,
+        "event_date": "2025-03-20",
+        "location": "Global City",
+        "gender_category": "Ambos",
+        "segments": [
+            {"segment_id": natacion_segment.id, "distance_km": 3.8}
+        ],
+        "is_general": True # Explicitly set to True by Admin
+    }
+    response = test_client.post('/api/races', json=race_data)
+    assert response.status_code == 201, f"Response data: {response.get_data(as_text=True)}"
+    data = response.get_json()
+    assert "race_id" in data
+
+    race_in_db = Race.query.get(data['race_id'])
+    assert race_in_db is not None
+    assert race_in_db.title == race_data["title"]
+    assert race_in_db.user_id == admin.id
+    assert race_in_db.is_general is True # Key assertion for this test
+    assert len(race_in_db.segment_details) == 1
 
 
 # Validation Tests for POST /api/races
@@ -333,94 +368,99 @@ def test_hello_world_page_no_races(authenticated_client, db_session):
     # Assuming in-memory DB is clean per session, or specific cleanup for this test.
     # For now, we rely on the fact that no races are added by default for a fresh user.
     # A more robust way would be to explicitly delete all Race objects here.
-    Race.query.delete()
+    Race.query.delete() # Clear any existing races
     db_session.commit()
 
     response = test_client.get('/Hello-world')
     assert response.status_code == 200
     html_content = response.get_data(as_text=True)
-    assert "No hay carreras programadas por el momento." in html_content
-    assert "Crear Carrera" not in html_content # Player shouldn't see this
+    # The message for Admin dashboard (general races) is different from Player (general) or League Admin (local)
+    # For a player with no general races:
+    assert "No hay carreras públicas disponibles según los filtros aplicados." in html_content or \
+           "No hay carreras destacadas por el momento." in html_content # Original message for player/index
 
-def test_hello_world_page_with_races_and_roles(authenticated_client, db_session, new_user_factory):
-    # Create some race formats and segments if not already seeded by app fixture
-    # (conftest should handle this, but being explicit for clarity if needed)
+    # Player shouldn't see "Crear Carrera" link
+    assert "Crear Carrera" not in html_content
+
+def test_dashboard_race_visibility(authenticated_client, db_session, new_user_factory):
     rf1 = RaceFormat.query.filter_by(name="Triatlón").first()
-    if not rf1:
-        rf1 = RaceFormat(name="Triatlón")
-        db_session.add(rf1)
-        db_session.commit()
+    if not rf1: # Ensure format exists
+        rf1 = RaceFormat(name="Triatlón"); db_session.add(rf1); db_session.commit()
 
-    # Create users for race creation
-    # admin_user = User.query.filter_by(username="admin_user_for_race").first()
-    # if not admin_user:
-    #     admin_role = Role.query.filter_by(code="ADMIN").first()
-    #     admin_user = User(username="admin_user_for_race", email="admin_race@test.com", role_id=admin_role.id, name="Admin Racer")
-    #     admin_user.set_password("password")
-    #     db_session.add(admin_user)
-    #     db_session.commit()
-    # Using existing admin_user fixture is better. Let's assume admin_user fixture is available.
-    # We need an admin to be the creator of the race, let's use the one from new_user_factory or fixture.
-    # The authenticated_client logs in a user, but for creating races, we need a user_id.
-    # Let's create a dedicated admin for this test to own the races.
+    admin_creator = new_user_factory("admin_creator", "admin_creator@test.com", "password", "ADMIN")
+    la_creator1 = new_user_factory("la_creator1", "la_creator1@test.com", "password", "LEAGUE_ADMIN")
+    la_creator2 = new_user_factory("la_creator2", "la_creator2@test.com", "password", "LEAGUE_ADMIN")
 
-    creator_admin = User.query.filter_by(username="race_creator_admin").first()
-    if not creator_admin:
-         creator_admin = new_user_factory("race_creator_admin", "race_creator@test.com", "password", "ADMIN")
+    # Create races
+    general_race_by_admin = Race(title="General Race by Admin", race_format_id=rf1.id, event_date=datetime(2024, 7, 1),
+                                 user_id=admin_creator.id, is_general=True, gender_category="Ambos", category="Elite")
+    local_race_by_admin = Race(title="Local Race by Admin", race_format_id=rf1.id, event_date=datetime(2024, 7, 2),
+                               user_id=admin_creator.id, is_general=False, gender_category="Ambos", category="Elite")
+    local_race_by_la1 = Race(title="Local Race by LA1", race_format_id=rf1.id, event_date=datetime(2024, 7, 3),
+                             user_id=la_creator1.id, is_general=False, gender_category="Ambos", category="Elite")
+    local_race_by_la2 = Race(title="Local Race by LA2", race_format_id=rf1.id, event_date=datetime(2024, 7, 4),
+                             user_id=la_creator2.id, is_general=False, gender_category="Ambos", category="Elite")
 
-
-    race1 = Race(title="Summer Triathlon", race_format_id=rf1.id, event_date=datetime(2024, 7, 15),
-                 location="Beach City", user_id=creator_admin.id, gender_category="Ambos", category="Elite")
-    race2 = Race(title="Autumn Duathlon", race_format_id=rf1.id, event_date=datetime(2024, 10, 5),
-                 location="Forest Town", user_id=creator_admin.id, gender_category="Masculino", category="Elite") # Assuming rf1 for simplicity
-    race3 = Race(title="Spring Aquathlon", race_format_id=rf1.id, event_date=datetime(2024,4, 20),
-                 location="Lake Side", user_id=creator_admin.id, gender_category="Femenino", category="Elite")
-
-    db_session.add_all([race1, race2, race3])
+    db_session.add_all([general_race_by_admin, local_race_by_admin, local_race_by_la1, local_race_by_la2])
     db_session.commit()
 
-    # Test as PLAYER
-    player_client, player_user = authenticated_client("PLAYER")
-    response_player = player_client.get('/Hello-world')
-    assert response_player.status_code == 200
-    html_player = response_player.get_data(as_text=True)
-
-    assert "Summer Triathlon" in html_player
-    assert "Beach City" in html_player
-    assert "15 July, 2024" in html_player # Check date format, adjust if strftime is different
-    assert "Autumn Duathlon" in html_player
-    assert "05 October, 2024" in html_player
-    assert "Spring Aquathlon" in html_player
-    assert "20 April, 2024" in html_player
-
-    # Check order (race2 newest of these three, then race1, then race3)
-    # This depends on the exact strftime format; a more robust check might look at positions
-    assert html_player.find("Autumn Duathlon") < html_player.find("Summer Triathlon") < html_player.find("Spring Aquathlon")
-
-    assert "Crear Carrera" not in html_player # Player shouldn't see this link
-
-    # Test as LEAGUE_ADMIN
-    league_admin_client, _ = authenticated_client("LEAGUE_ADMIN")
-    response_league_admin = league_admin_client.get('/Hello-world')
-    assert response_league_admin.status_code == 200
-    html_league_admin = response_league_admin.get_data(as_text=True)
-    assert "Summer Triathlon" in html_league_admin # Basic check
-    assert "Crear Carrera" in html_league_admin # League Admin should see this
-
-    # Test as ADMIN
+    # Test as ADMIN user (using the one from authenticated_client, not necessarily admin_creator)
     admin_client, _ = authenticated_client("ADMIN")
     response_admin = admin_client.get('/Hello-world')
     assert response_admin.status_code == 200
     html_admin = response_admin.get_data(as_text=True)
-    assert "Summer Triathlon" in html_admin # Basic check
-    assert "Crear Carrera" in html_admin # Admin should see this
+    assert "General Race by Admin" in html_admin
+    assert "Local Race by Admin" not in html_admin
+    assert "Local Race by LA1" not in html_admin
+    assert "Local Race by LA2" not in html_admin
+    assert "Listado de Carreras Públicas" in html_admin # Title from admin_dashboard.html
 
-    # Clean up created races for other tests if needed, though in-memory DB handles per-session cleanup.
-    db_session.delete(race1)
-    db_session.delete(race2)
-    db_session.delete(race3)
-    # db_session.delete(creator_admin) # If this user is only for this test
-    db_session.commit()
+    # Test as LEAGUE_ADMIN1 (la_creator1)
+    # Need to log in as la_creator1 specifically
+    la1_client, _ = authenticated_client(role_code=None) # Get client without auto-login
+    login_resp_la1 = la1_client.post('/api/login', json={'username': 'la_creator1', 'password': 'password'})
+    assert login_resp_la1.status_code == 200
+
+    response_la1 = la1_client.get('/Hello-world')
+    assert response_la1.status_code == 200
+    html_la1 = response_la1.get_data(as_text=True)
+    assert "Local Race by LA1" in html_la1
+    assert "General Race by Admin" not in html_la1
+    assert "Local Race by Admin" not in html_la1
+    assert "Local Race by LA2" not in html_la1
+    assert "Carreras Destacadas" in html_la1 # Title from index.html
+
+    # Test as PLAYER user
+    player_client, _ = authenticated_client("PLAYER")
+    response_player = player_client.get('/Hello-world')
+    assert response_player.status_code == 200
+    html_player = response_player.get_data(as_text=True)
+    assert "General Race by Admin" in html_player
+    assert "Local Race by Admin" not in html_player
+    assert "Local Race by LA1" not in html_player
+    assert "Local Race by LA2" not in html_player
+    # Player dashboard title might be different, e.g. "Próximas Carreras" or similar
+    # For now, check "Crear Carrera" is not present
+    assert "Crear Carrera" not in html_player
+
+
+# --- Tests for conditional display of is_general checkbox ---
+
+def test_admin_sees_is_general_checkbox_on_create_race_page(authenticated_client):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/create-race')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+    assert 'id="is_general"' in html_content
+    assert "Marcar como Carrera General" in html_content
+
+def test_league_admin_does_not_see_is_general_checkbox_on_create_race_page(authenticated_client):
+    league_admin_client, _ = authenticated_client("LEAGUE_ADMIN")
+    response = league_admin_client.get('/create-race')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+    assert 'id="is_general"' not in html_content
+    assert "Marcar como Carrera General" not in html_content
 
 
 # --- Tests for PUT /api/races/<race_id>/details ---

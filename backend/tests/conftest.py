@@ -116,3 +116,59 @@ def authenticated_client(client, new_user_factory):
             raise RuntimeError(f"Failed to log in user {username}. Status: {response.status_code}, Data: {response.get_data(as_text=True)}")
         return client, user # Return both client and user object for convenience
     return _authenticated_client
+
+@pytest.fixture
+def race_creation_payload_factory(db_session):
+    """Factory to generate race creation payloads."""
+    def _factory(title, race_format_name, event_date_str, gender_category, segments_data, is_general_val, description=None, location=None, promo_image_url=None):
+        race_format = RaceFormat.query.filter_by(name=race_format_name).first()
+        if not race_format:
+            # Create if not exists for test robustness, or raise error
+            race_format = RaceFormat(name=race_format_name)
+            db_session.add(race_format)
+            db_session.commit()
+
+        processed_segments = []
+        for seg_info in segments_data: # e.g., [{"name": "Natación", "distance_km": 1.5}]
+            segment = Segment.query.filter_by(name=seg_info["name"]).first()
+            if not segment:
+                segment = Segment(name=seg_info["name"])
+                db_session.add(segment)
+                db_session.commit()
+            processed_segments.append({"segment_id": segment.id, "distance_km": seg_info["distance_km"]})
+
+        payload = {
+            "title": title,
+            "race_format_id": race_format.id,
+            "event_date": event_date_str, # Expects "YYYY-MM-DD"
+            "gender_category": gender_category,
+            "segments": processed_segments,
+            "is_general": is_general_val
+        }
+        if description is not None: payload["description"] = description
+        if location is not None: payload["location"] = location
+        if promo_image_url is not None: payload["promo_image_url"] = promo_image_url
+        return payload
+    return _factory
+
+@pytest.fixture
+def sample_race(db_session, admin_user):
+    """A sample race created in the DB for tests that need an existing race."""
+    tri_format = RaceFormat.query.filter_by(name="Triatlón").first()
+    if not tri_format:
+        tri_format = RaceFormat(name="Triatlón"); db_session.add(tri_format); db_session.commit()
+
+    race = Race(
+        title="Default Test Race",
+        description="A default race for testing purposes.",
+        race_format_id=tri_format.id,
+        event_date=datetime.strptime("2024-12-01", "%Y-%m-%d"),
+        location="Default Test City",
+        user_id=admin_user.id, # Owned by admin_user by default
+        is_general=False, # Default to local, tests can override if needed or create specific ones
+        gender_category="Ambos",
+        category="Elite"
+    )
+    db_session.add(race)
+    db_session.commit()
+    return race
