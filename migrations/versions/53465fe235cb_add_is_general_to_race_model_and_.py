@@ -1,8 +1,8 @@
-"""Add is_general to Race model
+"""Add is_general to Race model and recreate baseline
 
-Revision ID: 64a92793e613
+Revision ID: 53465fe235cb
 Revises:
-Create Date: 2025-06-11 22:22:46.043729
+Create Date: 2025-06-12 07:43:38.095306
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '64a92793e613'
+revision = '53465fe235cb'
 down_revision = None
 branch_labels = None
 depends_on = None
