@@ -1338,20 +1338,29 @@ def serve_hello_world_page():
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year)
     elif current_user.role.code == 'PLAYER':
-        query = Race.query.filter_by(is_general=True) # Filter for general races
+        # Query UserRaceRegistration for all race_ids for the current_user
+        user_registrations = UserRaceRegistration.query.filter_by(user_id=current_user.id).all()
+        registered_race_ids = [reg.race_id for reg in user_registrations]
+
+        # Query Race model for these race_ids
+        query = Race.query.filter(Race.id.in_(registered_race_ids))
+
+        # Apply existing filters
         if date_from_obj:
             query = query.filter(Race.event_date >= date_from_obj)
         if date_to_obj:
             query = query.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
+
+        registered_races = []
         try:
-            all_races = query.order_by(Race.event_date.desc()).all()
+            registered_races = query.order_by(Race.event_date.desc()).all()
         except Exception as e:
-            app.logger.error(f"Error fetching general races for player: {e}")
+            app.logger.error(f"Error fetching registered races for player {current_user.id}: {e}")
 
         return render_template('player.html',
-                               races=all_races,
+                               registered_races=registered_races, # Pass registered_races
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
@@ -1359,7 +1368,7 @@ def serve_hello_world_page():
                                current_year=current_year)
     else:
         # Fallback for any other authenticated role, or if roles are added in the future
-        # Defaulting to player view (general races)
+        # Defaulting to player view (general races) - This part remains unchanged
         app.logger.warning(f"User {current_user.username} with unhandled role {current_user.role.code} accessing dashboard. Defaulting to player view (general races).")
         query = Race.query.filter_by(is_general=True)
         if date_from_obj:
@@ -1369,12 +1378,12 @@ def serve_hello_world_page():
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
         try:
-            all_races = query.order_by(Race.event_date.desc()).all()
+            all_races = query.order_by(Race.event_date.desc()).all() # Keep variable name all_races for consistency in this block
         except Exception as e:
             app.logger.error(f"Error fetching general races for fallback/unhandled role: {e}")
 
         return render_template('player.html',
-                               races=all_races,
+                               races=all_races, # Keep races=all_races for this fallback block
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,

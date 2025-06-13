@@ -256,46 +256,49 @@
                 </div>
             </div>
 
-            <!-- Dashboard Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="gradient-water rounded-full p-3">
-                            <i class="fas fa-flag-checkered text-white text-xl"></i>
-                        </div>
-                        <span class="text-2xl font-bold text-gray-800">24</span>
-                    </div>
-                    <h3 class="text-gray-600 font-medium">Carreras Activas</h3>
+            <!-- Mis Carreras Inscritas Section -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="brand-font text-2xl font-bold text-gray-800">Mis Carreras Inscritas</h2>
                 </div>
-
-                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="gradient-run rounded-full p-3">
-                            <i class="fas fa-users text-white text-xl"></i>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% if registered_races and registered_races|length > 0 %}
+                        {% for race in registered_races %}
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                            {% set card_gradient_class = 'gradient-water' %}
+                            {% if race.race_format.name == 'Duatlón' %}
+                                {% set card_gradient_class = 'gradient-run' %}
+                            {% elif race.race_format.name == 'Acuatlón' %}
+                                {% set card_gradient_class = 'gradient-bike' %}
+                            {% endif %}
+                            <div class="{{ card_gradient_class }} h-32 flex items-center justify-center">
+                                <div class="text-center text-white">
+                                    <i class="fas fa-flag-checkered text-3xl mb-2"></i>
+                                    <p class="font-semibold">{{ race.race_format.name }}</p>
+                                </div>
+                            </div>
+                            <div class="p-6">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race.race_format.name }}</span>
+                                    <span class="text-sm text-gray-500">{{ race.event_date.strftime('%d %b %Y') if race.event_date else 'Fecha no disp.' }}</span>
+                                </div>
+                                <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race.title }}</h3>
+                                <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race.location if race.location else 'No especificada' }}</p>
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        <i class="fas fa-map-marker-alt text-gray-400"></i>
+                                        <span class="text-sm text-gray-600">{{ race.location if race.location else 'N/A' }}</span>
+                                    </div>
+                                    <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
+                                </div>
+                            </div>
                         </div>
-                        <span class="text-2xl font-bold text-gray-800">1,247</span>
-                    </div>
-                    <h3 class="text-gray-600 font-medium">Participantes</h3>
-                </div>
-
-                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="gradient-bike rounded-full p-3">
-                            <i class="fas fa-trophy text-white text-xl"></i>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-span-1 md:col-span-2 lg:col-span-3">
+                            <p class="text-center text-gray-500 py-10">No estás inscrito en ninguna carrera por el momento.</p>
                         </div>
-                        <span class="text-2xl font-bold text-gray-800">8</span>
-                    </div>
-                    <h3 class="text-gray-600 font-medium">Ligas</h3>
-                </div>
-
-                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="gradient-orange rounded-full p-3">
-                            <i class="fas fa-calendar text-white text-xl"></i>
-                        </div>
-                        <span class="text-2xl font-bold text-gray-800">15</span>
-                    </div>
-                    <h3 class="text-gray-600 font-medium">Este Mes</h3>
+                    {% endif %}
                 </div>
             </div>
 
