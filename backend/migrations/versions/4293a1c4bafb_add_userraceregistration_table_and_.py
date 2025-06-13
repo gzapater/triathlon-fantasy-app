@@ -29,7 +29,7 @@ def upgrade():
     sa.UniqueConstraint('user_id', 'race_id', name='_user_race_uc')
     )
     with op.batch_alter_table('races', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('is_general', sa.Boolean(), nullable=False))
+        # batch_op.add_column(sa.Column('is_general', sa.Boolean(), nullable=False)) # COMENTADO: Ya debe ser añadida por 20250613131338
 
     # ### end Alembic commands ###
 
