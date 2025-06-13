@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration # Added UserRaceRegistration
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption # Added UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from flask_migrate import Migrate # Import Migrate
@@ -1417,13 +1417,154 @@ def serve_race_detail_page(race_id):
     current_year = datetime.utcnow().year
 
     user_role_code = 'GUEST' # Default role if not authenticated or no role
-    if current_user and current_user.is_authenticated and hasattr(current_user, 'role') and current_user.role:
+    is_user_registered_for_race = False # Default to false
+
+    if current_user and current_user.is_authenticated:
         user_role_code = current_user.role.code
+        # Check if the current user is registered for this race
+        registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
+        if registration:
+            is_user_registered_for_race = True
+    else:
+        # Ensure current_user.is_authenticated is False if current_user is None or not authenticated
+        # This handles cases where current_user might be an AnonymousUserMixin without a 'role'
+        pass
+
 
     return render_template('race_detail.html',
                            race=race,
                            current_year=current_year,
-                           currentUserRole=user_role_code)
+                           currentUserRole=user_role_code,
+                           is_user_registered_for_race=is_user_registered_for_race)
+
+# --- API Endpoint for Saving User Answers ---
+@app.route('/api/races/<int:race_id>/answers', methods=['POST'])
+@login_required
+def save_user_answers(race_id):
+    app.logger.info(f"User {current_user.id} attempting to save answers for race {race_id}")
+
+    # 1. Permissions Check: Fetch Race
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Attempt to save answers for non-existent race {race_id} by user {current_user.id}")
+        return jsonify(message="Race not found"), 404
+
+    # 2. Permissions Check: User Registration for this Race
+    registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
+    if not registration:
+        app.logger.warning(f"User {current_user.id} not registered for race {race_id}, cannot save answers.")
+        return jsonify(message="User not registered for this race"), 403
+
+    # 3. Data Reception
+    answers_payload = request.get_json()
+    if not answers_payload:
+        app.logger.warning(f"No payload received for saving answers for race {race_id} by user {current_user.id}")
+        return jsonify(message="No data provided"), 400
+
+    app.logger.debug(f"Received answers payload for race {race_id} from user {current_user.id}: {answers_payload}")
+
+    try:
+        # 4. Processing Answers
+        for question_id_str, answer_data in answers_payload.items():
+            try:
+                question_id = int(question_id_str)
+            except ValueError:
+                app.logger.warning(f"Invalid question_id format '{question_id_str}' in payload for race {race_id}.")
+                # Decide: skip this answer or fail the whole request? For now, skip.
+                continue
+
+            question = Question.query.get(question_id)
+            if not question:
+                app.logger.warning(f"Question with id {question_id} not found while saving answers for race {race_id}.")
+                # Decide: skip or fail? For now, skip.
+                continue
+
+            # Check if the question belongs to the given race_id to prevent misuse
+            if question.race_id != race_id:
+                app.logger.warning(f"Question {question_id} does not belong to race {race_id}. User {current_user.id} attempting to answer.")
+                continue
+
+
+            # Delete existing answers for this user and question
+            # This also handles deletion of UserAnswerMultipleChoiceOption due to cascade
+            UserAnswer.query.filter_by(user_id=current_user.id, question_id=question.id).delete()
+            # db.session.flush() # Ensure deletes are processed before adds if there are unique constraints or complex interactions
+
+            new_user_answer = UserAnswer(
+                user_id=current_user.id,
+                race_id=race_id, # or race.id
+                question_id=question.id
+            )
+
+            question_type_name = question.question_type.name
+            app.logger.info(f"Processing answer for question {question.id} (type: {question_type_name})")
+
+
+            if question_type_name == 'FREE_TEXT':
+                new_user_answer.answer_text = answer_data.get('answer_text')
+                if new_user_answer.answer_text is None: # Explicitly check for None if empty string is valid
+                    app.logger.debug(f"No answer_text provided for FREE_TEXT question {question.id}")
+
+            elif question_type_name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    selected_ids = answer_data.get('selected_option_ids', [])
+                    if not isinstance(selected_ids, list): # Basic validation
+                        app.logger.warning(f"selected_option_ids for Q {question.id} is not a list: {selected_ids}")
+                        selected_ids = [] # Default to empty list to avoid iteration error
+
+                    app.logger.debug(f"MC Multiple for Q {question.id}: selected_ids = {selected_ids}")
+                    for opt_id in selected_ids:
+                        # Optional: Validate if opt_id actually belongs to this question
+                        option_exists = QuestionOption.query.filter_by(id=opt_id, question_id=question.id).first()
+                        if option_exists:
+                            mc_option = UserAnswerMultipleChoiceOption(question_option_id=opt_id)
+                            new_user_answer.selected_mc_options.append(mc_option)
+                        else:
+                            app.logger.warning(f"Invalid option_id {opt_id} for question {question.id} submitted by user {current_user.id}")
+                else: # Single correct
+                    selected_id = answer_data.get('selected_option_id')
+                    app.logger.debug(f"MC Single for Q {question.id}: selected_option_id = {selected_id}")
+                    if selected_id is not None:
+                        # Optional: Validate if selected_id actually belongs to this question
+                        option_exists = QuestionOption.query.filter_by(id=selected_id, question_id=question.id).first()
+                        if option_exists:
+                            new_user_answer.selected_option_id = selected_id
+                        else:
+                            app.logger.warning(f"Invalid selected_option_id {selected_id} for question {question.id} submitted by user {current_user.id}")
+                            new_user_answer.selected_option_id = None # Or skip setting it
+                    else: # No option selected
+                        new_user_answer.selected_option_id = None
+
+
+            elif question_type_name == 'ORDERING':
+                # Currently, frontend sends ordered_options_text
+                new_user_answer.answer_text = answer_data.get('ordered_options_text')
+                if new_user_answer.answer_text is None:
+                     app.logger.debug(f"No ordered_options_text provided for ORDERING question {question.id}")
+
+            else:
+                app.logger.warning(f"Unsupported question type '{question_type_name}' encountered for question {question.id}")
+                # Skip adding this answer if type is unknown or unhandled by this logic
+                continue
+
+            db.session.add(new_user_answer)
+            app.logger.info(f"UserAnswer prepared for question {question.id} by user {current_user.id}")
+
+
+        # 5. Commit and Respond
+        db.session.commit()
+        app.logger.info(f"Answers successfully saved for race {race_id} by user {current_user.id}")
+        return jsonify(message="Answers saved successfully"), 201 # 201 Created (or 200 OK if updating)
+
+    except IntegrityError as ie:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError saving answers for race {race_id}, user {current_user.id}: {ie}", exc_info=True)
+        return jsonify(message="Database integrity error while saving answers."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception saving answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while saving answers."), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -33,6 +33,7 @@ class User(db.Model, UserMixin):
 
     # Relationship for UserRaceRegistration
     registrations = db.relationship('UserRaceRegistration', backref='user', lazy=True, cascade="all, delete-orphan")
+    answers = db.relationship('UserAnswer', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -84,6 +85,7 @@ class Race(db.Model):
     registrations = db.relationship('UserRaceRegistration', backref='race', lazy=True, cascade="all, delete-orphan")
     segment_details = db.relationship('RaceSegmentDetail', backref='race', lazy=True, cascade="all, delete-orphan") # Added cascade
     questions = db.relationship('Question', backref='race', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
+    answers = db.relationship('UserAnswer', backref='race', lazy=True, cascade="all, delete-orphan")
 
 
     def __repr__(self):
@@ -147,6 +149,7 @@ class Question(db.Model):
     bonus_for_full_order = db.Column(db.Integer, nullable=True)
 
     options = db.relationship('QuestionOption', backref='question', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
+    answers = db.relationship('UserAnswer', backref='question', lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):
         return f'<Question {self.id}: {self.text[:50]}...>'
@@ -165,5 +168,49 @@ class QuestionOption(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    user_answers = db.relationship('UserAnswer', backref='selected_option', lazy=True)
+    user_selections = db.relationship('UserAnswerMultipleChoiceOption', backref='question_option', lazy=True, cascade="all, delete-orphan")
+
     def __repr__(self):
         return f'<QuestionOption {self.id}: {self.option_text[:50]}... (QID: {self.question_id})>'
+
+
+# UserAnswer and UserAnswerMultipleChoiceOption Models
+
+class UserAnswer(db.Model):
+    __tablename__ = 'user_answers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    answer_text = db.Column(Text, nullable=True)
+    selected_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships are defined in User, Race, Question, QuestionOption models
+    # For selected_mc_options relationship:
+    selected_mc_options = db.relationship('UserAnswerMultipleChoiceOption', backref='user_answer', lazy=True, cascade="all, delete-orphan")
+
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'question_id', name='_user_question_uc'),)
+
+    def __repr__(self):
+        return f'<UserAnswer id={self.id} user_id={self.user_id} question_id={self.question_id}>'
+
+
+class UserAnswerMultipleChoiceOption(db.Model):
+    __tablename__ = 'user_answer_multiple_choice_options'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_answer_id = db.Column(db.Integer, db.ForeignKey('user_answers.id'), nullable=False)
+    question_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships are defined in UserAnswer and QuestionOption models
+
+    __table_args__ = (db.UniqueConstraint('user_answer_id', 'question_option_id', name='_user_answer_option_uc'),)
+
+    def __repr__(self):
+        return f'<UserAnswerMultipleChoiceOption id={self.id} user_answer_id={self.user_answer_id} option_id={self.question_option_id}>'

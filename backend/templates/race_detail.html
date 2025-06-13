@@ -276,6 +276,9 @@
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
                         {% endif %}
+                        <button id="answerQuestionsBtn" class="btn btn-primary bg-green-500 hover:bg-green-600 px-5 py-2.5 sm:px-6 sm:py-3" style="display: none;">
+                            <i class="fas fa-tasks mr-2"></i>Responder Preguntas
+                        </button>
                     </div>
                 </div>
                 {% if race.promo_image_url %}
@@ -508,6 +511,7 @@
     <script>
         const raceId = "{{ race.id | default('') }}";
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
+        const isUserRegisteredForRace = {{ is_user_registered_for_race | tojson }};
         let allRaceQuestions = [];
         let isFetchingQuestions = false;
 
@@ -686,6 +690,11 @@
                 })
                 .finally(() => {
                     isFetchingQuestions = false;
+                    // Check to display Answer Questions button after questions are fetched
+                    const answerQuestionsBtn = document.getElementById('answerQuestionsBtn');
+                    if (answerQuestionsBtn && isUserRegisteredForRace && allRaceQuestions && allRaceQuestions.length > 0) {
+                        answerQuestionsBtn.style.display = 'inline-flex'; // Or 'block' or other appropriate display style
+                    }
                 });
         }
 
@@ -1351,7 +1360,301 @@
                 });
             }
         });
+
+        // --- Question Wizard Logic ---
+        let currentQuestionIndex = 0;
+        let userWizardAnswers = {}; // Stores answers as { question_id: { ...answer_data } }
+
+        // Wizard Modal DOM Elements
+        const questionWizardModal = document.getElementById('questionWizardModal');
+        const wizardQuestionProgress = document.getElementById('wizardQuestionProgress');
+        const closeWizardModalBtn = document.getElementById('closeWizardModalBtn');
+        const wizardQuestionText = document.getElementById('wizardQuestionText');
+        const wizardAnswerOptions = document.getElementById('wizardAnswerOptions');
+        const wizardPrevBtn = document.getElementById('wizardPrevBtn');
+        const wizardNextBtn = document.getElementById('wizardNextBtn');
+        const wizardFinishBtn = document.getElementById('wizardFinishBtn');
+        const answerQuestionsBtn = document.getElementById('answerQuestionsBtn'); // Already used for visibility
+
+        function openWizard() {
+            if (!allRaceQuestions || allRaceQuestions.length === 0) {
+                alert("No hay preguntas disponibles para esta carrera en este momento.");
+                return;
+            }
+            currentQuestionIndex = 0;
+            userWizardAnswers = {}; // Reset answers when opening
+            displayWizardQuestion(currentQuestionIndex);
+            if(questionWizardModal) questionWizardModal.style.display = 'flex';
+        }
+
+        function closeWizard() {
+            if(questionWizardModal) questionWizardModal.style.display = 'none';
+        }
+
+        function displayWizardQuestion(index) {
+            if (!allRaceQuestions || allRaceQuestions.length === 0) {
+                console.error("displayWizardQuestion called with no questions available.");
+                closeWizard(); // Close wizard if no questions
+                return;
+            }
+            if (index < 0 || index >= allRaceQuestions.length) {
+                console.error("Invalid question index:", index);
+                return;
+            }
+
+            const question = allRaceQuestions[index];
+            const existingAnswer = userWizardAnswers[question.id];
+
+            if(wizardQuestionProgress) wizardQuestionProgress.textContent = `Pregunta ${index + 1} de ${allRaceQuestions.length}`;
+            if(wizardQuestionText) wizardQuestionText.textContent = question.text;
+            if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = ''; // Clear previous options
+
+            switch (question.question_type) {
+                case 'FREE_TEXT':
+                    const textarea = document.createElement('textarea');
+                    textarea.id = `wizardFreeTextAnswer_${question.id}`;
+                    textarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+                    textarea.rows = 4;
+                    textarea.placeholder = 'Escribe tu respuesta...';
+                    textarea.value = existingAnswer?.answer_text || '';
+                    wizardAnswerOptions.appendChild(textarea);
+                    break;
+
+                case 'MULTIPLE_CHOICE':
+                    question.options.forEach(opt => {
+                        const label = document.createElement('label');
+                        label.className = 'flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300';
+
+                        const input = document.createElement('input');
+                        input.type = question.is_mc_multiple_correct ? 'checkbox' : 'radio';
+                        input.name = `wizard_q_${question.id}`; // Group radios, checkboxes can have same name
+                        input.value = opt.id;
+                        input.className = 'text-orange-500 focus:ring-orange-400 focus:ring-offset-0';
+                        if (question.is_mc_multiple_correct) {
+                            input.classList.add('rounded'); // Tailwind specific class for better checkbox appearance
+                            if (existingAnswer?.selected_option_ids?.includes(opt.id)) {
+                                input.checked = true;
+                            }
+                        } else {
+                            if (existingAnswer?.selected_option_id == opt.id) {
+                                input.checked = true;
+                            }
+                        }
+
+                        const span = document.createElement('span');
+                        span.className = 'text-gray-700';
+                        span.textContent = opt.option_text;
+
+                        label.appendChild(input);
+                        label.appendChild(span);
+                        wizardAnswerOptions.appendChild(label);
+                    });
+                    break;
+
+                case 'ORDERING':
+                    // Simple list and textarea for now
+                    const infoText = document.createElement('p');
+                    infoText.className = 'text-sm text-gray-600 mb-2';
+                    infoText.textContent = "Ordena los siguientes items. Indica tu orden en el cuadro de texto (ej: Opción C, Opción A, Opción B).";
+                    wizardAnswerOptions.appendChild(infoText);
+
+                    const listContainer = document.createElement('div');
+                    listContainer.className = 'space-y-1 mb-3 p-2 border rounded-md';
+                    question.options.forEach(opt => {
+                        const listItem = document.createElement('div');
+                        listItem.className = 'bg-gray-100 p-2 rounded text-sm';
+                        listItem.textContent = opt.option_text;
+                        listContainer.appendChild(listItem);
+                    });
+                    wizardAnswerOptions.appendChild(listContainer);
+
+                    const orderingTextarea = document.createElement('textarea');
+                    orderingTextarea.id = `wizardOrderingAnswer_${question.id}`;
+                    orderingTextarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+                    orderingTextarea.rows = 3;
+                    orderingTextarea.placeholder = 'Ej: Item C, Item A, Item B';
+                    orderingTextarea.value = existingAnswer?.ordered_options_text || '';
+                    wizardAnswerOptions.appendChild(orderingTextarea);
+                    break;
+                default:
+                    wizardAnswerOptions.innerHTML = '<p class="text-red-500">Tipo de pregunta no soportado en el wizard.</p>';
+            }
+
+            // Update button visibility
+            if(wizardPrevBtn) wizardPrevBtn.style.display = index > 0 ? 'inline-flex' : 'none';
+            if(wizardNextBtn) wizardNextBtn.style.display = index < allRaceQuestions.length - 1 ? 'inline-flex' : 'none';
+            if(wizardFinishBtn) wizardFinishBtn.style.display = index === allRaceQuestions.length - 1 ? 'inline-flex' : 'none';
+        }
+
+        function saveCurrentWizardAnswer() {
+            if (!allRaceQuestions || currentQuestionIndex < 0 || currentQuestionIndex >= allRaceQuestions.length) {
+                return; // Should not happen if logic is correct
+            }
+            const question = allRaceQuestions[currentQuestionIndex];
+            if (!question) return;
+
+            switch (question.question_type) {
+                case 'FREE_TEXT':
+                    const textarea = document.getElementById(`wizardFreeTextAnswer_${question.id}`);
+                    if (textarea) {
+                        userWizardAnswers[question.id] = { question_id: question.id, answer_text: textarea.value.trim() };
+                    }
+                    break;
+                case 'MULTIPLE_CHOICE':
+                    if (question.is_mc_multiple_correct) { // Checkboxes
+                        const selected_option_ids = [];
+                        document.querySelectorAll(`input[name="wizard_q_${question.id}"]:checked`).forEach(cb => {
+                            selected_option_ids.push(parseInt(cb.value));
+                        });
+                        userWizardAnswers[question.id] = { question_id: question.id, selected_option_ids: selected_option_ids };
+                    } else { // Radio buttons
+                        const selectedRadio = document.querySelector(`input[name="wizard_q_${question.id}"]:checked`);
+                        userWizardAnswers[question.id] = {
+                            question_id: question.id,
+                            selected_option_id: selectedRadio ? parseInt(selectedRadio.value) : null
+                        };
+                    }
+                    break;
+                case 'ORDERING':
+                    const orderingTextarea = document.getElementById(`wizardOrderingAnswer_${question.id}`);
+                    if (orderingTextarea) {
+                         userWizardAnswers[question.id] = { question_id: question.id, ordered_options_text: orderingTextarea.value.trim() };
+                    }
+                    break;
+            }
+        }
+
+        function handleNextWizardQuestion() {
+            saveCurrentWizardAnswer();
+            if (currentQuestionIndex < allRaceQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayWizardQuestion(currentQuestionIndex);
+            }
+        }
+
+        function handlePreviousWizardQuestion() {
+            saveCurrentWizardAnswer(); // Save current before moving, in case user made changes
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayWizardQuestion(currentQuestionIndex);
+            }
+        }
+
+        // Event Listeners for Wizard
+        if (answerQuestionsBtn) {
+            answerQuestionsBtn.addEventListener('click', openWizard);
+        }
+        if (closeWizardModalBtn) {
+            closeWizardModalBtn.addEventListener('click', closeWizard);
+        }
+        if (wizardNextBtn) {
+            wizardNextBtn.addEventListener('click', handleNextWizardQuestion);
+        }
+        if (wizardPrevBtn) {
+            wizardPrevBtn.addEventListener('click', handlePreviousWizardQuestion);
+        }
+        if (wizardFinishBtn) {
+            wizardFinishBtn.addEventListener('click', () => {
+                saveCurrentWizardAnswer(); // Ensure the very last answer is saved
+
+                if (Object.keys(userWizardAnswers).length === 0) {
+                    alert("No has respondido ninguna pregunta aún.");
+                    // Optionally close wizard or allow user to continue
+                    // closeWizard();
+                    return;
+                }
+
+                wizardFinishBtn.disabled = true;
+                wizardFinishBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+                fetch(`/api/races/${raceId}/answers`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Add CSRF token header here if/when implemented, e.g.:
+                        // 'X-CSRFToken': '{{ csrf_token() }}' (if using Flask-WTF/Flask-SeaSurf)
+                    },
+                    body: JSON.stringify(userWizardAnswers)
+                })
+                .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                .then(result => {
+                    if (result.ok) {
+                        alert(result.body.message || '¡Respuestas guardadas con éxito!');
+                        closeWizard();
+                        // Future: Optionally, refresh part of the page or mark questions as answered.
+                        // For example, could re-fetch questions if their status changes upon answering.
+                        // Or, if there's a "My Answers" section, trigger its update.
+                    } else {
+                        alert(`Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving answers:', error);
+                    alert('Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.');
+                })
+                .finally(() => {
+                    wizardFinishBtn.disabled = false;
+                    wizardFinishBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Finalizar y Guardar';
+                });
+            });
+        }
+        // --- End Question Wizard Logic ---
+
     </script>
+
+    <!-- Question Wizard Modal -->
+    <div id="questionWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="wizardQuestionProgress" class="text-xl sm:text-2xl font-bold text-gray-800">Pregunta X de Y</h2>
+                <button id="closeWizardModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body: Question Display Area -->
+            <div id="wizardQuestionArea" class="mb-6">
+                <h3 id="wizardQuestionText" class="text-lg sm:text-xl font-semibold text-gray-700 mb-4"></h3>
+                <div id="wizardAnswerOptions" class="space-y-3">
+                    <!-- Input fields will be dynamically inserted here by JavaScript -->
+                    <!-- Example for Free Text (to be controlled by JS) -->
+                    <!-- <textarea id="wizardFreeTextAnswer" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" rows="4" placeholder="Escribe tu respuesta..."></textarea> -->
+
+                    <!-- Example for MC Single (to be controlled by JS) -->
+                    <!-- <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300">
+                        <input type="radio" name="wizardMcOption" value="option1" class="text-orange-500 focus:ring-orange-400 focus:ring-offset-0">
+                        <span class="text-gray-700">Option 1</span>
+                    </label> -->
+
+                    <!-- Example for MC Multiple (to be controlled by JS) -->
+                    <!-- <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300">
+                        <input type="checkbox" name="wizardMcOption_multi" value="optionA" class="text-orange-500 focus:ring-orange-400 focus:ring-offset-0 rounded">
+                        <span class="text-gray-700">Option A</span>
+                    </label> -->
+
+                    <!-- Example for Ordering (placeholder, actual implementation might differ) -->
+                    <!-- <div id="wizardOrderingOptionsContainer" class="space-y-2">
+                         <div class="bg-gray-100 p-2 rounded border">Item A (Drag me)</div>
+                         <div class="bg-gray-100 p-2 rounded border">Item B (Drag me)</div>
+                    </div> -->
+                </div>
+            </div>
+
+            <!-- Modal Footer: Navigation -->
+            <div class="flex justify-between items-center pt-6 border-t border-gray-200">
+                <button id="wizardPrevBtn" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left mr-2"></i>Anterior
+                </button>
+                <button id="wizardNextBtn" class="btn btn-primary">
+                    Siguiente<i class="fas fa-arrow-right ml-2"></i>
+                </button>
+                <button id="wizardFinishBtn" class="btn btn-primary bg-green-500 hover:bg-green-600" style="display: none;">
+                    <i class="fas fa-check mr-2"></i>Finalizar y Guardar
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Add/Edit Question Modal -->
     {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
