@@ -272,6 +272,9 @@
                         <button id="deleteRaceBtn" class="btn bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-trash-alt mr-2"></i>Eliminar Carrera
                         </button>
+                        <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -423,6 +426,26 @@
             <p>&copy; {{ current_year }} Fantasy Tri. Todos los derechos reservados.</p>
         </div>
     </footer>
+
+    <!-- Share Race Modal -->
+    <div id="shareRaceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 110;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800">Compartir Enlace de Carrera</h2>
+                <button id="closeShareRaceModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label for="shareableLinkInput" class="block text-sm font-medium text-gray-700 mb-1">Enlace Compartible:</label>
+                <input type="text" id="shareableLinkInput" readonly class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm">
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="copyShareLinkBtn" class="btn btn-primary">Copiar Enlace</button>
+            </div>
+            <p id="copyShareLinkFeedback" class="text-sm text-green-600 mt-2" style="display:none;">¡Enlace copiado!</p>
+        </div>
+    </div>
 
     <!-- Edit Race Details Modal -->
     {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
@@ -1255,6 +1278,78 @@
 
             // Initial data fetch
             fetchAndRenderQuestions();
+
+            // Share Race Functionality
+            const shareRaceBtn = document.getElementById('shareRaceBtn');
+            const shareRaceModal = document.getElementById('shareRaceModal');
+            const closeShareRaceModalBtn = document.getElementById('closeShareRaceModalBtn');
+            const shareableLinkInput = document.getElementById('shareableLinkInput');
+            const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
+            const copyShareLinkFeedback = document.getElementById('copyShareLinkFeedback');
+
+            if (shareRaceBtn) {
+                shareRaceBtn.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    if (!raceId) {
+                        alert('Error: ID de la carrera no disponible.');
+                        return;
+                    }
+                    // Optional: Show loading state
+                    shareRaceBtn.disabled = true;
+                    shareRaceBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generando...';
+
+                    fetch(`/api/races/${raceId}/share_link`)
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => { throw new Error(err.message || `Error ${response.status}`) });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.share_link) {
+                                const fullShareLink = window.location.origin + data.share_link;
+                                shareableLinkInput.value = fullShareLink;
+                                shareRaceModal.style.display = 'flex';
+                            } else {
+                                throw new Error('No se recibió el enlace para compartir.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching share link:', error);
+                            alert(`Error al generar el enlace: ${error.message}`);
+                        })
+                        .finally(() => {
+                            // Hide loading state
+                            shareRaceBtn.disabled = false;
+                            shareRaceBtn.innerHTML = '<i class="fas fa-share-alt mr-2"></i>Compartir Carrera';
+                        });
+                });
+            }
+
+            if (closeShareRaceModalBtn) {
+                closeShareRaceModalBtn.addEventListener('click', function() {
+                    shareRaceModal.style.display = 'none';
+                    copyShareLinkFeedback.style.display = 'none'; // Hide feedback on close
+                });
+            }
+
+            if (copyShareLinkBtn) {
+                copyShareLinkBtn.addEventListener('click', function() {
+                    if (shareableLinkInput.value) {
+                        navigator.clipboard.writeText(shareableLinkInput.value)
+                            .then(() => {
+                                copyShareLinkFeedback.style.display = 'block';
+                                setTimeout(() => {
+                                    copyShareLinkFeedback.style.display = 'none';
+                                }, 2000); // Hide feedback after 2 seconds
+                            })
+                            .catch(err => {
+                                console.error('Error copying to clipboard:', err);
+                                alert('No se pudo copiar el enlace. Por favor, cópielo manualmente.');
+                            });
+                    }
+                });
+            }
         });
     </script>
 

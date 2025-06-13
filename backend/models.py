@@ -1,9 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Text, Float # Added Text and Float
+from sqlalchemy import Text, Float, ForeignKey # Added ForeignKey
 from datetime import datetime
 import bcrypt
-# Removed: import enum
-from flask_login import UserMixin # Import UserMixin
+from flask_login import UserMixin
 
 db = SQLAlchemy()
 
@@ -12,12 +11,12 @@ class Role(db.Model):
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(80), unique=True, nullable=False)
-    description = db.Column(db.String(255), nullable=False) 
+    description = db.Column(db.String(255), nullable=False)
 
     def __repr__(self):
-        return f'<Role {self.name}>'
+        return f'<Role {self.code}>' # Changed from name to code for consistency
 
-class User(db.Model, UserMixin): # Inherit from UserMixin
+class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -25,16 +24,17 @@ class User(db.Model, UserMixin): # Inherit from UserMixin
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    # Removed old role enum column
-    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False) # New Foreign Key
-    role = db.relationship('Role', backref=db.backref('users', lazy=True)) # New Relationship
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
+    role = db.relationship('Role', backref=db.backref('users', lazy=True))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    # Relationship for UserRaceRegistration
+    registrations = db.relationship('UserRaceRegistration', backref='user', lazy=True, cascade="all, delete-orphan")
+
     def set_password(self, password):
-        # Salt is generated automatically by bcrypt.hashpw
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     def check_password(self, password):
@@ -44,27 +44,24 @@ class User(db.Model, UserMixin): # Inherit from UserMixin
         return f'<User {self.username}>'
 
 
-# RaceFormat Model
 class RaceFormat(db.Model):
     __tablename__ = 'race_formats'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False)  # e.g., "Triathlon", "Duathlon"
+    name = db.Column(db.String(255), unique=True, nullable=False)
 
     def __repr__(self):
         return f'<RaceFormat {self.name}>'
 
 
-# Segment Model
 class Segment(db.Model):
     __tablename__ = 'segments'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False)  # e.g., "Swimming", "Cycling", "Running"
+    name = db.Column(db.String(255), unique=True, nullable=False)
 
     def __repr__(self):
         return f'<Segment {self.name}>'
 
 
-# Race Model
 class Race(db.Model):
     __tablename__ = 'races'
     id = db.Column(db.Integer, primary_key=True)
@@ -76,37 +73,53 @@ class Race(db.Model):
     location = db.Column(db.String(255), nullable=True)
     promo_image_url = db.Column(db.String(255), nullable=True)
     category = db.Column(db.String(255), default="Elite", nullable=False)
-    gender_category = db.Column(db.String(255), nullable=False)  # e.g., "Masculino", "Femenino", "Ambos"
+    gender_category = db.Column(db.String(255), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('races', lazy=True))
+    user = db.relationship('User', backref=db.backref('created_races', lazy=True)) # Changed backref to created_races
     is_general = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
+    # Relationship for UserRaceRegistration
+    registrations = db.relationship('UserRaceRegistration', backref='race', lazy=True, cascade="all, delete-orphan")
+    segment_details = db.relationship('RaceSegmentDetail', backref='race', lazy=True, cascade="all, delete-orphan") # Added cascade
+    questions = db.relationship('Question', backref='race', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
+
+
     def __repr__(self):
         return f'<Race {self.title}>'
 
+class UserRaceRegistration(db.Model):
+    __tablename__ = 'user_race_registrations'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    registered_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-# RaceSegmentDetail Model
+    # Unique constraint to prevent duplicate registrations
+    __table_args__ = (db.UniqueConstraint('user_id', 'race_id', name='_user_race_uc'),)
+
+    def __repr__(self):
+        return f'<UserRaceRegistration user_id={self.user_id} race_id={self.race_id}>'
+
+
 class RaceSegmentDetail(db.Model):
     __tablename__ = 'race_segment_details'
     id = db.Column(db.Integer, primary_key=True)
     race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
     segment_id = db.Column(db.Integer, db.ForeignKey('segments.id'), nullable=False)
     distance_km = db.Column(Float, nullable=False)
-    race = db.relationship('Race', backref=db.backref('segment_details', lazy=True))
+    # Removed explicit race relationship, covered by Race.segment_details backref
     segment = db.relationship('Segment', backref=db.backref('race_details', lazy=True))
 
     def __repr__(self):
         return f'<RaceSegmentDetail race_id={self.race_id} segment_id={self.segment_id} distance_km={self.distance_km}>'
 
 
-# Question Models
-
 class QuestionType(db.Model):
     __tablename__ = 'question_types'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)  # e.g., 'FREE_TEXT', 'MULTIPLE_CHOICE', 'ORDERING'
+    name = db.Column(db.String(100), unique=True, nullable=False)
 
     def __repr__(self):
         return f'<QuestionType {self.name}>'
@@ -115,7 +128,7 @@ class Question(db.Model):
     __tablename__ = 'questions'
     id = db.Column(db.Integer, primary_key=True)
     race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
-    race = db.relationship('Race', backref=db.backref('questions', lazy='dynamic')) # Changed to lazy='dynamic' for questions
+    # Removed explicit race relationship, covered by Race.questions backref
 
     question_type_id = db.Column(db.Integer, db.ForeignKey('question_types.id'), nullable=False)
     question_type = db.relationship('QuestionType', backref=db.backref('questions', lazy=True))
@@ -125,14 +138,15 @@ class Question(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Scoring fields - Nullable depending on question type
     max_score_free_text = db.Column(db.Integer, nullable=True)
-    is_mc_multiple_correct = db.Column(db.Boolean, nullable=True) # True if checkboxes (multiple correct), False if radio (single correct)
-    points_per_correct_mc = db.Column(db.Integer, nullable=True) # For MC multiple correct
-    points_per_incorrect_mc = db.Column(db.Integer, nullable=True) # For MC multiple correct (e.g., -3)
-    total_score_mc_single = db.Column(db.Integer, nullable=True) # For MC single correct
-    points_per_correct_order = db.Column(db.Integer, nullable=True) # For Ordering
-    bonus_for_full_order = db.Column(db.Integer, nullable=True) # For Ordering
+    is_mc_multiple_correct = db.Column(db.Boolean, nullable=True)
+    points_per_correct_mc = db.Column(db.Integer, nullable=True)
+    points_per_incorrect_mc = db.Column(db.Integer, nullable=True)
+    total_score_mc_single = db.Column(db.Integer, nullable=True)
+    points_per_correct_order = db.Column(db.Integer, nullable=True)
+    bonus_for_full_order = db.Column(db.Integer, nullable=True)
+
+    options = db.relationship('QuestionOption', backref='question', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
 
     def __repr__(self):
         return f'<Question {self.id}: {self.text[:50]}...>'
@@ -141,12 +155,12 @@ class QuestionOption(db.Model):
     __tablename__ = 'question_options'
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
-    question = db.relationship('Question', backref=db.backref('options', lazy='dynamic', cascade="all, delete-orphan"))
+    # Removed explicit question relationship, covered by Question.options backref
 
     option_text = db.Column(db.String(500), nullable=False)
-    is_correct_mc_single = db.Column(db.Boolean, default=False, nullable=True) # For MC single answer type
-    is_correct_mc_multiple = db.Column(db.Boolean, default=False, nullable=True) # For MC multiple answer type
-    correct_order_index = db.Column(db.Integer, nullable=True) # For Ordering questions
+    is_correct_mc_single = db.Column(db.Boolean, default=False, nullable=True)
+    is_correct_mc_multiple = db.Column(db.Boolean, default=False, nullable=True)
+    correct_order_index = db.Column(db.Integer, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

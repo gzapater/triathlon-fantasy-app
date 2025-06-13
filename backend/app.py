@@ -1,8 +1,9 @@
 import os
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption # Added Question, QuestionOption
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration # Added UserRaceRegistration
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 from flask import render_template
@@ -472,6 +473,69 @@ def get_race_questions(race_id):
         output.append(question_data)
 
     return jsonify(output), 200
+
+
+@app.route('/api/races/<int:race_id>/share_link', methods=['GET'])
+@login_required
+def get_race_share_link(race_id):
+    # 1. Role check
+    if not current_user.is_authenticated or current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to generate share links."), 403
+
+    # 2. Fetch the Race object
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    # 3. Construct the shareable link
+    try:
+        # As per plan, constructing a relative path.
+        # The actual frontend route /join_race/<race_id> will be created later.
+        share_link_path = f"/join_race/{race.id}"
+
+    except Exception as e:
+        app.logger.error(f"Error generating share link for race {race_id}: {e}", exc_info=True)
+        return jsonify(message="Error generating share link"), 500
+
+    return jsonify(share_link=share_link_path), 200
+
+
+@app.route('/api/races/<int:race_id>/basic_details', methods=['GET'])
+@login_required
+def get_race_basic_details(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    return jsonify(id=race.id, title=race.title), 200
+
+
+@app.route('/api/races/<int:race_id>/join', methods=['POST']) # POST request to create a resource
+@login_required
+def join_race_api(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    # Check if already registered
+    existing_registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race.id).first()
+    if existing_registration:
+        return jsonify(message="You are already registered for this race."), 409 # 409 Conflict
+
+    new_registration = UserRaceRegistration(user_id=current_user.id, race_id=race.id)
+    try:
+        db.session.add(new_registration)
+        db.session.commit()
+        return jsonify(message="Successfully registered for the race!", registration_id=new_registration.id), 201
+    except IntegrityError: # Should be caught by the explicit check above, but as a fallback
+        db.session.rollback()
+        # Log this occurrence as it might indicate a race condition or an issue with the pre-check
+        app.logger.warning(f"IntegrityError on join_race: User {current_user.id}, Race {race.id}. Pre-check failed or race condition.")
+        return jsonify(message="Database integrity error: You might already be registered or there was another issue."), 409
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error registering user {current_user.id} for race {race.id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while trying to register for the race."), 500
 
 # --- Helper function for question serialization ---
 def _serialize_question(question):
@@ -1162,6 +1226,32 @@ def serve_login_page():
 def register_page():
     all_roles = Role.query.all()
     return render_template('register.html', roles=all_roles)
+
+
+@app.route('/join_race/<int:race_id>')
+def handle_join_race_link(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        # If race not found, redirect appropriately
+        if current_user.is_authenticated:
+            # Redirect to dashboard with an error hint (frontend can show a message)
+            return redirect(url_for('serve_hello_world_page', error='race_not_found', original_race_id=race_id))
+        else:
+            # Redirect to login page with an error hint
+            return redirect(url_for('serve_login_page', error='race_not_found', original_race_id=race_id))
+
+    if current_user.is_authenticated:
+        # User is logged in, redirect to their dashboard with race_id for modal
+        app.logger.info(f"User {current_user.username} authenticated, joining race {race.id}. Redirecting to dashboard.")
+        return redirect(url_for('serve_hello_world_page', join_race_id=race.id))
+    else:
+        # User is not logged in, redirect to login page.
+        # After login, they should be redirected back to this /join_race/<race_id> URL.
+        # url_for generates a relative path by default. _external=True can make it absolute if needed elsewhere.
+        # For the 'next' param, a relative path is usually fine and preferred.
+        login_url_with_next = url_for('serve_login_page', next=url_for('handle_join_race_link', race_id=race.id))
+        app.logger.info(f"User not authenticated for join_race {race.id}. Redirecting to login: {login_url_with_next}")
+        return redirect(login_url_with_next)
 
 
 @app.route('/Hello-world') # This is the main dashboard route after login
