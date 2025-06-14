@@ -360,30 +360,30 @@
                     {% endif %}
                 </div>
 
-                <!-- Prediction Questions -->
+                <!-- Prediction Questions / Quiniela -->
                 <div id="predictionQuestionsSection" class="bg-white rounded-xl p-6 shadow-lg">
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold text-gray-800">Preguntas de Predicción</h2>
-                        <div class="flex items-center space-x-4">
-                            {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
-                            <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2">
-                                <i class="fas fa-plus mr-2"></i>Añadir Pregunta
-                            </button>
-                            {% endif %}
-                            <button onclick="toggleQuestions()" id="toggleQuestionsBtn" class="text-orange-500 hover:text-orange-600 font-medium">
-                                <i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas
-                            </button>
-                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800">Quiniela de la carrera</h2>
+                        {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                        <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2">
+                            <i class="fas fa-plus mr-2"></i>Añadir Pregunta
+                        </button>
+                        {% endif %}
                     </div>
-                    <div id="questionsLoading" class="text-center py-4">Cargando preguntas...</div>
-                    <div id="questionsError" class="text-center py-4 text-red-600" style="display:none;"></div>
-                    <div id="questionsContent" class="expandable-content space-y-6">
-                        <!-- Questions will be rendered here by JavaScript -->
-                    </div>
-                    <div id="noQuestionsMessage" class="text-center py-6 text-gray-500" style="display:none;">
-                        <i class="fas fa-question-circle text-3xl mb-3"></i>
-                        <p>No hay preguntas de predicción para esta carrera todavía.</p>
-                    </div>
+
+                    {% if not has_user_answered_pool %}
+                        <p class="text-gray-600 mb-4">Participa en la quiniela de esta carrera y pon a prueba tus conocimientos.</p>
+                        <button id="participateInPoolBtn" class="btn btn-primary w-full md:w-auto">
+                            <i class="fas fa-tasks mr-2"></i>Participar
+                        </button>
+                        <!-- The original question display elements (questionsLoading, questionsError, etc.) are removed here -->
+                        <!-- If you need to load questions for admins to manage even if user hasn't answered, that logic needs to be separate -->
+                    {% else %}
+                        <p class="text-gray-700 text-lg mb-3"><i class="fas fa-check-circle text-green-500 mr-2"></i>Ya has participado en esta Quiniela.</p>
+                        <button id="reviewUserAnswersBtn" class="btn btn-secondary">
+                            <i class="fas fa-eye mr-2"></i>Revisar respuestas
+                        </button>
+                    {% endif %}
                 </div>
 
             </div>
@@ -512,25 +512,26 @@
         const raceId = "{{ race.id | default('') }}";
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
         const isUserRegisteredForRace = {{ is_user_registered_for_race | tojson }};
+        const hasUserAnsweredPool = {{ has_user_answered_pool | tojson }}; // Added this line
         let allRaceQuestions = [];
         let isFetchingQuestions = false;
 
         // Global Helper Functions
-        function toggleQuestions() {
-            const questionsContentElem = document.getElementById('questionsContent');
-            const expandIconElem = document.getElementById('expandIcon');
-            const toggleQuestionsBtnElem = document.getElementById('toggleQuestionsBtn');
+        // function toggleQuestions() { // Commenting out as it's no longer used directly by a button
+        //     const questionsContentElem = document.getElementById('questionsContent');
+        //     const expandIconElem = document.getElementById('expandIcon');
+        //     const toggleQuestionsBtnElem = document.getElementById('toggleQuestionsBtn');
 
-            if (questionsContentElem.classList.contains('expanded')) {
-                questionsContentElem.classList.remove('expanded');
-                if(expandIconElem) expandIconElem.classList.replace('fa-chevron-up', 'fa-chevron-down');
-                if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas';
-            } else {
-                questionsContentElem.classList.add('expanded');
-                if(expandIconElem) expandIconElem.classList.replace('fa-chevron-down', 'fa-chevron-up');
-                if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas';
-            }
-        }
+        //     if (questionsContentElem.classList.contains('expanded')) {
+        //         questionsContentElem.classList.remove('expanded');
+        //         if(expandIconElem) expandIconElem.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        //         if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-down mr-1"></i>Ver Preguntas';
+        //     } else {
+        //         questionsContentElem.classList.add('expanded');
+        //         if(expandIconElem) expandIconElem.classList.replace('fa-chevron-down', 'fa-chevron-up');
+        //         if(toggleQuestionsBtnElem) toggleQuestionsBtnElem.innerHTML = '<i id="expandIcon" class="fas fa-chevron-up mr-1"></i>Ocultar Preguntas';
+        //     }
+        // }
 
         function formatScoringInfoForDisplay(question) {
             let scoringText = '';
@@ -873,13 +874,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             // DOM Element Declarations
             const logoutButtonNav = document.getElementById('logoutButtonNav');
-            const questionsContent = document.getElementById('questionsContent');
-            const expandIcon = document.getElementById('expandIcon');
-            const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn');
-            const submitPredictionsContainer = document.getElementById('submitPredictionsContainer');
-            const questionsLoadingDiv = document.getElementById('questionsLoading');
-            const questionsErrorDiv = document.getElementById('questionsError');
-            const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage');
+            // const questionsContent = document.getElementById('questionsContent'); // Commented out
+            // const expandIcon = document.getElementById('expandIcon'); // Commented out
+            // const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn'); // Commented out
+            // const submitPredictionsContainer = document.getElementById('submitPredictionsContainer'); // Commented out
+            // const questionsLoadingDiv = document.getElementById('questionsLoading'); // Commented out
+            // const questionsErrorDiv = document.getElementById('questionsError'); // Commented out
+            // const noQuestionsMessageDiv = document.getElementById('noQuestionsMessage'); // Commented out
 
             const addEditQuestionModal = document.getElementById('addEditQuestionModal');
             const addNewQuestionBtn = document.getElementById('addNewQuestionBtn');
@@ -939,9 +940,350 @@
                 });
             }
 
-            if(toggleQuestionsBtn) {
-                 toggleQuestionsBtn.addEventListener('click', toggleQuestions);
+            // if(toggleQuestionsBtn) { // Commented out
+            //      toggleQuestionsBtn.addEventListener('click', toggleQuestions);
+            // }
+
+            const participateInPoolBtn = document.getElementById('participateInPoolBtn');
+            if (participateInPoolBtn) {
+                participateInPoolBtn.addEventListener('click', openWizard);
             }
+
+            const reviewUserAnswersBtn = document.getElementById('reviewUserAnswersBtn');
+            const reviewUserAnswersModal = document.getElementById('reviewUserAnswersModal');
+            const closeReviewUserAnswersModalBtn = document.getElementById('closeReviewUserAnswersModalBtn');
+            // Corrected variable to get the wrapper that contains loading/error/display area
+            const reviewUserAnswersContentWrapper = document.getElementById('reviewUserAnswersContentWrapper');
+            const reviewUserAnswersDisplayArea = document.getElementById('reviewUserAnswersDisplayArea');
+            const confirmAndCloseReviewModalBtn = document.getElementById('confirmAndCloseReviewModalBtn');
+            const reviewAnswersLoading = document.getElementById('reviewAnswersLoading');
+            const reviewAnswersError = document.getElementById('reviewAnswersError');
+
+            // Elements for Edit Answer Modal
+            const editAnswerModal = document.getElementById('editAnswerModal');
+            const closeEditAnswerModalBtn = document.getElementById('closeEditAnswerModalBtn');
+            const cancelEditAnswerBtn = document.getElementById('cancelEditAnswerBtn');
+            const saveEditedAnswerBtn = document.getElementById('saveEditedAnswerBtn');
+            const editAnswerQuestionText = document.getElementById('editAnswerQuestionText');
+            const editAnswerOptionsArea = document.getElementById('editAnswerOptionsArea');
+            const editingQuestionIdStore = document.getElementById('editingQuestionIdStore');
+            const editingUserAnswerIdStore = document.getElementById('editingUserAnswerIdStore');
+            const editAnswerLoading = document.getElementById('editAnswerLoading');
+            const editAnswerError = document.getElementById('editAnswerError');
+
+            let currentUserAnswersData = []; // To store fetched user answers
+
+            // Refactored function to load and display user answers
+            async function loadAndDisplayUserAnswers(raceIdToLoad) {
+                if (!reviewUserAnswersModal || !reviewAnswersLoading || !reviewAnswersError || !reviewUserAnswersDisplayArea) {
+                    console.error("Review answers modal elements not found for loadAndDisplayUserAnswers");
+                    return;
+                }
+                reviewUserAnswersDisplayArea.innerHTML = '';
+                reviewAnswersError.style.display = 'none';
+                reviewAnswersLoading.style.display = 'block';
+                // reviewUserAnswersModal.style.display = 'flex'; // Ensure modal is visible if called independently
+
+                try {
+                    const response = await fetch(`/api/races/${raceIdToLoad}/user_answers`);
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => null);
+                        throw new Error(errData?.message || `Error ${response.status}: ${response.statusText}`);
+                    }
+                    const answers = await response.json();
+                    currentUserAnswersData = answers; // Store/update fetched answers
+                    reviewAnswersLoading.style.display = 'none';
+                    if (answers && answers.length > 0) {
+                        answers.forEach(answer => {
+                            reviewUserAnswersDisplayArea.appendChild(renderSingleUserAnswer(answer));
+                        });
+                    } else {
+                        reviewUserAnswersDisplayArea.innerHTML = '<p class="text-gray-600 text-center py-4">No has respondido ninguna pregunta para esta quiniela todavía.</p>';
+                    }
+                } catch (error) {
+                    console.error('Error fetching user answers:', error);
+                    reviewAnswersLoading.style.display = 'none';
+                    reviewAnswersError.textContent = `Error al cargar tus respuestas: ${error.message}. Inténtalo de nuevo.`;
+                    reviewAnswersError.style.display = 'block';
+                    reviewUserAnswersDisplayArea.innerHTML = '';
+                }
+            }
+
+            if (reviewUserAnswersBtn) {
+                reviewUserAnswersBtn.addEventListener('click', function() {
+                    reviewUserAnswersModal.style.display = 'flex'; // Show modal first
+                    loadAndDisplayUserAnswers(raceId);
+                });
+            }
+
+            if (closeReviewUserAnswersModalBtn) {
+                closeReviewUserAnswersModalBtn.addEventListener('click', function() {
+                    if(reviewUserAnswersModal) reviewUserAnswersModal.style.display = 'none';
+                });
+            }
+
+            if (confirmAndCloseReviewModalBtn) {
+                confirmAndCloseReviewModalBtn.addEventListener('click', function() {
+                     if(reviewUserAnswersModal) reviewUserAnswersModal.style.display = 'none';
+                });
+            }
+
+            function renderSingleUserAnswer(answer) {
+                const answerItemDiv = document.createElement('div');
+                // Added some bottom margin for spacing between answer items
+                answerItemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow mb-3';
+
+                let formattedAnswerHtml = '';
+                switch (answer.question_type) {
+                    case 'FREE_TEXT':
+                        formattedAnswerHtml = `<p class="text-gray-700">${answer.answer_text || '<span class="text-gray-500 italic">No respondida</span>'}</p>`;
+                        break;
+                    case 'ORDERING':
+                        formattedAnswerHtml = `<p class="text-gray-700">${answer.answer_text || '<span class="text-gray-500 italic">No respondida</span>'}</p>`;
+                        break;
+                    case 'MULTIPLE_CHOICE':
+                        if (answer.selected_option_text) {
+                            formattedAnswerHtml = `<p class="text-gray-700">${answer.selected_option_text}</p>`;
+                        } else if (answer.selected_mc_options && answer.selected_mc_options.length > 0) {
+                            formattedAnswerHtml = '<ul class="list-disc list-inside text-gray-700 space-y-1">';
+                            answer.selected_mc_options.forEach(opt => {
+                                formattedAnswerHtml += `<li>${opt.option_text}</li>`;
+                            });
+                            formattedAnswerHtml += '</ul>';
+                        } else {
+                            formattedAnswerHtml = '<p class="text-gray-500 italic">No seleccionaste ninguna opción.</p>';
+                        }
+                        break;
+                    default:
+                        formattedAnswerHtml = '<p class="text-red-500">Tipo de respuesta no reconocido.</p>';
+                }
+
+                answerItemDiv.innerHTML = `
+                    <p class="font-semibold text-gray-800 mb-1">${answer.question_text}</p>
+                    <div class="text-xs text-gray-500 mb-2">Tu respuesta:</div>
+                    <div class="p-3 bg-gray-50 border border-gray-300 rounded-md min-h-[40px]">
+                        ${formattedAnswerHtml}
+                    </div>
+                    <div class="text-right mt-3">
+                        <button class="editAnswerBtn btn btn-sm btn-secondary hover:bg-gray-300" data-question-id="${answer.question_id}" data-user-answer-id="${answer.user_answer_id}">
+                            <i class="fas fa-edit mr-1"></i>Editar
+                        </button>
+                    </div>
+                `;
+
+                const editButton = answerItemDiv.querySelector('.editAnswerBtn');
+                if(editButton) {
+                    editButton.addEventListener('click', function() {
+                        const questionId = this.dataset.questionId;
+                        const userAnswerId = this.dataset.userAnswerId;
+
+                        if (!editAnswerModal || !editingQuestionIdStore || !editingUserAnswerIdStore || !editAnswerQuestionText || !editAnswerOptionsArea || !editAnswerLoading || !editAnswerError) {
+                            console.error("Edit answer modal elements not found");
+                            return;
+                        }
+
+                        editAnswerLoading.style.display = 'block';
+                        editAnswerError.style.display = 'none';
+                        editAnswerOptionsArea.innerHTML = ''; // Clear previous content
+                        editAnswerModal.style.display = 'flex';
+
+                        editingQuestionIdStore.value = questionId;
+                        editingUserAnswerIdStore.value = userAnswerId;
+
+                        const foundAnswer = currentUserAnswersData.find(ans => ans.question_id == questionId && ans.user_answer_id == userAnswerId);
+
+                        if (foundAnswer) {
+                            editAnswerQuestionText.textContent = foundAnswer.question_text;
+                            populateEditAnswerForm(foundAnswer);
+                            editAnswerLoading.style.display = 'none';
+                        } else {
+                            editAnswerQuestionText.textContent = '';
+                            editAnswerError.textContent = 'Error: No se pudieron cargar los detalles de la respuesta. Intenta cerrar y abrir esta ventana.';
+                            editAnswerError.style.display = 'block';
+                            editAnswerLoading.style.display = 'none';
+                        }
+                    });
+                }
+                return answerItemDiv;
+            }
+
+            function populateEditAnswerForm(answerData) {
+                if (!editAnswerOptionsArea) return;
+                editAnswerOptionsArea.innerHTML = ''; // Clear previous inputs
+
+                switch (answerData.question_type) {
+                    case 'FREE_TEXT':
+                        const textarea = document.createElement('textarea');
+                        textarea.id = `editFreeTextAnswer_${answerData.question_id}`;
+                        textarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+                        textarea.rows = 4;
+                        textarea.value = answerData.answer_text || '';
+                        editAnswerOptionsArea.appendChild(textarea);
+                        break;
+
+                    case 'ORDERING':
+                        const orderingInfo = document.createElement('p');
+                        orderingInfo.className = 'text-sm text-gray-600 mb-2';
+                        orderingInfo.textContent = "Reordena los items en el cuadro de texto de abajo, separados por comas y en el orden deseado. Items originales para referencia:";
+                        editAnswerOptionsArea.appendChild(orderingInfo);
+
+                        const itemsList = document.createElement('ul');
+                        itemsList.className = 'list-disc list-inside bg-gray-100 p-3 rounded-md mb-2';
+                        answerData.all_question_options.forEach(opt => {
+                            const item = document.createElement('li');
+                            item.textContent = opt.option_text;
+                            itemsList.appendChild(item);
+                        });
+                        editAnswerOptionsArea.appendChild(itemsList);
+
+                        const orderingTextarea = document.createElement('textarea');
+                        orderingTextarea.id = `editOrderingAnswer_${answerData.question_id}`;
+                        orderingTextarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+                        orderingTextarea.rows = 3;
+                        orderingTextarea.placeholder = 'Ej: Item C, Item A, Item B';
+                        orderingTextarea.value = answerData.answer_text || '';
+                        editAnswerOptionsArea.appendChild(orderingTextarea);
+                        break;
+
+                    case 'MULTIPLE_CHOICE':
+                        answerData.all_question_options.forEach(opt => {
+                            const label = document.createElement('label');
+                            label.className = 'flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300';
+                            const input = document.createElement('input');
+                            input.name = `edit_q_${answerData.question_id}`; // Unique name for radio group
+                            input.value = opt.id;
+                            input.className = 'text-orange-500 focus:ring-orange-400 focus:ring-offset-0';
+
+                            if (answerData.selected_mc_options && answerData.selected_mc_options.length > 0) { // Is multi-select
+                                input.type = 'checkbox';
+                                input.classList.add('rounded');
+                                if (answerData.selected_mc_options.some(selOpt => selOpt.option_id == opt.id)) {
+                                    input.checked = true;
+                                }
+                            } else { // Is single-select
+                                input.type = 'radio';
+                                if (answerData.selected_option_id == opt.id) {
+                                    input.checked = true;
+                                }
+                            }
+
+                            const span = document.createElement('span');
+                            span.className = 'text-gray-700';
+                            span.textContent = opt.option_text;
+
+                            label.appendChild(input);
+                            label.appendChild(span);
+                            editAnswerOptionsArea.appendChild(label);
+                        });
+                        break;
+                    default:
+                        editAnswerOptionsArea.innerHTML = '<p class="text-red-500">Tipo de pregunta no soportado para edición.</p>';
+                }
+            }
+
+            if (closeEditAnswerModalBtn) {
+                closeEditAnswerModalBtn.addEventListener('click', () => { if(editAnswerModal) editAnswerModal.style.display = 'none'; });
+            }
+            if (cancelEditAnswerBtn) {
+                cancelEditAnswerBtn.addEventListener('click', () => { if(editAnswerModal) editAnswerModal.style.display = 'none'; });
+            }
+            if (saveEditedAnswerBtn) {
+                saveEditedAnswerBtn.addEventListener('click', function() {
+                    const userAnswerId = editingUserAnswerIdStore.value;
+                    const questionId = editingQuestionIdStore.value;
+
+                    if (!userAnswerId || !questionId) {
+                        editAnswerError.textContent = 'Error: No se pudo identificar la respuesta a guardar.';
+                        editAnswerError.style.display = 'block';
+                        return;
+                    }
+
+                    saveEditedAnswerBtn.disabled = true;
+                    saveEditedAnswerBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+                    editAnswerError.style.display = 'none';
+
+                    const originalAnswerData = currentUserAnswersData.find(ans => ans.question_id == questionId && ans.user_answer_id == userAnswerId);
+                    if (!originalAnswerData) {
+                        editAnswerError.textContent = 'Error: Datos originales de la respuesta no encontrados.';
+                        editAnswerError.style.display = 'block';
+                        saveEditedAnswerBtn.disabled = false;
+                        saveEditedAnswerBtn.innerHTML = 'Guardar Cambios';
+                        return;
+                    }
+
+                    let payload = {};
+                    switch (originalAnswerData.question_type) {
+                        case 'FREE_TEXT':
+                            const ftTextarea = editAnswerOptionsArea.querySelector(`#editFreeTextAnswer_${questionId}`);
+                            payload.answer_text = ftTextarea ? ftTextarea.value : null;
+                            break;
+                        case 'ORDERING':
+                            const orTextarea = editAnswerOptionsArea.querySelector(`#editOrderingAnswer_${questionId}`);
+                            payload.ordered_options_text = orTextarea ? orTextarea.value : null;
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            // For MC, need to check if it's single or multi based on original data.
+                            // The original API for UserAnswer returns `selected_mc_options` as an array for multi,
+                            // and `selected_option_id` for single.
+                            // The `populateEditAnswerForm` uses `answerData.selected_mc_options.length > 0` to infer multi for form creation.
+                            // A more robust way would be to have `is_mc_multiple_correct` in `originalAnswerData`.
+                            // Assuming `originalAnswerData.all_question_options` exists and `originalAnswerData` has enough info.
+
+                            // Let's find the question details from allRaceQuestions if available, or rely on structure of originalAnswerData
+                            const questionDetails = allRaceQuestions.find(q => q.id == questionId) || {is_mc_multiple_correct: (originalAnswerData.selected_mc_options && originalAnswerData.selected_mc_options.length > 0)};
+
+                            if (questionDetails.is_mc_multiple_correct) {
+                                payload.selected_option_ids = [];
+                                editAnswerOptionsArea.querySelectorAll(`input[name="edit_q_${questionId}"]:checked`).forEach(cb => {
+                                    payload.selected_option_ids.push(parseInt(cb.value));
+                                });
+                            } else { // Single-select
+                                const checkedRadio = editAnswerOptionsArea.querySelector(`input[name="edit_q_${questionId}"]:checked`);
+                                payload.selected_option_id = checkedRadio ? parseInt(checkedRadio.value) : null;
+                            }
+                            break;
+                        default:
+                            editAnswerError.textContent = 'Tipo de pregunta no reconocido para guardar.';
+                            editAnswerError.style.display = 'block';
+                            saveEditedAnswerBtn.disabled = false;
+                            saveEditedAnswerBtn.innerHTML = 'Guardar Cambios';
+                            return;
+                    }
+
+                    fetch(`/api/user_answers/${userAnswerId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' // Add CSRF token if needed by your Flask setup
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                    .then(result => {
+                        if (result.ok) {
+                            if(editAnswerModal) editAnswerModal.style.display = 'none';
+                            alert(result.body.message || "Respuesta actualizada con éxito.");
+                            // Refresh the review modal to show the updated answer
+                            if(reviewUserAnswersModal.style.display === 'flex' || reviewUserAnswersModal.classList.contains('flex')) { // Check if review modal was open
+                                loadAndDisplayUserAnswers(raceId);
+                            }
+                        } else {
+                            editAnswerError.textContent = result.body.message || 'Error al guardar la respuesta.';
+                            editAnswerError.style.display = 'block';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving answer:', error);
+                        editAnswerError.textContent = `Error de conexión al guardar: ${error.message}. Inténtalo de nuevo.`;
+                        editAnswerError.style.display = 'block';
+                    })
+                    .finally(() => {
+                        saveEditedAnswerBtn.disabled = false;
+                        saveEditedAnswerBtn.innerHTML = 'Guardar Cambios';
+                    });
+                });
+            }
+
 
             if(addMcOptionBtn && mcOptionsContainer) {
                 addMcOptionBtn.addEventListener('click', () => {
@@ -1286,7 +1628,26 @@
             }
 
             // Initial data fetch
-            fetchAndRenderQuestions();
+            // fetchAndRenderQuestions(); // Commented out - questions are now fetched by wizard or admin section
+            // Admin might still need a way to see questions even if user hasn't answered.
+            // For now, this is removed to simplify. If questions need to be displayed for admins
+            // outside the wizard, fetchAndRenderQuestions() should be called conditionally based on role.
+            // e.g., if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') { fetchAndRenderQuestions(); }
+            // But ensure it doesn't interfere with the new `has_user_answered_pool` logic.
+
+            // If admin needs to manage questions, they should be loaded regardless of has_user_answered_pool
+            // The display of these questions for admin management would be separate from the user participation flow.
+            // For now, let's assume question management is handled by "Añadir Pregunta" and subsequent edit/delete in modals.
+            // The `fetchAndRenderQuestions` was originally tied to the "Ver Preguntas" button which is removed.
+            // If questions are needed for the wizard, the wizard should fetch them.
+            // The current `fetchAndRenderQuestions` also populates `allRaceQuestions` which is used by the wizard.
+            // So, it needs to be called, but its rendering part should be conditional or managed.
+
+            if (allRaceQuestions.length === 0 && (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN' || !hasUserAnsweredPool) ) {
+                 // Fetch questions if they are not yet loaded, and user is admin/league_admin OR if user has not answered (for wizard)
+                fetchAndRenderQuestions();
+            }
+
 
             // --- Question Wizard Logic ---
             let currentQuestionIndex = 0;
@@ -1301,17 +1662,59 @@
             const wizardPrevBtn = document.getElementById('wizardPrevBtn');
             const wizardNextBtn = document.getElementById('wizardNextBtn');
             const wizardFinishBtn = document.getElementById('wizardFinishBtn');
-            const answerQuestionsBtn = document.getElementById('answerQuestionsBtn');
+            const answerQuestionsBtn = document.getElementById('answerQuestionsBtn'); // This is the hero button
 
             function openWizard() {
-                if (!allRaceQuestions || allRaceQuestions.length === 0) {
-                    alert("No hay preguntas disponibles para esta carrera en este momento.");
-                    return;
+                // If questions haven't been loaded yet (e.g. for a player who hasn't answered)
+                // Ensure questions are fetched before opening the wizard.
+                if (allRaceQuestions.length === 0) {
+                    // Temporarily show a loading indicator for the wizard button or modal
+                    const wizardTriggerButton = document.getElementById('participateInPoolBtn') || document.getElementById('answerQuestionsBtn');
+                    let originalButtonText = '';
+                    if (wizardTriggerButton) {
+                        originalButtonText = wizardTriggerButton.innerHTML;
+                        wizardTriggerButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Cargando Quiniela...';
+                        wizardTriggerButton.disabled = true;
+                    }
+
+                    fetch(`/api/races/${raceId}/questions`)
+                        .then(response => {
+                            if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+                            return response.json();
+                        })
+                        .then(questions => {
+                            allRaceQuestions = questions; // Populate global questions
+                            if (!allRaceQuestions || allRaceQuestions.length === 0) {
+                                alert("No hay preguntas disponibles para esta carrera en este momento.");
+                                if (wizardTriggerButton) { // Restore button
+                                    wizardTriggerButton.innerHTML = originalButtonText;
+                                    wizardTriggerButton.disabled = false;
+                                }
+                                return;
+                            }
+                            // Now that questions are loaded, proceed to open wizard
+                            currentQuestionIndex = 0;
+                            userWizardAnswers = {}; // Reset answers
+                            displayWizardQuestion(currentQuestionIndex);
+                            if(questionWizardModal) questionWizardModal.style.display = 'flex';
+                        })
+                        .catch(error => {
+                            console.error('Error fetching questions for wizard:', error);
+                            alert(`Error al cargar las preguntas de la quiniela: ${error.message}. Inténtalo de nuevo.`);
+                        })
+                        .finally(() => {
+                            if (wizardTriggerButton) { // Restore button
+                                wizardTriggerButton.innerHTML = originalButtonText;
+                                wizardTriggerButton.disabled = false;
+                            }
+                        });
+                } else {
+                    // Questions are already loaded, open wizard directly
+                    currentQuestionIndex = 0;
+                    userWizardAnswers = {}; // Reset answers
+                    displayWizardQuestion(currentQuestionIndex);
+                    if(questionWizardModal) questionWizardModal.style.display = 'flex';
                 }
-                currentQuestionIndex = 0;
-                userWizardAnswers = {}; // Reset answers when opening
-                displayWizardQuestion(currentQuestionIndex);
-                if(questionWizardModal) questionWizardModal.style.display = 'flex';
             }
 
             function closeWizard() {
@@ -1502,6 +1905,11 @@
                         if (result.ok) {
                             alert(result.body.message || '¡Respuestas guardadas con éxito!');
                             closeWizard();
+                                // Update UI to reflect that user has answered
+                                // This might involve hiding the "Participar" button and showing "Ya has participado"
+                                // This can be done by re-evaluating the Jinja or by JS DOM manipulation
+                                // For simplicity, we can reload the page to let Jinja handle it:
+                                window.location.reload();
                         } else {
                             alert(`Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`);
                         }
@@ -1757,6 +2165,65 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Edit Answer Modal -->
+    <div id="editAnswerModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 130;"> <!-- Higher z-index -->
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="editAnswerModalTitle" class="text-xl sm:text-2xl font-bold text-gray-800">Editar Respuesta</h2>
+                <button id="closeEditAnswerModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body: Edit Area -->
+            <input type="hidden" id="editingQuestionIdStore" value="">
+            <input type="hidden" id="editingUserAnswerIdStore" value="">
+
+            <div id="editAnswerQuestionText" class="text-lg font-semibold text-gray-700 mb-4"></div>
+            <div id="editAnswerOptionsArea" class="space-y-3 mb-6">
+                <!-- Input fields will be dynamically inserted here -->
+                <div id="editAnswerLoading" style="display: none;" class="text-center py-4">Cargando pregunta... <i class="fas fa-spinner fa-spin"></i></div>
+                <div id="editAnswerError" style="display: none;" class="text-red-500 py-4"></div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end items-center pt-6 border-t border-gray-200 space-x-3">
+                <button id="cancelEditAnswerBtn" class="btn btn-secondary">Cancelar</button>
+                <button id="saveEditedAnswerBtn" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review User Answers Modal -->
+    <div id="reviewUserAnswersModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-800">Mis Respuestas de la Quiniela</h2>
+                <button id="closeReviewUserAnswersModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body: Answers Display Area -->
+            <div id="reviewUserAnswersContentWrapper" class="space-y-4 max-h-96 overflow-y-auto mb-6">
+                 <div id="reviewAnswersLoading" style="display: none;" class="text-center py-4">Cargando respuestas... <i class="fas fa-spinner fa-spin"></i></div>
+                 <div id="reviewAnswersError" style="display: none;" class="text-red-500 py-4 text-center"></div>
+                 <div id="reviewUserAnswersDisplayArea" class="space-y-3"> <!-- Added space-y-3 for spacing between answers -->
+                    <!-- Answers will be dynamically inserted here -->
+                 </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end items-center pt-6 border-t border-gray-200">
+                <button id="confirmAndCloseReviewModalBtn" class="btn btn-primary">
+                    Confirmar y Volver
+                </button>
+            </div>
+        </div>
+    </div>
 
 
     <script>

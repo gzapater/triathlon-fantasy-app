@@ -1418,6 +1418,7 @@ def serve_race_detail_page(race_id):
 
     user_role_code = 'GUEST' # Default role if not authenticated or no role
     is_user_registered_for_race = False # Default to false
+    has_user_answered_pool = False # Initialize default for the new variable
 
     if current_user and current_user.is_authenticated:
         user_role_code = current_user.role.code
@@ -1425,6 +1426,11 @@ def serve_race_detail_page(race_id):
         registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
         if registration:
             is_user_registered_for_race = True
+
+        # Check if the user has answered any questions for this race pool
+        user_answers = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).first()
+        if user_answers:
+            has_user_answered_pool = True
     else:
         # Ensure current_user.is_authenticated is False if current_user is None or not authenticated
         # This handles cases where current_user might be an AnonymousUserMixin without a 'role'
@@ -1435,7 +1441,8 @@ def serve_race_detail_page(race_id):
                            race=race,
                            current_year=current_year,
                            currentUserRole=user_role_code,
-                           is_user_registered_for_race=is_user_registered_for_race)
+                           is_user_registered_for_race=is_user_registered_for_race,
+                           has_user_answered_pool=has_user_answered_pool)
 
 # --- API Endpoint for Saving User Answers ---
 @app.route('/api/races/<int:race_id>/answers', methods=['POST'])
@@ -1564,6 +1571,172 @@ def save_user_answers(race_id):
         db.session.rollback()
         app.logger.error(f"Exception saving answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while saving answers."), 500
+
+@app.route('/api/races/<int:race_id>/user_answers', methods=['GET'])
+@login_required
+def get_user_answers(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    user_answers = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).all()
+
+    if not user_answers:
+        # It's important to return an empty list if no answers, not a 404 or error
+        return jsonify([]), 200
+
+    processed_answers = []
+    for ua in user_answers:
+        question = ua.question
+        if not question:
+            app.logger.error(f"UserAnswer {ua.id} has no associated question. Skipping.")
+            continue
+
+        all_q_options_list = []
+        # Fetch all options for context, especially for MC and Ordering
+        if question.question_type.name == "MULTIPLE_CHOICE" or question.question_type.name == "ORDERING":
+            all_q_options = QuestionOption.query.filter_by(question_id=question.id).order_by(QuestionOption.id).all()
+            all_q_options_list = [{"id": opt.id, "option_text": opt.option_text, "correct_order_index": opt.correct_order_index if question.question_type.name == "ORDERING" else None} for opt in all_q_options]
+
+
+        answer_data = {
+            "question_id": question.id,
+            "question_text": question.text,
+            "question_type": question.question_type.name,
+            "user_answer_id": ua.id,
+            "answer_text": ua.answer_text,
+            "selected_option_id": ua.selected_option_id,
+            "selected_option_text": None, # Initialize
+            "selected_mc_options": [], # Initialize
+            "all_question_options": all_q_options_list
+        }
+
+        if question.question_type.name == "MULTIPLE_CHOICE":
+            if not question.is_mc_multiple_correct and ua.selected_option_id:
+                # Single-choice MC: get the text of the selected option
+                selected_option = QuestionOption.query.get(ua.selected_option_id)
+                if selected_option:
+                    answer_data["selected_option_text"] = selected_option.option_text
+            elif question.is_mc_multiple_correct:
+                # Multiple-choice MC: get text for all selected options
+                selected_mc_options_list = []
+                for mc_opt_assoc in ua.selected_mc_options: # This is UserAnswerMultipleChoiceOption
+                    option = QuestionOption.query.get(mc_opt_assoc.question_option_id)
+                    if option:
+                        selected_mc_options_list.append({
+                            "option_id": option.id,
+                            "option_text": option.option_text
+                        })
+                answer_data["selected_mc_options"] = selected_mc_options_list
+
+        # For ORDERING, the user's raw answer (sequence of texts) is already in ua.answer_text.
+        # all_question_options provides the list of original items that were ordered.
+
+        processed_answers.append(answer_data)
+
+    return jsonify(processed_answers), 200
+
+@app.route('/api/user_answers/<int:user_answer_id>', methods=['PUT'])
+@login_required
+def update_user_answer(user_answer_id):
+    try:
+        user_answer = UserAnswer.query.get(user_answer_id)
+        if not user_answer:
+            return jsonify(message="Answer not found"), 404
+
+        if user_answer.user_id != current_user.id:
+            # Also check if the current user is an admin/league_admin of the race?
+            # For now, only the user who owns the answer can modify it.
+            return jsonify(message="Forbidden: You cannot modify this answer"), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify(message="Invalid input: No data provided"), 400
+
+        question = user_answer.question
+        if not question:
+            app.logger.error(f"UserAnswer {user_answer_id} is orphaned or its question was deleted.")
+            return jsonify(message="Internal error: Question associated with this answer not found."), 500
+
+        question_type_name = question.question_type.name
+        app.logger.info(f"Attempting to update UserAnswer ID: {user_answer_id} for Question ID: {question.id} (Type: {question_type_name}) by User ID: {current_user.id}")
+
+
+        if question_type_name == 'FREE_TEXT':
+            new_answer_text = data.get('answer_text')
+            if new_answer_text is None:
+                app.logger.warning(f"Missing 'answer_text' in payload for UserAnswer {user_answer_id} (FREE_TEXT)")
+                return jsonify(message="Missing 'answer_text' for FREE_TEXT question"), 400
+            user_answer.answer_text = new_answer_text
+            user_answer.selected_option_id = None
+            UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
+            app.logger.info(f"Updated FREE_TEXT for UserAnswer {user_answer_id} to: '{new_answer_text[:50]}...'")
+
+        elif question_type_name == 'ORDERING':
+            new_ordered_text = data.get('ordered_options_text') # Matching JS
+            if new_ordered_text is None:
+                app.logger.warning(f"Missing 'ordered_options_text' in payload for UserAnswer {user_answer_id} (ORDERING)")
+                return jsonify(message="Missing 'ordered_options_text' for ORDERING question"), 400
+            user_answer.answer_text = new_ordered_text
+            user_answer.selected_option_id = None
+            UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
+            app.logger.info(f"Updated ORDERING for UserAnswer {user_answer_id} to: '{new_ordered_text[:50]}...'")
+
+        elif question_type_name == 'MULTIPLE_CHOICE':
+            user_answer.answer_text = None
+            if question.is_mc_multiple_correct: # Multi-select
+                new_selected_option_ids = data.get('selected_option_ids')
+                if not isinstance(new_selected_option_ids, list):
+                    app.logger.warning(f"Invalid 'selected_option_ids' (not a list) for UserAnswer {user_answer_id} (MC Multi)")
+                    return jsonify(message="Invalid 'selected_option_ids': must be a list for multi-select MC question"), 400
+
+                UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
+                valid_option_ids_for_question = {opt.id for opt in question.options}
+                for opt_id in new_selected_option_ids:
+                    if opt_id not in valid_option_ids_for_question:
+                        db.session.rollback()
+                        app.logger.error(f"Invalid opt_id {opt_id} for multi-select MC UserAnswer {user_answer_id}, Question {question.id}")
+                        return jsonify(message=f"Invalid option_id {opt_id} provided."), 400
+                    db.session.add(UserAnswerMultipleChoiceOption(user_answer_id=user_answer.id, question_option_id=opt_id))
+                user_answer.selected_option_id = None
+                app.logger.info(f"Updated MC Multi for UserAnswer {user_answer_id} with options: {new_selected_option_ids}")
+
+            else: # Single-select
+                if 'selected_option_id' not in data:
+                     app.logger.warning(f"Missing 'selected_option_id' in payload for UserAnswer {user_answer_id} (MC Single)")
+                     return jsonify(message="Missing 'selected_option_id' for single-choice MC question"), 400
+
+                new_selected_option_id = data.get('selected_option_id')
+
+                if new_selected_option_id is not None:
+                    if not isinstance(new_selected_option_id, int):
+                        app.logger.warning(f"Invalid 'selected_option_id' (not int/null) for UserAnswer {user_answer_id} (MC Single)")
+                        return jsonify(message="Invalid 'selected_option_id': must be an integer or null"), 400
+
+                    valid_option = QuestionOption.query.filter_by(id=new_selected_option_id, question_id=question.id).first()
+                    if not valid_option:
+                        app.logger.error(f"Invalid option_id {new_selected_option_id} for single-select MC UserAnswer {user_answer_id}, Question {question.id}")
+                        return jsonify(message=f"Invalid option_id {new_selected_option_id} for question {question.id}"), 400
+
+                user_answer.selected_option_id = new_selected_option_id
+                UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
+                app.logger.info(f"Updated MC Single for UserAnswer {user_answer_id} to option_id: {new_selected_option_id}")
+        else:
+            app.logger.error(f"Unsupported question type '{question_type_name}' for update on UserAnswer {user_answer_id}")
+            return jsonify(message=f"Unsupported question type for update: {question_type_name}"), 400
+
+        db.session.commit()
+        app.logger.info(f"UserAnswer {user_answer_id} updated successfully by User {current_user.id}")
+        return jsonify(message="Answer updated successfully", userAnswerId=user_answer.id), 200 # Matched key from spec
+
+    except IntegrityError as e:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError updating UserAnswer {user_answer_id}: {e}", exc_info=True)
+        return jsonify(message="Database integrity error during update."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception updating UserAnswer {user_answer_id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while updating the answer."), 500
 
 
 if __name__ == '__main__':
