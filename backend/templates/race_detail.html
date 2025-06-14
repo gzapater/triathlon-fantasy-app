@@ -539,7 +539,7 @@
     <script>
         const raceId = "{{ race.id | default('') }}";
         const raceEventDateString = "{{ race.event_date.isoformat() if race.event_date else '' }}";
-        const raceTitle = "{{ race.title | tojson }}";
+        const raceTitle = {{ race.title | tojson }};
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
         const isUserRegisteredForRace = {{ is_user_registered_for_race | tojson }};
         const hasUserAnsweredPool = {{ has_user_answered_pool | tojson }}; // Added this line
