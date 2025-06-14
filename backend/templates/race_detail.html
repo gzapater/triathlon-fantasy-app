@@ -275,6 +275,9 @@
                         <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
+                        <button id="setOfficialResultsBtn" class="btn btn-info bg-teal-500 hover:bg-teal-600 text-white px-5 py-2.5 sm:px-6 sm:py-3" style="display: none;">
+                            <i class="fas fa-award mr-2"></i>Set Official Results
+                        </button>
                         {% endif %}
                         <button id="answerQuestionsBtn" class="btn btn-primary bg-green-500 hover:bg-green-600 px-5 py-2.5 sm:px-6 sm:py-3" style="display: none;">
                             <i class="fas fa-tasks mr-2"></i>Responder Preguntas
@@ -404,6 +407,15 @@
 
             </div>
 
+            <!-- Official Results Display Section -->
+            <div id="officialResultsSection" class="bg-white rounded-xl p-6 shadow-lg mt-8" style="display: none;">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">Resultados Oficiales de la Quiniela</h2>
+                <div id="officialResultsContent" class="space-y-4">
+                    <!-- Official results will be populated here by JavaScript -->
+                    <p id="loadingOfficialResultsMsg" class="text-gray-600">Cargando resultados oficiales...</p>
+                </div>
+            </div>
+
             <!-- Sidebar -->
             <aside class="space-y-6 lg:sticky lg:top-24 self-start"> <!-- Added self-start for sticky behavior -->
                 <div class="bg-white rounded-xl p-6 shadow-lg">
@@ -526,6 +538,8 @@
 
     <script>
         const raceId = "{{ race.id | default('') }}";
+        const raceEventDateString = "{{ race.event_date.isoformat() if race.event_date else '' }}";
+        const raceTitle = "{{ race.title | escapejs }}";
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
         const isUserRegisteredForRace = {{ is_user_registered_for_race | tojson }};
         const hasUserAnsweredPool = {{ has_user_answered_pool | tojson }}; // Added this line
@@ -2222,6 +2236,330 @@
 
         // --- End Question Wizard Logic ---
 
+        // --- Official Results Modal & Logic ---
+        const setOfficialResultsBtn = document.getElementById('setOfficialResultsBtn');
+        const officialResultsModal = document.getElementById('officialResultsModal');
+        const closeOfficialResultsModalBtn = document.getElementById('closeOfficialResultsModalBtn');
+        const cancelOfficialResultsBtn = document.getElementById('cancelOfficialResultsBtn');
+        const saveOfficialResultsForm = document.getElementById('saveOfficialResultsForm');
+        const officialResultsFormContent = document.getElementById('officialResultsFormContent');
+        const officialResultsModalTitle = document.getElementById('officialResultsModalTitle');
+
+        function showSetOfficialResultsButton() {
+            if (setOfficialResultsBtn && (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN')) {
+                if (raceEventDateString) {
+                    const eventDate = new Date(raceEventDateString);
+                    if (eventDate < new Date()) {
+                        setOfficialResultsBtn.style.display = 'inline-flex';
+                    }
+                }
+            }
+        }
+
+        async function populateOfficialResultsForm() {
+            if (!officialResultsFormContent) return;
+            officialResultsFormContent.innerHTML = '<p class="text-center">Cargando preguntas...</p>';
+
+            try {
+                // Fetch all questions for the race
+                const questionsResponse = await fetch(`/api/races/${raceId}/questions`);
+                if (!questionsResponse.ok) throw new Error('Failed to fetch questions');
+                const questions = await questionsResponse.json();
+
+                // Fetch existing official answers (mocking for now, assume empty or specific structure)
+                let existingOfficialAnswers = {};
+                try {
+                    // This endpoint will be created in a future step. For now, we anticipate its response.
+                    // const officialAnswersResponse = await fetch(`/api/races/${raceId}/official_answers`);
+                    // if (officialAnswersResponse.ok) {
+                    //     existingOfficialAnswers = await officialAnswersResponse.json(); // Expected: { "question_id": { answer_data... } }
+                    // } else if (officialAnswersResponse.status !== 404) { // 404 is fine (no answers yet)
+                    //     console.warn('Could not fetch existing official answers, proceeding with empty form.');
+                    // }
+                    // Mock: For testing, assume some answers exist
+                    // existingOfficialAnswers = {
+                    //     "1": { "answer_text": "Mocked official text" },
+                    //     "2": { "selected_option_id": 10 }
+                    // };
+                    console.log("Skipping fetch for existing official answers as endpoint is not yet ready.");
+
+                } catch (error) {
+                    console.warn('Error fetching existing official answers:', error);
+                }
+
+
+                if (!questions || questions.length === 0) {
+                    officialResultsFormContent.innerHTML = '<p class="text-center text-red-500">No hay preguntas configuradas para esta carrera.</p>';
+                    return;
+                }
+
+                officialResultsFormContent.innerHTML = ''; // Clear loading message
+
+                questions.forEach(q => {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.className = 'mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50';
+                    questionDiv.dataset.questionId = q.id;
+                    questionDiv.dataset.questionType = q.question_type;
+                    questionDiv.dataset.isMcMultipleCorrect = q.is_mc_multiple_correct || false;
+
+
+                    let inputHtml = `<h4 class="font-semibold text-gray-700 mb-2">${q.text}</h4>`;
+                    const currentAnswer = existingOfficialAnswers[q.id.toString()] || {};
+
+                    switch (q.question_type) {
+                        case 'FREE_TEXT':
+                            inputHtml += `<textarea name="official_answer_q${q.id}_text" class="w-full p-2 border border-gray-300 rounded-md" rows="3">${currentAnswer.answer_text || ''}</textarea>`;
+                            break;
+                        case 'ORDERING':
+                            inputHtml += `<textarea name="official_answer_q${q.id}_ordering" class="w-full p-2 border border-gray-300 rounded-md" rows="3" placeholder="Ej: Opción C, Opción A, Opción B">${currentAnswer.ordered_options_text || ''}</textarea>`;
+                            // Display options for reference
+                            if (q.options && q.options.length > 0) {
+                                inputHtml += '<p class="text-xs text-gray-500 mt-1">Opciones disponibles (para referencia de ordenamiento):</p><ul class="text-xs list-disc list-inside pl-4">';
+                                q.options.forEach(opt => inputHtml += `<li>${opt.option_text} (ID: ${opt.id})</li>`);
+                                inputHtml += '</ul>';
+                            }
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            if (q.options && q.options.length > 0) {
+                                inputHtml += '<div class="space-y-2 mt-1">';
+                                q.options.forEach(opt => {
+                                    if (q.is_mc_multiple_correct) {
+                                        const isChecked = currentAnswer.selected_option_ids?.includes(opt.id) ? 'checked' : '';
+                                        inputHtml += `
+                                            <label class="flex items-center space-x-2 p-1 hover:bg-gray-100 rounded">
+                                                <input type="checkbox" name="official_answer_q${q.id}_option" value="${opt.id}" class="form-checkbox h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500" ${isChecked}>
+                                                <span>${opt.option_text}</span>
+                                            </label>`;
+                                    } else {
+                                        const isChecked = currentAnswer.selected_option_id == opt.id ? 'checked' : '';
+                                        inputHtml += `
+                                            <label class="flex items-center space-x-2 p-1 hover:bg-gray-100 rounded">
+                                                <input type="radio" name="official_answer_q${q.id}_option" value="${opt.id}" class="form-radio h-4 w-4 text-orange-600 border-gray-300 focus:ring-orange-500" ${isChecked}>
+                                                <span>${opt.option_text}</span>
+                                            </label>`;
+                                    }
+                                });
+                                inputHtml += '</div>';
+                            } else {
+                                inputHtml += '<p class="text-red-500 text-sm">No hay opciones para esta pregunta.</p>';
+                            }
+                            break;
+                        default:
+                            inputHtml += '<p class="text-red-500 text-sm">Tipo de pregunta no soportado para resultados oficiales.</p>';
+                    }
+                    questionDiv.innerHTML = inputHtml;
+                    officialResultsFormContent.appendChild(questionDiv);
+                });
+
+            } catch (error) {
+                console.error('Error populating official results form:', error);
+                officialResultsFormContent.innerHTML = `<p class="text-center text-red-500">Error al cargar el formulario: ${error.message}</p>`;
+            }
+        }
+
+        if (setOfficialResultsBtn) {
+            setOfficialResultsBtn.addEventListener('click', () => {
+                if (officialResultsModalTitle) officialResultsModalTitle.textContent = `Set Official Quiniela Results for ${raceTitle}`;
+                populateOfficialResultsForm();
+                if (officialResultsModal) officialResultsModal.style.display = 'flex';
+            });
+        }
+
+        if (closeOfficialResultsModalBtn) {
+            closeOfficialResultsModalBtn.addEventListener('click', () => {
+                if (officialResultsModal) officialResultsModal.style.display = 'none';
+            });
+        }
+        if (cancelOfficialResultsBtn) {
+            cancelOfficialResultsBtn.addEventListener('click', () => {
+                if (officialResultsModal) officialResultsModal.style.display = 'none';
+            });
+        }
+
+        if (saveOfficialResultsForm) {
+            saveOfficialResultsForm.addEventListener('submit', async function(event) {
+                event.preventDefault();
+                const saveButton = saveOfficialResultsForm.querySelector('button[type="submit"]');
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+                const payload = {};
+                const questionDivs = officialResultsFormContent.querySelectorAll('div[data-question-id]');
+
+                questionDivs.forEach(div => {
+                    const questionId = div.dataset.questionId;
+                    const questionType = div.dataset.questionType;
+                    const isMultipleCorrect = div.dataset.isMcMultipleCorrect === 'true';
+                    let answerData = {};
+
+                    switch (questionType) {
+                        case 'FREE_TEXT':
+                            const ftTextarea = div.querySelector(`textarea[name="official_answer_q${questionId}_text"]`);
+                            if (ftTextarea) answerData.answer_text = ftTextarea.value;
+                            break;
+                        case 'ORDERING':
+                            const orTextarea = div.querySelector(`textarea[name="official_answer_q${questionId}_ordering"]`);
+                            if (orTextarea) answerData.ordered_options_text = orTextarea.value;
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            if (isMultipleCorrect) {
+                                answerData.selected_option_ids = [];
+                                div.querySelectorAll(`input[name="official_answer_q${questionId}_option"]:checked`).forEach(checkbox => {
+                                    answerData.selected_option_ids.push(parseInt(checkbox.value));
+                                });
+                            } else {
+                                const radioChecked = div.querySelector(`input[name="official_answer_q${questionId}_option"]:checked`);
+                                answerData.selected_option_id = radioChecked ? parseInt(radioChecked.value) : null;
+                            }
+                            break;
+                    }
+                    payload[questionId] = answerData;
+                });
+
+                try {
+                    const response = await fetch(`/api/races/${raceId}/official_answers`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' // If CSRF needed
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        alert(result.message || 'Resultados oficiales guardados con éxito.');
+                        if (officialResultsModal) officialResultsModal.style.display = 'none';
+                    } else {
+                        alert(`Error: ${result.message || 'No se pudieron guardar los resultados oficiales.'}`);
+                    }
+                } catch (error) {
+                    console.error('Error saving official results:', error);
+                    alert('Error de conexión al guardar los resultados oficiales.');
+                } finally {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = 'Guardar Resultados Oficiales';
+                }
+            });
+        }
+        // --- End Official Results Modal & Logic ---
+
+        // --- Display Official Results Logic ---
+        async function fetchAndDisplayOfficialResults() {
+            const officialResultsSection = document.getElementById('officialResultsSection');
+            const officialResultsContent = document.getElementById('officialResultsContent');
+            const loadingMsg = document.getElementById('loadingOfficialResultsMsg');
+
+            if (!officialResultsSection || !officialResultsContent || !loadingMsg) {
+                console.error("Official results display elements not found.");
+                return;
+            }
+
+            // Ensure questions are loaded first, as we need question text
+            if (allRaceQuestions.length === 0) {
+                try {
+                    const qResponse = await fetch(`/api/races/${raceId}/questions`);
+                    if (!qResponse.ok) throw new Error('Failed to fetch questions for official results display');
+                    allRaceQuestions = await qResponse.json();
+                } catch (error) {
+                    console.error("Error pre-fetching questions for official results:", error);
+                    loadingMsg.textContent = 'Error al cargar datos de preguntas para mostrar resultados.';
+                    officialResultsSection.style.display = 'block'; // Show section to display error
+                    return;
+                }
+            }
+
+            if (!raceEventDateString || new Date(raceEventDateString) > new Date()) {
+                // Race hasn't concluded or no date available, so don't attempt to show official results.
+                // The section will remain hidden by default.
+                console.log("Race has not concluded or event date is not available. Official results will not be displayed.");
+                return;
+            }
+
+            loadingMsg.style.display = 'block';
+            officialResultsContent.innerHTML = ''; // Clear previous content (like loading message if it was there)
+            officialResultsContent.appendChild(loadingMsg); // Re-add loading message for this specific fetch
+            officialResultsSection.style.display = 'block'; // Show the section
+
+            try {
+                const response = await fetch(`/api/races/${raceId}/official_answers`);
+                if (!response.ok) {
+                    if (response.status === 403) { // "Official results are not yet available..."
+                         loadingMsg.textContent = 'Los resultados oficiales aún no han sido publicados o la carrera no ha concluido.';
+                         return;
+                    }
+                    throw new Error(`Error ${response.status}: Failed to fetch official answers.`);
+                }
+                const officialAnswersData = await response.json();
+
+                if (Object.keys(officialAnswersData).length === 0) {
+                    loadingMsg.textContent = 'Los resultados oficiales aún no han sido publicados.';
+                    return;
+                }
+
+                loadingMsg.style.display = 'none'; // Hide loading message
+
+                for (const qIdStr in officialAnswersData) {
+                    const answerInfo = officialAnswersData[qIdStr];
+                    const question = allRaceQuestions.find(q => q.id.toString() === qIdStr);
+
+                    if (!question) {
+                        console.warn(`Question with ID ${qIdStr} not found in allRaceQuestions. Skipping display for this official answer.`);
+                        continue;
+                    }
+
+                    const resultItemDiv = document.createElement('div');
+                    resultItemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm';
+
+                    let answerHtml = '';
+                    switch (answerInfo.question_type) {
+                        case 'FREE_TEXT':
+                        case 'ORDERING':
+                            answerHtml = `<p class="text-gray-800">${answerInfo.answer_text || '<em class="text-gray-500">No se proporcionó respuesta.</em>'}</p>`;
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            if (answerInfo.selected_option_text !== undefined) { // Single choice
+                                answerHtml = `<p class="text-gray-800">${answerInfo.selected_option_text || '<em class="text-gray-500">Ninguna opción seleccionada.</em>'}</p>`;
+                            } else if (answerInfo.selected_options && answerInfo.selected_options.length > 0) { // Multiple choice
+                                answerHtml = '<ul class="list-disc list-inside space-y-1">';
+                                answerInfo.selected_options.forEach(opt => {
+                                    answerHtml += `<li class="text-gray-800">${opt.option_text}</li>`;
+                                });
+                                answerHtml += '</ul>';
+                            } else {
+                                answerHtml = '<em class="text-gray-500">Ninguna opción seleccionada.</em>';
+                            }
+                            break;
+                        default:
+                            answerHtml = '<em class="text-red-500">Tipo de respuesta no reconocido.</em>';
+                    }
+
+                    resultItemDiv.innerHTML = `
+                        <h4 class="font-semibold text-gray-700 mb-1">${question.text}</h4>
+                        <div class="text-sm text-gray-500 mb-2">Respuesta Oficial:</div>
+                        <div class="p-2 rounded-md bg-white border border-gray-300 min-h-[30px]">${answerHtml}</div>
+                    `;
+                    officialResultsContent.appendChild(resultItemDiv);
+                }
+
+            } catch (error) {
+                console.error('Error fetching or displaying official results:', error);
+                loadingMsg.textContent = `Error al cargar los resultados oficiales: ${error.message}`;
+            }
+        }
+        // --- End Display Official Results Logic ---
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Element Declarations
+            const logoutButtonNav = document.getElementById('logoutButtonNav');
+            showSetOfficialResultsButton(); // Call function to determine button visibility after DOM is loaded
+            fetchAndDisplayOfficialResults(); // Attempt to display official results
+
+            const participateInPoolBtn = document.getElementById('participateInPoolBtn');
+            if (participateInPoolBtn) {
+                participateInPoolBtn.addEventListener('click', openWizard);
+            }
+            // ... (rest of existing DOMContentLoaded listeners) ...
     </script>
 
     <!-- Question Wizard Modal -->
@@ -2471,6 +2809,32 @@
             </div>
         </div>
     </div>
+
+    <!-- Official Results Modal -->
+    {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+    <div id="officialResultsModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 150;">
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl lg:max-w-3xl mx-auto">
+            <form id="saveOfficialResultsForm">
+                <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
+                    <h2 id="officialResultsModalTitle" class="text-xl sm:text-2xl font-bold text-gray-800">Set Official Quiniela Results</h2>
+                    <button type="button" id="closeOfficialResultsModalBtn" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times fa-lg"></i>
+                    </button>
+                </div>
+
+                <div id="officialResultsFormContent" class="space-y-6 max-h-[60vh] overflow-y-auto mb-6 pr-2">
+                    <!-- Questions and input fields will be dynamically inserted here -->
+                    <p class="text-center">Cargando preguntas...</p>
+                </div>
+
+                <div class="flex justify-end items-center pt-6 border-t border-gray-200 space-x-3">
+                    <button type="button" id="cancelOfficialResultsBtn" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-primary bg-green-600 hover:bg-green-700">Guardar Resultados Oficiales</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
 
     <script>
