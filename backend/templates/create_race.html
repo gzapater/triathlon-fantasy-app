@@ -881,419 +881,421 @@
         // Note: Flask data (ALL_RACE_FORMATS, ALL_SEGMENTS) must be defined before this script runs
         // or fetched asynchronously if not embedded. For now, assume they will be embedded.
 
-        let questions = []; // To store questions added client-side
-        let currentEditingQuestionIndex = -1; // -1 for new, index for editing
+        document.addEventListener('DOMContentLoaded', function() {
+            let questions = []; // To store questions added client-side
+            let currentEditingQuestionIndex = -1; // -1 for new, index for editing
 
-        // DOM Elements for Question Modal & Step 3
-        const questionModal = document.getElementById('questionModal');
-        const questionModalTitle = document.getElementById('questionModalTitle');
-        const modalQuestionText = document.getElementById('modalQuestionText');
-        const modalTypeSpecificFieldsContainer = document.getElementById('modalTypeSpecificFieldsContainer');
-        const modalIsActiveCheckbox = document.getElementById('modalIsActiveCheckbox');
-        const currentQuestionIndexInput = document.getElementById('currentQuestionIndex'); // Corrected ID
-        const currentQuestionTypeStoreInput = document.getElementById('currentQuestionTypeStore'); // Corrected ID
-        const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
-        const cancelQuestionModalBtn = document.getElementById('cancelQuestionModalBtn');
-        const saveQuestionBtn = document.getElementById('saveQuestionBtn');
-        const modalQuestionFormError = document.getElementById('modalQuestionFormError');
+            // DOM Elements for Question Modal & Step 3
+            const questionModal = document.getElementById('questionModal');
+            const questionModalTitle = document.getElementById('questionModalTitle');
+            const modalQuestionText = document.getElementById('modalQuestionText');
+            const modalTypeSpecificFieldsContainer = document.getElementById('modalTypeSpecificFieldsContainer');
+            const modalIsActiveCheckbox = document.getElementById('modalIsActiveCheckbox');
+            const currentQuestionIndexInput = document.getElementById('currentQuestionIndex');
+            const currentQuestionTypeStoreInput = document.getElementById('currentQuestionTypeStore');
+            const closeQuestionModalBtn = document.getElementById('closeQuestionModalBtn');
+            const cancelQuestionModalBtn = document.getElementById('cancelQuestionModalBtn');
+            const saveQuestionBtn = document.getElementById('saveQuestionBtn');
+            const modalQuestionFormError = document.getElementById('modalQuestionFormError');
 
-        const addFreeTextQuestionBtn = document.getElementById('addFreeTextQuestionBtn');
-        const addMultipleChoiceQuestionBtn = document.getElementById('addMultipleChoiceQuestionBtn');
-        const addOrderingQuestionBtn = document.getElementById('addOrderingQuestionBtn');
-        const questionsPreviewContainer = document.getElementById('questionsPreviewContainer');
-        const noQuestionsMessage = document.getElementById('noQuestionsMessage');
+            const addFreeTextQuestionBtn = document.getElementById('addFreeTextQuestionBtn');
+            const addMultipleChoiceQuestionBtn = document.getElementById('addMultipleChoiceQuestionBtn');
+            const addOrderingQuestionBtn = document.getElementById('addOrderingQuestionBtn'); // This one was already correctly handled by an inline onclick initially, but good to group.
+            const questionsPreviewContainer = document.getElementById('questionsPreviewContainer');
+            const noQuestionsMessage = document.getElementById('noQuestionsMessage');
 
-
-        function closeQuestionModal() {
-            if (questionModal) {
-                questionModal.classList.add('hidden');
-                modalQuestionText.value = '';
-                modalTypeSpecificFieldsContainer.innerHTML = '';
-                modalIsActiveCheckbox.checked = true;
-                currentQuestionIndexInput.value = '-1';
-                currentQuestionTypeStoreInput.value = '';
-                modalQuestionFormError.textContent = '';
-            }
-        }
-
-        if(closeQuestionModalBtn) closeQuestionModalBtn.addEventListener('click', closeQuestionModal);
-        if(cancelQuestionModalBtn) cancelQuestionModalBtn.addEventListener('click', closeQuestionModal);
-
-        function openQuestionModal(questionType, questionIndexToEdit = -1) {
-            closeQuestionModal(); // Reset modal before opening
-            currentEditingQuestionIndex = questionIndexToEdit;
-            currentQuestionIndexInput.value = questionIndexToEdit;
-            currentQuestionTypeStoreInput.value = questionType;
-            modalQuestionFormError.textContent = '';
-
-            const questionData = (questionIndexToEdit !== -1 && questions[questionIndexToEdit]) ? questions[questionIndexToEdit] : null;
-
-            if (questionModalTitle) questionModalTitle.textContent = `${questionData ? 'Editar' : 'Añadir'} Pregunta - ${questionType.replace('_', ' ')}`;
-            if (modalQuestionText) modalQuestionText.value = questionData ? questionData.text : '';
-            if (modalIsActiveCheckbox) modalIsActiveCheckbox.checked = questionData ? questionData.is_active : true;
-
-            if (questionType === 'FREE_TEXT') {
-                renderFreeTextFieldsModal(questionData);
-            } else if (questionType === 'MULTIPLE_CHOICE') {
-                renderMultipleChoiceFieldsModal(questionData);
-            } else if (questionType === 'ORDERING') {
-                renderOrderingFieldsModal(questionData);
-            }
-
-            if (questionModal) questionModal.classList.remove('hidden');
-        }
-
-        function renderFreeTextFieldsModal(questionData) {
-            if (!modalTypeSpecificFieldsContainer) return;
-            modalTypeSpecificFieldsContainer.innerHTML = `
-                <div>
-                    <label for="modalMaxScoreFreeText" class="block text-sm font-medium text-gray-700 mb-1">Puntuación Máxima <span class="text-red-500">*</span></label>
-                    <input type="number" id="modalMaxScoreFreeText" name="modalMaxScoreFreeText" class="input-field w-full" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
-                </div>`;
-        }
-
-        function addMcOptionModal(optionText = '') {
-            const optionsContainer = document.getElementById('mcOptionsListModal'); // Ensure this ID is in renderMultipleChoiceFieldsModal
-            if (!optionsContainer) return;
-
-            const optionDiv = document.createElement('div');
-            optionDiv.className = 'flex items-center space-x-2 mb-2 mc-option-entry-modal';
-
-            const textInput = document.createElement('input');
-            textInput.type = 'text';
-            textInput.placeholder = `Texto de la Opción ${optionsContainer.children.length + 1}`;
-            textInput.className = 'flex-1 input-field option-text-modal'; // Unique class for modal options
-            textInput.value = optionText;
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'btn btn-danger p-2 text-xs';
-            removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            removeBtn.onclick = () => optionDiv.remove();
-
-            optionDiv.appendChild(textInput);
-            optionDiv.appendChild(removeBtn);
-            optionsContainer.appendChild(optionDiv);
-        }
-
-        function renderMultipleChoiceFieldsModal(questionData) {
-            if (!modalTypeSpecificFieldsContainer) return;
-            modalTypeSpecificFieldsContainer.innerHTML = `
-                <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Selección Múltiple <span class="text-red-500">*</span></label>
-                    <div class="flex items-center space-x-4">
-                        <label class="flex items-center"><input type="radio" id="modalMcTypeSingle" name="modalMcQuestionType" value="single" class="mr-1 focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300"> Respuesta Única</label>
-                        <label class="flex items-center"><input type="radio" id="modalMcTypeMultiple" name="modalMcQuestionType" value="multiple" class="mr-1 focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300"> Múltiples Respuestas</label>
-                    </div>
-                </div>
-                <div id="modalMcScoringFieldsContainer" class="space-y-3"></div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Opciones (mínimo 2) <span class="text-red-500">*</span></label>
-                    <div id="mcOptionsListModal" class="space-y-2"></div>
-                    <button type="button" id="addMcOptionModalBtn" class="btn btn-secondary text-xs mt-2"><i class="fas fa-plus mr-1"></i>Añadir Opción</button>
-                </div>`;
-
-            const mcTypeSingleRadio = document.getElementById('modalMcTypeSingle');
-            const mcTypeMultipleRadio = document.getElementById('modalMcTypeMultiple');
-            const scoringContainer = document.getElementById('modalMcScoringFieldsContainer');
-
-            function toggleScoringFields(isMultiple) {
-                if (isMultiple) {
-                    scoringContainer.innerHTML = `
-                        <div>
-                            <label for="modalPointsPerCorrectMc" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Acierto <span class="text-red-500">*</span></label>
-                            <input type="number" id="modalPointsPerCorrectMc" class="input-field w-full" value="${questionData && questionData.points_per_correct_mc !== undefined ? questionData.points_per_correct_mc : ''}" required>
-                        </div>
-                        <div>
-                            <label for="modalPointsPerIncorrectMc" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Fallo (0 o negativo)</label>
-                            <input type="number" id="modalPointsPerIncorrectMc" class="input-field w-full" value="${questionData && questionData.points_per_incorrect_mc !== undefined ? questionData.points_per_incorrect_mc : '0'}">
-                        </div>`;
-                } else {
-                    scoringContainer.innerHTML = `
-                        <div>
-                            <label for="modalTotalScoreMcSingle" class="block text-sm font-medium text-gray-700 mb-1">Puntuación Total por Acertar <span class="text-red-500">*</span></label>
-                            <input type="number" id="modalTotalScoreMcSingle" class="input-field w-full" min="1" value="${questionData && questionData.total_score_mc_single ? questionData.total_score_mc_single : ''}" required>
-                        </div>`;
+            function closeQuestionModal() {
+                if (questionModal) {
+                    questionModal.classList.add('hidden');
+                    if(modalQuestionText) modalQuestionText.value = '';
+                    if(modalTypeSpecificFieldsContainer) modalTypeSpecificFieldsContainer.innerHTML = '';
+                    if(modalIsActiveCheckbox) modalIsActiveCheckbox.checked = true;
+                    if(currentQuestionIndexInput) currentQuestionIndexInput.value = '-1';
+                    if(currentQuestionTypeStoreInput) currentQuestionTypeStoreInput.value = '';
+                    if(modalQuestionFormError) modalQuestionFormError.textContent = '';
                 }
             }
 
-            mcTypeSingleRadio.addEventListener('change', () => toggleScoringFields(false));
-            mcTypeMultipleRadio.addEventListener('change', () => toggleScoringFields(true));
+            function openQuestionModal(questionType, questionIndexToEdit = -1) {
+                closeQuestionModal(); // Reset modal before opening
+                currentEditingQuestionIndex = questionIndexToEdit;
+                if(currentQuestionIndexInput) currentQuestionIndexInput.value = questionIndexToEdit;
+                if(currentQuestionTypeStoreInput) currentQuestionTypeStoreInput.value = questionType;
+                if(modalQuestionFormError) modalQuestionFormError.textContent = '';
 
-            document.getElementById('addMcOptionModalBtn').addEventListener('click', () => addMcOptionModal());
+                const questionData = (questionIndexToEdit !== -1 && questions[questionIndexToEdit]) ? questions[questionIndexToEdit] : null;
 
-            // Initial state
-            if (questionData && questionData.is_mc_multiple_correct) {
-                mcTypeMultipleRadio.checked = true;
-                toggleScoringFields(true);
-            } else {
-                mcTypeSingleRadio.checked = true; // Default to single
-                toggleScoringFields(false);
+                if (questionModalTitle) questionModalTitle.textContent = `${questionData ? 'Editar' : 'Añadir'} Pregunta - ${questionType.replace('_', ' ')}`;
+                if (modalQuestionText) modalQuestionText.value = questionData ? questionData.text : '';
+                if (modalIsActiveCheckbox) modalIsActiveCheckbox.checked = questionData ? questionData.is_active : true;
+
+                if (questionType === 'FREE_TEXT') {
+                    renderFreeTextFieldsModal(questionData);
+                } else if (questionType === 'MULTIPLE_CHOICE') {
+                    renderMultipleChoiceFieldsModal(questionData);
+                } else if (questionType === 'ORDERING') {
+                    renderOrderingFieldsModal(questionData);
+                }
+
+                if (questionModal) questionModal.classList.remove('hidden');
             }
-            if (questionData && questionData.options) {
-                questionData.options.forEach(opt => addMcOptionModal(opt.option_text));
-            } else { // Add 2 empty options for new MC question
-                addMcOptionModal();
-                addMcOptionModal();
-            }
-        }
 
-        if(addFreeTextQuestionBtn) addFreeTextQuestionBtn.addEventListener('click', () => openQuestionModal('FREE_TEXT'));
-        if(addMultipleChoiceQuestionBtn) addMultipleChoiceQuestionBtn.addEventListener('click', () => openQuestionModal('MULTIPLE_CHOICE'));
-        if(addOrderingQuestionBtn) addOrderingQuestionBtn.addEventListener('click', () => openQuestionModal('ORDERING'));
-
-        function addOrderingItemModal(itemText = '') {
-            const itemsContainer = document.getElementById('orderingItemsListModal');
-            if (!itemsContainer) return;
-
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'flex items-center space-x-2 mb-2 ordering-item-entry-modal';
-
-            const textInput = document.createElement('input');
-            textInput.type = 'text';
-            textInput.placeholder = `Texto del Elemento ${itemsContainer.children.length + 1}`;
-            textInput.className = 'flex-1 input-field item-text-modal';
-            textInput.value = itemText;
-
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'btn btn-danger p-2 text-xs';
-            removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            removeBtn.onclick = () => itemDiv.remove();
-
-            itemDiv.appendChild(textInput);
-            itemDiv.appendChild(removeBtn);
-            itemsContainer.appendChild(itemDiv);
-        }
-
-        function renderOrderingFieldsModal(questionData) {
-            if (!modalTypeSpecificFieldsContainer) return;
-
-            const pointsPerCorrect = (questionData && questionData.points_per_correct_order !== undefined) ? questionData.points_per_correct_order : '';
-            const bonusForFull = (questionData && questionData.bonus_for_full_order !== undefined) ? questionData.bonus_for_full_order : '0';
-
-            modalTypeSpecificFieldsContainer.innerHTML = `
-                <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Elementos a Ordenar (mínimo 2, en el orden correcto) <span class="text-red-500">*</span></label>
-                    <div id="orderingItemsListModal" class="space-y-2">
-                        <!-- Items will be added here by JS -->
-                    </div>
-                    <button type="button" id="addOrderingItemModalBtn" class="btn btn-secondary text-xs mt-2"><i class="fas fa-plus mr-1"></i>Añadir Elemento</button>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            function renderFreeTextFieldsModal(questionData) {
+                if (!modalTypeSpecificFieldsContainer) return;
+                modalTypeSpecificFieldsContainer.innerHTML = `
                     <div>
-                        <label for="modalPointsPerCorrectOrder" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Posición Correcta <span class="text-red-500">*</span></label>
-                        <input type="number" id="modalPointsPerCorrectOrder" class="input-field w-full" min="0" value="${pointsPerCorrect}" required>
-                    </div>
-                    <div>
-                        <label for="modalBonusForFullOrder" class="block text-sm font-medium text-gray-700 mb-1">Bonus por Orden Completo (opcional)</label>
-                        <input type="number" id="modalBonusForFullOrder" class="input-field w-full" min="0" value="${bonusForFull}">
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('addOrderingItemModalBtn').addEventListener('click', () => addOrderingItemModal());
-
-            if (questionData && questionData.options && questionData.options.length > 0) {
-                questionData.options.forEach(opt => {
-                    addOrderingItemModal(opt.option_text);
-                });
-            } else {
-                addOrderingItemModal();
-                addOrderingItemModal();
+                        <label for="modalMaxScoreFreeText" class="block text-sm font-medium text-gray-700 mb-1">Puntuación Máxima <span class="text-red-500">*</span></label>
+                        <input type="number" id="modalMaxScoreFreeText" name="modalMaxScoreFreeText" class="input-field w-full" required min="1" value="${questionData && questionData.max_score_free_text ? questionData.max_score_free_text : ''}">
+                    </div>`;
             }
-        }
 
-        function renderQuestionsPreview() {
-            if (!questionsPreviewContainer || !noQuestionsMessage) return;
-            questionsPreviewContainer.innerHTML = ''; // Clear previous previews
+            function addMcOptionModal(optionText = '') {
+                const optionsContainer = document.getElementById('mcOptionsListModal');
+                if (!optionsContainer) return;
 
-            if (questions.length === 0) {
-                noQuestionsMessage.style.display = 'block';
-                questionsPreviewContainer.appendChild(noQuestionsMessage);
-            } else {
-                noQuestionsMessage.style.display = 'none';
-                questions.forEach((q, index) => {
-                    const previewDiv = document.createElement('div');
-                    previewDiv.className = 'question-preview p-4 rounded-lg border border-gray-200 mb-3';
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'flex items-center space-x-2 mb-2 mc-option-entry-modal';
 
-                    let optionsHtml = '';
-                    if (q.options && q.options.length > 0) {
-                        optionsHtml = '<ul class="list-disc list-inside pl-4 mt-2 text-sm text-gray-700">';
-                        q.options.forEach(opt => {
-                            optionsHtml += `<li>${opt.option_text}</li>`;
-                        });
-                        optionsHtml += '</ul>';
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.placeholder = `Texto de la Opción ${optionsContainer.children.length + 1}`;
+                textInput.className = 'flex-1 input-field option-text-modal';
+                textInput.value = optionText;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-danger p-2 text-xs';
+                removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                removeBtn.onclick = () => optionDiv.remove();
+
+                optionDiv.appendChild(textInput);
+                optionDiv.appendChild(removeBtn);
+                optionsContainer.appendChild(optionDiv);
+            }
+
+            function renderMultipleChoiceFieldsModal(questionData) {
+                if (!modalTypeSpecificFieldsContainer) return;
+                modalTypeSpecificFieldsContainer.innerHTML = `
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Selección Múltiple <span class="text-red-500">*</span></label>
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center"><input type="radio" id="modalMcTypeSingle" name="modalMcQuestionType" value="single" class="mr-1 focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300"> Respuesta Única</label>
+                            <label class="flex items-center"><input type="radio" id="modalMcTypeMultiple" name="modalMcQuestionType" value="multiple" class="mr-1 focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300"> Múltiples Respuestas</label>
+                        </div>
+                    </div>
+                    <div id="modalMcScoringFieldsContainer" class="space-y-3"></div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Opciones (mínimo 2) <span class="text-red-500">*</span></label>
+                        <div id="mcOptionsListModal" class="space-y-2"></div>
+                        <button type="button" id="addMcOptionModalBtn" class="btn btn-secondary text-xs mt-2"><i class="fas fa-plus mr-1"></i>Añadir Opción</button>
+                    </div>`;
+
+                const mcTypeSingleRadio = document.getElementById('modalMcTypeSingle');
+                const mcTypeMultipleRadio = document.getElementById('modalMcTypeMultiple');
+                const scoringContainer = document.getElementById('modalMcScoringFieldsContainer');
+
+                function toggleScoringFields(isMultiple) {
+                    if (isMultiple) {
+                        scoringContainer.innerHTML = `
+                            <div>
+                                <label for="modalPointsPerCorrectMc" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Acierto <span class="text-red-500">*</span></label>
+                                <input type="number" id="modalPointsPerCorrectMc" class="input-field w-full" value="${questionData && questionData.points_per_correct_mc !== undefined ? questionData.points_per_correct_mc : ''}" required>
+                            </div>
+                            <div>
+                                <label for="modalPointsPerIncorrectMc" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Fallo (0 o negativo)</label>
+                                <input type="number" id="modalPointsPerIncorrectMc" class="input-field w-full" value="${questionData && questionData.points_per_incorrect_mc !== undefined ? questionData.points_per_incorrect_mc : '0'}">
+                            </div>`;
+                    } else {
+                        scoringContainer.innerHTML = `
+                            <div>
+                                <label for="modalTotalScoreMcSingle" class="block text-sm font-medium text-gray-700 mb-1">Puntuación Total por Acertar <span class="text-red-500">*</span></label>
+                                <input type="number" id="modalTotalScoreMcSingle" class="input-field w-full" min="1" value="${questionData && questionData.total_score_mc_single ? questionData.total_score_mc_single : ''}" required>
+                            </div>`;
                     }
+                }
 
-                    let scoringHtml = '';
-                    if (q.type === 'FREE_TEXT') {
-                        scoringHtml = `Puntuación Máx: ${q.max_score_free_text || 'N/A'}`;
-                    } else if (q.type === 'MULTIPLE_CHOICE') {
-                        if (q.is_mc_multiple_correct) {
-                            scoringHtml = `Múltiple Correcta: ${q.points_per_correct_mc || 'N/A'} pts por acierto, ${q.points_per_incorrect_mc || '0'} pts por fallo.`;
-                        } else {
-                            scoringHtml = `Única Correcta: ${q.total_score_mc_single || 'N/A'} pts total.`;
-                        }
-                        if (q.options && q.options.length > 0) { // This was missing before for MC options in preview
+                if(mcTypeSingleRadio) mcTypeSingleRadio.addEventListener('change', () => toggleScoringFields(false));
+                if(mcTypeMultipleRadio) mcTypeMultipleRadio.addEventListener('change', () => toggleScoringFields(true));
+
+                const addMcOptionModalBtn = document.getElementById('addMcOptionModalBtn');
+                if(addMcOptionModalBtn) addMcOptionModalBtn.addEventListener('click', () => addMcOptionModal());
+
+                // Initial state
+                if (questionData && questionData.is_mc_multiple_correct) {
+                    if(mcTypeMultipleRadio) mcTypeMultipleRadio.checked = true;
+                    toggleScoringFields(true);
+                } else {
+                    if(mcTypeSingleRadio) mcTypeSingleRadio.checked = true; // Default to single
+                    toggleScoringFields(false);
+                }
+                if (questionData && questionData.options) {
+                    questionData.options.forEach(opt => addMcOptionModal(opt.option_text));
+                } else {
+                    addMcOptionModal();
+                    addMcOptionModal();
+                }
+            }
+
+
+            function addOrderingItemModal(itemText = '') {
+                const itemsContainer = document.getElementById('orderingItemsListModal');
+                if (!itemsContainer) return;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center space-x-2 mb-2 ordering-item-entry-modal';
+
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.placeholder = `Texto del Elemento ${itemsContainer.children.length + 1}`;
+                textInput.className = 'flex-1 input-field item-text-modal';
+                textInput.value = itemText;
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn btn-danger p-2 text-xs';
+                removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                removeBtn.onclick = () => itemDiv.remove();
+
+                itemDiv.appendChild(textInput);
+                itemDiv.appendChild(removeBtn);
+                itemsContainer.appendChild(itemDiv);
+            }
+
+            function renderOrderingFieldsModal(questionData) {
+                if (!modalTypeSpecificFieldsContainer) return;
+
+                const pointsPerCorrect = (questionData && questionData.points_per_correct_order !== undefined) ? questionData.points_per_correct_order : '';
+                const bonusForFull = (questionData && questionData.bonus_for_full_order !== undefined) ? questionData.bonus_for_full_order : '0';
+
+                modalTypeSpecificFieldsContainer.innerHTML = `
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Elementos a Ordenar (mínimo 2, en el orden correcto) <span class="text-red-500">*</span></label>
+                        <div id="orderingItemsListModal" class="space-y-2">
+                            <!-- Items will be added here by JS -->
+                        </div>
+                        <button type="button" id="addOrderingItemModalBtn" class="btn btn-secondary text-xs mt-2"><i class="fas fa-plus mr-1"></i>Añadir Elemento</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="modalPointsPerCorrectOrder" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Posición Correcta <span class="text-red-500">*</span></label>
+                            <input type="number" id="modalPointsPerCorrectOrder" class="input-field w-full" min="0" value="${pointsPerCorrect}" required>
+                        </div>
+                        <div>
+                            <label for="modalBonusForFullOrder" class="block text-sm font-medium text-gray-700 mb-1">Bonus por Orden Completo (opcional)</label>
+                            <input type="number" id="modalBonusForFullOrder" class="input-field w-full" min="0" value="${bonusForFull}">
+                        </div>
+                    </div>
+                `;
+                const addOrderingItemModalBtn = document.getElementById('addOrderingItemModalBtn');
+                if(addOrderingItemModalBtn) addOrderingItemModalBtn.addEventListener('click', () => addOrderingItemModal());
+
+                if (questionData && questionData.options && questionData.options.length > 0) {
+                    questionData.options.forEach(opt => {
+                        addOrderingItemModal(opt.option_text);
+                    });
+                } else {
+                    addOrderingItemModal();
+                    addOrderingItemModal();
+                }
+            }
+
+            function renderQuestionsPreview() {
+                if (!questionsPreviewContainer || !noQuestionsMessage) return;
+                questionsPreviewContainer.innerHTML = '';
+
+                if (questions.length === 0) {
+                    noQuestionsMessage.style.display = 'block';
+                    questionsPreviewContainer.appendChild(noQuestionsMessage);
+                } else {
+                    noQuestionsMessage.style.display = 'none';
+                    questions.forEach((q, index) => {
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'question-preview p-4 rounded-lg border border-gray-200 mb-3';
+
+                        let optionsHtml = '';
+                        if (q.options && q.options.length > 0) {
                             optionsHtml = '<ul class="list-disc list-inside pl-4 mt-2 text-sm text-gray-700">';
                             q.options.forEach(opt => {
                                 optionsHtml += `<li>${opt.option_text}</li>`;
                             });
                             optionsHtml += '</ul>';
                         }
-                    } else if (q.type === 'ORDERING') {
-                        scoringHtml = `Ordenamiento: ${q.points_per_correct_order || 'N/A'} pts/posición, ${q.bonus_for_full_order || '0'} pts bonus total.`;
-                        if (q.options && q.options.length > 0) {
-                            optionsHtml = '<p class="mt-2 text-sm text-gray-700"><strong>Elementos a ordenar (en el orden correcto):</strong></p><ul class="list-decimal list-inside pl-4 mt-1 text-sm text-gray-700">';
-                            q.options.forEach(item => {
-                                optionsHtml += `<li>${item.option_text}</li>`;
-                            });
-                            optionsHtml += '</ul>';
+
+                        let scoringHtml = '';
+                        if (q.type === 'FREE_TEXT') {
+                            scoringHtml = `Puntuación Máx: ${q.max_score_free_text || 'N/A'}`;
+                        } else if (q.type === 'MULTIPLE_CHOICE') {
+                            if (q.is_mc_multiple_correct) {
+                                scoringHtml = `Múltiple Correcta: ${q.points_per_correct_mc || 'N/A'} pts por acierto, ${q.points_per_incorrect_mc || '0'} pts por fallo.`;
+                            } else {
+                                scoringHtml = `Única Correcta: ${q.total_score_mc_single || 'N/A'} pts total.`;
+                            }
+                             // Options already handled by general optionsHtml
+                        } else if (q.type === 'ORDERING') {
+                            scoringHtml = `Ordenamiento: ${q.points_per_correct_order || 'N/A'} pts/posición, ${q.bonus_for_full_order || '0'} pts bonus total.`;
+                            if (q.options && q.options.length > 0) { // Specific formatting for ordering preview
+                                optionsHtml = '<p class="mt-2 text-sm text-gray-700"><strong>Elementos a ordenar (en el orden correcto):</strong></p><ul class="list-decimal list-inside pl-4 mt-1 text-sm text-gray-700">';
+                                q.options.forEach(item => {
+                                    optionsHtml += `<li>${item.option_text}</li>`;
+                                });
+                                optionsHtml += '</ul>';
+                            }
                         }
-                    }
 
-                    previewDiv.innerHTML = `
-                        <div class="flex justify-between items-center">
-                            <h5 class="font-semibold text-gray-800">${index + 1}. ${q.text} (${q.type.replace('_', ' ')}) ${q.is_active ? '' : '<span class="text-red-500 text-xs">(Inactiva)</span>'}</h5>
-                            <div class="space-x-2">
-                                <button type="button" onclick="editQuestion(${index})" class="btn btn-secondary btn-sm p-1 text-xs"><i class="fas fa-edit"></i> Editar</button>
-                                <button type="button" onclick="deleteQuestion(${index})" class="btn btn-danger btn-sm p-1 text-xs"><i class="fas fa-trash"></i> Borrar</button>
+                        previewDiv.innerHTML = `
+                            <div class="flex justify-between items-center">
+                                <h5 class="font-semibold text-gray-800">${index + 1}. ${q.text} (${q.type.replace('_', ' ')}) ${q.is_active ? '' : '<span class="text-red-500 text-xs">(Inactiva)</span>'}</h5>
+                                <div class="space-x-2">
+                                    <button type="button" onclick="editQuestion(${index})" class="btn btn-secondary btn-sm p-1 text-xs"><i class="fas fa-edit"></i> Editar</button>
+                                    <button type="button" onclick="deleteQuestion(${index})" class="btn btn-danger btn-sm p-1 text-xs"><i class="fas fa-trash"></i> Borrar</button>
+                                </div>
                             </div>
-                        </div>
-                        <p class="text-sm text-gray-600 mt-1">${scoringHtml}</p>
-                        ${optionsHtml}
-                    `;
-                    questionsPreviewContainer.appendChild(previewDiv);
-                });
-            }
-        }
-
-        function editQuestion(index) {
-            const questionToEdit = questions[index];
-            if (questionToEdit) {
-                openQuestionModal(questionToEdit.type, index);
-            }
-        }
-
-        function deleteQuestion(index) {
-            if (confirm('¿Estás seguro de que quieres eliminar esta pregunta?')) {
-                questions.splice(index, 1);
-                renderQuestionsPreview();
-            }
-        }
-
-        if(saveQuestionBtn) saveQuestionBtn.addEventListener('click', () => {
-            modalQuestionFormError.textContent = '';
-            const type = currentQuestionTypeStoreInput.value;
-            const text = modalQuestionText.value.trim();
-            const isActive = modalIsActiveCheckbox.checked;
-            let questionData = { type, text, is_active: isActive, options: [] };
-
-            if (!text) {
-                modalQuestionFormError.textContent = "El texto de la pregunta es obligatorio.";
-                return;
+                            <p class="text-sm text-gray-600 mt-1">${scoringHtml}</p>
+                            ${optionsHtml}
+                        `;
+                        questionsPreviewContainer.appendChild(previewDiv);
+                    });
+                }
             }
 
-            if (type === 'FREE_TEXT') {
-                const maxScoreInput = document.getElementById('modalMaxScoreFreeText');
-                if (!maxScoreInput || !maxScoreInput.value || parseInt(maxScoreInput.value) <= 0) {
-                    modalQuestionFormError.textContent = "Puntuación Máxima para texto libre debe ser un entero positivo.";
+            // Making editQuestion and deleteQuestion available globally for inline HTML onclick
+            // Alternatively, attach event listeners dynamically in renderQuestionsPreview
+            window.editQuestion = function(index) {
+                const questionToEdit = questions[index];
+                if (questionToEdit) {
+                    openQuestionModal(questionToEdit.type, index);
+                }
+            }
+
+            window.deleteQuestion = function(index) {
+                if (confirm('¿Estás seguro de que quieres eliminar esta pregunta?')) {
+                    questions.splice(index, 1);
+                    renderQuestionsPreview();
+                }
+            }
+
+            if(closeQuestionModalBtn) closeQuestionModalBtn.addEventListener('click', closeQuestionModal);
+            if(cancelQuestionModalBtn) cancelQuestionModalBtn.addEventListener('click', closeQuestionModal);
+            if(addFreeTextQuestionBtn) addFreeTextQuestionBtn.addEventListener('click', () => openQuestionModal('FREE_TEXT'));
+            if(addMultipleChoiceQuestionBtn) addMultipleChoiceQuestionBtn.addEventListener('click', () => openQuestionModal('MULTIPLE_CHOICE'));
+            // addOrderingQuestionBtn has an inline onclick="openQuestionModal('ORDERING')",
+            // so it needs openQuestionModal to be globally accessible or refactored.
+            // For now, let's make openQuestionModal global as well for simplicity, or ensure its onclick is also set here.
+            if(addOrderingQuestionBtn) addOrderingQuestionBtn.onclick = () => openQuestionModal('ORDERING'); // Standardize event attachment
+
+
+            if(saveQuestionBtn) saveQuestionBtn.addEventListener('click', () => {
+                if(modalQuestionFormError) modalQuestionFormError.textContent = '';
+                const type = currentQuestionTypeStoreInput.value;
+                const text = modalQuestionText.value.trim();
+                const isActive = modalIsActiveCheckbox.checked;
+                let questionData = { type, text, is_active: isActive, options: [] };
+
+                if (!text) {
+                    if(modalQuestionFormError) modalQuestionFormError.textContent = "El texto de la pregunta es obligatorio.";
                     return;
                 }
-                questionData.max_score_free_text = parseInt(maxScoreInput.value);
-            } else if (type === 'MULTIPLE_CHOICE') {
-                questionData.is_mc_multiple_correct = document.getElementById('modalMcTypeMultiple').checked;
 
-                const optionNodes = document.querySelectorAll('#mcOptionsListModal .mc-option-entry-modal');
-                if (optionNodes.length < 2) {
-                    modalQuestionFormError.textContent = "Debe haber al menos dos opciones para una pregunta de opción múltiple.";
-                    return;
-                }
-                optionNodes.forEach(node => {
-                    const optionTextInput = node.querySelector('.option-text-modal');
-                    if (!optionTextInput || !optionTextInput.value.trim()) {
-                        // This error will be caught by the allOptionTextsValid check below
+                if (type === 'FREE_TEXT') {
+                    const maxScoreInput = document.getElementById('modalMaxScoreFreeText');
+                    if (!maxScoreInput || !maxScoreInput.value || parseInt(maxScoreInput.value) <= 0) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Puntuación Máxima para texto libre debe ser un entero positivo.";
                         return;
                     }
-                    questionData.options.push({ option_text: optionTextInput.value.trim() });
-                });
+                    questionData.max_score_free_text = parseInt(maxScoreInput.value);
+                } else if (type === 'MULTIPLE_CHOICE') {
+                    questionData.is_mc_multiple_correct = document.getElementById('modalMcTypeMultiple').checked;
 
-                if (questionData.options.some(opt => !opt.option_text)) {
-                    modalQuestionFormError.textContent = "El texto de todas las opciones es obligatorio.";
-                    // Clear partially added options if one is empty, or handle differently
-                    questionData.options = []; // Or remove only empty ones and re-validate count
-                    return;
+                    const optionNodes = document.querySelectorAll('#mcOptionsListModal .mc-option-entry-modal');
+                    if (optionNodes.length < 2) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Debe haber al menos dos opciones para una pregunta de opción múltiple.";
+                        return;
+                    }
+                    let allOptionTextsValid = true;
+                    optionNodes.forEach(node => {
+                        const optionTextInput = node.querySelector('.option-text-modal');
+                        if (!optionTextInput || !optionTextInput.value.trim()) {
+                            allOptionTextsValid = false;
+                            return;
+                        }
+                        questionData.options.push({ option_text: optionTextInput.value.trim() });
+                    });
+
+                    if (!allOptionTextsValid) {
+                         if(modalQuestionFormError) modalQuestionFormError.textContent = "El texto de todas las opciones es obligatorio.";
+                         questionData.options = []; // Clear partially added options
+                         return;
+                    }
+
+                    if (questionData.is_mc_multiple_correct) {
+                        const pointsCorrectInput = document.getElementById('modalPointsPerCorrectMc');
+                        const pointsIncorrectInput = document.getElementById('modalPointsPerIncorrectMc');
+                        if (!pointsCorrectInput || pointsCorrectInput.value === '' || pointsCorrectInput.value === null) {
+                            if(modalQuestionFormError) modalQuestionFormError.textContent = "Puntos por Acierto es obligatorio para selección múltiple."; return;
+                        }
+                        questionData.points_per_correct_mc = parseInt(pointsCorrectInput.value);
+                        questionData.points_per_incorrect_mc = (pointsIncorrectInput && pointsIncorrectInput.value !== '') ? parseInt(pointsIncorrectInput.value) : 0;
+                    } else {
+                        const totalScoreInput = document.getElementById('modalTotalScoreMcSingle');
+                        if (!totalScoreInput || !totalScoreInput.value || parseInt(totalScoreInput.value) <= 0) {
+                            if(modalQuestionFormError) modalQuestionFormError.textContent = "Puntuación Total para selección única debe ser un entero positivo."; return;
+                        }
+                        questionData.total_score_mc_single = parseInt(totalScoreInput.value);
+                    }
+                } else if (type === 'ORDERING') {
+                    const itemNodes = document.querySelectorAll('#orderingItemsListModal .ordering-item-entry-modal');
+                    if (itemNodes.length < 2) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Debe haber al menos dos elementos para una pregunta de ordenamiento.";
+                        return;
+                    }
+
+                    questionData.options = [];
+                    let allItemsValid = true;
+                    itemNodes.forEach(node => {
+                        const itemTextInput = node.querySelector('.item-text-modal');
+                        if (!itemTextInput || !itemTextInput.value.trim()) {
+                            allItemsValid = false;
+                            return;
+                        }
+                        questionData.options.push({ option_text: itemTextInput.value.trim() });
+                    });
+
+                    if (!allItemsValid) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "El texto de todos los elementos es obligatorio.";
+                        return;
+                    }
+
+                    const pointsPerCorrectOrderInput = document.getElementById('modalPointsPerCorrectOrder');
+                    const bonusForFullOrderInput = document.getElementById('modalBonusForFullOrder');
+
+                    if (!pointsPerCorrectOrderInput || pointsPerCorrectOrderInput.value === '' || parseInt(pointsPerCorrectOrderInput.value) < 0) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Puntos por posición correcta debe ser un número no negativo.";
+                        return;
+                    }
+                    questionData.points_per_correct_order = parseInt(pointsPerCorrectOrderInput.value);
+                    questionData.bonus_for_full_order = (bonusForFullOrderInput && bonusForFullOrderInput.value !== '') ? parseInt(bonusForFullOrderInput.value) : 0;
+                    if (questionData.bonus_for_full_order < 0) {
+                         if(modalQuestionFormError) modalQuestionFormError.textContent = "El bonus por orden completo debe ser un número no negativo.";
+                        return;
+                    }
                 }
 
-
-                if (questionData.is_mc_multiple_correct) {
-                    const pointsCorrectInput = document.getElementById('modalPointsPerCorrectMc');
-                    const pointsIncorrectInput = document.getElementById('modalPointsPerIncorrectMc');
-                    if (!pointsCorrectInput || pointsCorrectInput.value === '' || pointsCorrectInput.value === null) {
-                        modalQuestionFormError.textContent = "Puntos por Acierto es obligatorio para selección múltiple."; return;
-                    }
-                    questionData.points_per_correct_mc = parseInt(pointsCorrectInput.value);
-                    questionData.points_per_incorrect_mc = (pointsIncorrectInput && pointsIncorrectInput.value !== '') ? parseInt(pointsIncorrectInput.value) : 0;
+                const editIndex = parseInt(currentQuestionIndexInput.value);
+                if (editIndex !== -1) {
+                    questions[editIndex] = questionData;
                 } else {
-                    const totalScoreInput = document.getElementById('modalTotalScoreMcSingle');
-                    if (!totalScoreInput || !totalScoreInput.value || parseInt(totalScoreInput.value) <= 0) {
-                        modalQuestionFormError.textContent = "Puntuación Total para selección única debe ser un entero positivo."; return;
-                    }
-                    questionData.total_score_mc_single = parseInt(totalScoreInput.value);
-                }
-            } else if (type === 'ORDERING') {
-                const itemNodes = document.querySelectorAll('#orderingItemsListModal .ordering-item-entry-modal');
-                if (itemNodes.length < 2) {
-                    modalQuestionFormError.textContent = "Debe haber al menos dos elementos para una pregunta de ordenamiento.";
-                    return;
+                    questions.push(questionData);
                 }
 
-                questionData.options = []; // Re-using 'options' array for items
-                let allItemsValid = true;
-                itemNodes.forEach(node => {
-                    const itemTextInput = node.querySelector('.item-text-modal');
-                    if (!itemTextInput || !itemTextInput.value.trim()) {
-                        allItemsValid = false; // Flagging, error handled below
-                        return;
-                    }
-                    questionData.options.push({ option_text: itemTextInput.value.trim() });
-                });
+                renderQuestionsPreview();
+                closeQuestionModal();
+            });
 
-                if (!allItemsValid) {
-                    modalQuestionFormError.textContent = "El texto de todos los elementos es obligatorio.";
-                    return; // Stop if any item text is empty
-                }
-
-                const pointsPerCorrectOrderInput = document.getElementById('modalPointsPerCorrectOrder');
-                const bonusForFullOrderInput = document.getElementById('modalBonusForFullOrder');
-
-                if (!pointsPerCorrectOrderInput || pointsPerCorrectOrderInput.value === '' || parseInt(pointsPerCorrectOrderInput.value) < 0) {
-                    modalQuestionFormError.textContent = "Puntos por posición correcta debe ser un número no negativo.";
-                    return;
-                }
-                questionData.points_per_correct_order = parseInt(pointsPerCorrectOrderInput.value);
-
-                questionData.bonus_for_full_order = (bonusForFullOrderInput && bonusForFullOrderInput.value !== '') ? parseInt(bonusForFullOrderInput.value) : 0;
-                if (questionData.bonus_for_full_order < 0) {
-                     modalQuestionFormError.textContent = "El bonus por orden completo debe ser un número no negativo.";
-                    return;
-                }
-            }
-
-            const editIndex = parseInt(currentQuestionIndexInput.value);
-            if (editIndex !== -1) { // Editing existing question
-                questions[editIndex] = questionData;
-            } else { // Adding new question
-                questions.push(questionData);
-            }
-
-            renderQuestionsPreview();
-            closeQuestionModal();
-        });
+            // Make openQuestionModal globally accessible for the inline onclick attribute
+            // or change the addOrderingQuestionBtn to use addEventListener like the others.
+            window.openQuestionModal = openQuestionModal;
 
 
-        document.addEventListener('DOMContentLoaded', function() {
             initializeCreateRacePage();
         });
 
