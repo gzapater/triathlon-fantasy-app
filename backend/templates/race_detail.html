@@ -386,6 +386,22 @@
                     {% endif %}
                 </div>
 
+                <!-- Race Participants Section -->
+                {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                <div id="raceParticipantsSection" class="bg-white rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Participantes de la Carrera</h2>
+                    <div id="raceParticipantsListContainer">
+                        <div id="loadingParticipantsMessage" style="display: none;">
+                            <p class="text-gray-600">Cargando participantes...</p>
+                        </div>
+                        <div id="errorLoadingParticipantsMessage" style="display: none;">
+                            <p class="text-red-500">Error al cargar los participantes.</p>
+                        </div>
+                        <!-- Participant list will be populated here by JavaScript -->
+                    </div>
+                </div>
+                {% endif %}
+
             </div>
 
             <!-- Sidebar -->
@@ -1926,7 +1942,212 @@
             }
             // --- End Question Wizard Logic ---
 
+            // Fetch and Display Race Participants Logic
+            if (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN') {
+                if (raceId) {
+                    const participantsContainer = document.getElementById('raceParticipantsListContainer');
+                    const loadingMsg = document.getElementById('loadingParticipantsMessage');
+                    const errorMsg = document.getElementById('errorLoadingParticipantsMessage');
+
+                    if (participantsContainer && loadingMsg && errorMsg) {
+                        loadingMsg.style.display = 'block';
+                        errorMsg.style.display = 'none';
+
+                        fetch(`/api/races/${raceId}/participants`)
+                            .then(response => {
+                                loadingMsg.style.display = 'none';
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(participants => {
+                                participantsContainer.innerHTML = ''; // Clear previous content or loading message
+
+                                if (participants && participants.length > 0) {
+                                    participants.forEach(participant => {
+                                        const participantItem = document.createElement('div');
+                                        participantItem.className = 'participant-item flex justify-between items-center py-2 border-b border-gray-200';
+
+                                        const userLink = document.createElement('a');
+                                        userLink.href = '#'; // Prevent page jump, will be handled by JS
+                                        userLink.className = 'participant-details-link text-blue-600 hover:underline';
+                                        userLink.textContent = participant.username;
+                                        userLink.dataset.userId = participant.user_id;
+                                        userLink.addEventListener('click', function(event) {
+                                            event.preventDefault();
+                                            // Placeholder for opening a modal or navigating to user-specific answers
+                                            // For now, it will use the existing reviewUserAnswersModal logic
+                                            // but ideally, this would be adapted to show a specific user's answers for admin
+                                            console.log(`Clicked participant: ${participant.username}, ID: ${participant.user_id}`);
+                                            // alert(`Mostrar detalles/respuestas para ${participant.username} (ID: ${participant.user_id})`);
+                                            // TODO: Implement modal or view for specific user's answers for admin.
+                                            // As a temporary measure, if reviewUserAnswersModal exists and can be adapted:
+                                            // openReviewModalForUser(participant.user_id, raceId);
+                                        });
+
+
+                                        const answeredIcon = document.createElement('i');
+                                        answeredIcon.className = participant.has_answered
+                                            ? 'fas fa-check-circle text-green-500'
+                                            : 'fas fa-times-circle text-red-500';
+                                        answeredIcon.title = participant.has_answered ? 'Ha respondido' : 'No ha respondido';
+
+
+                                        participantItem.appendChild(userLink);
+                                        participantItem.appendChild(answeredIcon);
+                                        participantsContainer.appendChild(participantItem);
+                                    });
+                                } else {
+                                    participantsContainer.innerHTML = '<p class="text-gray-600">No hay participantes inscritos en esta carrera.</p>';
+                                }
+                            })
+                            .catch(error => {
+                                loadingMsg.style.display = 'none';
+                                errorMsg.style.display = 'block';
+                                console.error('Error fetching race participants:', error);
+                            });
+                    } else {
+                        console.error('Required elements for participants list not found in the DOM.');
+                    }
+                } else {
+                    console.error('Race ID not available for fetching participants.');
+                     const errorMsgElem = document.getElementById('errorLoadingParticipantsMessage');
+                     if(errorMsgElem) {
+                        errorMsgElem.textContent = 'ID de la carrera no disponible.';
+                        errorMsgElem.style.display = 'block';
+                     }
+                }
+            }
+
             // Share Race Functionality
+            const participantAnswersModal = document.getElementById('participantAnswersModal');
+            const participantAnswersModalTitle = document.getElementById('participantAnswersModalTitle');
+            const participantAnswersModalBody = document.getElementById('participantAnswersModalBody');
+            const closeParticipantAnswersModalBtn = document.getElementById('closeParticipantAnswersModalBtn');
+            const closeParticipantAnswersModalFooterBtn = document.getElementById('closeParticipantAnswersModalFooterBtn');
+            const raceParticipantsListContainer = document.getElementById('raceParticipantsListContainer');
+
+
+            function openParticipantAnswersModal() {
+                if (participantAnswersModal) {
+                    participantAnswersModal.classList.remove('hidden');
+                    participantAnswersModal.classList.add('flex');
+                }
+            }
+
+            function closeParticipantAnswersModal() {
+                if (participantAnswersModal) {
+                    participantAnswersModal.classList.add('hidden');
+                    participantAnswersModal.classList.remove('flex');
+                    if (participantAnswersModalTitle) {
+                        participantAnswersModalTitle.textContent = 'Respuestas del Participante'; // Reset title
+                    }
+                    if (participantAnswersModalBody) {
+                        participantAnswersModalBody.innerHTML = '<p>Cargando respuestas...</p>'; // Reset body
+                    }
+                }
+            }
+
+            if (raceParticipantsListContainer) {
+                raceParticipantsListContainer.addEventListener('click', function(event) {
+                    const targetLink = event.target.closest('.participant-details-link');
+                    if (targetLink) {
+                        event.preventDefault();
+                        const userId = targetLink.dataset.userId;
+                        const username = targetLink.textContent;
+
+                        if (participantAnswersModalTitle) {
+                            participantAnswersModalTitle.textContent = 'Respuestas de ' + username;
+                        }
+                        if (participantAnswersModalBody) {
+                            participantAnswersModalBody.innerHTML = '<p class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando respuestas...</p>';
+                        }
+                        openParticipantAnswersModal();
+
+                        fetch(`/api/races/${raceId}/participants/${userId}/answers`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(answersDetails => {
+                                if (participantAnswersModalBody) {
+                                    participantAnswersModalBody.innerHTML = ''; // Clear loading message
+                                    if (answersDetails && answersDetails.length > 0) {
+                                        answersDetails.forEach(detail => {
+                                            const itemDiv = document.createElement('div');
+                                            itemDiv.className = 'py-3 border-b last:border-b-0 border-gray-200';
+
+                                            const questionTextP = document.createElement('p');
+                                            questionTextP.className = 'font-semibold text-gray-700 mb-1';
+                                            questionTextP.textContent = detail.question_text;
+                                            itemDiv.appendChild(questionTextP);
+
+                                            const answerDiv = document.createElement('div');
+                                            answerDiv.className = 'pl-4 text-gray-600 bg-gray-50 p-2 rounded';
+
+                                            let answerDisplay = '<span class="italic text-gray-500">No respondida</span>'; // Default for no answer
+
+                                            if (detail.participant_answer !== null) {
+                                                switch (detail.question_type) {
+                                                    case 'FREE_TEXT':
+                                                    case 'ORDERING':
+                                                        answerDisplay = detail.participant_answer ? detail.participant_answer : '<span class="italic text-gray-500">No respondida</span>';
+                                                        break;
+                                                    case 'MULTIPLE_CHOICE':
+                                                        if (detail.is_mc_multiple_correct) {
+                                                            if (Array.isArray(detail.participant_answer) && detail.participant_answer.length > 0) {
+                                                                answerDisplay = '<ul class="list-disc list-inside">';
+                                                                detail.participant_answer.forEach(opt => {
+                                                                    answerDisplay += `<li>${opt.text}</li>`;
+                                                                });
+                                                                answerDisplay += '</ul>';
+                                                            }
+                                                        } else {
+                                                            if (detail.participant_answer && detail.participant_answer.text) {
+                                                                answerDisplay = detail.participant_answer.text;
+                                                            }
+                                                        }
+                                                        break;
+                                                }
+                                            }
+                                            answerDiv.innerHTML = answerDisplay;
+                                            itemDiv.appendChild(answerDiv);
+                                            participantAnswersModalBody.appendChild(itemDiv);
+                                        });
+                                    } else {
+                                        participantAnswersModalBody.innerHTML = '<p class="text-gray-600 text-center py-4">No se encontraron respuestas para este participante.</p>';
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                if (participantAnswersModalBody) {
+                                    participantAnswersModalBody.innerHTML = '<p class="text-red-500 text-center py-4">Error al cargar las respuestas del participante.</p>';
+                                }
+                                console.error('Error fetching participant answers:', error);
+                            });
+                    }
+                });
+            }
+
+            if (closeParticipantAnswersModalBtn) {
+                closeParticipantAnswersModalBtn.addEventListener('click', closeParticipantAnswersModal);
+            }
+            if (closeParticipantAnswersModalFooterBtn) {
+                closeParticipantAnswersModalFooterBtn.addEventListener('click', closeParticipantAnswersModal);
+            }
+            // Close modal by clicking on backdrop
+            if (participantAnswersModal) {
+                participantAnswersModal.addEventListener('click', function(event) {
+                    if (event.target === participantAnswersModal) { // Check if the click is on the backdrop itself
+                        closeParticipantAnswersModal();
+                    }
+                });
+            }
+
+
             const shareRaceBtn = document.getElementById('shareRaceBtn');
             const shareRaceModal = document.getElementById('shareRaceModal');
             const closeShareRaceModalBtn = document.getElementById('closeShareRaceModalBtn');
@@ -2220,6 +2441,32 @@
             <div class="flex justify-end items-center pt-6 border-t border-gray-200">
                 <button id="confirmAndCloseReviewModalBtn" class="btn btn-primary">
                     Confirmar y Volver
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Participant Answers Modal -->
+    <div id="participantAnswersModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center hidden" style="z-index: 140;">
+        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
+                <h2 id="participantAnswersModalTitle" class="text-xl sm:text-2xl font-bold text-gray-800">Respuestas del Participante</h2>
+                <button id="closeParticipantAnswersModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body: Answers Display Area -->
+            <div id="participantAnswersModalBody" class="space-y-4 max-h-96 overflow-y-auto mb-6">
+                 <p>Cargando respuestas...</p>
+                 <!-- Answers will be dynamically inserted here by JavaScript -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end items-center pt-6 border-t border-gray-200">
+                <button id="closeParticipantAnswersModalFooterBtn" class="btn btn-secondary">
+                    Cerrar
                 </button>
             </div>
         </div>

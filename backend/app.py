@@ -537,6 +537,121 @@ def join_race_api(race_id):
         app.logger.error(f"Error registering user {current_user.id} for race {race.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while trying to register for the race."), 500
 
+
+@app.route('/api/races/<int:race_id>/participants', methods=['GET'])
+@login_required
+def get_race_participants(race_id):
+    # Role check
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to view participants."), 403
+
+    # Check if race exists
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    registrations = UserRaceRegistration.query.filter_by(race_id=race_id).all()
+
+    participants_list = []
+    for reg in registrations:
+        user = User.query.get(reg.user_id)
+        if not user:
+            # This case should ideally not happen if data integrity is maintained
+            app.logger.warning(f"UserRaceRegistration {reg.id} refers to a non-existent user {reg.user_id}.")
+            continue
+
+        # Check if the user has answered any question for this race
+        has_answered = UserAnswer.query.filter_by(user_id=user.id, race_id=race_id).first() is not None
+
+        participants_list.append({
+            "user_id": user.id,
+            "username": user.username,
+            "has_answered": has_answered
+        })
+
+    return jsonify(participants_list), 200
+
+
+@app.route('/api/races/<int:race_id>/participants/<int:user_id>/answers', methods=['GET'])
+@login_required
+def get_participant_answers(race_id, user_id):
+    # Role check
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to view participant answers."), 403
+
+    # Fetch Race
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    # Fetch User (participant)
+    participant = User.query.get(user_id)
+    if not participant:
+        return jsonify(message="Participant not found"), 404
+
+    # Optional: Check if the participant is actually registered for this race
+    registration = UserRaceRegistration.query.filter_by(user_id=participant.id, race_id=race.id).first()
+    if not registration:
+        # This means the user_id provided is not a participant of the specified race_id
+        return jsonify(message=f"User {participant.username} is not registered for race {race.title}."), 404
+
+
+    # Fetch all questions for the race
+    race_questions = Question.query.filter_by(race_id=race_id).order_by(Question.id).all()
+
+    participant_answers_details = []
+
+    for question in race_questions:
+        user_answer_obj = UserAnswer.query.filter_by(
+            user_id=participant.id,
+            question_id=question.id,
+            race_id=race_id # Ensure answer is for this specific race context
+        ).first()
+
+        answer_data = None
+        if user_answer_obj:
+            if question.question_type.name == 'FREE_TEXT':
+                answer_data = user_answer_obj.answer_text
+            elif question.question_type.name == 'ORDERING':
+                answer_data = user_answer_obj.answer_text # Stores comma-separated ordered text
+            elif question.question_type.name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    selected_options = []
+                    for mc_option_assoc in user_answer_obj.selected_mc_options:
+                        option = QuestionOption.query.get(mc_option_assoc.question_option_id)
+                        if option:
+                            selected_options.append({"id": option.id, "text": option.option_text})
+                    answer_data = selected_options # List of {"id": id, "text": text}
+                else: # Single correct
+                    if user_answer_obj.selected_option_id:
+                        option = QuestionOption.query.get(user_answer_obj.selected_option_id)
+                        if option:
+                            answer_data = {"id": option.id, "text": option.option_text}
+                        else:
+                            answer_data = None # Selected option ID was invalid
+                    else:
+                        answer_data = None # No option selected
+
+        # Get all possible options for this question
+        options_for_question = []
+        for qo in question.options.order_by(QuestionOption.id): # Assuming backref is 'options' and ordered
+            options_for_question.append({
+                "id": qo.id,
+                "option_text": qo.option_text,
+                "correct_order_index": qo.correct_order_index # Relevant for ORDERING type
+            })
+
+        participant_answers_details.append({
+            "question_id": question.id,
+            "question_text": question.text,
+            "question_type": question.question_type.name,
+            "is_mc_multiple_correct": question.is_mc_multiple_correct, # Important for MC rendering
+            "options": options_for_question,
+            "participant_answer": answer_data # This can be string, dict, list of dicts, or null
+        })
+
+    return jsonify(participant_answers_details), 200
+
 # --- Helper function for question serialization ---
 def _serialize_question(question):
     question_data = {
