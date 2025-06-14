@@ -512,6 +512,7 @@
 
 
     <script>
+        let questions = []; // To store questions added client-side
         // Populate backend data into JavaScript variables
         const ALL_RACE_FORMATS = {{ all_race_formats_data | tojson | safe }};
         const ALL_SEGMENTS = {{ all_segments_data | tojson | safe }};
@@ -882,7 +883,6 @@
         // or fetched asynchronously if not embedded. For now, assume they will be embedded.
 
         document.addEventListener('DOMContentLoaded', function() {
-            let questions = []; // To store questions added client-side
             let currentEditingQuestionIndex = -1; // -1 for new, index for editing
 
             // DOM Elements for Question Modal & Step 3
