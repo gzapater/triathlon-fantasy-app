@@ -2430,7 +2430,7 @@
                         alert(result.message || 'Resultados oficiales guardados con éxito.');
                         if (officialResultsModal) officialResultsModal.style.display = 'none';
                     } else {
-                        alert(`Error: ${result.message || 'No se pudieron guardar los resultados oficiales.'}`);
+                        alert(`Error: ${result.body.message || 'No se pudieron guardar los resultados oficiales.'}`);
                     }
                 } catch (error) {
                     console.error('Error saving official results:', error);
@@ -2560,6 +2560,7 @@
                 participateInPoolBtn.addEventListener('click', openWizard);
             }
             // ... (rest of existing DOMContentLoaded listeners) ...
+        }); // Added this line
     </script>
 
     <!-- Question Wizard Modal -->
@@ -2837,5 +2838,5 @@
     {% endif %}
 
 
-    <script>
-        const raceId = "{{ race.id | default('') }}";
+</body>
+</html>
