@@ -384,6 +384,16 @@
                             <i class="fas fa-eye mr-2"></i>Revisar respuestas
                         </button>
                     {% endif %}
+
+                    {% if currentUserRole == 'LEAGUE_ADMIN' %}
+                    <div id="adminQuestionsViewContainer" class="mt-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Todas las Preguntas de la Quiniela</h3>
+                        <!-- Questions will be rendered here by JavaScript -->
+                        <div id="adminQuestionsList" class="space-y-2">
+                            <!-- JS will populate this -->
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- Race Participants Section -->
@@ -533,6 +543,34 @@
         const hasUserAnsweredPool = {{ has_user_answered_pool | tojson }}; // Added this line
         let allRaceQuestions = [];
         let isFetchingQuestions = false;
+
+        // Function to render questions for LEAGUE_ADMIN
+        function renderAdminQuestionsView(questions) {
+            const adminQuestionsListDiv = document.getElementById('adminQuestionsList');
+            if (!adminQuestionsListDiv) {
+                console.log("Admin questions list div not found");
+                return;
+            }
+
+            adminQuestionsListDiv.innerHTML = ''; // Clear previous content
+
+            if (!questions || questions.length === 0) {
+                adminQuestionsListDiv.innerHTML = '<p class="text-gray-500">No hay preguntas definidas para esta carrera.</p>';
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            ul.className = 'list-disc pl-5 space-y-2'; // Example styling
+
+            questions.forEach(q => {
+                const li = document.createElement('li');
+                li.className = 'text-gray-700';
+                li.textContent = q.text; // Displaying question text
+                // You could add more details or edit/delete buttons here if needed in future
+                ul.appendChild(li);
+            });
+            adminQuestionsListDiv.appendChild(ul);
+        }
 
         // Global Helper Functions
         // function toggleQuestions() { // Commenting out as it's no longer used directly by a button
@@ -697,7 +735,15 @@
                 })
                 .then(questions => {
                     allRaceQuestions = questions;
-                    renderQuestions(questions);
+                    renderQuestions(questions); // This is for the main question display (wizard/user participation)
+
+                    // If the current user is LEAGUE_ADMIN, render the admin-specific view
+                    if (currentUserRole === 'LEAGUE_ADMIN') {
+                        const adminQuestionsListContainer = document.getElementById('adminQuestionsViewContainer');
+                        if (adminQuestionsListContainer) { // Check if the container exists
+                             renderAdminQuestionsView(allRaceQuestions);
+                        }
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching questions:', error);
@@ -2380,6 +2426,14 @@
                             userWizardAnswers = {}; // Reset answers
                             displayWizardQuestion(currentQuestionIndex);
                             if(questionWizardModal) questionWizardModal.style.display = 'flex';
+
+                            // Also, if LEAGUE_ADMIN, ensure their view is updated if wizard was the first to fetch.
+                            if (currentUserRole === 'LEAGUE_ADMIN') {
+                                const adminQuestionsListContainer = document.getElementById('adminQuestionsViewContainer');
+                                if (adminQuestionsListContainer) {
+                                     renderAdminQuestionsView(allRaceQuestions);
+                                }
+                            }
                         })
                         .catch(error => {
                             console.error('Error fetching questions for wizard:', error);
@@ -2398,6 +2452,15 @@
                     userWizardAnswers = {}; // Reset answers
                     displayWizardQuestion(currentQuestionIndex);
                     if(questionWizardModal) questionWizardModal.style.display = 'flex';
+
+                    // If questions were pre-loaded and user is LEAGUE_ADMIN, render their view.
+                    // This handles the case where fetchAndRenderQuestions() might not have been the one populating allRaceQuestions.
+                    if (currentUserRole === 'LEAGUE_ADMIN') {
+                         const adminQuestionsListContainer = document.getElementById('adminQuestionsViewContainer');
+                         if (adminQuestionsListContainer && allRaceQuestions.length > 0) { // Ensure container and questions exist
+                            renderAdminQuestionsView(allRaceQuestions);
+                         }
+                    }
                 }
             }
 
@@ -2656,6 +2719,19 @@
                 participateInPoolBtn.addEventListener('click', openWizard);
             }
             // ... (rest of existing DOMContentLoaded listeners) ...
+
+            // Initial call for LEAGUE_ADMIN if questions are already loaded (e.g. by a different mechanism or edge case)
+            // This is a fallback, the primary calls are within fetchAndRenderQuestions and openWizard success paths.
+            if (currentUserRole === 'LEAGUE_ADMIN' && allRaceQuestions.length > 0) {
+                const adminQuestionsListContainer = document.getElementById('adminQuestionsViewContainer');
+                if (adminQuestionsListContainer && !adminQuestionsListContainer.querySelector('ul')) { // Avoid re-rendering if already populated
+                    // Check if adminQuestionsList is empty before rendering to avoid duplicate calls from different paths.
+                    const adminList = document.getElementById('adminQuestionsList');
+                    if (adminList && adminList.innerHTML.trim() === '') {
+                         renderAdminQuestionsView(allRaceQuestions);
+                    }
+                }
+            }
 
             // Event listener for "Edit Official Results" button
             const editOfficialResultsBtn = document.getElementById('editOfficialResultsBtn');
