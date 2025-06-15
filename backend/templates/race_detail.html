@@ -559,17 +559,46 @@
                 return;
             }
 
-            const ul = document.createElement('ul');
-            ul.className = 'list-disc pl-5 space-y-2'; // Example styling
+        questions.forEach(q => {
+            const questionCard = document.createElement('div');
+            questionCard.className = 'bg-white shadow-md rounded-lg p-4 mb-4'; // Main card styling
 
-            questions.forEach(q => {
-                const li = document.createElement('li');
-                li.className = 'text-gray-700';
-                li.textContent = q.text; // Displaying question text
-                // You could add more details or edit/delete buttons here if needed in future
-                ul.appendChild(li);
+            // Question Text
+            const questionTextElem = document.createElement('p');
+            questionTextElem.className = 'font-semibold text-gray-800 mb-2'; // Adjusted margin
+            questionTextElem.textContent = q.text;
+            questionCard.appendChild(questionTextElem);
+
+            // Scoring Info (using existing function)
+            const scoringInfoElem = document.createElement('div');
+            scoringInfoElem.className = 'mb-3'; // Add some margin below scoring info
+            scoringInfoElem.innerHTML = formatScoringInfoForDisplay(q); // Existing function
+            questionCard.appendChild(scoringInfoElem);
+
+            // Options
+            if (q.options && q.options.length > 0) {
+                const optionsContainer = document.createElement('div');
+                optionsContainer.className = 'mt-2'; // Margin for options section
+
+                const optionsHeading = document.createElement('h5');
+                optionsHeading.className = 'text-sm font-medium text-gray-700 mb-1';
+                optionsHeading.textContent = 'Opciones:';
+                optionsContainer.appendChild(optionsHeading);
+
+                const optionsList = document.createElement('ul');
+                optionsList.className = 'list-disc pl-5 space-y-1'; // Tailwind for basic list
+
+                q.options.forEach(opt => {
+                    const optionItem = document.createElement('li');
+                    optionItem.className = 'text-gray-600 text-sm'; // Styling for option text
+                    optionItem.textContent = opt.option_text;
+                    optionsList.appendChild(optionItem);
+                });
+                optionsContainer.appendChild(optionsList);
+                questionCard.appendChild(optionsContainer);
+            }
+            adminQuestionsListDiv.appendChild(questionCard);
             });
-            adminQuestionsListDiv.appendChild(ul);
         }
 
         // Global Helper Functions
