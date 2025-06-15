@@ -812,6 +812,10 @@ def create_free_text_question(race_id):
     if not race:
         return jsonify(message="Race not found"), 404
 
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="La quiniela ya esta cerrada y no se pueden añadir nuevas preguntas"), 403
+
     data = request.get_json()
     if not data:
         return jsonify(message="Invalid input: No data provided"), 400
@@ -993,6 +997,10 @@ def create_multiple_choice_question(race_id):
     race = Race.query.get(race_id)
     if not race:
         return jsonify(message="Race not found"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="La quiniela ya esta cerrada y no se pueden añadir nuevas preguntas"), 403
 
     data = request.get_json()
     if not data:
@@ -1211,6 +1219,10 @@ def create_ordering_question(race_id):
     race = Race.query.get(race_id)
     if not race:
         return jsonify(message="Race not found"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="La quiniela ya esta cerrada y no se pueden añadir nuevas preguntas"), 403
 
     data = request.get_json()
     if not data:
@@ -1721,6 +1733,11 @@ def save_user_answers(race_id):
         app.logger.warning(f"Attempt to save answers for non-existent race {race_id} by user {current_user.id}")
         return jsonify(message="Race not found"), 404
 
+    # Check quiniela close date
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to save answers for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="La quiniela ya esta cerrada y no se pueden añadir nuevas predicciones"), 403
+
     # 2. Permissions Check: User Registration for this Race
     registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
 
@@ -1929,6 +1946,15 @@ def update_user_answer(user_answer_id):
             # Also check if the current user is an admin/league_admin of the race?
             # For now, only the user who owns the answer can modify it.
             return jsonify(message="Forbidden: You cannot modify this answer"), 403
+
+        race = Race.query.get(user_answer.race_id)
+        if not race:
+            app.logger.error(f"Race not found for UserAnswer {user_answer_id}. This should not happen.")
+            return jsonify(message="Internal server error: Race context not found for the answer."), 500
+
+        if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+            app.logger.warning(f"Attempt to update answer for closed quiniela race {race.id} by user {current_user.id}")
+            return jsonify(message="La quiniela ya esta cerrada y no se pueden modificar las predicciones"), 403
 
         data = request.get_json()
         if not data:
