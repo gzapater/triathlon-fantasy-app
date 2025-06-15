@@ -1683,6 +1683,7 @@ def serve_create_race_page():
 def serve_race_detail_page(race_id):
     race = Race.query.get_or_404(race_id)
     current_year = datetime.utcnow().year
+    current_time_utc = datetime.utcnow() # Get current UTC time
 
     user_role_code = 'GUEST' # Default role if not authenticated or no role
     is_user_registered_for_race = False # Default to false
@@ -1719,7 +1720,8 @@ def serve_race_detail_page(race_id):
                            currentUserRole=user_role_code,
                            is_user_registered_for_race=is_user_registered_for_race,
                            has_user_answered_pool=has_user_answered_pool,
-                           is_quiniela_actionable=is_quiniela_actionable_detail)
+                           is_quiniela_actionable=is_quiniela_actionable_detail,
+                           current_time_utc=current_time_utc) # Pass current_time_utc to template
 
 # --- API Endpoint for Saving User Answers ---
 @app.route('/api/races/<int:race_id>/answers', methods=['POST'])

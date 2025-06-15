@@ -340,7 +340,7 @@
                         {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
                         <div class="flex space-x-2"> {# Wrapper for admin buttons #}
                             <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2"
-                                    {% if race.quiniela_close_date and race.quiniela_close_date < now() %}
+                                    {% if race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
                                         disabled
                                         title="La quiniela ya esta cerrada y no se pueden añadir nuevas predicciones"
                                     {% endif %}>
@@ -362,7 +362,7 @@
                     {% if not has_user_answered_pool %}
                         <p class="text-gray-600 mb-4">Participa en la quiniela de esta carrera y pon a prueba tus conocimientos.</p>
                         <button id="participateInPoolBtn" class="btn btn-primary w-full md:w-auto"
-                                {% if race.quiniela_close_date and race.quiniela_close_date < now() %}
+                                {% if race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
                                     disabled
                                     title="La quiniela ya esta cerrada y no se pueden añadir nuevas predicciones"
                                 {% endif %}>
@@ -373,7 +373,7 @@
                     {% else %}
                         <p class="text-gray-700 text-lg mb-3"><i class="fas fa-check-circle text-green-500 mr-2"></i>Ya has participado en esta Quiniela.</p>
                         <button id="reviewUserAnswersBtn" class="btn btn-secondary"
-                                {% if race.quiniela_close_date and race.quiniela_close_date < now() %}
+                                {% if race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
                                     disabled
                                     title="La quiniela ya esta cerrada y no se pueden añadir nuevas predicciones"
                                 {% endif %}>
