@@ -338,9 +338,14 @@
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-gray-800">Quiniela de la carrera</h2>
                         {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
-                        <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2">
-                            <i class="fas fa-plus mr-2"></i>Añadir Pregunta
-                        </button>
+                        <div class="flex space-x-2"> {# Wrapper for admin buttons #}
+                            <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2">
+                                <i class="fas fa-plus mr-2"></i>Añadir Pregunta
+                            </button>
+                            <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors text-sm">
+                                Gestionar Quiniela
+                            </button>
+                        </div>
                         {% endif %}
                     </div>
 
@@ -2892,6 +2897,8 @@
         }); // Main DOMContentLoaded closing bracket
     </script>
 
+    {% include '_official_answers_modal.html' %}
+
     <!-- Question Wizard Modal -->
     <div id="questionWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
         <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto">
@@ -3139,6 +3146,6 @@
             </div>
         </div>
     </div>
-
+    <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script>
 </body>
 </html>
