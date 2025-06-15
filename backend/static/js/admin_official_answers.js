@@ -2,7 +2,10 @@
 let currentRaceIdForOfficialAnswers = null;
 let questionsDataForOfficialAnswers = []; // To store questions globally for submission
 
-function openOfficialAnswersModal(raceId, raceTitle) {
+function openOfficialAnswersModal(buttonElement) {
+    const raceId = buttonElement.getAttribute('data-race-id');
+    const raceTitle = buttonElement.getAttribute('data-race-title');
+
     currentRaceIdForOfficialAnswers = raceId;
     questionsDataForOfficialAnswers = []; // Reset
 
