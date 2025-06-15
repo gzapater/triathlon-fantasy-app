@@ -308,29 +308,35 @@ document.addEventListener('DOMContentLoaded', () => {
                             const textarea = document.createElement('textarea');
                             textarea.classList.add('w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
                             textarea.name = `question_${question.id}`;
-                            textarea.rows = 3;
-                            textarea.placeholder = 'Enter official answer here...';
+                            // Changed rows from 3 to 4
+                            textarea.rows = 4;
+                            // Updated placeholder to Spanish and to match wizard
+                            textarea.placeholder = 'Escribe tu respuesta...';
+                            // Aligned classes to wizard's textarea
+                            textarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
                             if (existingAnswerForQuestion && existingAnswerForQuestion.answer_text) {
                                 textarea.value = existingAnswerForQuestion.answer_text;
                             }
                             questionDiv.appendChild(textarea);
                             break;
                         case 'MULTIPLE_CHOICE':
-                            const optionsContainer = document.createElement('div');
-                            optionsContainer.classList.add('space-y-2', 'mt-2');
+                            const mcOptionsContainer = document.createElement('div');
+                            // Removed 'mt-2' as new label style includes padding. Kept 'space-y-2' for spacing between options.
+                            mcOptionsContainer.classList.add('space-y-2');
                             question.options.forEach(option => {
-                                const optionDiv = document.createElement('div');
-                                optionDiv.classList.add('flex', 'items-center');
+                                const label = document.createElement('label'); // Wrap input and span in a label
+                                label.classList.add('flex', 'items-center', 'space-x-3', 'cursor-pointer', 'hover:bg-gray-100', 'p-2', 'rounded-md', 'border', 'border-gray-200', 'hover:border-orange-300');
+
                                 const input = document.createElement('input');
-                                input.id = `q${question.id}_opt${option.id}`;
+                                // No explicit ID needed as label wraps input
                                 input.value = option.id;
                                 input.name = `question_${question.id}`; // Group radios/checkboxes
-                                input.classList.add('form-radio', 'h-4', 'w-4', 'text-orange-600', 'border-gray-300', 'focus:ring-orange-500');
+                                // Applied new classes, kept h-4, w-4, border-gray-300
+                                input.classList.add('text-orange-600', 'focus:ring-orange-400', 'focus:ring-offset-0', 'h-4', 'w-4', 'border-gray-300');
 
                                 if (question.is_mc_multiple_correct) {
                                     input.type = 'checkbox';
-                                    input.classList.remove('form-radio');
-                                    input.classList.add('form-checkbox');
+                                    input.classList.add('rounded'); // Add rounded for checkboxes
                                     if (existingAnswerForQuestion && existingAnswerForQuestion.selected_options) {
                                         if (existingAnswerForQuestion.selected_options.some(oa_opt => oa_opt.option_id === option.id)) {
                                             input.checked = true;
@@ -343,41 +349,46 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 }
 
-                                const label = document.createElement('label');
-                                label.htmlFor = input.id;
-                                label.textContent = option.option_text;
-                                label.classList.add('ml-2', 'block', 'text-sm', 'text-gray-700');
+                                const span = document.createElement('span');
+                                span.classList.add('text-gray-700');
+                                span.textContent = option.option_text;
 
-                                optionDiv.appendChild(input);
-                                optionDiv.appendChild(label);
-                                optionsContainer.appendChild(optionDiv);
+                                label.appendChild(input);
+                                label.appendChild(span);
+                                mcOptionsContainer.appendChild(label);
                             });
-                            questionDiv.appendChild(optionsContainer);
+                            questionDiv.appendChild(mcOptionsContainer);
                             break;
                         case 'ORDERING':
-                            const orderingInstructions = document.createElement('p');
-                            orderingInstructions.classList.add('text-sm', 'text-gray-600', 'mb-1');
-                            orderingInstructions.textContent = 'Enter the option texts in the correct order, separated by commas.';
-                            questionDiv.appendChild(orderingInstructions);
-
-                            const orderingOptionsDisplay = document.createElement('div');
-                            orderingOptionsDisplay.classList.add('mb-2', 'p-2', 'bg-gray-50', 'rounded');
-                            const currentOrderLabel = document.createElement('strong');
-                            currentOrderLabel.textContent = "Options to order: ";
-                            orderingOptionsDisplay.appendChild(currentOrderLabel);
-                            question.options.forEach((opt, index) => {
-                                const optSpan = document.createElement('span');
-                                optSpan.textContent = opt.option_text + (index < question.options.length -1 ? ", " : "");
-                                orderingOptionsDisplay.appendChild(optSpan);
-                            });
-                            questionDiv.appendChild(orderingOptionsDisplay);
+                            // Removed old orderingInstructions and orderingOptionsDisplay
+                            // New: Display options to be ordered more clearly
+                            const orderingListContainer = document.createElement('div');
+                            orderingListContainer.classList.add('space-y-1', 'mb-3', 'p-2', 'border', 'rounded-md');
+                            if (question.options && question.options.length > 0) {
+                                question.options.forEach(opt => {
+                                    const itemDiv = document.createElement('div');
+                                    itemDiv.classList.add('bg-gray-100', 'p-2', 'rounded', 'text-sm', 'mb-1');
+                                    itemDiv.textContent = opt.option_text;
+                                    orderingListContainer.appendChild(itemDiv);
+                                });
+                            } else {
+                                const noOptionsMsg = document.createElement('p');
+                                noOptionsMsg.classList.add('text-sm', 'text-gray-500');
+                                noOptionsMsg.textContent = 'No options available for ordering.';
+                                orderingListContainer.appendChild(noOptionsMsg);
+                            }
+                            questionDiv.appendChild(orderingListContainer);
 
                             const orderingTextarea = document.createElement('textarea');
-                            orderingTextarea.classList.add('w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
+                            // Aligned classes to wizard's textarea
+                            orderingTextarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
                             orderingTextarea.name = `question_${question.id}`;
-                            orderingTextarea.rows = 2;
-                            orderingTextarea.placeholder = 'Example: Option C Text, Option A Text, Option B Text';
-                             if (existingAnswerForQuestion && existingAnswerForQuestion.answer_text) {
+                            // Changed rows from 2 to 3
+                            orderingTextarea.rows = 3;
+                            // Updated placeholder to Spanish and to match wizard
+                            orderingTextarea.placeholder = 'Ej: Item C, Item A, Item B';
+                            // Pre-fill logic remains the same, using answer_text as per existing GET response structure
+                            if (existingAnswerForQuestion && existingAnswerForQuestion.answer_text) {
                                 orderingTextarea.value = existingAnswerForQuestion.answer_text;
                             }
                             questionDiv.appendChild(orderingTextarea);
