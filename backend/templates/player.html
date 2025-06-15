@@ -266,30 +266,30 @@
                         {% for race in registered_races %}
                         <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
                             {% set card_gradient_class = 'gradient-water' %}
-                            {% if race.race_format.name == 'Duatlón' %}
+                            {% if race['race_format']['name'] == 'Duatlón' %}
                                 {% set card_gradient_class = 'gradient-run' %}
-                            {% elif race.race_format.name == 'Acuatlón' %}
+                            {% elif race['race_format']['name'] == 'Acuatlón' %}
                                 {% set card_gradient_class = 'gradient-bike' %}
                             {% endif %}
                             <div class="{{ card_gradient_class }} h-32 flex items-center justify-center">
                                 <div class="text-center text-white">
                                     <i class="fas fa-flag-checkered text-3xl mb-2"></i>
-                                    <p class="font-semibold">{{ race.race_format.name }}</p>
+                                    <p class="font-semibold">{{ race['race_format']['name'] }}</p>
                                 </div>
                             </div>
                             <div class="p-6">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race.race_format.name }}</span>
-                                    <span class="text-sm text-gray-500">{{ race.event_date.strftime('%d %b %Y') if race.event_date else 'Fecha no disp.' }}</span>
+                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race['race_format']['name'] }}</span>
+                                    <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
                                 </div>
-                                <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race.title }}</h3>
-                                <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race.location if race.location else 'No especificada' }}</p>
+                                <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race['title'] }}</h3>
+                                <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2">
                                         <i class="fas fa-map-marker-alt text-gray-400"></i>
-                                        <span class="text-sm text-gray-600">{{ race.location if race.location else 'N/A' }}</span>
+                                        <span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span>
                                     </div>
-                                    <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
+                                    <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                                 </div>
                             </div>
                         </div>
@@ -352,36 +352,36 @@
                         <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
                             {# Determine card header gradient based on race_format or use a default #}
                             {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
-                            {% if race.race_format.name == 'Duatlón' %}
+                            {% if race['race_format']['name'] == 'Duatlón' %}
                                 {% set card_gradient_class = 'gradient-run' %} {# Green for Duathlon (run-bike-run) #}
-                            {% elif race.race_format.name == 'Acuatlón' %}
+                            {% elif race['race_format']['name'] == 'Acuatlón' %}
                                 {% set card_gradient_class = 'gradient-bike' %} {# Dark for Acuatlon (swim-run) - using bike as placeholder #}
                             {% endif %}
                             <div class="{{ card_gradient_class }} h-32 flex items-center justify-center">
                                 <div class="text-center text-white">
                                     {# Icon could also be dynamic based on format #}
                                     <i class="fas fa-flag-checkered text-3xl mb-2"></i>
-                                    <p class="font-semibold">{{ race.race_format.name }}</p>
+                                    <p class="font-semibold">{{ race['race_format']['name'] }}</p>
                                 </div>
                             </div>
                             <div class="p-6">
                                 <div class="flex items-center justify-between mb-3">
                                     {# Badge for race format - using badge-league as a placeholder style #}
-                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race.race_format.name }}</span>
-                                    <span class="text-sm text-gray-500">{{ race.event_date.strftime('%d %b %Y') if race.event_date else 'Fecha no disp.' }}</span>
+                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race['race_format']['name'] }}</span>
+                                    <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
                                 </div>
-                                <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race.title }}</h3>
-                                {% if race.description %}
-                                    <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ race.description[:100] }}{% if race.description|length > 100 %}...{% endif %}</p>
+                                <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race['title'] }}</h3>
+                                {% if race['description'] %}
+                                    <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
                                 {% else %}
-                                    <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race.location if race.location else 'No especificada' }}</p>
+                                    <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>
                                 {% endif %}
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2">
                                         <i class="fas fa-map-marker-alt text-gray-400"></i>
-                                        <span class="text-sm text-gray-600">{{ race.location if race.location else 'N/A' }}</span>
+                                        <span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span>
                                     </div>
-                                    <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
+                                    <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                                 </div>
                             </div>
                         </div>

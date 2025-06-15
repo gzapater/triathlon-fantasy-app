@@ -1639,40 +1639,58 @@ def serve_hello_world_page():
 
     # Role-based rendering
     if current_user.role.code == 'ADMIN':
-        query = Race.query.filter_by(is_general=True) # Filter for general races
+        # Query for general races (for cards)
+        query_general_races = Race.query.filter_by(is_general=True)
         if date_from_obj:
-            query = query.filter(Race.event_date >= date_from_obj)
+            query_general_races = query_general_races.filter(Race.event_date >= date_from_obj)
         if date_to_obj:
-            query = query.filter(Race.event_date <= date_to_obj)
+            query_general_races = query_general_races.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
-            query = query.filter(Race.race_format_id == race_format_id_int)
+            query_general_races = query_general_races.filter(Race.race_format_id == race_format_id_int)
+
+        general_races_for_cards_query_result = []
         try:
-            all_races = query.order_by(Race.event_date.desc()).all()
+            general_races_for_cards_query_result = query_general_races.order_by(Race.event_date.desc()).all()
         except Exception as e:
-            app.logger.error(f"Error fetching general races for admin dashboard: {e}")
+            app.logger.error(f"Error fetching general races for admin dashboard cards: {e}")
+        general_races_for_cards = [race.to_dict() for race in general_races_for_cards_query_result]
+
+        # Query for all races (for official answers dropdown)
+        all_races_for_official_answers_query_result = []
+        try:
+            all_races_for_official_answers_query_result = Race.query.order_by(Race.event_date.desc()).all()
+        except Exception as e:
+            app.logger.error(f"Error fetching all races for admin official answers: {e}")
+        all_races_for_official_answers = [race.to_dict() for race in all_races_for_official_answers_query_result]
 
         return render_template('admin_dashboard.html',
-                               races=all_races,
+                               races=general_races_for_cards, # General races for cards
+                               races_for_official_answers=all_races_for_official_answers, # All races for dropdown
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year)
     elif current_user.role.code == 'LEAGUE_ADMIN':
-        query = Race.query.filter_by(is_general=False, user_id=current_user.id) # Filter for their local races
+        # Query for league admin's own races
+        query_league_races = Race.query.filter_by(is_general=False, user_id=current_user.id)
         if date_from_obj:
-            query = query.filter(Race.event_date >= date_from_obj)
+            query_league_races = query_league_races.filter(Race.event_date >= date_from_obj)
         if date_to_obj:
-            query = query.filter(Race.event_date <= date_to_obj)
+            query_league_races = query_league_races.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
-            query = query.filter(Race.race_format_id == race_format_id_int)
+            query_league_races = query_league_races.filter(Race.race_format_id == race_format_id_int)
+
+        league_admin_races_query_result = []
         try:
-            all_races = query.order_by(Race.event_date.desc()).all()
+            league_admin_races_query_result = query_league_races.order_by(Race.event_date.desc()).all()
         except Exception as e:
             app.logger.error(f"Error fetching local races for league admin: {e}")
+        league_admin_races = [race.to_dict() for race in league_admin_races_query_result]
 
-        return render_template('index.html',
-                               races=all_races,
+        return render_template('admin_dashboard.html', # Changed from index.html
+                               races=league_admin_races, # League admin's races for cards
+                               races_for_official_answers=league_admin_races, # League admin's races for dropdown
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
@@ -1694,11 +1712,12 @@ def serve_hello_world_page():
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
 
-        registered_races = []
+        registered_races_query_result = []
         try:
-            registered_races = query.order_by(Race.event_date.desc()).all()
+            registered_races_query_result = query.order_by(Race.event_date.desc()).all()
         except Exception as e:
             app.logger.error(f"Error fetching registered races for player {current_user.id}: {e}")
+        registered_races = [race.to_dict() for race in registered_races_query_result]
 
         return render_template('player.html',
                                registered_races=registered_races, # Pass registered_races
@@ -1718,10 +1737,12 @@ def serve_hello_world_page():
             query = query.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
+        all_races_query_result = []
         try:
-            all_races = query.order_by(Race.event_date.desc()).all() # Keep variable name all_races for consistency in this block
+            all_races_query_result = query.order_by(Race.event_date.desc()).all() # Keep variable name all_races for consistency in this block
         except Exception as e:
             app.logger.error(f"Error fetching general races for fallback/unhandled role: {e}")
+        all_races = [race.to_dict() for race in all_races_query_result]
 
         return render_template('player.html',
                                races=all_races, # Keep races=all_races for this fallback block

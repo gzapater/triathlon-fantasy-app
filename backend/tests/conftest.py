@@ -172,3 +172,20 @@ def sample_race(db_session, admin_user):
     db_session.add(race)
     db_session.commit()
     return race
+
+@pytest.fixture(scope='function')
+def new_admin_user(admin_user): # Alias admin_user to new_admin_user
+    return admin_user
+
+@pytest.fixture(scope='function')
+def new_user(player_user): # Alias player_user to new_user
+    return player_user
+
+@pytest.fixture(scope='function')
+def new_race_format(db_session): # Changed from test_client to db_session for direct db access
+    race_format = RaceFormat.query.filter_by(name='Test Triathlon').first()
+    if not race_format:
+        race_format = RaceFormat(name='Test Triathlon')
+        db_session.add(race_format)
+        db_session.commit()
+    return race_format

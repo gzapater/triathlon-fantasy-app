@@ -60,6 +60,98 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageArea.textContent = 'An error occurred during logout.';
             }
         });
+
+        // Event Listener for Save Button
+        saveOfficialAnswersBtn.addEventListener('click', async function() {
+            const selectedRaceId = officialAnswersRaceSelect.value;
+            if (!selectedRaceId) {
+                alert('Please select a race first.');
+                return;
+            }
+
+            const officialAnswersPayload = {};
+            const questionDivs = officialAnswersQuestionsContainer.querySelectorAll('div[data-question-id]');
+
+            questionDivs.forEach(qDiv => {
+                const questionId = qDiv.dataset.questionId;
+                const questionType = qDiv.dataset.questionType;
+                const isMcMultipleCorrect = qDiv.dataset.isMcMultipleCorrect === 'true';
+                let answerData = {};
+
+                switch (questionType) {
+                    case 'FREE_TEXT':
+                        const textarea = qDiv.querySelector('textarea');
+                        answerData.answer_text = textarea ? textarea.value.trim() : null;
+                        break;
+                    case 'MULTIPLE_CHOICE':
+                        if (isMcMultipleCorrect) {
+                            const checkedBoxes = qDiv.querySelectorAll('input[type="checkbox"]:checked');
+                            answerData.selected_option_ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+                        } else {
+                            const selectedRadio = qDiv.querySelector('input[type="radio"]:checked');
+                            answerData.selected_option_id = selectedRadio ? parseInt(selectedRadio.value) : null;
+                        }
+                        break;
+                    case 'ORDERING':
+                        const orderingTextarea = qDiv.querySelector('textarea');
+                        answerData.ordered_options_text = orderingTextarea ? orderingTextarea.value.trim() : null;
+                        break;
+                    default:
+                        console.warn(`Unsupported question type ${questionType} for question ID ${questionId}. Skipping.`);
+                        return; // Skip this question
+                }
+                officialAnswersPayload[questionId] = answerData;
+            });
+
+            // console.log('Payload to send:', JSON.stringify(officialAnswersPayload, null, 2)); // For debugging
+
+            saveOfficialAnswersBtn.disabled = true;
+            saveOfficialAnswersBtn.textContent = 'Saving...';
+            let messageElement = officialAnswersQuestionsContainer.querySelector('.save-message');
+            if (messageElement) messageElement.remove(); // Remove old message
+
+            messageElement = document.createElement('p');
+            messageElement.classList.add('mt-4', 'text-center', 'save-message');
+            officialAnswersQuestionsContainer.appendChild(messageElement);
+
+
+            try {
+                const response = await fetch(`/api/races/${selectedRaceId}/official_answers`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Include CSRF token if needed by your Flask setup
+                    },
+                    body: JSON.stringify(officialAnswersPayload)
+                });
+
+                const responseData = await response.json();
+
+                if (response.ok) {
+                    messageElement.textContent = `Official answers saved successfully for race ${selectedRaceId}!`;
+                    messageElement.classList.remove('text-red-500');
+                    messageElement.classList.add('text-green-600', 'font-semibold');
+                     // Optionally, reload answers to reflect any backend processing or new IDs
+                    // officialAnswersRaceSelect.dispatchEvent(new Event('change'));
+                } else {
+                    messageElement.textContent = `Error: ${responseData.message || response.statusText}`;
+                    messageElement.classList.remove('text-green-600');
+                    messageElement.classList.add('text-red-500', 'font-semibold');
+                }
+            } catch (error) {
+                console.error('Error saving official answers:', error);
+                messageElement.textContent = 'An unexpected error occurred while saving. Please check console and try again.';
+                messageElement.classList.remove('text-green-600');
+                messageElement.classList.add('text-red-500', 'font-semibold');
+            } finally {
+                saveOfficialAnswersBtn.disabled = false;
+                saveOfficialAnswersBtn.textContent = 'Guardar Respuestas Oficiales';
+                // Auto-remove message after a few seconds
+                setTimeout(() => {
+                    if (messageElement) messageElement.remove();
+                }, 7000);
+            }
+        });
     }
 
     async function fetchAndDisplayUserDetails() {
@@ -127,4 +219,187 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     fetchAndDisplayUserDetails();
+
+    // --- Official Answers Section Logic ---
+    const officialAnswersRaceSelect = document.getElementById('official-answers-race-select');
+    const officialAnswersQuestionsContainer = document.getElementById('official-answers-questions-container');
+    const saveOfficialAnswersBtn = document.getElementById('save-official-answers-btn');
+
+    if (officialAnswersRaceSelect && officialAnswersQuestionsContainer && saveOfficialAnswersBtn) {
+        // Populate Race Dropdown
+        if (typeof RACES_FOR_OFFICIAL_ANSWERS !== 'undefined' && RACES_FOR_OFFICIAL_ANSWERS.length > 0) {
+            RACES_FOR_OFFICIAL_ANSWERS.forEach(race => {
+                const option = document.createElement('option');
+                option.value = race.id;
+                option.textContent = race.title; // Assuming race objects have 'id' and 'title'
+                officialAnswersRaceSelect.appendChild(option);
+            });
+        } else {
+            const option = document.createElement('option');
+            option.textContent = 'No races available for official answers';
+            option.disabled = true;
+            officialAnswersRaceSelect.appendChild(option);
+        }
+
+        // Event Listener for Race Selection
+        officialAnswersRaceSelect.addEventListener('change', async function() {
+            const selectedRaceId = this.value;
+            officialAnswersQuestionsContainer.innerHTML = ''; // Clear previous questions
+            saveOfficialAnswersBtn.style.display = 'none'; // Hide save button
+
+            if (!selectedRaceId) {
+                return; // No race selected or "-- Select a Race --" chosen
+            }
+
+            try {
+                // Show some loading state in officialAnswersQuestionsContainer
+                officialAnswersQuestionsContainer.innerHTML = '<p class="text-gray-500">Loading questions...</p>';
+
+                const [questionsResponse, existingAnswersResponse] = await Promise.all([
+                    fetch(`/api/races/${selectedRaceId}/questions`),
+                    fetch(`/api/races/${selectedRaceId}/official_answers`)
+                ]);
+
+                if (!questionsResponse.ok) {
+                    const errorData = await questionsResponse.json();
+                    throw new Error(`Failed to fetch questions: ${errorData.message || questionsResponse.statusText}`);
+                }
+                if (!existingAnswersResponse.ok) {
+                    // It's okay if official answers don't exist yet (404), but other errors should be thrown
+                    if (existingAnswersResponse.status !== 404) {
+                        const errorData = await existingAnswersResponse.json();
+                        throw new Error(`Failed to fetch official answers: ${errorData.message || existingAnswersResponse.statusText}`);
+                    }
+                }
+
+                const questions = await questionsResponse.json();
+                let existingAnswers = {};
+                if (existingAnswersResponse.status !== 404) { // Only parse if not 404
+                    existingAnswers = await existingAnswersResponse.json();
+                }
+
+
+                officialAnswersQuestionsContainer.innerHTML = ''; // Clear loading message
+
+                if (questions.length === 0) {
+                    officialAnswersQuestionsContainer.innerHTML = '<p class="text-gray-500">This race has no questions configured yet.</p>';
+                    return;
+                }
+
+                questions.forEach(question => {
+                    const questionDiv = document.createElement('div');
+                    questionDiv.classList.add('mb-6', 'p-4', 'border', 'border-gray-200', 'rounded-lg');
+                    questionDiv.dataset.questionId = question.id;
+                    questionDiv.dataset.questionType = question.question_type;
+                    if (question.question_type === 'MULTIPLE_CHOICE') {
+                        questionDiv.dataset.isMcMultipleCorrect = question.is_mc_multiple_correct;
+                    }
+
+
+                    const questionText = document.createElement('p');
+                    questionText.classList.add('font-semibold', 'text-gray-700', 'mb-2');
+                    questionText.textContent = `${question.id}: ${question.text}`;
+                    questionDiv.appendChild(questionText);
+
+                    const existingAnswerForQuestion = existingAnswers[question.id.toString()];
+
+                    switch (question.question_type) {
+                        case 'FREE_TEXT':
+                            const textarea = document.createElement('textarea');
+                            textarea.classList.add('w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
+                            textarea.name = `question_${question.id}`;
+                            textarea.rows = 3;
+                            textarea.placeholder = 'Enter official answer here...';
+                            if (existingAnswerForQuestion && existingAnswerForQuestion.answer_text) {
+                                textarea.value = existingAnswerForQuestion.answer_text;
+                            }
+                            questionDiv.appendChild(textarea);
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            const optionsContainer = document.createElement('div');
+                            optionsContainer.classList.add('space-y-2', 'mt-2');
+                            question.options.forEach(option => {
+                                const optionDiv = document.createElement('div');
+                                optionDiv.classList.add('flex', 'items-center');
+                                const input = document.createElement('input');
+                                input.id = `q${question.id}_opt${option.id}`;
+                                input.value = option.id;
+                                input.name = `question_${question.id}`; // Group radios/checkboxes
+                                input.classList.add('form-radio', 'h-4', 'w-4', 'text-orange-600', 'border-gray-300', 'focus:ring-orange-500');
+
+                                if (question.is_mc_multiple_correct) {
+                                    input.type = 'checkbox';
+                                    input.classList.remove('form-radio');
+                                    input.classList.add('form-checkbox');
+                                    if (existingAnswerForQuestion && existingAnswerForQuestion.selected_options) {
+                                        if (existingAnswerForQuestion.selected_options.some(oa_opt => oa_opt.option_id === option.id)) {
+                                            input.checked = true;
+                                        }
+                                    }
+                                } else {
+                                    input.type = 'radio';
+                                    if (existingAnswerForQuestion && existingAnswerForQuestion.selected_option_id === option.id) {
+                                        input.checked = true;
+                                    }
+                                }
+
+                                const label = document.createElement('label');
+                                label.htmlFor = input.id;
+                                label.textContent = option.option_text;
+                                label.classList.add('ml-2', 'block', 'text-sm', 'text-gray-700');
+
+                                optionDiv.appendChild(input);
+                                optionDiv.appendChild(label);
+                                optionsContainer.appendChild(optionDiv);
+                            });
+                            questionDiv.appendChild(optionsContainer);
+                            break;
+                        case 'ORDERING':
+                            const orderingInstructions = document.createElement('p');
+                            orderingInstructions.classList.add('text-sm', 'text-gray-600', 'mb-1');
+                            orderingInstructions.textContent = 'Enter the option texts in the correct order, separated by commas.';
+                            questionDiv.appendChild(orderingInstructions);
+
+                            const orderingOptionsDisplay = document.createElement('div');
+                            orderingOptionsDisplay.classList.add('mb-2', 'p-2', 'bg-gray-50', 'rounded');
+                            const currentOrderLabel = document.createElement('strong');
+                            currentOrderLabel.textContent = "Options to order: ";
+                            orderingOptionsDisplay.appendChild(currentOrderLabel);
+                            question.options.forEach((opt, index) => {
+                                const optSpan = document.createElement('span');
+                                optSpan.textContent = opt.option_text + (index < question.options.length -1 ? ", " : "");
+                                orderingOptionsDisplay.appendChild(optSpan);
+                            });
+                            questionDiv.appendChild(orderingOptionsDisplay);
+
+                            const orderingTextarea = document.createElement('textarea');
+                            orderingTextarea.classList.add('w-full', 'px-3', 'py-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
+                            orderingTextarea.name = `question_${question.id}`;
+                            orderingTextarea.rows = 2;
+                            orderingTextarea.placeholder = 'Example: Option C Text, Option A Text, Option B Text';
+                             if (existingAnswerForQuestion && existingAnswerForQuestion.answer_text) {
+                                orderingTextarea.value = existingAnswerForQuestion.answer_text;
+                            }
+                            questionDiv.appendChild(orderingTextarea);
+                            break;
+                        default:
+                            const unsupportedText = document.createElement('p');
+                            unsupportedText.classList.add('text-red-500');
+                            unsupportedText.textContent = `Unsupported question type: ${question.question_type}`;
+                            questionDiv.appendChild(unsupportedText);
+                    }
+                    officialAnswersQuestionsContainer.appendChild(questionDiv);
+                });
+
+                saveOfficialAnswersBtn.style.display = 'inline-block'; // Show save button
+                saveOfficialAnswersBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Error loading questions or official answers:', error);
+                officialAnswersQuestionsContainer.innerHTML = `<p class="text-red-500">Error loading data: ${error.message}. Please try again.</p>`;
+                saveOfficialAnswersBtn.style.display = 'none';
+            }
+        });
+    }
+    // --- End of Official Answers Section Logic ---
 });

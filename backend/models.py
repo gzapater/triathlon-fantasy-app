@@ -87,6 +87,26 @@ class Race(db.Model):
     questions = db.relationship('Question', backref='race', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
     answers = db.relationship('UserAnswer', backref='race', lazy=True, cascade="all, delete-orphan")
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'description': self.description,
+            'race_format': {
+                'id': self.race_format.id,
+                'name': self.race_format.name
+            } if self.race_format else None,
+            'event_date': self.event_date.isoformat() if self.event_date else None,
+            'event_date_formatted': self.event_date.strftime('%d %b %Y') if self.event_date else 'Fecha no disp.',
+            'location': self.location,
+            'promo_image_url': self.promo_image_url,
+            'category': self.category,
+            'gender_category': self.gender_category,
+            'user_username': self.user.username if self.user else None,
+            'is_general': self.is_general,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
     def __repr__(self):
         return f'<Race {self.title}>'
