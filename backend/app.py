@@ -1608,8 +1608,24 @@ def save_user_answers(race_id):
 
     # 2. Permissions Check: User Registration for this Race
     registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
+
+    # Auto-register LEAGUE_ADMIN if they are not already registered
+    if current_user.role.code == 'LEAGUE_ADMIN' and not registration:
+        app.logger.info(f"LEAGUE_ADMIN {current_user.id} is not registered for race {race_id}. Auto-registering.")
+        try:
+            new_registration = UserRaceRegistration(user_id=current_user.id, race_id=race.id)
+            db.session.add(new_registration)
+            # The main db.session.commit() at the end of the function will handle saving this.
+            registration = new_registration # Update the local 'registration' variable for the check below
+        except IntegrityError: # Should not happen if 'not registration' check is correct, but as safeguard
+            db.session.rollback()
+            app.logger.error(f"IntegrityError during auto-registration of LEAGUE_ADMIN {current_user.id} for race {race_id}.")
+            return jsonify(message="Error during auto-registration process."), 500
+
+    # Now, perform the standard registration check
     if not registration:
         app.logger.warning(f"User {current_user.id} not registered for race {race_id}, cannot save answers.")
+        # For non-LEAGUE_ADMINs, or if LEAGUE_ADMIN auto-registration failed unexpectedly.
         return jsonify(message="User not registered for this race"), 403
 
     # 3. Data Reception
