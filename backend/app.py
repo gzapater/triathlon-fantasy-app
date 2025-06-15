@@ -1,4 +1,5 @@
 import os
+import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
 from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption # Added UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption
@@ -11,30 +12,43 @@ from datetime import datetime # For event_date processing
 
 app = Flask(__name__)
 
+def get_ssm_parameter(name, default=None):
+    """Función para obtener un parámetro de AWS SSM Parameter Store."""
+    try:
+        # La región se debe ajustar si es diferente.
+        ssm_client = boto3.client('ssm', region_name='eu-north-1')
+        response = ssm_client.get_parameter(Name=name, WithDecryption=True)
+        return response['Parameter']['Value']
+    except Exception as e:
+        # Si falla (ej. en local, sin credenciales), usa un valor por defecto.
+        print(f"No se pudo obtener el parámetro '{name}' de SSM. Error: {e}")
+        return default
 # Añade esta línea DESPUÉS de app = Flask(__name__)
 # Indica a Flask que confíe en los headers X-Forwarded-For, X-Forwarded-Host, X-Forwarded-Proto y X-Forwarded-Port del proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1) # <--- Añade esta línea
 
 # Configuration
 # ==============================================================================
-# Lee la SECRET_KEY de una variable de entorno
-app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+# Lee los secretos desde las variables de entorno o, en su defecto, desde AWS Parameter Store
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or get_ssm_parameter('/tripredict/prod/FLASK_SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or get_ssm_parameter('/tripredict/prod/DATABASE_URL')
+
+# Comprobación de que las variables se han cargado correctamente
 if not app.secret_key:
-    raise ValueError("No FLASK_SECRET_KEY set for Flask application")
+    raise ValueError("FLASK_SECRET_KEY is not set in environment or SSM Parameter Store.")
+if not app.config['SQLALCHEMY_DATABASE_URI']:
+    raise ValueError("DATABASE_URL is not set in environment or SSM Parameter Store.")
+
 # Configuración de cookies mejorada para Cloudfront
-app.config['SESSION_COOKIE_SECURE'] = True  # Para HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True  # Seguridad adicional
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Cambiar de 'None' a 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
 
 # Configuración CORS si es necesario
 app.config['CORS_ORIGINS'] = '*'  # O especifica tu dominio de Cloudfront
 app.config['CORS_SUPPORTS_CREDENTIALS'] = True
-# Lee la URI de la base de datos de una variable de entorno
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-if not app.config['SQLALCHEMY_DATABASE_URI']:
-    raise ValueError("No DATABASE_URL set for Flask application")
 # ==============================================================================
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
