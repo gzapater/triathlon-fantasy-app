@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const description = document.getElementById('raceDescription').value.trim();
         const raceFormatId = parseInt(raceFormatSelect.value);
         const eventDate = document.getElementById('eventDate').value;
+        const quinielaCloseDate = document.getElementById('quinielaCloseDate').value; // Added
         const location = document.getElementById('raceLocation').value.trim();
         const promoImageUrl = document.getElementById('promoImageUrl').value.trim();
         const genderCategory = document.getElementById('genderCategory').value;
@@ -139,6 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
             description: description || null,
             race_format_id: raceFormatId,
             event_date: eventDate,
+            quiniela_close_date: quinielaCloseDate ? quinielaCloseDate : null, // Added: send as null if empty
             location: location || null,
             promo_image_url: promoImageUrl || null,
             gender_category: genderCategory,

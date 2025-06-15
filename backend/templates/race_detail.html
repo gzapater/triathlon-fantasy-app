@@ -308,11 +308,20 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <h3 class="font-bold text-gray-800 mb-4">Estadísticas de la Carrera (Próx.)</h3>
+                        <h3 class="font-bold text-gray-800 mb-4">Estadísticas de la Carrera</h3>
                         <div class="space-y-3 text-sm">
-                            <div class="flex justify-between items-center"><span class="text-gray-600">Participantes:</span> <span class="font-semibold text-gray-800">N/A</span></div>
-                            <div class="flex justify-between items-center"><span class="text-gray-600">Predicciones:</span> <span class="font-semibold text-green-600">N/A</span></div>
-                            <div class="flex justify-between items-center"><span class="text-gray-600">Tiempo Restante:</span> <span class="font-semibold text-orange-600">N/A</span></div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 flex items-center"><i class="fas fa-users mr-2"></i>Participantes:</span>
+                                <span id="statParticipantsCount" class="font-semibold text-gray-800">Cargando...</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 flex items-center"><i class="fas fa-pencil-alt mr-2"></i>Predicciones:</span>
+                                <span id="statPredictionsCount" class="font-semibold text-gray-800">Cargando...</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 flex items-center"><i class="fas fa-clock mr-2"></i>Tiempo Restante Quiniela:</span>
+                                <span id="statTimeRemaining" class="font-semibold text-orange-600">Cargando...</span>
+                            </div>
                         </div>
                     </div>
                     <div class="bg-white rounded-xl p-6 shadow-lg">
@@ -516,6 +525,11 @@
                     <label for="racePromoImageUrl" class="block text-sm font-medium text-gray-700 mb-1">URL Imagen Promocional</label>
                     <input type="url" id="racePromoImageUrl" name="promo_image_url" value="{{ race.promo_image_url | default('') }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="https://ejemplo.com/imagen.jpg">
                 </div>
+                </div>
+                <div class="mb-6">
+                    <label for="editRaceQuinielaCloseDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha Cierre Quiniela</label>
+                    <input type="datetime-local" id="editRaceQuinielaCloseDate" name="quiniela_close_date" value="{{ race.quiniela_close_date.strftime('%Y-%m-%dT%H:%M') if race.quiniela_close_date else '' }}" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                </div>
 
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelEditRaceBtn" class="btn btn-secondary">Cancelar</button>
@@ -535,6 +549,87 @@
         const hasUserAnsweredPool = {{ has_user_answered_pool | tojson }}; // Added this line
         let allRaceQuestions = [];
         let isFetchingQuestions = false;
+        let raceStatsCountdownInterval = null; // Variable to hold the interval ID
+
+        function startCountdown(targetDateISO, displayElement) {
+            if (raceStatsCountdownInterval) {
+                clearInterval(raceStatsCountdownInterval); // Clear any existing interval
+            }
+
+            const targetDate = new Date(targetDateISO);
+
+            function updateCountdown() {
+                const now = new Date();
+                const difference = targetDate - now;
+
+                if (difference <= 0) {
+                    displayElement.textContent = 'Quiniela Cerrada';
+                    clearInterval(raceStatsCountdownInterval);
+                    return;
+                }
+
+                const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+
+                let parts = [];
+                if (days > 0) parts.push(days + (days === 1 ? ' día' : ' días'));
+                if (hours > 0) parts.push(hours + (hours === 1 ? ' hr' : ' hrs'));
+                if (minutes > 0) parts.push(minutes + (minutes === 1 ? ' min' : ' mins'));
+                if (days === 0 && hours === 0 && minutes < 30) { // Show seconds only if less than 30 mins remaining and no days/hours
+                     if (seconds > 0 || parts.length === 0) parts.push(seconds + (seconds === 1 ? ' seg' : ' segs'));
+                }
+
+                if (parts.length === 0 && difference > 0) { // If difference is small (e.g. few seconds)
+                    displayElement.textContent = 'Cerrando pronto...';
+                } else if (parts.length > 0) {
+                    displayElement.textContent = parts.join(', ');
+                } else { // Should be caught by difference <=0, but as a fallback
+                    displayElement.textContent = 'Calculando...';
+                }
+            }
+
+            updateCountdown(); // Initial call
+            raceStatsCountdownInterval = setInterval(updateCountdown, 1000); // Update every second
+        }
+
+        function fetchAndDisplayRaceStats(raceIdForStats) {
+            if (!raceIdForStats) return;
+
+            const participantsSpan = document.getElementById('statParticipantsCount');
+            const predictionsSpan = document.getElementById('statPredictionsCount');
+            const timeRemainingSpan = document.getElementById('statTimeRemaining');
+
+            if (!participantsSpan || !predictionsSpan || !timeRemainingSpan) {
+                console.error("Statistic display elements not found.");
+                return;
+            }
+
+            fetch(`/api/races/${raceIdForStats}/statistics`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(stats => {
+                    participantsSpan.textContent = stats.participant_count !== undefined ? stats.participant_count : 'N/A';
+                    predictionsSpan.textContent = stats.predictions_count !== undefined ? stats.predictions_count : 'N/A';
+
+                    if (stats.quiniela_close_date) {
+                        startCountdown(stats.quiniela_close_date, timeRemainingSpan);
+                    } else {
+                        timeRemainingSpan.textContent = 'No definida';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching race statistics:', error);
+                    participantsSpan.textContent = 'Error';
+                    predictionsSpan.textContent = 'Error';
+                    timeRemainingSpan.textContent = 'Error';
+                });
+        }
 
         // Function to render questions for LEAGUE_ADMIN
         function renderAdminQuestionsView(questions) {
@@ -1010,6 +1105,7 @@
             const raceEventDateInput = document.getElementById('raceEventDate');
             const raceGenderCategoryInput = document.getElementById('raceGenderCategory');
             const racePromoImageUrlInput = document.getElementById('racePromoImageUrl');
+            const editRaceQuinielaCloseDateInput = document.getElementById('editRaceQuinielaCloseDate'); // Added
             const deleteRaceBtn = document.getElementById('deleteRaceBtn');
 
             // Event Listener Attachments
@@ -1429,7 +1525,8 @@
                         event_date: raceEventDateInput.value,
                         gender_category: raceGenderCategoryInput.value,
                         promo_image_url: racePromoImageUrlInput.value,
-                        category: document.getElementById('raceCategory').value
+                        category: document.getElementById('raceCategory').value,
+                        quiniela_close_date: document.getElementById('editRaceQuinielaCloseDate').value // Added
                     };
 
                     if (!formData.title.trim()) {
@@ -1491,6 +1588,15 @@
                             }
                             const raceCategoryInputModal = document.getElementById('raceCategory');
                             if (raceCategoryInputModal) raceCategoryInputModal.value = result.body.race.category;
+
+                            // Update global race variable or re-fetch if necessary for quiniela_close_date
+                            // For now, assuming direct update to the 'race' object if it's accessible globally
+                            // or that the page might be reloaded/data re-fetched by other means for other sections.
+                            // The modal itself will be repopulated with fresh data from result.body.race if reopened.
+                            if (typeof race === 'object' && race !== null && result.body.race.quiniela_close_date) {
+                                race.quiniela_close_date = result.body.race.quiniela_close_date;
+                            }
+
 
                         } else {
                             alert(`Error: ${result.body.message || 'No se pudo actualizar la carrera.'}`);
@@ -2777,6 +2883,12 @@
                     }
                 });
             }
+
+            // Fetch Race Statistics
+            if (raceId) {
+                fetchAndDisplayRaceStats(raceId);
+            }
+
         }); // Main DOMContentLoaded closing bracket
     </script>
 

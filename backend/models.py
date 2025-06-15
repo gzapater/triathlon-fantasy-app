@@ -78,6 +78,7 @@ class Race(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     user = db.relationship('User', backref=db.backref('created_races', lazy=True)) # Changed backref to created_races
     is_general = db.Column(db.Boolean, nullable=False, default=False)
+    quiniela_close_date = db.Column(db.DateTime, nullable=True) # New field for Quiniela close date
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -104,6 +105,7 @@ class Race(db.Model):
             'gender_category': self.gender_category,
             'user_username': self.user.username if self.user else None,
             'is_general': self.is_general,
+            'quiniela_close_date': self.quiniela_close_date.isoformat() if self.quiniela_close_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

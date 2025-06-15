@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request, redirect, url_for, send_from_director
 from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption # Added UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
+from sqlalchemy import func # Add this import at the top of app.py if not present
 from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 from flask import render_template
@@ -123,6 +124,7 @@ def create_race():
     promo_image_url = data.get('promo_image_url')
     gender_category = data.get('gender_category')
     segments_data = data.get('segments')
+    quiniela_close_date_str = data.get('quiniela_close_date')
 
     # Validate title
     if not isinstance(title, str) or not title.strip():
@@ -137,9 +139,16 @@ def create_race():
 
     # Validate event_date
     try:
-        event_date = datetime.strptime(event_date_str, '%Y-%m-%d')
+        event_date = datetime.strptime(event_date_str, '%Y-%m-%d') # Assuming event_date is just date for now
     except ValueError:
-        return jsonify(message="Invalid event_date format. Required format:YYYY-MM-DD."), 400
+        return jsonify(message="Invalid event_date format. Required format: YYYY-MM-DD."), 400
+
+    quiniela_close_date_obj = None
+    if quiniela_close_date_str:
+        try:
+            quiniela_close_date_obj = datetime.strptime(quiniela_close_date_str, '%Y-%m-%dT%H:%M')
+        except ValueError:
+            return jsonify(message="Invalid quiniela_close_date format. Required format: YYYY-MM-DDTHH:MM"), 400
 
     # Validate gender_category
     if not isinstance(gender_category, str) or not gender_category.strip():
@@ -195,7 +204,8 @@ def create_race():
         location=location,
         promo_image_url=promo_image_url,
         gender_category=gender_category,
-        is_general=is_general, # Add the new field here
+        is_general=is_general,
+        quiniela_close_date=quiniela_close_date_obj, # Add new field here
         user_id=current_user.id,
         category="Elite" # Default as per requirement
     )
@@ -354,21 +364,23 @@ def update_race_details(race_id):
         if 'category' in data:
             race.category = data['category']
 
+        if 'quiniela_close_date' in data:
+            quiniela_close_date_str = data.get('quiniela_close_date')
+            if quiniela_close_date_str and quiniela_close_date_str.strip(): # Check if not empty
+                try:
+                    # Ensure datetime is imported: from datetime import datetime
+                    race.quiniela_close_date = datetime.strptime(quiniela_close_date_str, '%Y-%m-%dT%H:%M')
+                except ValueError:
+                    return jsonify(message="Invalid quiniela_close_date format. Use YYYY-MM-DDTHH:MM."), 400
+            else: # If quiniela_close_date is explicitly set to empty string or null
+                race.quiniela_close_date = None
+
         app.logger.info(f"Race object after modifications: {race.to_dict() if hasattr(race, 'to_dict') else race}")
         db.session.commit()
 
-        updated_race_data = {
-            "id": race.id,
-            "title": race.title,
-            "description": race.description,
-            "event_date": race.event_date.strftime('%Y-%m-%dT%H:%M:%S') if race.event_date else None,
-            "location": race.location,
-            "promo_image_url": race.promo_image_url,
-            "gender_category": race.gender_category,
-            "category": race.category, # Added category field
-            "race_format_id": race.race_format_id,
-            "user_id": race.user_id
-        }
+        # Use the model's to_dict() method for consistency, it now includes quiniela_close_date
+        updated_race_data = race.to_dict()
+
         app.logger.info(f"Returning updated_race_data: {updated_race_data}")
         return jsonify(message="Race details updated successfully", race=updated_race_data), 200
     except ValueError as ve:
@@ -665,6 +677,27 @@ def get_participant_answers(race_id, user_id):
         })
 
     return jsonify(participant_answers_details), 200
+
+@app.route('/api/races/<int:race_id>/statistics', methods=['GET'])
+@login_required
+def get_race_statistics(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    participant_count = UserRaceRegistration.query.filter_by(race_id=race.id).count()
+
+    # Counts distinct users who have submitted at least one answer for this race.
+    predictions_count = db.session.query(func.count(UserAnswer.user_id.distinct())) \
+        .filter_by(race_id=race.id).scalar()
+
+    quiniela_close_date_iso = race.quiniela_close_date.isoformat() if race.quiniela_close_date else None
+
+    return jsonify(
+        participant_count=participant_count,
+        predictions_count=predictions_count,
+        quiniela_close_date=quiniela_close_date_iso
+    ), 200
 
 # --- Helper function for question serialization ---
 def _serialize_question(question):
