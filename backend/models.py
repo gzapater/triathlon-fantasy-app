@@ -236,3 +236,47 @@ class UserAnswerMultipleChoiceOption(db.Model):
 
     def __repr__(self):
         return f'<UserAnswerMultipleChoiceOption id={self.id} user_answer_id={self.user_answer_id} option_id={self.question_option_id}>'
+
+
+# OfficialAnswer and OfficialAnswerMultipleChoiceOption Models
+
+class OfficialAnswer(db.Model):
+    __tablename__ = 'official_answers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    answer_text = db.Column(Text, nullable=True)
+    selected_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    race = db.relationship('Race', backref=db.backref('official_answers', lazy=True, cascade="all, delete-orphan"))
+    question = db.relationship('Question', backref=db.backref('official_answers', lazy=True, cascade="all, delete-orphan"))
+    selected_option = db.relationship('QuestionOption', backref=db.backref('official_answers', lazy=True))
+    official_selected_mc_options = db.relationship('OfficialAnswerMultipleChoiceOption', backref='official_answer', lazy=True, cascade="all, delete-orphan")
+
+    __table_args__ = (db.UniqueConstraint('race_id', 'question_id', name='_race_question_uc'),)
+
+    def __repr__(self):
+        return f'<OfficialAnswer id={self.id} race_id={self.race_id} question_id={self.question_id}>'
+
+
+class OfficialAnswerMultipleChoiceOption(db.Model):
+    __tablename__ = 'official_answer_multiple_choice_options'
+
+    id = db.Column(db.Integer, primary_key=True)
+    official_answer_id = db.Column(db.Integer, db.ForeignKey('official_answers.id'), nullable=False)
+    question_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    # The backref 'official_selected_mc_options' is already defined in OfficialAnswer.official_selected_mc_options
+    # official_answer = db.relationship('OfficialAnswer', backref=db.backref('official_selected_mc_options', lazy=True))
+    question_option = db.relationship('QuestionOption', backref=db.backref('official_answer_selections', lazy=True))
+
+    __table_args__ = (db.UniqueConstraint('official_answer_id', 'question_option_id', name='_official_answer_option_uc'),)
+
+    def __repr__(self):
+        return f'<OfficialAnswerMultipleChoiceOption id={self.id} official_answer_id={self.official_answer_id} option_id={self.question_option_id}>'

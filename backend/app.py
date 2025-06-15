@@ -2,7 +2,7 @@ import os
 import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption # Added UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption # Added Official Models
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -1940,3 +1940,166 @@ def update_user_answer(user_answer_id):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+# --- Official Answer Endpoints ---
+
+@app.route('/api/races/<int:race_id>/official_answers', methods=['GET'])
+@login_required
+def get_official_answers(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to view official answers."), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    official_answers_query = OfficialAnswer.query.filter_by(race_id=race_id).all()
+
+    output = []
+    for oa in official_answers_query:
+        question = oa.question
+        if not question:
+            app.logger.error(f"OfficialAnswer {oa.id} has no associated question. Skipping.")
+            continue
+
+        all_q_options_list = []
+        for opt in question.options.order_by(QuestionOption.id): # Ensure consistent order
+            all_q_options_list.append({
+                "id": opt.id,
+                "option_text": opt.option_text,
+                "correct_order_index": opt.correct_order_index if question.question_type.name == "ORDERING" else None
+            })
+
+        answer_details = {
+            "question_id": question.id,
+            "question_text": question.text,
+            "question_type": question.question_type.name,
+            "answer_text": oa.answer_text,
+            "selected_option_id": oa.selected_option_id,
+            "selected_option_text": None,
+            "selected_mc_options": [],
+            "all_question_options": all_q_options_list
+        }
+
+        if question.question_type.name == "MULTIPLE_CHOICE":
+            if not question.is_mc_multiple_correct and oa.selected_option_id:
+                selected_option = QuestionOption.query.get(oa.selected_option_id)
+                if selected_option:
+                    answer_details["selected_option_text"] = selected_option.option_text
+            elif question.is_mc_multiple_correct:
+                selected_mc_options_list = []
+                for mc_opt_assoc in oa.official_selected_mc_options: # Relationship name from OfficialAnswer model
+                    option = mc_opt_assoc.question_option # Relationship from OfficialAnswerMultipleChoiceOption to QuestionOption
+                    if option:
+                        selected_mc_options_list.append({
+                            "option_id": option.id,
+                            "option_text": option.option_text
+                        })
+                answer_details["selected_mc_options"] = selected_mc_options_list
+
+        output.append(answer_details)
+
+    return jsonify(output), 200
+
+
+@app.route('/api/races/<int:race_id>/official_answers', methods=['POST'])
+@login_required
+def save_official_answers(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to save official answers."), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    answers_payload = request.get_json()
+    if not answers_payload:
+        return jsonify(message="No data provided"), 400
+
+    app.logger.info(f"User {current_user.id} attempting to save official answers for race {race_id}")
+    app.logger.debug(f"Received official answers payload for race {race_id}: {answers_payload}")
+
+    try:
+        # Delete existing official answers for this race
+        existing_official_answers = OfficialAnswer.query.filter_by(race_id=race_id).all()
+        for old_oa in existing_official_answers:
+            # Delete associated OfficialAnswerMultipleChoiceOption first
+            OfficialAnswerMultipleChoiceOption.query.filter_by(official_answer_id=old_oa.id).delete()
+            db.session.delete(old_oa)
+        db.session.flush() # Process deletes before adds
+
+        for question_id_str, answer_data in answers_payload.items():
+            try:
+                question_id = int(question_id_str)
+            except ValueError:
+                app.logger.warning(f"Invalid question_id format '{question_id_str}' in official answers payload for race {race_id}.")
+                continue
+
+            question = Question.query.get(question_id)
+            if not question or question.race_id != race_id:
+                app.logger.warning(f"Invalid or mismatched question_id {question_id} for race {race_id}.")
+                continue
+
+            new_official_answer = OfficialAnswer(
+                race_id=race_id,
+                question_id=question.id
+            )
+
+            question_type_name = question.question_type.name
+            app.logger.info(f"Processing official answer for question {question.id} (type: {question_type_name})")
+
+            if question_type_name == 'FREE_TEXT':
+                new_official_answer.answer_text = answer_data.get('answer_text')
+            elif question_type_name == 'ORDERING':
+                # Assuming payload provides 'ordered_options_text' similar to user answers
+                new_official_answer.answer_text = answer_data.get('ordered_options_text')
+            elif question_type_name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    selected_ids = answer_data.get('selected_option_ids', [])
+                    if not isinstance(selected_ids, list):
+                        app.logger.warning(f"selected_option_ids for official answer Q {question.id} is not a list: {selected_ids}")
+                        selected_ids = []
+
+                    for opt_id in selected_ids:
+                        if not isinstance(opt_id, int): continue # Skip non-integer ids
+                        option_exists = QuestionOption.query.filter_by(id=opt_id, question_id=question.id).first()
+                        if option_exists:
+                            mc_option = OfficialAnswerMultipleChoiceOption(question_option_id=opt_id)
+                            new_official_answer.official_selected_mc_options.append(mc_option)
+                        else:
+                            app.logger.warning(f"Invalid option_id {opt_id} for official answer to question {question.id}")
+                else: # Single correct
+                    selected_id = answer_data.get('selected_option_id')
+                    if selected_id is not None:
+                        if not isinstance(selected_id, int):
+                            app.logger.warning(f"selected_option_id for official answer Q {question.id} is not an int: {selected_id}")
+                            new_official_answer.selected_option_id = None
+                        else:
+                            option_exists = QuestionOption.query.filter_by(id=selected_id, question_id=question.id).first()
+                            if option_exists:
+                                new_official_answer.selected_option_id = selected_id
+                            else:
+                                app.logger.warning(f"Invalid selected_option_id {selected_id} for official answer to question {question.id}")
+                                new_official_answer.selected_option_id = None
+                    else:
+                        new_official_answer.selected_option_id = None
+            else:
+                app.logger.warning(f"Unsupported question type '{question_type_name}' for official answer to question {question.id}")
+                continue
+
+            db.session.add(new_official_answer)
+            app.logger.info(f"OfficialAnswer prepared for question {question.id} for race {race_id}")
+
+        db.session.commit()
+        app.logger.info(f"Official answers successfully saved for race {race_id} by user {current_user.id}")
+        return jsonify(message="Official answers saved successfully"), 201
+
+    except IntegrityError as ie:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError saving official answers for race {race_id}, user {current_user.id}: {ie}", exc_info=True)
+        return jsonify(message="Database integrity error while saving official answers."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception saving official answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while saving official answers."), 500

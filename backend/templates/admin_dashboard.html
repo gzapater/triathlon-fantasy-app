@@ -395,6 +395,11 @@
                                     </div>
                                     <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                                 </div>
+                                <div class="mt-4 pt-4 border-t border-gray-200">
+                                    <button onclick="openOfficialAnswersModal('{{ race.id }}', '{{ race.title | escapejs }}')" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors">
+                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
@@ -610,6 +615,33 @@
                     <i class="fas fa-eye mr-2"></i>Ver Modal de Ejemplo
                 </button>
             </div>
+
+            <!-- Official Answers Modal -->
+            <div id="official-answers-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full transform transition-all">
+                    <div class="gradient-orange rounded-t-2xl p-6 text-white">
+                        <div class="flex items-center justify-between">
+                            <h3 class="brand-font text-xl font-bold">Cargar Resultados Oficiales para: <span id="official-answers-modal-race-title"></span></h3>
+                            <button onclick="closeOfficialAnswersModal()" class="text-white hover:text-orange-200">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6 h-96 overflow-y-auto" id="official-answers-form-container">
+                        <!-- Questions and form inputs will be loaded here by JavaScript -->
+                        <p class="text-gray-500 text-center">Cargando preguntas...</p>
+                    </div>
+                    <div class="p-6 bg-gray-50 rounded-b-2xl flex items-center justify-end space-x-4">
+                        <button onclick="closeOfficialAnswersModal()" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors">
+                            Cancelar
+                        </button>
+                        <button id="save-official-answers-btn" class="btn-primary text-white px-6 py-3 rounded-lg font-medium">
+                            <i class="fas fa-save mr-2"></i>Guardar Resultados Oficiales
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
@@ -744,5 +776,6 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script>
 </body>
 </html>
