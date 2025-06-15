@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption # Added UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption # Added UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from flask_migrate import Migrate # Import Migrate
