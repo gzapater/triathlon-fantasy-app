@@ -275,9 +275,6 @@
                         <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
-                        <button id="setOfficialResultsBtn" class="btn btn-info bg-teal-500 hover:bg-teal-600 text-white px-5 py-2.5 sm:px-6 sm:py-3" style="display: none;">
-                            <i class="fas fa-award mr-2"></i>Set Official Results
-                        </button>
                         {% endif %}
                         <button id="answerQuestionsBtn" class="btn btn-primary bg-green-500 hover:bg-green-600 px-5 py-2.5 sm:px-6 sm:py-3" style="display: none;">
                             <i class="fas fa-tasks mr-2"></i>Responder Preguntas
@@ -405,19 +402,6 @@
                 </div>
                 {% endif %}
 
-            </div>
-
-            <!-- Official Results Display Section -->
-            <div id="officialResultsSection" class="bg-white rounded-xl p-6 shadow-lg mt-8" style="display: none;">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Resultados Oficiales de la Quiniela</h2>
-                <div class="mb-4">
-                    <button id="editOfficialResultsBtn" class="btn btn-secondary px-4 py-2 rounded-lg text-sm font-medium mr-2"> <i class="fas fa-edit mr-2"></i>Editar Resultados Oficiales </button>
-                    <button id="clearAllOfficialResultsBtn" class="btn bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"> <i class="fas fa-trash-alt mr-2"></i>Borrar Todos los Resultados </button>
-                </div>
-                <div id="officialResultsContent" class="space-y-4">
-                    <!-- Official results will be populated here by JavaScript -->
-                    <p id="loadingOfficialResultsMsg" class="text-gray-600">Cargando resultados oficiales...</p>
-                </div>
             </div>
 
             <!-- Sidebar -->
@@ -2946,33 +2930,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Official Results Modal -->
-    {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
-    <div id="officialResultsModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 150;">
-        <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl lg:max-w-3xl mx-auto">
-            <form id="saveOfficialResultsForm">
-                <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
-                    <h2 id="officialResultsModalTitle" class="text-xl sm:text-2xl font-bold text-gray-800">Set Official Quiniela Results</h2>
-                    <button type="button" id="closeOfficialResultsModalBtn" class="text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-times fa-lg"></i>
-                    </button>
-                </div>
-
-                <div id="officialResultsFormContent" class="space-y-6 max-h-[60vh] overflow-y-auto mb-6 pr-2">
-                    <!-- Questions and input fields will be dynamically inserted here -->
-                    <p class="text-center">Cargando preguntas...</p>
-                </div>
-
-                <div class="flex justify-end items-center pt-6 border-t border-gray-200 space-x-3">
-                    <button type="button" id="cancelOfficialResultsBtn" class="btn btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn btn-primary bg-green-600 hover:bg-green-700">Guardar Resultados Oficiales</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    {% endif %}
-
 
 </body>
 </html>
