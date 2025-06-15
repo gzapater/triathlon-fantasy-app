@@ -410,6 +410,10 @@
             <!-- Official Results Display Section -->
             <div id="officialResultsSection" class="bg-white rounded-xl p-6 shadow-lg mt-8" style="display: none;">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Resultados Oficiales de la Quiniela</h2>
+                <div class="mb-4">
+                    <button id="editOfficialResultsBtn" class="btn btn-secondary px-4 py-2 rounded-lg text-sm font-medium mr-2"> <i class="fas fa-edit mr-2"></i>Editar Resultados Oficiales </button>
+                    <button id="clearAllOfficialResultsBtn" class="btn bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"> <i class="fas fa-trash-alt mr-2"></i>Borrar Todos los Resultados </button>
+                </div>
                 <div id="officialResultsContent" class="space-y-4">
                     <!-- Official results will be populated here by JavaScript -->
                     <p id="loadingOfficialResultsMsg" class="text-gray-600">Cargando resultados oficiales...</p>
@@ -1657,6 +1661,58 @@
                 });
             }
 
+            // Clear All Official Results Button Logic
+            const clearAllOfficialResultsBtn = document.getElementById('clearAllOfficialResultsBtn');
+            if (clearAllOfficialResultsBtn && (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN')) {
+                clearAllOfficialResultsBtn.addEventListener('click', function() {
+                    if (confirm("¿Estás seguro de que quieres borrar todos los resultados oficiales para esta carrera? Esta acción no se puede deshacer.")) {
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Borrando...';
+
+                        fetch(`/api/races/${raceId}/official_answers`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                // 'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' // Add CSRF if needed
+                            }
+                        })
+                        .then(response => {
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-trash-alt mr-2"></i>Borrar Todos los Resultados';
+
+                            if (response.ok) {
+                                // Try to parse JSON, but if it fails (e.g. empty response with 204),
+                                // still treat as success for deletion.
+                                return response.json().catch(() => ({
+                                    message: "Resultados oficiales borrados con éxito.",
+                                    ok: true,
+                                    status: response.status
+                                }));
+                            } else {
+                                // If response is not OK, try to parse error from JSON body
+                                return response.json().then(err => { throw err; });
+                            }
+                        })
+                        .then(data => {
+                            alert(data.message || "Resultados oficiales borrados con éxito.");
+                            const officialResultsContent = document.getElementById('officialResultsContent');
+                            if (officialResultsContent) {
+                                officialResultsContent.innerHTML = '<p id="loadingOfficialResultsMsg" class="text-gray-600">Los resultados oficiales han sido borrados. Recarga la página para actualizar la vista o para volver a cargarlos.</p>';
+                                // Consider hiding the edit/clear buttons or calling fetchAndDisplayOfficialResults()
+                                // if it correctly handles an empty or "no results" state.
+                                // For now, just updating the message.
+                            }
+                        })
+                        .catch(error => {
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-trash-alt mr-2"></i>Borrar Todos los Resultados';
+                            alert('Error al borrar los resultados oficiales: ' + (error.message || error.detail || 'Error desconocido. Revisa la consola para más detalles.'));
+                            console.error('Error clearing official results:', error);
+                        });
+                    }
+                });
+            }
+
             // Initial data fetch
             // fetchAndRenderQuestions(); // Commented out - questions are now fetched by wizard or admin section
             // Admin might still need a way to see questions even if user hasn't answered.
@@ -2237,6 +2293,7 @@
         // --- End Question Wizard Logic ---
 
         // --- Official Results Modal & Logic ---
+            // const editOfficialResultsBtn = document.getElementById('editOfficialResultsBtn'); // Added in previous step, ensure it's declared if used here
         const setOfficialResultsBtn = document.getElementById('setOfficialResultsBtn');
         const officialResultsModal = document.getElementById('officialResultsModal');
         const closeOfficialResultsModalBtn = document.getElementById('closeOfficialResultsModalBtn');
@@ -2564,7 +2621,20 @@
                 participateInPoolBtn.addEventListener('click', openWizard);
             }
             // ... (rest of existing DOMContentLoaded listeners) ...
-        }); // Added this line
+
+            // Event listener for "Edit Official Results" button (placeholder for now or if it opens the same modal as "Set")
+            const editOfficialResultsBtn = document.getElementById('editOfficialResultsBtn');
+            if (editOfficialResultsBtn && (currentUserRole === 'ADMIN' || currentUserRole === 'LEAGUE_ADMIN')) {
+                editOfficialResultsBtn.addEventListener('click', () => {
+                    // This button might open the same modal as setOfficialResultsBtn,
+                    // or a different one if editing has a distinct UI.
+                    // For now, let's assume it opens the same modal for setting/editing.
+                    if (officialResultsModalTitle) officialResultsModalTitle.textContent = `Editar Resultados Oficiales de Quiniela para ${raceTitle}`;
+                    populateOfficialResultsForm(); // This function fetches existing results for editing
+                    if (officialResultsModal) officialResultsModal.style.display = 'flex';
+                });
+            }
+        }); // Main DOMContentLoaded closing bracket
     </script>
 
     <!-- Question Wizard Modal -->

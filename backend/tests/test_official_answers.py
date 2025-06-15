@@ -397,6 +397,171 @@ def test_get_official_answers_with_data(test_client, regular_user, admin_user, d
 
     test_client.post('/api/logout')
 
+# --- API Tests (DELETE /api/races/<race_id>/official_answers) ---
+
+def test_delete_official_answers_admin_success(test_client, db_session, admin_user, setup_race_for_official_answers):
+    data = setup_race_for_official_answers
+    race_to_test = data["race_concluded"]
+    q_ft = data["q_ft"]
+    q_mc_single = data["q_mc_single"]
+    q_mc_s_opt1 = data["q_mc_s_opt1"]
+
+    # Login as admin
+    login_response = test_client.post('/api/login', json={'username': admin_user.username, 'password': 'password'})
+    assert login_response.status_code == 200
+
+    # Create official answers
+    oa1 = OfficialAnswer(question_id=q_ft.id, answer_text="Official FT Answer", created_by_id=admin_user.id)
+    oa2 = OfficialAnswer(question_id=q_mc_single.id, selected_option_id=q_mc_s_opt1.id, created_by_id=admin_user.id)
+    db_session.add_all([oa1, oa2])
+    db_session.commit()
+
+    assert OfficialAnswer.query.filter(OfficialAnswer.question_id.in_([q_ft.id, q_mc_single.id])).count() == 2
+
+    response = test_client.delete(f'/api/races/{race_to_test.id}/official_answers')
+
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert "All official answers for the race have been deleted successfully" in json_data['message']
+
+    assert OfficialAnswer.query.filter(OfficialAnswer.question_id.in_([q_ft.id, q_mc_single.id])).count() == 0
+    test_client.post('/api/logout')
+
+def test_delete_official_answers_league_admin_success(test_client, db_session, league_admin_user, admin_user, setup_race_for_official_answers):
+    # Note: The setup_race_for_official_answers creates race owned by admin_user.
+    # The backend logic for DELETE official_answers checks for ADMIN or LEAGUE_ADMIN role, not ownership.
+    data = setup_race_for_official_answers
+    race_to_test = data["race_concluded"]
+    q_ft = data["q_ft"]
+
+    # Login as league_admin
+    login_response = test_client.post('/api/login', json={'username': league_admin_user.username, 'password': 'password'})
+    assert login_response.status_code == 200
+
+    # Create an official answer (can be created by admin or league_admin if they have rights to POST)
+    # For this test, let's assume admin_user created it.
+    oa1 = OfficialAnswer(question_id=q_ft.id, answer_text="Answer by Admin", created_by_id=admin_user.id)
+    db_session.add(oa1)
+    db_session.commit()
+    assert OfficialAnswer.query.filter_by(question_id=q_ft.id).count() == 1
+
+    response = test_client.delete(f'/api/races/{race_to_test.id}/official_answers')
+
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert "All official answers for the race have been deleted successfully" in json_data['message']
+    assert OfficialAnswer.query.filter_by(question_id=q_ft.id).count() == 0
+    test_client.post('/api/logout')
+
+def test_delete_official_answers_mc_multi_options_deleted(test_client, db_session, admin_user, setup_race_for_official_answers):
+    data = setup_race_for_official_answers
+    race_to_test = data["race_concluded"]
+    q_mc_multi = data["q_mc_multi"]
+    q_mc_m_opt1 = data["q_mc_m_opt1"]
+    q_mc_m_opt2 = data["q_mc_m_opt2"]
+
+    login_response = test_client.post('/api/login', json={'username': admin_user.username, 'password': 'password'})
+    assert login_response.status_code == 200
+
+    oa = OfficialAnswer(question_id=q_mc_multi.id, created_by_id=admin_user.id)
+    db_session.add(oa)
+    db_session.commit() # Commit to get oa.id
+
+    oamc1 = OfficialAnswerMultipleChoiceOption(official_answer_id=oa.id, question_option_id=q_mc_m_opt1.id)
+    oamc2 = OfficialAnswerMultipleChoiceOption(official_answer_id=oa.id, question_option_id=q_mc_m_opt2.id)
+    db_session.add_all([oamc1, oamc2])
+    db_session.commit()
+
+    assert OfficialAnswer.query.filter_by(question_id=q_mc_multi.id).count() == 1
+    assert OfficialAnswerMultipleChoiceOption.query.filter_by(official_answer_id=oa.id).count() == 2
+    oamc_ids = [oamc1.id, oamc2.id]
+
+
+    response = test_client.delete(f'/api/races/{race_to_test.id}/official_answers')
+    assert response.status_code == 200
+
+    assert OfficialAnswer.query.filter_by(question_id=q_mc_multi.id).count() == 0
+    # Check that the specific OAMCOptions are deleted
+    for oamc_id in oamc_ids:
+        assert OfficialAnswerMultipleChoiceOption.query.get(oamc_id) is None
+    test_client.post('/api/logout')
+
+
+def test_delete_official_answers_none_exist(test_client, admin_user, setup_race_for_official_answers):
+    data = setup_race_for_official_answers
+    race_to_test = data["race_concluded"]
+
+    login_response = test_client.post('/api/login', json={'username': admin_user.username, 'password': 'password'})
+    assert login_response.status_code == 200
+
+    # Ensure no official answers exist for questions in this race
+    question_ids_in_race = [q.id for q in race_to_test.questions]
+    assert OfficialAnswer.query.filter(OfficialAnswer.question_id.in_(question_ids_in_race)).count() == 0
+
+    response = test_client.delete(f'/api/races/{race_to_test.id}/official_answers')
+
+    assert response.status_code == 200
+    json_data = response.get_json()
+    assert "No official answers found for this race to delete" in json_data['message']
+    test_client.post('/api/logout')
+
+def test_delete_official_answers_non_existent_race(test_client, admin_user):
+    login_response = test_client.post('/api/login', json={'username': admin_user.username, 'password': 'password'})
+    assert login_response.status_code == 200
+
+    response = test_client.delete('/api/races/99999/official_answers') # Non-existent race ID
+    assert response.status_code == 404
+    json_data = response.get_json()
+    assert "Race not found" in json_data['message']
+    test_client.post('/api/logout')
+
+def test_delete_official_answers_player_unauthorized(test_client, db_session, player_user, admin_user, setup_race_for_official_answers):
+    data = setup_race_for_official_answers
+    race_to_test = data["race_concluded"]
+    q_ft = data["q_ft"]
+
+    # Admin creates an answer first
+    oa1 = OfficialAnswer(question_id=q_ft.id, answer_text="Pre-existing answer", created_by_id=admin_user.id)
+    db_session.add(oa1)
+    db_session.commit()
+
+    # Login as player
+    login_response = test_client.post('/api/login', json={'username': player_user.username, 'password': 'password'})
+    assert login_response.status_code == 200
+
+    response = test_client.delete(f'/api/races/{race_to_test.id}/official_answers')
+    assert response.status_code == 403
+    json_data = response.get_json()
+    assert "Unauthorized. Admin or League Admin role required" in json_data['message']
+
+    # Ensure answer was not deleted
+    assert OfficialAnswer.query.filter_by(question_id=q_ft.id).count() == 1
+    test_client.post('/api/logout')
+
+def test_delete_official_answers_unauthenticated(test_client, db_session, admin_user, setup_race_for_official_answers):
+    data = setup_race_for_official_answers
+    race_to_test = data["race_concluded"]
+    q_ft = data["q_ft"]
+
+    # Admin creates an answer first
+    oa1 = OfficialAnswer(question_id=q_ft.id, answer_text="Pre-existing answer for unauth test", created_by_id=admin_user.id)
+    db_session.add(oa1)
+    db_session.commit()
+
+    response = test_client.delete(f'/api/races/{race_to_test.id}/official_answers')
+    # Flask-Login redirects to login_view if @login_required fails and it's not an API-like request (Accept header)
+    # For APIs, it should ideally return 401. Let's check for either behavior if Accept header isn't set by client.
+    # Given this is an API test, and other tests imply JSON responses for errors, 401 is expected.
+    assert response.status_code == 401 # Or 302 if it redirects and LOGIN_DISABLED=False
+    if response.status_code == 401:
+         json_data = response.get_json()
+         assert "Authentication required" in json_data.get("message", "") or "Missing Authorization Header" in json_data.get("msg", "")
+
+
+    # Ensure answer was not deleted
+    assert OfficialAnswer.query.filter_by(question_id=q_ft.id).count() == 1
+
+
 # TODO: Add more tests for POST endpoint:
 # - Invalid question_id in payload (not int, not existing)
 # - question_id not belonging to the race

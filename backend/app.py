@@ -287,6 +287,54 @@ def manage_official_answers(race_id):
         app.logger.error(f"Exception managing official answers for race {race_id}, user {current_user.username}: {e}", exc_info=True)
         return jsonify(message="An error occurred while saving official answers."), 500
 
+@app.route('/api/races/<int:race_id>/official_answers', methods=['DELETE'])
+@login_required
+def delete_official_answers(race_id):
+    # Role check:
+    if not current_user.is_authenticated: # Should be handled by @login_required but good practice
+        return jsonify({"message": "Authentication required."}), 401
+
+    allowed_roles = ['ADMIN', 'LEAGUE_ADMIN']
+    if not hasattr(current_user, 'role') or not hasattr(current_user.role, 'code') or current_user.role.code not in allowed_roles:
+        app.logger.warning(f"User {current_user.username} (Role: {current_user.role.code if hasattr(current_user, 'role') and hasattr(current_user.role, 'code') else 'N/A'}) forbidden to delete official answers for race {race_id}.")
+        return jsonify({"message": "Unauthorized. Admin or League Admin role required."}), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Attempt to delete official answers for non-existent race {race_id} by user {current_user.username}.")
+        return jsonify({"message": "Race not found."}), 404
+
+    try:
+        # Fetch all question_ids for the race
+        question_ids_for_race = [q.id for q in Question.query.filter_by(race_id=race_id).all()]
+
+        if not question_ids_for_race:
+            # No questions for this race, so no official answers to delete.
+            app.logger.info(f"No questions found for race {race_id}, thus no official answers to delete.")
+            return jsonify({"message": "No questions found for this race, so no official answers exist to delete."}), 200
+
+        # Find official answers linked to these questions
+        official_answers_to_delete = OfficialAnswer.query.filter(OfficialAnswer.question_id.in_(question_ids_for_race)).all()
+
+        if not official_answers_to_delete:
+            app.logger.info(f"No official answers found for race {race_id} to delete, requested by user {current_user.username}.")
+            return jsonify({"message": "No official answers found for this race to delete."}), 200
+
+        deleted_count = 0
+        for answer in official_answers_to_delete:
+            # Also delete associated OfficialAnswerMultipleChoiceOption if any
+            OfficialAnswerMultipleChoiceOption.query.filter_by(official_answer_id=answer.id).delete()
+            db.session.delete(answer)
+            deleted_count += 1
+
+        db.session.commit()
+        app.logger.info(f"Successfully deleted {deleted_count} official answers for race {race_id} by user {current_user.username}.")
+        return jsonify({"message": "All official answers for the race have been deleted successfully."}), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting official answers for race {race_id}, user {current_user.username}: {str(e)}", exc_info=True)
+        return jsonify({"message": f"An error occurred while deleting official answers: {str(e)}"}), 500
+
 # --- API Routes ---
 
 @app.route('/api/race-formats', methods=['GET'])
