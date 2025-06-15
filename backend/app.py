@@ -1474,7 +1474,26 @@ def serve_hello_world_page():
             general_races_for_cards_query_result = query_general_races.order_by(Race.event_date.desc()).all()
         except Exception as e:
             app.logger.error(f"Error fetching general races for admin dashboard cards: {e}")
-        general_races_for_cards = [race.to_dict() for race in general_races_for_cards_query_result]
+
+        general_races_for_cards_dicts = []
+        for race in general_races_for_cards_query_result:
+            race_dict = race.to_dict()
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'):
+                        close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else:
+                        close_date_obj = datetime.fromisoformat(qcd_str)
+                    # Assuming quiniela_close_date is stored as naive UTC
+                    if close_date_obj > datetime.utcnow():
+                        is_quiniela_actionable = False
+                except ValueError as ve:
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race.id}: {ve}")
+                    is_quiniela_actionable = True # Defaulting to true if parsing fails
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            general_races_for_cards_dicts.append(race_dict)
 
         # Query for all races (for official answers dropdown)
         all_races_for_official_answers_query_result = []
@@ -1482,10 +1501,10 @@ def serve_hello_world_page():
             all_races_for_official_answers_query_result = Race.query.order_by(Race.event_date.desc()).all()
         except Exception as e:
             app.logger.error(f"Error fetching all races for admin official answers: {e}")
-        all_races_for_official_answers = [race.to_dict() for race in all_races_for_official_answers_query_result]
+        all_races_for_official_answers = [race.to_dict() for race in all_races_for_official_answers_query_result] # These are just for display, no need for actionable logic here
 
         return render_template('admin_dashboard.html',
-                               races=general_races_for_cards, # General races for cards
+                               races=general_races_for_cards_dicts, # Use the new list with actionable flag
                                races_for_official_answers=all_races_for_official_answers, # All races for dropdown
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
@@ -1507,11 +1526,29 @@ def serve_hello_world_page():
             league_admin_races_query_result = query_league_races.order_by(Race.event_date.desc()).all()
         except Exception as e:
             app.logger.error(f"Error fetching local races for league admin: {e}")
-        league_admin_races = [race.to_dict() for race in league_admin_races_query_result]
+
+        league_admin_races_dicts = []
+        for race in league_admin_races_query_result:
+            race_dict = race.to_dict()
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'):
+                        close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else:
+                        close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj > datetime.utcnow():
+                        is_quiniela_actionable = False
+                except ValueError as ve:
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race.id}: {ve}")
+                    is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            league_admin_races_dicts.append(race_dict)
 
         return render_template('admin_dashboard.html', # Changed from index.html
-                               races=league_admin_races, # League admin's races for cards
-                               races_for_official_answers=league_admin_races, # League admin's races for dropdown
+                               races=league_admin_races_dicts, # Use new list
+                               races_for_official_answers=league_admin_races_dicts, # Use new list
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
@@ -1538,10 +1575,28 @@ def serve_hello_world_page():
             registered_races_query_result = query.order_by(Race.event_date.desc()).all()
         except Exception as e:
             app.logger.error(f"Error fetching registered races for player {current_user.id}: {e}")
-        registered_races = [race.to_dict() for race in registered_races_query_result]
+
+        registered_races_dicts = []
+        for race in registered_races_query_result:
+            race_dict = race.to_dict()
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'):
+                        close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else:
+                        close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj > datetime.utcnow():
+                        is_quiniela_actionable = False
+                except ValueError as ve:
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race.id}: {ve}")
+                    is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            registered_races_dicts.append(race_dict)
 
         return render_template('player.html',
-                               registered_races=registered_races, # Pass registered_races
+                               registered_races=registered_races_dicts, # Pass new list
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
@@ -1563,10 +1618,28 @@ def serve_hello_world_page():
             all_races_query_result = query.order_by(Race.event_date.desc()).all() # Keep variable name all_races for consistency in this block
         except Exception as e:
             app.logger.error(f"Error fetching general races for fallback/unhandled role: {e}")
-        all_races = [race.to_dict() for race in all_races_query_result]
+
+        all_races_dicts_fallback = []
+        for race_obj in all_races_query_result: # Renamed to avoid conflict with outer all_races
+            race_dict = race_obj.to_dict()
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'):
+                        close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else:
+                        close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj > datetime.utcnow():
+                        is_quiniela_actionable = False
+                except ValueError as ve:
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race_obj.id}: {ve}")
+                    is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            all_races_dicts_fallback.append(race_dict)
 
         return render_template('player.html',
-                               races=all_races, # Keep races=all_races for this fallback block
+                               races=all_races_dicts_fallback, # Use new list
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
@@ -1619,13 +1692,22 @@ def serve_race_detail_page(race_id):
         # This handles cases where current_user might be an AnonymousUserMixin without a 'role'
         pass
 
+    # Determine quiniela actionability for the single race object
+    is_quiniela_actionable_detail = True # Default to True
+    if race.quiniela_close_date:
+        # race.quiniela_close_date is a datetime object (naive UTC assumed as per model setup)
+        # datetime.utcnow() is also naive UTC
+        if race.quiniela_close_date > datetime.utcnow():
+            is_quiniela_actionable_detail = False
+    # No else needed, default is True if quiniela_close_date is None or in the past
 
     return render_template('race_detail.html',
                            race=race,
                            current_year=current_year,
                            currentUserRole=user_role_code,
                            is_user_registered_for_race=is_user_registered_for_race,
-                           has_user_answered_pool=has_user_answered_pool)
+                           has_user_answered_pool=has_user_answered_pool,
+                           is_quiniela_actionable=is_quiniela_actionable_detail)
 
 # --- API Endpoint for Saving User Answers ---
 @app.route('/api/races/<int:race_id>/answers', methods=['POST'])

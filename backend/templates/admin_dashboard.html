@@ -396,9 +396,15 @@
                                     <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                                 </div>
                                 <div class="mt-4 pt-4 border-t border-gray-200">
-                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors">
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
+                                    {% if race.is_quiniela_actionable %}
+                                        <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors">
+                                            <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                        </button>
+                                    {% else %}
+                                        <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-sm bg-gray-400 text-gray-700 py-2 px-4 rounded-md cursor-not-allowed">
+                                            <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                        </button>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>

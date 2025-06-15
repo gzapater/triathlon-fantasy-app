@@ -342,9 +342,15 @@
                             <button id="addNewQuestionBtn" class="btn btn-primary text-sm px-4 py-2">
                                 <i class="fas fa-plus mr-2"></i>Añadir Pregunta
                             </button>
+                            {% if is_quiniela_actionable %}
                             <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition-colors text-sm">
                                 Gestionar Quiniela
                             </button>
+                            {% else %}
+                            <button disabled title="Se activará cuando se cierre la quiniela." class="bg-gray-400 text-gray-700 font-bold py-2 px-4 rounded cursor-not-allowed focus:outline-none focus:shadow-outline transition-colors text-sm">
+                                Gestionar Quiniela
+                            </button>
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
