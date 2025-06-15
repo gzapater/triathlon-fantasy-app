@@ -360,7 +360,11 @@
                     {% endif %}
                 </div>
 
-                <!-- Race Participants Section -->
+            </div>
+
+            <!-- Sidebar -->
+            <aside class="space-y-6 lg:sticky lg:top-24 self-start"> <!-- Added self-start for sticky behavior -->
+                <!-- Race Participants Section (Moved Here) -->
                 {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
                 <div id="raceParticipantsSection" class="bg-white rounded-xl p-6 shadow-lg">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Participantes de la Carrera</h2>
@@ -376,10 +380,6 @@
                 </div>
                 {% endif %}
 
-            </div>
-
-            <!-- Sidebar -->
-            <aside class="space-y-6 lg:sticky lg:top-24 self-start"> <!-- Added self-start for sticky behavior -->
                 <!-- Race Segments (Moved Here) -->
                 <div class="bg-white rounded-xl p-6 shadow-lg">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6">Segmentos de la Carrera</h2>
