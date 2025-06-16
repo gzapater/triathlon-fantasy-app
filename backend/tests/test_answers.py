@@ -35,7 +35,7 @@ def question_factory(db_session, question_type_factory):
             question.total_score_mc_single = 10
         elif question_type_name == "FREE_TEXT":
             question.max_score_free_text = 5
-
+        # Specific scoring for ORDERING will be set in the test
         db_session.add(question)
         db_session.commit()
         return question
@@ -43,7 +43,7 @@ def question_factory(db_session, question_type_factory):
 
 # Helper fixture to create a QuestionOption (can be moved to conftest.py if used elsewhere)
 @pytest.fixture
-def option_factory(db_session):
+def option_factory(db_session): # Renamed to question_option_factory in the new test for clarity
     def _factory(question, option_text="Sample Option"):
         option = QuestionOption(
             question_id=question.id,
@@ -281,7 +281,7 @@ def test_save_answers_successfully(client, db_session, registered_user_for_race,
         str(q_free_text.id): {"answer_text": "Blue"},
         str(q_mc_single.id): {"selected_option_id": opt_s1.id},
         str(q_mc_multi.id): {"selected_option_ids": [opt_f1.id, opt_f3.id]},
-        str(q_ordering.id): {"ordered_options_text": "1, 2, 3"}
+        str(q_ordering.id): {"ordered_options_text": "1, 2, 3"} # This will be option texts for user, not IDs
     }
 
     response = client.post(f'/api/races/{race.id}/answers', json=answers_payload)
@@ -482,3 +482,204 @@ def race_format_factory(db_session): # Added this fixture, assuming it might be 
             db_session.commit()
         return rf
     return _factory
+
+# --- Tests for calculate_and_store_scores for ORDERING questions ---
+from backend.app import calculate_and_store_scores
+from backend.models import UserScore, OfficialAnswer # OfficialAnswer might be needed if not already imported
+
+# Define test scenarios as tuples:
+# (scenario_name, official_id_order_setup, user_text_answer_str, expected_score, options_config)
+# options_config will be a list of tuples: (text, correct_order_index_for_setup)
+# The official_id_order_setup will use symbolic names ("OptA", "OptB", "OptC") which will be mapped to actual IDs.
+
+ordering_test_scenarios = [
+    (
+        "Perfect Match",
+        ["OptA", "OptB", "OptC"], # Official order of option *symbolic names*
+        "Option A Text,Option B Text,Option C Text", # User's textual answer
+        35, # (3 * 10) + 5
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)] # OptA, OptB, OptC
+    ),
+    (
+        "Partial Match (1st correct, rest swapped)", # Scenario (b)
+        ["OptA", "OptB", "OptC"],
+        "Option A Text,Option C Text,Option B Text", # OptA correct, B and C swapped
+        10, # 1 * 10 (only OptA in correct place)
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "Partial Match (Fewer items from user)", # Scenario (c)
+        ["OptA", "OptB", "OptC"],
+        "Option A Text,Option B Text",
+        20, # 2 * 10
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "Partial Match (Middle correct, ends swapped)", # Scenario (d) adjusted for clarity
+        ["OptA", "OptB", "OptC"],
+        "Option C Text,Option B Text,Option A Text", # OptB correct
+        10, # 1 * 10 (Only OptB in correct position)
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+     (
+        "No Match (Completely different order)",
+        ["OptA", "OptB", "OptC"],
+        "Option B Text,Option C Text,Option A Text", # B!=A, C!=B, A!=C
+        0,
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "Official Answer order differs from correct_order_index setup", # Scenario (e)
+        ["OptC", "OptB", "OptA"], # Official ID order: C, B, A
+        "Option C Text,Option B Text,Option A Text", # User text matches this ^
+        35, # (3 * 10) + 5
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)] # Options setup (COI ignored for scoring)
+    ),
+    (
+        "Case Insensitivity", # Scenario (f)
+        ["OptA", "OptB", "OptC"],
+        "option a text,option b text,option c text", # Lowercase user answer
+        35, # (3 * 10) + 5
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "Empty User Answer", # Scenario (g)
+        ["OptA", "OptB", "OptC"],
+        "",
+        0,
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "User answer has more items than official answer", # Scenario (h)
+        ["OptA", "OptB"], # Official order (length 2)
+        "Option A Text,Option B Text,Option C Text", # User answer (length 3)
+        20, # 2 * 10 (bonus does not apply as user length != official length)
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)] # All 3 options exist for question
+    ),
+    (
+        "Official answer has fewer items than question options, perfect user match",
+        ["OptA"], # Official order only has OptA (length 1)
+        "Option A Text", # User matches this
+        15, # (1 * 10) + 5 (bonus for full match of the *official answer's length*)
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "Partial match with one item, bonus for full order if only one official item", # Similar to above
+        ["OptB"],
+        "Option B Text",
+        15, # (1*10) + 5
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    ),
+    (
+        "User answer with extra spaces around commas and items",
+        ["OptA", "OptB"],
+        "  Option A Text  ,  Option B Text  ",
+        25, # (2 * 10) + 5
+        [("Option A Text", 0), ("Option B Text", 1), ("Option C Text", 2)]
+    )
+]
+
+@pytest.mark.parametrize(
+    "scenario_name, official_id_order_setup, user_text_answer_str, expected_score, options_config",
+    ordering_test_scenarios
+)
+def test_calculate_scores_for_ordering_questions(
+    db_session,
+    sample_race_factory, # Use the existing factory from test_answers
+    user_factory,        # Use existing factory from conftest
+    question_factory,    # Use existing factory, will set ordering specific fields manually
+    option_factory,      # Use existing factory (named option_factory in this file)
+    scenario_name,
+    official_id_order_setup,
+    user_text_answer_str,
+    expected_score,
+    options_config
+):
+    # 1. Setup
+    # Use a unique username for each parametrized test run to avoid conflicts if user objects aren't fully isolated or cleaned up.
+    user = user_factory(username=f"user_{scenario_name.replace(' ', '_').lower()}_{datetime.utcnow().timestamp()}")
+    race = sample_race_factory(title=f"Race for {scenario_name}") # Ensure this factory creates a new race each time
+
+    registration = UserRaceRegistration(user_id=user.id, race_id=race.id)
+    db_session.add(registration)
+
+    points_per_correct_order = 10
+    bonus_for_full_order = 5
+
+    # Create the ORDERING question and set its specific scoring attributes
+    q_ordering = question_factory(race, "ORDERING", text=f"Order for {scenario_name}")
+    q_ordering.points_per_correct_order = points_per_correct_order
+    q_ordering.bonus_for_full_order = bonus_for_full_order
+    db_session.add(q_ordering) # Add to session, commit will happen with options
+    db_session.commit() # Commit question to get its ID for options
+
+    created_options = {} # To map symbolic names like "OptA" to QuestionOption objects
+    for i, (text, coi) in enumerate(options_config):
+        symbolic_name = f"Opt{chr(65+i)}" # Generates "OptA", "OptB", "OptC"
+        opt = option_factory(question=q_ordering, option_text=text)
+        # correct_order_index on QuestionOption is for admin UI setup, not directly for scoring logic after this change
+        opt.correct_order_index = coi
+        db_session.add(opt)
+        created_options[symbolic_name] = opt
+    db_session.commit() # Commit options to get their IDs
+
+    # Construct the official_answer.answer_text string from actual option IDs
+    actual_official_id_order_str = ""
+    if official_id_order_setup:
+        try:
+            id_list = []
+            for symbol_name in official_id_order_setup:
+                if symbol_name not in created_options:
+                     pytest.fail(f"Scenario '{scenario_name}': Symbolic option name '{symbol_name}' in official_id_order_setup not found in created_options. Available: {list(created_options.keys())}")
+                id_list.append(str(created_options[symbol_name].id))
+            actual_official_id_order_str = ",".join(id_list)
+        except KeyError as e: # Should be caught by the check above now
+            pytest.fail(f"Scenario '{scenario_name}': Symbolic option name {e} in official_id_order_setup not found in created_options. Check options_config and created_options mapping.")
+
+    # 2. Create OfficialAnswer
+    official_answer = OfficialAnswer(
+        race_id=race.id,
+        question_id=q_ordering.id,
+        answer_text=actual_official_id_order_str
+    )
+    db_session.add(official_answer)
+
+    # 3. Create UserAnswer
+    user_answer = UserAnswer(
+        user_id=user.id,
+        race_id=race.id,
+        question_id=q_ordering.id,
+        answer_text=user_text_answer_str
+    )
+    db_session.add(user_answer)
+    db_session.commit() # Commit all: registration, question, options, official_answer, user_answer
+
+    # 4. Call the function under test
+    result = calculate_and_store_scores(race.id)
+    assert result['success'] is True, f"calculate_and_store_scores failed for scenario: {scenario_name}, message: {result.get('message')}"
+
+    # 5. Verify UserScore
+    user_score_entry = UserScore.query.filter_by(user_id=user.id, race_id=race.id).first()
+
+    # Debugging output in case of failure
+    official_texts_for_debug = []
+    if actual_official_id_order_str:
+        ids = [int(id_str) for id_str in actual_official_id_order_str.split(',')]
+        for opt_id in ids:
+            opt = QuestionOption.query.get(opt_id)
+            if opt: official_texts_for_debug.append(opt.option_text)
+            else: official_texts_for_debug.append(f"[ID {opt_id} NOT FOUND]")
+
+    assert user_score_entry is not None, f"UserScore not found for user {user.id}, race {race.id} in scenario: {scenario_name}"
+    assert user_score_entry.score == expected_score, \
+        (f"Scenario '{scenario_name}': Expected score {expected_score}, got {user_score_entry.score}. "
+         f"User answer: '{user_text_answer_str}', "
+         f"Official Option IDs: '{actual_official_id_order_str}', "
+         f"Official Option Texts (derived): '{','.join(official_texts_for_debug)}'")
+
+# (Keep existing race_format_factory and sample_race_factory at the end of the file or move to conftest.py)
+# Ensure UserScore and OfficialAnswer are imported in backend.models import list at the top if not already.
+# They are already: from backend.models import ( ..., UserScore, OfficialAnswer, ...)
+# So, the main model import list does not need changes.
+# The import from backend.app import calculate_and_store_scores is added.
+# And from backend.models import UserScore, OfficialAnswer for explicit use within the test.

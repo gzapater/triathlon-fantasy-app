@@ -98,15 +98,23 @@ def test_post_official_answers_admin(authenticated_client, sample_race, db_sessi
     client, _ = authenticated_client("ADMIN")
     q_data = setup_questions_for_race(db_session, sample_race.id)
 
+    # Define the order for the ordering question: opt_o2 then opt_o1
+    # q_data['opts_o'] is [opt_o1, opt_o2]
+    # So, the desired order is the second option, then the first option from the setup.
+    expected_ordered_ids_string = f"{q_data['opts_o'][1].id},{q_data['opts_o'][0].id}"
+
     payload = {
         str(q_data["q_text"].id): {"answer_text": "Test Winner"},
         str(q_data["q_mc_single"].id): {"selected_option_id": q_data["opts_s"][0].id},
         str(q_data["q_mc_multi"].id): {"selected_option_ids": [q_data["opts_m"][0].id, q_data["opts_m"][1].id]},
-        str(q_data["q_ordering"].id): {"ordered_options_text": f"{q_data['opts_o'][0].option_text}\n{q_data['opts_o'][1].option_text}"}
+        str(q_data["q_ordering"].id): {"ordered_options_text": expected_ordered_ids_string}
     }
     response = client.post(f'/api/races/{sample_race.id}/official_answers', json=payload)
     assert response.status_code == 201
-    assert response.json['message'] == "Official answers saved successfully"
+    # The message now includes "Scoring process initiated."
+    assert "Official answers saved successfully" in response.json['message']
+    assert "Scoring process initiated" in response.json['message']
+
 
     # Verify data
     official_answers = OfficialAnswer.query.filter_by(race_id=sample_race.id).all()
@@ -124,7 +132,7 @@ def test_post_official_answers_admin(authenticated_client, sample_race, db_sessi
     assert selected_ids == sorted([q_data["opts_m"][0].id, q_data["opts_m"][1].id])
 
     oa_ordering = OfficialAnswer.query.filter_by(question_id=q_data["q_ordering"].id).first()
-    assert oa_ordering.answer_text == f"{q_data['opts_o'][0].option_text}\n{q_data['opts_o'][1].option_text}"
+    assert oa_ordering.answer_text == expected_ordered_ids_string
 
 
 def test_post_official_answers_league_admin(authenticated_client, sample_race, db_session):

@@ -1,6 +1,22 @@
 // Global variable to store the current race ID being managed
 let currentRaceIdForOfficialAnswers = null;
 let questionsDataForOfficialAnswers = []; // To store questions globally for submission
+let draggedItem = null; // To store the element being dragged
+
+// Helper function to determine the element to insert before
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('li[draggable="true"]:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
 
 function openOfficialAnswersModal(buttonElement) {
     const raceId = buttonElement.getAttribute('data-race-id');
@@ -108,19 +124,123 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
                 break;
 
             case 'ORDERING':
-                const orderingTextarea = document.createElement('textarea');
-                orderingTextarea.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500';
-                orderingTextarea.rows = question.options.length > 0 ? question.options.length + 1 : 4;
-                orderingTextarea.name = `question-${question.id}`;
-                orderingTextarea.placeholder = "Escriba cada opción en una nueva línea, en el orden correcto.";
+                const ul = document.createElement('ul');
+                ul.className = 'list-none p-0 m-0'; // Basic styling for ul
 
-                if (officialAnswer && officialAnswer.answer_text) {
-                    orderingTextarea.value = officialAnswer.answer_text;
+                if (question.options && question.options.length > 0) {
+                    let optionsToRender = [...question.options]; // Default to original order, clone to avoid modifying original
+
+                    if (officialAnswer && officialAnswer.answer_text && officialAnswer.answer_text.trim() !== '') {
+                        const orderedIds = officialAnswer.answer_text.split(',').map(idStr => parseInt(idStr.trim(), 10));
+                        const optionsMap = new Map(question.options.map(opt => [opt.id, opt]));
+
+                        const sortedOptionsFromAnswer = orderedIds.map(id => optionsMap.get(id)).filter(opt => opt !== undefined);
+
+                        if (sortedOptionsFromAnswer.length === question.options.length) {
+                            optionsToRender = sortedOptionsFromAnswer;
+                            console.debug(`Options for QID ${question.id} sorted based on official answer: ${officialAnswer.answer_text}`);
+                        } else {
+                            // This handles cases where some IDs in answer_text might not be in current question.options
+                            // or if the number of options has changed since the answer was saved.
+                            console.warn(`Could not fully sort options for question ${question.id} based on official answer IDs. Some IDs may be invalid or options may have changed. Displaying in default order.`);
+                            // Fallback to original/default order already set in optionsToRender
+                        }
+                    }
+
+                    optionsToRender.forEach(option => {
+                        const li = document.createElement('li');
+                        li.textContent = option.option_text;
+                        li.draggable = true;
+                        li.dataset.optionId = option.id;
+                        li.className = 'p-2 border mb-1 bg-gray-100 cursor-grab'; // Styling for draggable item
+
+                        li.addEventListener('dragstart', (event) => {
+                            draggedItem = event.target; // event.target is the li element
+                            event.dataTransfer.setData('text/plain', event.target.dataset.optionId);
+                            // Timeout to allow browser to capture drag image before styles change
+                            setTimeout(() => {
+                                event.target.classList.add('opacity-50', 'dragging');
+                            }, 0);
+                        });
+
+                        li.addEventListener('dragend', (event) => {
+                            // Clean up classes from the dragged item
+                            event.target.classList.remove('opacity-50', 'dragging');
+                            // Ensure any target highlighting is removed (if not handled by ul's dragleave/drop)
+                            ul.querySelectorAll('.drag-over-target-li').forEach(item => item.classList.remove('drag-over-target-li'));
+                            ul.classList.remove('drag-over-active-ul'); // Clean up UL indicator
+                            draggedItem = null;
+                        });
+
+                        li.addEventListener('dragenter', (event) => {
+                            event.preventDefault(); // Important for allowing drop
+                            if (event.target.matches('li[draggable="true"]') && event.target !== draggedItem) {
+                                event.target.classList.add('bg-gray-200', 'drag-over-target-li'); // Highlight potential drop target li
+                            }
+                        });
+
+                        li.addEventListener('dragleave', (event) => {
+                            if (event.target.matches('li[draggable="true"]') && event.target !== draggedItem) {
+                                event.target.classList.remove('bg-gray-200', 'drag-over-target-li');
+                            }
+                        });
+
+                        ul.appendChild(li);
+                    });
+
+                    ul.addEventListener('dragenter', (event) => {
+                        event.preventDefault();
+                        // Check if the event target is the UL itself or a child that isn't an LI (e.g. padding space)
+                        if (event.target === ul) {
+                             ul.classList.add('bg-yellow-100', 'drag-over-active-ul'); // Highlight UL as active drop zone
+                        }
+                    });
+
+                    ul.addEventListener('dragleave', (event) => {
+                        // Remove UL highlight if cursor leaves UL or enters an LI child
+                        if (event.target === ul && !ul.contains(event.relatedTarget) || event.relatedTarget && event.relatedTarget.matches('li[draggable="true"]')) {
+                           ul.classList.remove('bg-yellow-100', 'drag-over-active-ul');
+                        }
+                         // If leaving to outside the window/modal
+                        if (!event.relatedTarget) {
+                             ul.classList.remove('bg-yellow-100', 'drag-over-active-ul');
+                        }
+                    });
+
+                    ul.addEventListener('dragover', (event) => {
+                        event.preventDefault(); // This is crucial to allow dropping
+                        // Visual feedback for where the item will be placed can be done here
+                        // For example, by finding the `afterElement` and drawing a temporary line
+                        // For now, we rely on li:dragenter/dragleave and ul:dragenter/dragleave
+                        if (!ul.classList.contains('drag-over-active-ul')) {
+                            ul.classList.add('bg-yellow-100', 'drag-over-active-ul');
+                        }
+                    });
+
+                    ul.addEventListener('drop', (event) => {
+                        event.preventDefault();
+                        if (draggedItem) { // Check if we are actually dragging an item from this list
+                            const afterElement = getDragAfterElement(ul, event.clientY);
+                            if (afterElement) {
+                                ul.insertBefore(draggedItem, afterElement);
+                            } else {
+                                ul.appendChild(draggedItem);
+                            }
+                            // Clean up classes on the dragged item itself is handled by li's dragend
+                        }
+                        // Clean up target highlighting on LIs and UL
+                        ul.querySelectorAll('.drag-over-target-li').forEach(item => item.classList.remove('drag-over-target-li', 'bg-gray-200'));
+                        ul.classList.remove('bg-yellow-100', 'drag-over-active-ul');
+                        // draggedItem is cleared in dragend
+                    });
+
                 } else {
-                    // Pre-fill with options for easier editing, if no answer yet
-                    // orderingTextarea.value = question.options.map(opt => opt.option_text).join('\n');
+                    const noOptionsMsg = document.createElement('p');
+                    noOptionsMsg.textContent = 'No hay opciones configuradas para esta pregunta de ordenamiento.';
+                    noOptionsMsg.className = 'text-sm text-gray-500';
+                    ul.appendChild(noOptionsMsg); // Or append to inputContainer directly
                 }
-                inputContainer.appendChild(orderingTextarea);
+                inputContainer.appendChild(ul);
 
                 const originalOrderInfo = document.createElement('p');
                 originalOrderInfo.className = 'text-xs text-gray-500 mt-1';
@@ -171,9 +291,13 @@ document.getElementById('save-official-answers-btn').addEventListener('click', f
                 break;
 
             case 'ORDERING':
-                const orderingTextarea = questionDiv.querySelector(`textarea[name="question-${questionId}"]`);
-                if (orderingTextarea) {
-                    answerData.ordered_options_text = orderingTextarea.value;
+                const listElement = questionDiv.querySelector('ul');
+                if (listElement) {
+                    const orderedOptions = Array.from(listElement.querySelectorAll('li[data-option-id]'))
+                                              .map(li => li.dataset.optionId);
+                    answerData.ordered_options_text = orderedOptions.join(',');
+                } else {
+                    answerData.ordered_options_text = ''; // Or handle as an error/empty state
                 }
                 break;
         }

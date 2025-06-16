@@ -2724,17 +2724,16 @@ def calculate_and_store_scores(race_id):
                     options_set.add(selected_opt.question_option_id)
                 official_mc_multiple_options_map[oa.question_id] = options_set
 
-        # Pre-process official ORDERING answers
-        official_ordering_answers_map = {}
-        for q in questions:
-            if q.question_type.name == 'ORDERING':
-                # Fetch QuestionOptions ordered by correct_order_index
-                correctly_ordered_options = QuestionOption.query.filter_by(question_id=q.id)\
-                                                              .order_by(QuestionOption.correct_order_index.asc())\
-                                                              .all()
-                if correctly_ordered_options: # Ensure there are options to form an answer
-                    official_ordering_answers_map[q.id] = [opt.option_text for opt in correctly_ordered_options]
-
+        # Pre-process official ORDERING answers - REMOVED as official_answer.answer_text for ORDERING questions
+        # now stores comma-separated option IDs, which will be resolved to texts within the loop.
+        # official_ordering_answers_map = {}
+        # for q in questions:
+        #     if q.question_type.name == 'ORDERING':
+        #         correctly_ordered_options = QuestionOption.query.filter_by(question_id=q.id)\
+        #                                                       .order_by(QuestionOption.correct_order_index.asc())\
+        #                                                       .all()
+        #         if correctly_ordered_options:
+        #             official_ordering_answers_map[q.id] = [opt.option_text for opt in correctly_ordered_options]
 
         registrations = UserRaceRegistration.query.filter_by(race_id=race.id).all()
         if not registrations:
@@ -2791,11 +2790,32 @@ def calculate_and_store_scores(race_id):
                 elif question_type_name == 'ORDERING':
                     user_ordered_texts = []
                     if user_answer.answer_text:
-                        user_ordered_texts = [text.strip() for text in user_answer.answer_text.split(',')]
+                        # User answers for ordering questions are comma-separated texts
+                        user_ordered_texts = [text.strip().lower() for text in user_answer.answer_text.split(',')]
 
-                    official_ordered_texts = official_ordering_answers_map.get(q.id, [])
+                    # Derive official_ordered_texts from official_answer.answer_text (comma-separated IDs)
+                    official_ordered_texts = []
+                    if official_answer and official_answer.answer_text:
+                        try:
+                            # Parse comma-separated IDs string into a list of integer IDs
+                            official_ordered_option_ids = [int(id_str) for id_str in official_answer.answer_text.split(',') if id_str.strip()]
 
-                    if user_ordered_texts and official_ordered_texts:
+                            # Convert these IDs to their corresponding option_text
+                            temp_official_texts = []
+                            for opt_id in official_ordered_option_ids:
+                                option_obj = QuestionOption.query.get(opt_id)
+                                if option_obj:
+                                    temp_official_texts.append(option_obj.option_text.lower()) # Compare with lowercased user text
+                                else:
+                                    # Log if an option ID in the official answer doesn't exist
+                                    app.logger.warning(f"Official answer for ORDERING question {q.id} (race {race_id}) references non-existent option ID {opt_id}. This option will be skipped in scoring.")
+                            official_ordered_texts = temp_official_texts
+                        except ValueError as ve:
+                            # Log if there's an error parsing the IDs (e.g., not an integer)
+                            app.logger.error(f"Error parsing official_answer.answer_text for ORDERING question {q.id} (race {race_id}): {ve}. Official answer text: '{official_answer.answer_text}'. Treating as no official order.")
+                            official_ordered_texts = [] # Fallback to empty if parsing fails
+
+                    if user_ordered_texts and official_ordered_texts: # Both must be non-empty to score
                         current_question_ordering_score = 0
                         is_full_match = True
                         min_len = min(len(user_ordered_texts), len(official_ordered_texts))
