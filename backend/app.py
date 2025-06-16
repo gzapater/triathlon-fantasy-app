@@ -698,12 +698,13 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
                 is_correct = is_full_match and bool(official_ordered_texts_for_q)
 
         elif question_type_name == 'SLIDER':
-            epsilon = 1e-9 # For floating point comparisons
+            epsilon = 1e-9  # For floating point comparisons
+            points_obtained = 0 # Initialize points for this question
+            is_correct = False  # Initialize correctness for this question
 
             if user_answer_obj.slider_answer_value is None or official_answer_obj.correct_slider_value is None:
-                points_obtained = 0
-                is_correct = False
                 app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: User or official answer is None. User: {user_answer_obj.slider_answer_value}, Official: {official_answer_obj.correct_slider_value}. Points: 0")
+                # points_obtained and is_correct remain 0 and False
             else:
                 user_val = user_answer_obj.slider_answer_value
                 official_val = official_answer_obj.correct_slider_value
@@ -713,22 +714,20 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
                 points_partial = question_obj.slider_points_partial
 
                 diff = abs(user_val - official_val)
-
                 rule_met = "None"
-                if diff < epsilon: # Exact match
+
+                if diff < epsilon:  # Exact match
                     if points_exact is not None:
                         points_obtained = points_exact
-                        is_correct = (points_exact > 0) # Considered correct if points are awarded
+                        is_correct = (points_exact > 0)
                         rule_met = "Exact"
                 elif threshold_partial is not None and threshold_partial >= 0 and \
                      points_partial is not None and points_partial >= 0 and \
-                     diff <= (threshold_partial + epsilon): # Partial match
+                     diff <= (threshold_partial + epsilon):  # Partial match
                     points_obtained = points_partial
-                    is_correct = (points_partial > 0) # Considered correct if points are awarded
+                    is_correct = (points_partial > 0)
                     rule_met = "Partial"
-                else: # No match
-                    points_obtained = 0
-                    is_correct = False
+                # Else, no match, points_obtained remains 0, is_correct remains False
 
                 app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: UserVal={user_val}, OfficialVal={official_val}, Diff={diff}, RuleMet='{rule_met}', PointsAwarded={points_obtained}, IsCorrect={is_correct}")
 

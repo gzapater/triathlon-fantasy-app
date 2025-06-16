@@ -56,13 +56,21 @@ def create_initial_race_data(app):
 
 def create_initial_question_types(app):
     with app.app_context():
-        question_type_names = ['FREE_TEXT', 'MULTIPLE_CHOICE', 'ORDERING']
-        for name in question_type_names:
-            if not QuestionType.query.filter_by(name=name).first():
-                db.session.add(QuestionType(name=name))
-                print(f"QuestionType '{name}' created.")
+        default_question_types = [
+            {"name": "FREE_TEXT"},
+            {"name": "MULTIPLE_CHOICE"},
+            {"name": "ORDERING"},
+            {"name": "SLIDER"} # Added SLIDER type
+        ]
+
+        for qt_data in default_question_types:
+            qt = QuestionType.query.filter_by(name=qt_data["name"]).first()
+            if not qt:
+                new_qt = QuestionType(name=qt_data["name"])
+                db.session.add(new_qt)
+                print(f"Created question type: {new_qt.name}")
             else:
-                print(f"QuestionType '{name}' already exists.")
+                print(f"QuestionType '{qt_data['name']}' already exists.")
 
         try:
             if db.session.new:
