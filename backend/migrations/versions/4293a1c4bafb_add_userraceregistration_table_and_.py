@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '4293a1c4bafb'
-down_revision = 'manual_slider_001' # Now points to the new SLIDER migration
+down_revision = 'fix_slider_002' # Now points to the fixed SLIDER migration
 branch_labels = None
 depends_on = None
 
