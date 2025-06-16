@@ -34,6 +34,7 @@ class User(db.Model, UserMixin):
     # Relationship for UserRaceRegistration
     registrations = db.relationship('UserRaceRegistration', backref='user', lazy=True, cascade="all, delete-orphan")
     answers = db.relationship('UserAnswer', backref='user', lazy=True, cascade="all, delete-orphan")
+    scores = db.relationship('UserScore', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -88,6 +89,7 @@ class Race(db.Model):
     questions = db.relationship('Question', backref='race', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
     answers = db.relationship('UserAnswer', backref='race', lazy=True, cascade="all, delete-orphan")
     favorite_links = db.relationship('FavoriteLink', backref='race', lazy=True, cascade='all, delete-orphan')
+    scores = db.relationship('UserScore', backref='race', lazy=True, cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -126,6 +128,23 @@ class UserRaceRegistration(db.Model):
 
     def __repr__(self):
         return f'<UserRaceRegistration user_id={self.user_id} race_id={self.race_id}>'
+
+
+class UserScore(db.Model):
+    __tablename__ = 'user_scores'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Unique constraint for user_id and race_id
+    __table_args__ = (db.UniqueConstraint('user_id', 'race_id', name='_user_race_score_uc'),)
+
+    def __repr__(self):
+        return f'<UserScore user_id={self.user_id} race_id={self.race_id} score={self.score}>'
 
 
 class UserFavoriteRace(db.Model):

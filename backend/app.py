@@ -2,7 +2,7 @@ import os
 import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink # Added Official Models & UserFavoriteRace & FavoriteLink
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore # Added UserScore
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -2342,6 +2342,157 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 
 
+# --- Scoring Algorithm ---
+
+def calculate_and_store_scores(race_id):
+    app.logger.info(f"Starting score calculation for race_id: {race_id}")
+    try:
+        race = Race.query.get(race_id)
+        if not race:
+            app.logger.error(f"Scoring calculation: Race with id {race_id} not found.")
+            return {"success": False, "message": "Race not found"}
+
+        questions = Question.query.filter_by(race_id=race.id).all()
+        if not questions:
+            app.logger.info(f"Scoring calculation: No questions found for race_id: {race_id}. No scores to calculate.")
+            return {"success": True, "message": "No questions found for race, no scores calculated."}
+
+        official_answers_list = OfficialAnswer.query.filter_by(race_id=race.id).all()
+        official_answers_map = {oa.question_id: oa for oa in official_answers_list}
+
+        # Pre-process official MC-multiple answers
+        official_mc_multiple_options_map = {}
+        for oa in official_answers_list:
+            question = Question.query.get(oa.question_id) # Get question to check type
+            if question and question.question_type.name == 'MULTIPLE_CHOICE' and question.is_mc_multiple_correct:
+                options_set = set()
+                for selected_opt in oa.official_selected_mc_options:
+                    options_set.add(selected_opt.question_option_id)
+                official_mc_multiple_options_map[oa.question_id] = options_set
+
+        # Pre-process official ORDERING answers
+        official_ordering_answers_map = {}
+        for q in questions:
+            if q.question_type.name == 'ORDERING':
+                # Fetch QuestionOptions ordered by correct_order_index
+                correctly_ordered_options = QuestionOption.query.filter_by(question_id=q.id)\
+                                                              .order_by(QuestionOption.correct_order_index.asc())\
+                                                              .all()
+                if correctly_ordered_options: # Ensure there are options to form an answer
+                    official_ordering_answers_map[q.id] = [opt.option_text for opt in correctly_ordered_options]
+
+
+        registrations = UserRaceRegistration.query.filter_by(race_id=race.id).all()
+        if not registrations:
+            app.logger.info(f"Scoring calculation: No users registered for race_id: {race_id}. No scores to calculate.")
+            return {"success": True, "message": "No registered users for race, no scores calculated."}
+
+        for reg in registrations:
+            user_id = reg.user_id
+            total_user_score_for_race = 0
+
+            user_answers_list = UserAnswer.query.filter_by(user_id=user_id, race_id=race.id).all()
+            user_answers_map = {ua.question_id: ua for ua in user_answers_list}
+
+            for q in questions:
+                question_score = 0
+                user_answer = user_answers_map.get(q.id)
+                official_answer = official_answers_map.get(q.id)
+
+                if not user_answer or not official_answer:
+                    # If user didn't answer or no official answer, score for this question is 0
+                    total_user_score_for_race += question_score
+                    continue
+
+                question_type_name = q.question_type.name
+
+                if question_type_name == 'FREE_TEXT':
+                    if official_answer.answer_text and user_answer.answer_text:
+                        if user_answer.answer_text.strip().lower() == official_answer.answer_text.strip().lower():
+                            question_score = q.max_score_free_text or 0
+
+                elif question_type_name == 'MULTIPLE_CHOICE':
+                    if q.is_mc_multiple_correct:
+                        # Multiple Correct
+                        user_selected_option_ids = set()
+                        for selected_opt in user_answer.selected_mc_options:
+                            user_selected_option_ids.add(selected_opt.question_option_id)
+
+                        official_correct_option_ids = official_mc_multiple_options_map.get(q.id, set())
+
+                        current_question_mc_multiple_score = 0
+                        for user_opt_id in user_selected_option_ids:
+                            if user_opt_id in official_correct_option_ids:
+                                current_question_mc_multiple_score += (q.points_per_correct_mc or 0)
+                            else:
+                                current_question_mc_multiple_score -= (q.points_per_incorrect_mc or 0)
+                        # Consider if points should be deducted for *missed* correct options - current spec doesn't say so.
+                        question_score = current_question_mc_multiple_score
+                    else:
+                        # Single Correct
+                        if user_answer.selected_option_id and \
+                           user_answer.selected_option_id == official_answer.selected_option_id:
+                            question_score = q.total_score_mc_single or 0
+
+                elif question_type_name == 'ORDERING':
+                    user_ordered_texts = []
+                    if user_answer.answer_text:
+                        user_ordered_texts = [text.strip() for text in user_answer.answer_text.split(',')]
+
+                    official_ordered_texts = official_ordering_answers_map.get(q.id, [])
+
+                    if user_ordered_texts and official_ordered_texts:
+                        current_question_ordering_score = 0
+                        is_full_match = True
+                        min_len = min(len(user_ordered_texts), len(official_ordered_texts))
+
+                        for i in range(len(official_ordered_texts)): # Iterate up to length of official answer
+                            if i < len(user_ordered_texts):
+                                if user_ordered_texts[i].lower() == official_ordered_texts[i].lower():
+                                    current_question_ordering_score += (q.points_per_correct_order or 0)
+                                else:
+                                    is_full_match = False # Mismatch at this position
+                            else: # User answer is shorter than official
+                                is_full_match = False
+
+                        if len(user_ordered_texts) != len(official_ordered_texts): # Also a mismatch if lengths differ
+                            is_full_match = False
+
+                        if is_full_match:
+                            current_question_ordering_score += (q.bonus_for_full_order or 0)
+
+                        question_score = current_question_ordering_score
+
+                total_user_score_for_race += question_score
+                app.logger.debug(f"User {user_id}, Q {q.id}, Type {question_type_name}, Q_Score {question_score}, Total_Score {total_user_score_for_race}")
+
+
+            # Store or update UserScore
+            user_score_entry = UserScore.query.filter_by(user_id=user_id, race_id=race.id).first()
+            if user_score_entry:
+                user_score_entry.score = total_user_score_for_race
+                user_score_entry.updated_at = datetime.utcnow()
+                app.logger.info(f"Updating UserScore for user_id {user_id}, race_id {race.id} to {total_user_score_for_race}")
+            else:
+                user_score_entry = UserScore(
+                    user_id=user_id,
+                    race_id=race.id,
+                    score=total_user_score_for_race,
+                    created_at=datetime.utcnow(),
+                    updated_at=datetime.utcnow()
+                )
+                db.session.add(user_score_entry)
+                app.logger.info(f"Creating UserScore for user_id {user_id}, race_id {race.id} with score {total_user_score_for_race}")
+
+        db.session.commit()
+        app.logger.info(f"Successfully calculated and stored scores for race_id: {race_id}")
+        return {"success": True, "message": "Scores calculated and stored successfully."}
+
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error during score calculation for race_id {race_id}: {e}", exc_info=True)
+        return {"success": False, "message": f"An error occurred: {str(e)}"}
+
 # --- Official Answer Endpoints ---
 
 @app.route('/api/races/<int:race_id>/official_answers', methods=['GET'])
@@ -2493,7 +2644,16 @@ def save_official_answers(race_id):
 
         db.session.commit()
         app.logger.info(f"Official answers successfully saved for race {race_id} by user {current_user.id}")
-        return jsonify(message="Official answers saved successfully"), 201
+
+        # Trigger score calculation
+        app.logger.info(f"Attempting to trigger score calculation for race {race_id} after saving official answers.")
+        scoring_result = calculate_and_store_scores(race_id)
+        if not scoring_result.get("success"):
+            app.logger.error(f"Scoring calculation failed for race {race_id} after official answers were saved. Reason: {scoring_result.get('message')}")
+        else:
+            app.logger.info(f"Scoring calculation triggered successfully for race {race_id}. Message: {scoring_result.get('message')}")
+
+        return jsonify(message="Official answers saved successfully. Scoring process initiated."), 201
 
     except IntegrityError as ie:
         db.session.rollback()
