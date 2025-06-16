@@ -2,7 +2,7 @@ import os
 import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption # Added Official Models
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace # Added Official Models & UserFavoriteRace
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -698,6 +698,54 @@ def get_race_statistics(race_id):
         predictions_count=predictions_count,
         quiniela_close_date=quiniela_close_date_iso
     ), 200
+
+
+@app.route('/api/races/<int:race_id>/favorite', methods=['POST'])
+@login_required
+def favorite_race(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    existing_favorite = UserFavoriteRace.query.filter_by(user_id=current_user.id, race_id=race.id).first()
+    if existing_favorite:
+        return jsonify(message="Race already favorited"), 200
+
+    new_favorite = UserFavoriteRace(user_id=current_user.id, race_id=race.id)
+    try:
+        db.session.add(new_favorite)
+        db.session.commit()
+        return jsonify(message="Race favorited successfully"), 201
+    except IntegrityError: # Should ideally be caught by the check above
+        db.session.rollback()
+        app.logger.warning(f"IntegrityError on favorite_race: User {current_user.id}, Race {race.id}. Pre-check failed or race condition.")
+        return jsonify(message="Race already favorited or database integrity error."), 409 # 409 Conflict
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error favoriting race {race.id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while favoriting the race."), 500
+
+
+@app.route('/api/races/<int:race_id>/favorite', methods=['DELETE'])
+@login_required
+def unfavorite_race(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    favorite_entry = UserFavoriteRace.query.filter_by(user_id=current_user.id, race_id=race.id).first()
+    if not favorite_entry:
+        return jsonify(message="Race not favorited"), 404
+
+    try:
+        db.session.delete(favorite_entry)
+        db.session.commit()
+        return jsonify(message="Race unfavorited successfully"), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error unfavoriting race {race.id} for user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while unfavoriting the race."), 500
+
 
 # --- Helper function for question serialization ---
 def _serialize_question(question):
@@ -1688,6 +1736,7 @@ def serve_race_detail_page(race_id):
     user_role_code = 'GUEST' # Default role if not authenticated or no role
     is_user_registered_for_race = False # Default to false
     has_user_answered_pool = False # Initialize default for the new variable
+    is_favorite = False # Initialize favorite status
 
     if current_user and current_user.is_authenticated:
         user_role_code = current_user.role.code
@@ -1700,6 +1749,10 @@ def serve_race_detail_page(race_id):
         user_answers = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).first()
         if user_answers:
             has_user_answered_pool = True
+
+        # Check if this race is a favorite for the current user
+        if UserFavoriteRace.query.filter_by(user_id=current_user.id, race_id=race.id).first():
+            is_favorite = True
     else:
         # Ensure current_user.is_authenticated is False if current_user is None or not authenticated
         # This handles cases where current_user might be an AnonymousUserMixin without a 'role'
@@ -1721,6 +1774,7 @@ def serve_race_detail_page(race_id):
                            is_user_registered_for_race=is_user_registered_for_race,
                            has_user_answered_pool=has_user_answered_pool,
                            is_quiniela_actionable=is_quiniela_actionable_detail,
+                           is_favorite=is_favorite, # Add this new variable
                            current_time_utc=current_time_utc) # Pass current_time_utc to template
 
 # --- API Endpoint for Saving User Answers ---

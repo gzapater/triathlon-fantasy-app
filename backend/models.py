@@ -127,6 +127,22 @@ class UserRaceRegistration(db.Model):
         return f'<UserRaceRegistration user_id={self.user_id} race_id={self.race_id}>'
 
 
+class UserFavoriteRace(db.Model):
+    __tablename__ = 'user_favorite_races'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'race_id', name='_user_race_favorite_uc'),)
+
+    user = db.relationship('User', backref=db.backref('favorite_races_assoc', lazy='dynamic')) # Changed backref name to avoid conflict
+    race = db.relationship('Race', backref=db.backref('favored_by_users_assoc', lazy='dynamic')) # Changed backref name to avoid conflict
+
+    def __repr__(self):
+        return f'<UserFavoriteRace user_id={self.user_id} race_id={self.race_id}>'
+
+
 class RaceSegmentDetail(db.Model):
     __tablename__ = 'race_segment_details'
     id = db.Column(db.Integer, primary_key=True)

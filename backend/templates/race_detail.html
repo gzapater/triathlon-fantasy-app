@@ -246,7 +246,18 @@
                         <!-- Example status badge - make dynamic later if needed -->
                         <span class="bg-green-500 px-3 py-1 rounded-full text-xs sm:text-sm">Activa</span>
                     </div>
-                    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-3">{{ race.title | default('Título de la Carrera no Disponible') }}</h1>
+                    <div class="flex items-center justify-center lg:justify-start mb-3"> <!-- Added a wrapper for icon and title -->
+                        <span id="favoriteRaceIcon"
+                              class="cursor-pointer text-2xl sm:text-3xl mr-3
+                                     {% if is_favorite %}fas fa-heart text-red-500{% else %}far fa-heart text-white opacity-80 hover:opacity-100{% endif %}"
+                              title="Pulsa para hacer favorito"
+                              data-race-id="{{ race.id }}">
+                            {# Font Awesome icon will be rendered by the class above #}
+                        </span>
+                        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold"> <!-- Removed mb-3 from h1 as it's now on the wrapper -->
+                            {{ race.title | default('Título de la Carrera no Disponible') }}
+                        </h1>
+                    </div>
                     <p class="text-lg sm:text-xl mb-5 opacity-90">{{ race.description | truncate(150) if race.description else 'Descripción no disponible.' }}</p>
                     <div class="flex flex-wrap justify-center lg:justify-start gap-x-4 gap-y-2 text-sm mb-6">
                         <div class="flex items-center space-x-2">
@@ -263,12 +274,6 @@
                         </div>
                     </div>
                     <div class="flex flex-wrap justify-center lg:justify-start gap-3">
-                        <button class="btn btn-primary px-5 py-2.5 sm:px-6 sm:py-3">
-                            <i class="fas fa-play mr-2"></i>Participar (Próx.)
-                        </button>
-                        <button class="bg-white bg-opacity-20 px-5 py-2.5 sm:px-6 sm:py-3 rounded-lg font-semibold hover:bg-opacity-30 transition-colors">
-                            <i class="fas fa-heart mr-2"></i>Favorito (Próx.)
-                        </button>
                         {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
                         <button id="openEditRaceModalBtn" class="btn btn-secondary px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-edit mr-2"></i>Editar Detalles Carrera
@@ -280,9 +285,6 @@
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
                         {% endif %}
-                        <button id="answerQuestionsBtn" class="btn btn-primary bg-green-500 hover:bg-green-600 px-5 py-2.5 sm:px-6 sm:py-3" style="display: none;">
-                            <i class="fas fa-tasks mr-2"></i>Responder Preguntas
-                        </button>
                     </div>
                 </div>
                 {% if race.promo_image_url %}
@@ -3178,5 +3180,75 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const favoriteIcon = document.getElementById('favoriteRaceIcon');
+
+    if (favoriteIcon) {
+        favoriteIcon.addEventListener('click', function() {
+            const raceId = this.dataset.raceId;
+            // Check for 'fas' and 'fa-heart' to be sure it's the favorited state,
+            // not potentially a spinner state that also uses 'fas'.
+            const isCurrentlyFavorite = this.classList.contains('fas') && this.classList.contains('fa-heart');
+
+            const method = isCurrentlyFavorite ? 'DELETE' : 'POST';
+            const url = `/api/races/${raceId}/favorite`;
+
+            // Store original classes to revert on error, carefully
+            const originalClasses = Array.from(this.classList);
+
+            // Add loading state to icon
+            this.classList.remove('fas', 'far', 'fa-heart', 'text-red-500', 'text-white', 'opacity-80', 'hover:opacity-100');
+            this.classList.add('fas', 'fa-spinner', 'fa-spin', 'text-gray-400'); // Using gray for spinner for visibility on potentially varied backgrounds
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Add X-CSRFToken header here if required by your Flask setup for POST/DELETE
+                    // 'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+                }
+            })
+            .then(response => {
+                // Remove loading state first
+                this.classList.remove('fas', 'fa-spinner', 'fa-spin', 'text-gray-400');
+                this.classList.add('fa-heart'); // Re-add fa-heart, common to both states
+
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.json().then(errData => {
+                        throw new Error(errData.message || `Error ${response.status}`);
+                    }).catch(() => {
+                        throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    });
+                }
+            })
+            .then(data => {
+                console.log(data.message); // Log success message
+                if (isCurrentlyFavorite) {
+                    // Was favorite, now unfavorited: far fa-heart text-white opacity-80 hover:opacity-100
+                    this.classList.remove('fas', 'text-red-500'); // remove 'fas' and its color
+                    this.classList.add('far', 'text-white', 'opacity-80', 'hover:opacity-100'); // add 'far' and its styles
+                } else {
+                    // Was not favorite, now favorited: fas fa-heart text-red-500
+                    this.classList.remove('far', 'text-white', 'opacity-80', 'hover:opacity-100'); // remove 'far' and its styles
+                    this.classList.add('fas', 'text-red-500'); // add 'fas' and its color
+                }
+            })
+            .catch(error => {
+                console.error('Favorite toggle error:', error);
+                alert('Error updating favorite status: ' + error.message);
+
+                // Remove spinner classes and fa-heart (if it was removed) before restoring original
+                this.classList.remove('fas', 'fa-spinner', 'fa-spin', 'text-gray-400', 'fa-heart');
+                // Restore original classes
+                originalClasses.forEach(cls => this.classList.add(cls));
+            });
+        });
+    }
+});
+    </script>
 </body>
 </html>
