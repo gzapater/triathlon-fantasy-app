@@ -1987,43 +1987,94 @@ def serve_hello_world_page():
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year)
     elif current_user.role.code == 'LEAGUE_ADMIN':
-        # Query for league admin's own races
-        query_league_races = Race.query.filter_by(is_general=False, user_id=current_user.id)
-        if date_from_obj:
-            query_league_races = query_league_races.filter(Race.event_date >= date_from_obj)
-        if date_to_obj:
-            query_league_races = query_league_races.filter(Race.event_date <= date_to_obj)
-        if race_format_id_int is not None:
-            query_league_races = query_league_races.filter(Race.race_format_id == race_format_id_int)
+        # 1. Organized Races (created by this league admin, not general)
+        organized_races_query = Race.query.filter_by(user_id=current_user.id, is_general=False)
+        # Apply filters from request.args to organized races
+        if date_from_obj: organized_races_query = organized_races_query.filter(Race.event_date >= date_from_obj)
+        if date_to_obj: organized_races_query = organized_races_query.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None: organized_races_query = organized_races_query.filter(Race.race_format_id == race_format_id_int)
+        organized_races_result = organized_races_query.order_by(Race.event_date.desc()).all()
 
-        league_admin_races_query_result = []
-        try:
-            league_admin_races_query_result = query_league_races.order_by(Race.event_date.desc()).all()
-        except Exception as e:
-            app.logger.error(f"Error fetching local races for league admin: {e}")
-
-        league_admin_races_dicts = []
-        for race in league_admin_races_query_result:
+        organized_races_dicts = []
+        for race in organized_races_result:
             race_dict = race.to_dict()
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
                     qcd_str = race_dict['quiniela_close_date']
-                    if qcd_str.endswith('Z'):
-                        close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    if qcd_str.endswith('Z'): close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else: close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj.tzinfo is None:
+                        if close_date_obj > datetime.utcnow(): is_quiniela_actionable = False
                     else:
-                        close_date_obj = datetime.fromisoformat(qcd_str)
-                    if close_date_obj > datetime.utcnow():
-                        is_quiniela_actionable = False
+                        if close_date_obj.replace(tzinfo=None) > datetime.utcnow(): is_quiniela_actionable = False
                 except ValueError as ve:
-                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race.id}: {ve}")
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for organized race {race.id}: {ve}")
                     is_quiniela_actionable = True
             race_dict['is_quiniela_actionable'] = is_quiniela_actionable
-            league_admin_races_dicts.append(race_dict)
+            organized_races_dicts.append(race_dict)
 
-        return render_template('admin_dashboard.html', # Changed from index.html
-                               races=league_admin_races_dicts, # Use new list
-                               races_for_official_answers=league_admin_races_dicts, # Use new list
+        # 2. Participating Races
+        registrations = UserRaceRegistration.query.filter_by(user_id=current_user.id).all()
+        participating_race_ids = [reg.race_id for reg in registrations]
+        participating_races_result = []
+        if participating_race_ids:
+            participating_races_query = Race.query.filter(Race.id.in_(participating_race_ids))
+            if date_from_obj: participating_races_query = participating_races_query.filter(Race.event_date >= date_from_obj)
+            if date_to_obj: participating_races_query = participating_races_query.filter(Race.event_date <= date_to_obj)
+            if race_format_id_int is not None: participating_races_query = participating_races_query.filter(Race.race_format_id == race_format_id_int)
+            participating_races_result = participating_races_query.order_by(Race.event_date.desc()).all()
+
+        participating_races_dicts = []
+        for race in participating_races_result:
+            race_dict = race.to_dict()
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'): close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else: close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj.tzinfo is None:
+                        if close_date_obj > datetime.utcnow(): is_quiniela_actionable = False
+                    else:
+                        if close_date_obj.replace(tzinfo=None) > datetime.utcnow(): is_quiniela_actionable = False
+                except ValueError: is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            participating_races_dicts.append(race_dict)
+
+        # 3. Favorite Races
+        favorites = UserFavoriteRace.query.filter_by(user_id=current_user.id).all()
+        favorite_race_ids = [fav.race_id for fav in favorites]
+        favorite_races_result = []
+        if favorite_race_ids:
+            favorite_races_query = Race.query.filter(Race.id.in_(favorite_race_ids))
+            if date_from_obj: favorite_races_query = favorite_races_query.filter(Race.event_date >= date_from_obj)
+            if date_to_obj: favorite_races_query = favorite_races_query.filter(Race.event_date <= date_to_obj)
+            if race_format_id_int is not None: favorite_races_query = favorite_races_query.filter(Race.race_format_id == race_format_id_int)
+            favorite_races_result = favorite_races_query.order_by(Race.event_date.desc()).all()
+
+        favorite_races_dicts = []
+        for race in favorite_races_result:
+            race_dict = race.to_dict()
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'): close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else: close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj.tzinfo is None:
+                        if close_date_obj > datetime.utcnow(): is_quiniela_actionable = False
+                    else:
+                        if close_date_obj.replace(tzinfo=None) > datetime.utcnow(): is_quiniela_actionable = False
+                except ValueError: is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            favorite_races_dicts.append(race_dict)
+
+        return render_template('admin_dashboard.html',
+                               organized_races=organized_races_dicts,
+                               participating_races=participating_races_dicts,
+                               favorite_races=favorite_races_dicts,
+                               races_for_official_answers=organized_races_dicts,
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
