@@ -286,7 +286,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% if organized_races and organized_races|length > 0 %}
                 {% for race in organized_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 5 %}hidden initially-hidden-organized{% endif %}">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 3 %}hidden initially-hidden-organized{% endif %}">
                         {# Determine card header gradient based on race_format or use a default #}
                         {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
                         {% if race.is_general %}
@@ -342,7 +342,7 @@
                 <p class="col-span-full text-center text-gray-500 py-10">No has organizado ninguna carrera.</p>
             {% endif %}
         </div>
-        {% if organized_races|length > 5 %}
+        {% if organized_races|length > 3 %}
             <div class="mt-4 text-center">
                 <button id="viewMoreOrganizedBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras organizadas</button>
             </div>
@@ -355,7 +355,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% if participating_races and participating_races|length > 0 %}
                 {% for race in participating_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 5 %}hidden initially-hidden-participating{% endif %}">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 3 %}hidden initially-hidden-participating{% endif %}">
                         {% set card_gradient_class = 'gradient-water' %}
                         {% if race.is_general %}{% endif %}
                         {% if race['race_format']['name'] == 'Duatlón' %}{% set card_gradient_class = 'gradient-run' %}{% elif race['race_format']['name'] == 'Acuatlón' %}{% set card_gradient_class = 'gradient-bike' %}{% endif %}
@@ -397,7 +397,7 @@
                 <p class="col-span-full text-center text-gray-500 py-10">No estás participando en ninguna carrera.</p>
             {% endif %}
         </div>
-        {% if participating_races|length > 5 %}
+        {% if participating_races|length > 3 %}
             <div class="mt-4 text-center">
                 <button id="viewMoreParticipatingBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras en participación</button>
             </div>
@@ -410,7 +410,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% if favorite_races and favorite_races|length > 0 %}
                 {% for race in favorite_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 5 %}hidden initially-hidden-favorite{% endif %}">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 3 %}hidden initially-hidden-favorite{% endif %}">
                         {% set card_gradient_class = 'gradient-water' %}
                         {% if race.is_general %}{% endif %}
                         {% if race['race_format']['name'] == 'Duatlón' %}{% set card_gradient_class = 'gradient-run' %}{% elif race['race_format']['name'] == 'Acuatlón' %}{% set card_gradient_class = 'gradient-bike' %}{% endif %}
@@ -452,7 +452,7 @@
                 <p class="col-span-full text-center text-gray-500 py-10">No tienes ninguna carrera marcada como favorita.</p>
             {% endif %}
         </div>
-        {% if favorite_races|length > 5 %}
+        {% if favorite_races|length > 3 %}
             <div class="mt-4 text-center">
                 <button id="viewMoreFavoriteBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras favoritas</button>
             </div>
