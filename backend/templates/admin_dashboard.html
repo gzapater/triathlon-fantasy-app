@@ -286,7 +286,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% if organized_races and organized_races|length > 0 %}
                 {% for race in organized_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 5 %}hidden initially-hidden-organized{% endif %}">
                         {# Determine card header gradient based on race_format or use a default #}
                         {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
                         {% if race.is_general %}
@@ -298,24 +298,24 @@
                         {% elif race['race_format']['name'] == 'Acuatlón' %}
                             {% set card_gradient_class = 'gradient-bike' %} {# Dark for Acuatlon (swim-run) - using bike as placeholder #}
                         {% endif %}
-                        <div class="{{ card_gradient_class }} h-32 flex items-center justify-center">
+                        <div class="{{ card_gradient_class }} h-20 flex items-center justify-center"> {# MODIFIED #}
                             <div class="text-center text-white">
                                 {# Icon could also be dynamic based on format #}
-                                <i class="fas fa-flag-checkered text-3xl mb-2"></i>
+                                <i class="fas fa-flag-checkered text-xl mb-1"></i> {# MODIFIED #}
                                 <p class="font-semibold">{{ race['race_format']['name'] }}</p>
                             </div>
                         </div>
-                        <div class="p-6">
-                            <div class="flex items-center justify-between mb-3">
+                        <div class="p-3"> {# MODIFIED #}
+                            <div class="flex items-center justify-between mb-2"> {# MODIFIED #}
                                 {# Badge for race format - using badge-league as a placeholder style #}
-                                <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race['race_format']['name'] }}</span>
+                                <span class="badge-league text-xs px-2 py-0.5 rounded-full text-white">{{ race['race_format']['name'] }}</span> {# MODIFIED #}
                                 <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
                             </div>
-                            <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race['title'] }}</h3>
+                            <h3 class="font-bold text-base mb-1">{{ race['title'] }}</h3> {# MODIFIED #}
                             {% if race['description'] %}
-                                <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
+                                <p class="text-gray-600 text-sm mb-2 h-12 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p> {# MODIFIED #}
                             {% else %}
-                                <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>
+                                <p class="text-gray-600 text-sm mb-2 h-12 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p> {# MODIFIED #}
                             {% endif %}
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-2">
@@ -324,13 +324,13 @@
                                 </div>
                                 <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                             </div>
-                            <div class="mt-4 pt-4 border-t border-gray-200">
+                            <div class="mt-2 pt-2 border-t border-gray-200"> {# MODIFIED #}
                                 {% if race.is_quiniela_actionable %}
-                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors">
+                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-xs bg-indigo-500 hover:bg-indigo-600 text-white py-1 px-3 rounded-md transition-colors"> {# MODIFIED #}
                                         <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
                                     </button>
                                 {% else %}
-                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-sm bg-gray-400 text-gray-700 py-2 px-4 rounded-md cursor-not-allowed">
+                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-xs bg-gray-400 text-gray-700 py-1 px-3 rounded-md cursor-not-allowed"> {# MODIFIED #}
                                         <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
                                     </button>
                                 {% endif %}
@@ -342,6 +342,11 @@
                 <p class="col-span-full text-center text-gray-500 py-10">No has organizado ninguna carrera.</p>
             {% endif %}
         </div>
+        {% if organized_races|length > 5 %}
+            <div class="mt-4 text-center">
+                <button id="viewMoreOrganizedBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras organizadas</button>
+            </div>
+        {% endif %}
     </div>
 
     <!-- Section for "Carreras en las que participo" -->
@@ -350,17 +355,41 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% if participating_races and participating_races|length > 0 %}
                 {% for race in participating_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 5 %}hidden initially-hidden-participating{% endif %}">
                         {% set card_gradient_class = 'gradient-water' %}
                         {% if race.is_general %}{% endif %}
                         {% if race['race_format']['name'] == 'Duatlón' %}{% set card_gradient_class = 'gradient-run' %}{% elif race['race_format']['name'] == 'Acuatlón' %}{% set card_gradient_class = 'gradient-bike' %}{% endif %}
-                        <div class="{{ card_gradient_class }} h-32 flex items-center justify-center"><div class="text-center text-white"><i class="fas fa-flag-checkered text-3xl mb-2"></i><p class="font-semibold">{{ race['race_format']['name'] }}</p></div></div>
-                        <div class="p-6">
-                            <div class="flex items-center justify-between mb-3"><span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race['race_format']['name'] }}</span><span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span></div>
-                            <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race['title'] }}</h3>
-                            {% if race['description'] %}<p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>{% else %}<p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>{% endif %}
-                            <div class="flex items-center justify-between"><div class="flex items-center space-x-2"><i class="fas fa-map-marker-alt text-gray-400"></i><span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span></div><a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a></div>
-                            <div class="mt-4 pt-4 border-t border-gray-200">{% if race.is_quiniela_actionable %}<button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors"><i class="fas fa-gavel mr-2"></i>Gestionar Quiniela</button>{% else %}<button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-sm bg-gray-400 text-gray-700 py-2 px-4 rounded-md cursor-not-allowed"><i class="fas fa-gavel mr-2"></i>Gestionar Quiniela</button>{% endif %}</div>
+                        <div class="{{ card_gradient_class }} h-20 flex items-center justify-center"> {# MODIFIED #}
+                            <div class="text-center text-white">
+                                <i class="fas fa-flag-checkered text-xl mb-1"></i> {# MODIFIED #}
+                                <p class="font-semibold">{{ race['race_format']['name'] }}</p>
+                            </div>
+                        </div>
+                        <div class="p-3"> {# MODIFIED #}
+                            <div class="flex items-center justify-between mb-2"> {# MODIFIED #}
+                                <span class="badge-league text-xs px-2 py-0.5 rounded-full text-white">{{ race['race_format']['name'] }}</span> {# MODIFIED #}
+                                <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
+                            </div>
+                            <h3 class="font-bold text-base mb-1">{{ race['title'] }}</h3> {# MODIFIED #}
+                            {% if race['description'] %}<p class="text-gray-600 text-sm mb-2 h-12 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>{% else %}<p class="text-gray-600 text-sm mb-2 h-12 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>{% endif %} {# MODIFIED #}
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-map-marker-alt text-gray-400"></i>
+                                    <span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span>
+                                </div>
+                                <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
+                            </div>
+                            <div class="mt-2 pt-2 border-t border-gray-200"> {# MODIFIED #}
+                                {% if race.is_quiniela_actionable %}
+                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-xs bg-indigo-500 hover:bg-indigo-600 text-white py-1 px-3 rounded-md transition-colors"> {# MODIFIED #}
+                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                    </button>
+                                {% else %}
+                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-xs bg-gray-400 text-gray-700 py-1 px-3 rounded-md cursor-not-allowed"> {# MODIFIED #}
+                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                    </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -368,6 +397,11 @@
                 <p class="col-span-full text-center text-gray-500 py-10">No estás participando en ninguna carrera.</p>
             {% endif %}
         </div>
+        {% if participating_races|length > 5 %}
+            <div class="mt-4 text-center">
+                <button id="viewMoreParticipatingBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras en participación</button>
+            </div>
+        {% endif %}
     </div>
 
     <!-- Section for "Carreras favoritas" -->
@@ -376,17 +410,41 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% if favorite_races and favorite_races|length > 0 %}
                 {% for race in favorite_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover">
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 5 %}hidden initially-hidden-favorite{% endif %}">
                         {% set card_gradient_class = 'gradient-water' %}
                         {% if race.is_general %}{% endif %}
                         {% if race['race_format']['name'] == 'Duatlón' %}{% set card_gradient_class = 'gradient-run' %}{% elif race['race_format']['name'] == 'Acuatlón' %}{% set card_gradient_class = 'gradient-bike' %}{% endif %}
-                        <div class="{{ card_gradient_class }} h-32 flex items-center justify-center"><div class="text-center text-white"><i class="fas fa-flag-checkered text-3xl mb-2"></i><p class="font-semibold">{{ race['race_format']['name'] }}</p></div></div>
-                        <div class="p-6">
-                            <div class="flex items-center justify-between mb-3"><span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race['race_format']['name'] }}</span><span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span></div>
-                            <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race['title'] }}</h3>
-                            {% if race['description'] %}<p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>{% else %}<p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>{% endif %}
-                            <div class="flex items-center justify-between"><div class="flex items-center space-x-2"><i class="fas fa-map-marker-alt text-gray-400"></i><span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span></div><a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a></div>
-                            <div class="mt-4 pt-4 border-t border-gray-200">{% if race.is_quiniela_actionable %}<button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors"><i class="fas fa-gavel mr-2"></i>Gestionar Quiniela</button>{% else %}<button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-sm bg-gray-400 text-gray-700 py-2 px-4 rounded-md cursor-not-allowed"><i class="fas fa-gavel mr-2"></i>Gestionar Quiniela</button>{% endif %}</div>
+                        <div class="{{ card_gradient_class }} h-20 flex items-center justify-center"> {# MODIFIED #}
+                            <div class="text-center text-white">
+                                <i class="fas fa-flag-checkered text-xl mb-1"></i> {# MODIFIED #}
+                                <p class="font-semibold">{{ race['race_format']['name'] }}</p>
+                            </div>
+                        </div>
+                        <div class="p-3"> {# MODIFIED #}
+                            <div class="flex items-center justify-between mb-2"> {# MODIFIED #}
+                                <span class="badge-league text-xs px-2 py-0.5 rounded-full text-white">{{ race['race_format']['name'] }}</span> {# MODIFIED #}
+                                <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
+                            </div>
+                            <h3 class="font-bold text-base mb-1">{{ race['title'] }}</h3> {# MODIFIED #}
+                            {% if race['description'] %}<p class="text-gray-600 text-sm mb-2 h-12 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>{% else %}<p class="text-gray-600 text-sm mb-2 h-12 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>{% endif %} {# MODIFIED #}
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-map-marker-alt text-gray-400"></i>
+                                    <span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span>
+                                </div>
+                                <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
+                            </div>
+                            <div class="mt-2 pt-2 border-t border-gray-200"> {# MODIFIED #}
+                                {% if race.is_quiniela_actionable %}
+                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-xs bg-indigo-500 hover:bg-indigo-600 text-white py-1 px-3 rounded-md transition-colors"> {# MODIFIED #}
+                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                    </button>
+                                {% else %}
+                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-xs bg-gray-400 text-gray-700 py-1 px-3 rounded-md cursor-not-allowed"> {# MODIFIED #}
+                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
+                                    </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -394,6 +452,11 @@
                 <p class="col-span-full text-center text-gray-500 py-10">No tienes ninguna carrera marcada como favorita.</p>
             {% endif %}
         </div>
+        {% if favorite_races|length > 5 %}
+            <div class="mt-4 text-center">
+                <button id="viewMoreFavoriteBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras favoritas</button>
+            </div>
+        {% endif %}
     </div>
 {% endif %}
             <!-- Modal Example (Hidden by default) -->
@@ -515,6 +578,19 @@
             }
         });
 
+        function setupViewMoreButton(buttonId, cardClassToShow) {
+            const viewMoreBtn = document.getElementById(buttonId);
+            if (viewMoreBtn) {
+                viewMoreBtn.addEventListener('click', function() {
+                    const hiddenCards = document.querySelectorAll('.' + cardClassToShow);
+                    hiddenCards.forEach(card => {
+                        card.classList.remove('hidden');
+                    });
+                    viewMoreBtn.style.display = 'none'; // Hide the button after showing all
+                });
+            }
+        }
+
         // Add some interactive effects on load
         document.addEventListener('DOMContentLoaded', function() {
             // Animate cards on scroll (simple effect)
@@ -535,6 +611,10 @@
                 card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
                 observer.observe(card);
             });
+
+            setupViewMoreButton('viewMoreOrganizedBtn', 'initially-hidden-organized');
+            setupViewMoreButton('viewMoreParticipatingBtn', 'initially-hidden-participating');
+            setupViewMoreButton('viewMoreFavoriteBtn', 'initially-hidden-favorite');
 
             // Logout functionality for the new button
             const newLogoutBtn = document.getElementById('newLogoutBtn');
