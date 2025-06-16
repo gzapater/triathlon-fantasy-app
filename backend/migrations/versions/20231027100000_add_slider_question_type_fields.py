@@ -1,7 +1,7 @@
 """Add slider question type fields
 
 Revision ID: 20231027100000
-Revises: 20250613131338
+Revises: 21627c8fdfc6
 Create Date: 2023-10-27 10:00:00.000000
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20231027100000'
-down_revision = '20250613131338' # Set based on the latest known migration before this one
+down_revision = '21627c8fdfc6' # Depends on the migration that creates official_answers
 branch_labels = None
 depends_on = None
 
