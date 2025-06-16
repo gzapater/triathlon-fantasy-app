@@ -2245,17 +2245,15 @@
         const quinielaLeaderboardListContainer = document.getElementById('quinielaLeaderboardListContainer');
         const loadingLeaderboardMsg = document.getElementById('loadingLeaderboardMsg');
 
-        // Global declarations - keep them for now, but their values might be stale if DOM changes.
-        // The click handler will re-select them.
-        const _participantAnswersModalGlobal = document.getElementById('participantAnswersModal');
-        const _participantAnswersModalTitleGlobal = document.getElementById('participantAnswersModalTitle');
-        const _participantAnswersModalBodyGlobal = document.getElementById('participantAnswersModalBody');
-        console.log('Initial modal elements selection (GLOBAL - for leaderboard click):', {
-            modal: _participantAnswersModalGlobal,
-            title: _participantAnswersModalTitleGlobal,
-            body: _participantAnswersModalBodyGlobal
-        });
-        // Close buttons for this modal are already handled by existing generic modal logic if their IDs match patterns.
+        // Note: The specific modal elements 'participantAnswersModal', 'participantAnswersModalTitle',
+        // and 'participantAnswersModalBody' are now selected *inside* the leaderboard click handler below.
+        // Global references to them here have been removed to avoid confusion and ensure fresh selection.
+
+        // Close buttons for the participantAnswersModal are expected to be handled by its own generic
+        // modal closing logic if it exists (e.g. if it shares classes or structure with other modals
+        // that have existing close handlers). If not, specific handlers for its close buttons
+        // ('closeParticipantAnswersModalBtn', 'closeParticipantAnswersModalFooterBtn') would be needed.
+        // The HTML review confirmed these specific button IDs exist.
 
         function formatAnswerForDisplay(answerData, questionType, isMultipleCorrect) {
             if (answerData === null || answerData === undefined) {
@@ -2294,33 +2292,53 @@
                     const errData = await response.json().catch(() => null);
                     throw new Error(errData?.message || `Error ${response.status}`);
                 }
-                const leaderboard = await response.json();
+                const data = await response.json(); // Changed variable name to 'data'
                 loadingLeaderboardMsg.style.display = 'none';
 
-                if (!leaderboard || !Array.isArray(leaderboard) || leaderboard.length === 0) {
+                if (!data || !Array.isArray(data) || data.length === 0) {
                     quinielaLeaderboardListContainer.innerHTML = '<p class="text-gray-600">No hay datos de clasificación disponibles.</p>';
                     return;
                 }
 
                 const ul = document.createElement('ul');
-                ul.className = 'space-y-2';
-                leaderboard.forEach(participant => {
-                    const li = document.createElement('li');
-                    li.className = 'leaderboard-participant-item flex justify-between items-center py-2 px-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer transition-colors';
-                    li.dataset.userId = participant.user_id;
-                    li.dataset.username = participant.username; // Store username for modal title
+                ul.className = 'space-y-1'; // Reduced space for more compact list
 
-                    const usernameSpan = document.createElement('span');
-                    usernameSpan.className = 'font-medium text-gray-700';
-                    usernameSpan.textContent = participant.username;
+                let rankCounter = 0;
+                let previousScore = -Infinity;
+                let displayRank = 0;
 
-                    const scoreSpan = document.createElement('span');
-                    scoreSpan.className = 'text-sm font-semibold text-orange-600 px-2 py-1 bg-orange-100 rounded-full';
-                    scoreSpan.textContent = `${participant.score} pts`;
+                data.forEach((participant, index) => {
+                    const currentIndex = index + 1; // 1-based for direct use if needed, or for rankCounter logic
+                    if (participant.score !== previousScore) {
+                        rankCounter = currentIndex;
+                    }
+                    displayRank = rankCounter;
+                    previousScore = participant.score;
 
-                    li.appendChild(usernameSpan);
-                    li.appendChild(scoreSpan);
-                    ul.appendChild(li);
+                    let medalEmoji = '';
+                    if (displayRank === 1) medalEmoji = '🥇';
+                    else if (displayRank === 2) medalEmoji = '🥈';
+                    else if (displayRank === 3) medalEmoji = '🥉';
+
+                    const participantItem = document.createElement('li');
+                    // Tailwind classes for flex, items-center, justify-between, py-2, border-b
+                    participantItem.className = 'leaderboard-participant-item flex items-center justify-between py-2 px-3 border-b border-gray-100 hover:bg-gray-50 transition-colors'; // Removed cursor-pointer from li
+                    participantItem.dataset.userId = participant.user_id;
+                    participantItem.dataset.username = participant.username;
+
+                    participantItem.innerHTML = `
+                        <div class="flex items-center space-x-2 mr-2 flex-shrink-0"> <!-- Rank and Medal group -->
+                            <span class="w-7 text-sm text-gray-500 text-right">${displayRank}.</span>
+                            <span class="text-xl">${medalEmoji}</span>
+                        </div>
+                        <span class="flex-grow text-gray-800 truncate mx-2 min-w-0" title="${participant.username}">${participant.username}</span> <!-- Username with min-w-0 -->
+                        <span class="font-semibold text-orange-600 text-sm whitespace-nowrap mr-3 flex-shrink-0">${participant.score} pts</span> <!-- Score -->
+                        <button class="view-answers-button text-blue-600 hover:text-blue-800 text-sm font-medium py-1 px-2 rounded hover:bg-blue-100 transition-colors whitespace-nowrap flex-shrink-0">
+                            Ver Respuestas
+                        </button>
+                    `;
+
+                    ul.appendChild(participantItem);
                 });
                 quinielaLeaderboardListContainer.appendChild(ul);
 
@@ -2337,13 +2355,19 @@
 
         if (quinielaLeaderboardListContainer) {
             quinielaLeaderboardListContainer.addEventListener('click', async function(event) {
-                console.log('Leaderboard item clicked.'); // LOG ADDED
-                const participantItem = event.target.closest('.leaderboard-participant-item');
-                if (!participantItem) {
-                    console.log('Click was not on a .leaderboard-participant-item.');
+                const viewButton = event.target.closest('.view-answers-button');
+                if (!viewButton) {
+                    // console.log('Click was not on a .view-answers-button.'); // Optional: for debugging non-button clicks
                     return;
                 }
-                console.log('Participant item found:', participantItem); // LOG ADDED
+                console.log('View Answers button clicked.'); // LOG ADDED
+
+                const participantItem = viewButton.closest('.leaderboard-participant-item');
+                if (!participantItem) {
+                    console.error('Could not find parent .leaderboard-participant-item for the clicked button.');
+                    return;
+                }
+                console.log('Parent participant item found:', participantItem); // LOG ADDED
 
                 const userId = participantItem.dataset.userId;
                 const username = participantItem.dataset.username;

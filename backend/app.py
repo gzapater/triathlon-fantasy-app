@@ -2517,9 +2517,6 @@ def update_user_answer(user_answer_id):
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 
-
-# --- Scoring Algorithm ---
-
 @app.route('/api/races/<int:race_id>/quiniela_leaderboard', methods=['GET'])
 @login_required
 def get_quiniela_leaderboard(race_id):
@@ -2556,6 +2553,7 @@ def get_quiniela_leaderboard(race_id):
         app.logger.error(f"Error fetching quiniela leaderboard for race_id {race_id}: {e}", exc_info=True)
         return jsonify(message="Error fetching quiniela leaderboard"), 500
 
+# --- Scoring Algorithm ---
 def calculate_and_store_scores(race_id):
     app.logger.info(f"Starting score calculation for race_id: {race_id}")
     try:
