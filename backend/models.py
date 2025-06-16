@@ -206,6 +206,15 @@ class Question(db.Model):
     points_per_correct_order = db.Column(db.Integer, nullable=True)
     bonus_for_full_order = db.Column(db.Integer, nullable=True)
 
+    # Slider question type fields
+    slider_unit = db.Column(db.String(50), nullable=True)
+    slider_min_value = db.Column(db.Float, nullable=True)
+    slider_max_value = db.Column(db.Float, nullable=True)
+    slider_step = db.Column(db.Float, nullable=True)
+    slider_points_exact = db.Column(db.Integer, nullable=True)
+    slider_threshold_partial = db.Column(db.Float, nullable=True)
+    slider_points_partial = db.Column(db.Integer, nullable=True)
+
     options = db.relationship('QuestionOption', backref='question', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
     answers = db.relationship('UserAnswer', backref='question', lazy=True, cascade="all, delete-orphan")
 
@@ -244,6 +253,7 @@ class UserAnswer(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     answer_text = db.Column(Text, nullable=True)
     selected_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'), nullable=True)
+    slider_answer_value = db.Column(db.Float, nullable=True) # New field for slider answer
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -284,6 +294,7 @@ class OfficialAnswer(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     answer_text = db.Column(Text, nullable=True)
     selected_option_id = db.Column(db.Integer, db.ForeignKey('question_options.id'), nullable=True)
+    correct_slider_value = db.Column(db.Float, nullable=True) # New field for correct slider value
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

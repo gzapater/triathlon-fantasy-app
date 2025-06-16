@@ -401,6 +401,9 @@
                                 <button type="button" id="addOrderingQuestionBtn" onclick="openQuestionModal('ORDERING')" class="btn btn-secondary">
                                     <i class="fas fa-sort-amount-down mr-2"></i>Ordenamiento
                                 </button>
+                                <button type="button" id="addSliderQuestionBtn" class="btn btn-secondary">
+                                    <i class="fas fa-sliders-h mr-2"></i>Slider
+                                </button>
                             </div>
 
                             <div id="questionsPreviewContainer" class="space-y-4">
@@ -905,7 +908,8 @@
 
             const addFreeTextQuestionBtn = document.getElementById('addFreeTextQuestionBtn');
             const addMultipleChoiceQuestionBtn = document.getElementById('addMultipleChoiceQuestionBtn');
-            const addOrderingQuestionBtn = document.getElementById('addOrderingQuestionBtn'); // This one was already correctly handled by an inline onclick initially, but good to group.
+            const addOrderingQuestionBtn = document.getElementById('addOrderingQuestionBtn');
+            const addSliderQuestionBtn = document.getElementById('addSliderQuestionBtn'); // Added slider button
             const questionsPreviewContainer = document.getElementById('questionsPreviewContainer');
             const noQuestionsMessage = document.getElementById('noQuestionsMessage');
 
@@ -940,6 +944,8 @@
                     renderMultipleChoiceFieldsModal(questionData);
                 } else if (questionType === 'ORDERING') {
                     renderOrderingFieldsModal(questionData);
+                } else if (questionType === 'SLIDER') {
+                    renderSliderFieldsModal(questionData);
                 }
 
                 if (questionModal) questionModal.classList.remove('hidden');
@@ -1104,6 +1110,59 @@
                 }
             }
 
+            function renderSliderFieldsModal(questionData) {
+                if (!modalTypeSpecificFieldsContainer) return;
+
+                const sliderUnit = (questionData && questionData.slider_unit) ? questionData.slider_unit : '';
+                const sliderMinValue = (questionData && questionData.slider_min_value !== undefined) ? questionData.slider_min_value : '';
+                const sliderMaxValue = (questionData && questionData.slider_max_value !== undefined) ? questionData.slider_max_value : '';
+                const sliderStep = (questionData && questionData.slider_step !== undefined) ? questionData.slider_step : '1'; // Default step to 1
+                const sliderPointsExact = (questionData && questionData.slider_points_exact !== undefined) ? questionData.slider_points_exact : '';
+                const sliderThresholdPartial = (questionData && questionData.slider_threshold_partial !== undefined) ? questionData.slider_threshold_partial : '';
+                const sliderPointsPartial = (questionData && questionData.slider_points_partial !== undefined) ? questionData.slider_points_partial : '';
+
+                modalTypeSpecificFieldsContainer.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="modalSliderUnit" class="block text-sm font-medium text-gray-700 mb-1">Unidad (Ej: km, min, kg)</label>
+                            <input type="text" id="modalSliderUnit" class="input-field w-full" value="${sliderUnit}" placeholder="Ej: km">
+                        </div>
+                        <div>
+                            <label for="modalSliderStep" class="block text-sm font-medium text-gray-700 mb-1">Paso del Slider <span class="text-red-500">*</span></label>
+                            <input type="number" id="modalSliderStep" class="input-field w-full" value="${sliderStep}" step="any" min="0.01" required>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="modalSliderMinValue" class="block text-sm font-medium text-gray-700 mb-1">Valor Mínimo <span class="text-red-500">*</span></label>
+                            <input type="number" id="modalSliderMinValue" class="input-field w-full" value="${sliderMinValue}" step="any" required>
+                        </div>
+                        <div>
+                            <label for="modalSliderMaxValue" class="block text-sm font-medium text-gray-700 mb-1">Valor Máximo <span class="text-red-500">*</span></label>
+                            <input type="number" id="modalSliderMaxValue" class="input-field w-full" value="${sliderMaxValue}" step="any" required>
+                        </div>
+                    </div>
+                    <hr class="my-4">
+                    <h4 class="text-md font-semibold text-gray-700 mb-2">Puntuación por Respuesta Exacta</h4>
+                    <div>
+                        <label for="modalSliderPointsExact" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Respuesta Exacta <span class="text-red-500">*</span></label>
+                        <input type="number" id="modalSliderPointsExact" class="input-field w-full" value="${sliderPointsExact}" min="0" required>
+                    </div>
+                    <hr class="my-4">
+                    <h4 class="text-md font-semibold text-gray-700 mb-2">Puntuación Parcial (Opcional)</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="modalSliderThresholdPartial" class="block text-sm font-medium text-gray-700 mb-1">Umbral (+/-) para Puntuación Parcial</label>
+                            <input type="number" id="modalSliderThresholdPartial" class="input-field w-full" value="${sliderThresholdPartial}" step="any" min="0">
+                        </div>
+                        <div>
+                            <label for="modalSliderPointsPartial" class="block text-sm font-medium text-gray-700 mb-1">Puntos por Respuesta Parcial</label>
+                            <input type="number" id="modalSliderPointsPartial" class="input-field w-full" value="${sliderPointsPartial}" min="0">
+                        </div>
+                    </div>
+                `;
+            }
+
             function renderQuestionsPreview() {
                 if (!questionsPreviewContainer || !noQuestionsMessage) return;
                 questionsPreviewContainer.innerHTML = '';
@@ -1145,7 +1204,15 @@
                                 });
                                 optionsHtml += '</ul>';
                             }
+                        } else if (q.type === 'SLIDER') {
+                            scoringHtml = `Slider: Rango [${q.slider_min_value} - ${q.slider_max_value}], Paso: ${q.slider_step}${q.slider_unit ? ', Unidad: ' + q.slider_unit : ''}.<br>`;
+                            scoringHtml += `Puntos Exactos: ${q.slider_points_exact}. `;
+                            if (q.slider_threshold_partial !== null && q.slider_points_partial !== null && q.slider_threshold_partial >= 0 && q.slider_points_partial >= 0) {
+                                scoringHtml += `Puntos Parciales: ${q.slider_points_partial} por +/- ${q.slider_threshold_partial}.`;
+                            }
+                            optionsHtml = ''; // Slider questions don't have options in the same way
                         }
+
 
                         previewDiv.innerHTML = `
                             <div class="flex justify-between items-center">
@@ -1183,10 +1250,8 @@
             if(cancelQuestionModalBtn) cancelQuestionModalBtn.addEventListener('click', closeQuestionModal);
             if(addFreeTextQuestionBtn) addFreeTextQuestionBtn.addEventListener('click', () => openQuestionModal('FREE_TEXT'));
             if(addMultipleChoiceQuestionBtn) addMultipleChoiceQuestionBtn.addEventListener('click', () => openQuestionModal('MULTIPLE_CHOICE'));
-            // addOrderingQuestionBtn has an inline onclick="openQuestionModal('ORDERING')",
-            // so it needs openQuestionModal to be globally accessible or refactored.
-            // For now, let's make openQuestionModal global as well for simplicity, or ensure its onclick is also set here.
-            if(addOrderingQuestionBtn) addOrderingQuestionBtn.onclick = () => openQuestionModal('ORDERING'); // Standardize event attachment
+            if(addOrderingQuestionBtn) addOrderingQuestionBtn.addEventListener('click', () => openQuestionModal('ORDERING')); // Standardized
+            if(addSliderQuestionBtn) addSliderQuestionBtn.addEventListener('click', () => openQuestionModal('SLIDER')); // Added for slider
 
 
             if(saveQuestionBtn) saveQuestionBtn.addEventListener('click', () => {
@@ -1283,7 +1348,77 @@
                          if(modalQuestionFormError) modalQuestionFormError.textContent = "El bonus por orden completo debe ser un número no negativo.";
                         return;
                     }
+                } else if (type === 'SLIDER') {
+                    const unitValue = document.getElementById('modalSliderUnit').value.trim();
+                    const minValue = document.getElementById('modalSliderMinValue').value;
+                    const maxValue = document.getElementById('modalSliderMaxValue').value;
+                    const stepValue = document.getElementById('modalSliderStep').value;
+                    const pointsExactValue = document.getElementById('modalSliderPointsExact').value;
+                    const thresholdPartialValue = document.getElementById('modalSliderThresholdPartial').value;
+                    const pointsPartialValue = document.getElementById('modalSliderPointsPartial').value;
+
+                    if (minValue === '' || maxValue === '' || stepValue === '' || pointsExactValue === '') {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Los campos Mínimo, Máximo, Paso y Puntos por Respuesta Exacta son obligatorios para preguntas Slider.";
+                        return;
+                    }
+
+                    const numMinValue = parseFloat(minValue);
+                    const numMaxValue = parseFloat(maxValue);
+                    const numStepValue = parseFloat(stepValue);
+                    const numPointsExactValue = parseInt(pointsExactValue);
+
+                    if (isNaN(numMinValue) || isNaN(numMaxValue) || isNaN(numStepValue) || isNaN(numPointsExactValue)) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Mínimo, Máximo, Paso y Puntos Exactos deben ser números válidos.";
+                        return;
+                    }
+
+                    if (numMinValue >= numMaxValue) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "El Valor Mínimo debe ser menor que el Valor Máximo.";
+                        return;
+                    }
+                    if (numStepValue <= 0) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "El Paso del Slider debe ser un número positivo.";
+                        return;
+                    }
+                     if (numPointsExactValue < 0) {
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Puntos por Respuesta Exacta debe ser un número no negativo.";
+                        return;
+                    }
+
+                    questionData.slider_unit = unitValue || null;
+                    questionData.slider_min_value = numMinValue;
+                    questionData.slider_max_value = numMaxValue;
+                    questionData.slider_step = numStepValue;
+                    questionData.slider_points_exact = numPointsExactValue;
+
+                    if (thresholdPartialValue !== '' && pointsPartialValue !== '') {
+                        const numThresholdPartial = parseFloat(thresholdPartialValue);
+                        const numPointsPartial = parseInt(pointsPartialValue);
+
+                        if (isNaN(numThresholdPartial) || isNaN(numPointsPartial)) {
+                            if(modalQuestionFormError) modalQuestionFormError.textContent = "Umbral Parcial y Puntos Parciales deben ser números válidos si se especifican.";
+                            return;
+                        }
+                        if (numThresholdPartial < 0) {
+                            if(modalQuestionFormError) modalQuestionFormError.textContent = "El Umbral para Puntuación Parcial debe ser no negativo.";
+                            return;
+                        }
+                         if (numPointsPartial < 0) {
+                            if(modalQuestionFormError) modalQuestionFormError.textContent = "Puntos por Respuesta Parcial debe ser no negativo.";
+                            return;
+                        }
+                        questionData.slider_threshold_partial = numThresholdPartial;
+                        questionData.slider_points_partial = numPointsPartial;
+                    } else if (thresholdPartialValue !== '' || pointsPartialValue !== '') {
+                        // If one is filled but not the other for partial scoring
+                        if(modalQuestionFormError) modalQuestionFormError.textContent = "Para Puntuación Parcial, tanto el Umbral como los Puntos deben ser especificados (o ambos dejados en blanco).";
+                        return;
+                    } else {
+                        questionData.slider_threshold_partial = null;
+                        questionData.slider_points_partial = null;
+                    }
                 }
+
 
                 const editIndex = parseInt(currentQuestionIndexInput.value);
                 if (editIndex !== -1) {

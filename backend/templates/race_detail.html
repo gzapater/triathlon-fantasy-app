@@ -3002,6 +3002,35 @@
                         orderingTextarea.value = existingAnswer?.ordered_options_text || '';
                         if (wizardAnswerOptions) wizardAnswerOptions.appendChild(orderingTextarea);
                         break;
+                    case 'SLIDER':
+                        if (!wizardAnswerOptions) break;
+                        wizardAnswerOptions.innerHTML = ''; // Clear previous content
+
+                        const sliderContainer = document.createElement('div');
+                        sliderContainer.className = 'py-4';
+
+                        const sliderInput = document.createElement('input');
+                        sliderInput.type = 'range';
+                        sliderInput.id = `wizardSliderAnswer_${question.id}`;
+                        sliderInput.min = question.slider_min_value;
+                        sliderInput.max = question.slider_max_value;
+                        sliderInput.step = question.slider_step;
+                        sliderInput.value = existingAnswer?.slider_answer_value ?? question.slider_min_value; // Default to min if no answer
+                        sliderInput.className = 'w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg dark:bg-gray-700'; // Increased height
+
+                        const valueDisplay = document.createElement('div');
+                        valueDisplay.id = `wizardSliderValueDisplay_${question.id}`;
+                        valueDisplay.className = 'text-center text-lg font-semibold text-gray-700 mt-3';
+                        valueDisplay.textContent = `${sliderInput.value} ${question.slider_unit || ''}`;
+
+                        sliderInput.oninput = function() {
+                            valueDisplay.textContent = `${this.value} ${question.slider_unit || ''}`;
+                        };
+
+                        sliderContainer.appendChild(sliderInput);
+                        sliderContainer.appendChild(valueDisplay);
+                        wizardAnswerOptions.appendChild(sliderContainer);
+                        break;
                     default:
                         if (wizardAnswerOptions) wizardAnswerOptions.innerHTML = `<p class="text-red-500">Tipo de pregunta '${question.question_type}' no soportado en el wizard.</p>`;
                 }
@@ -3052,6 +3081,16 @@
                         const orderingTextarea = document.getElementById(`wizardOrderingAnswer_${question.id}`);
                         if (orderingTextarea) {
                              userWizardAnswers[question.id] = { question_id: question.id, ordered_options_text: orderingTextarea.value.trim() };
+                        }
+                        break;
+                    case 'SLIDER':
+                        const slider = document.getElementById(`wizardSliderAnswer_${question.id}`);
+                        if (slider) {
+                            const sliderValue = parseFloat(slider.value);
+                            userWizardAnswers[question.id] = { question_id: question.id, slider_answer_value: sliderValue };
+                        } else {
+                            console.error(`Slider input not found for question ${question.id}`);
+                            // Handle missing slider input if necessary, e.g. by not saving an answer or saving null
                         }
                         break;
                 }

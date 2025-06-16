@@ -697,6 +697,41 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
                 points_obtained = current_question_ordering_score
                 is_correct = is_full_match and bool(official_ordered_texts_for_q)
 
+        elif question_type_name == 'SLIDER':
+            epsilon = 1e-9 # For floating point comparisons
+
+            if user_answer_obj.slider_answer_value is None or official_answer_obj.correct_slider_value is None:
+                points_obtained = 0
+                is_correct = False
+                app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: User or official answer is None. User: {user_answer_obj.slider_answer_value}, Official: {official_answer_obj.correct_slider_value}. Points: 0")
+            else:
+                user_val = user_answer_obj.slider_answer_value
+                official_val = official_answer_obj.correct_slider_value
+
+                points_exact = question_obj.slider_points_exact
+                threshold_partial = question_obj.slider_threshold_partial
+                points_partial = question_obj.slider_points_partial
+
+                diff = abs(user_val - official_val)
+
+                rule_met = "None"
+                if diff < epsilon: # Exact match
+                    if points_exact is not None:
+                        points_obtained = points_exact
+                        is_correct = (points_exact > 0) # Considered correct if points are awarded
+                        rule_met = "Exact"
+                elif threshold_partial is not None and threshold_partial >= 0 and \
+                     points_partial is not None and points_partial >= 0 and \
+                     diff <= (threshold_partial + epsilon): # Partial match
+                    points_obtained = points_partial
+                    is_correct = (points_partial > 0) # Considered correct if points are awarded
+                    rule_met = "Partial"
+                else: # No match
+                    points_obtained = 0
+                    is_correct = False
+
+                app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: UserVal={user_val}, OfficialVal={official_val}, Diff={diff}, RuleMet='{rule_met}', PointsAwarded={points_obtained}, IsCorrect={is_correct}")
+
     except Exception as e:
         app.logger.error(f"Error calculating score for QID {question_obj.id}, UserAnswerID {user_answer_obj.id}: {e}", exc_info=True)
         return 0, False # Return 0 points and False for correctness in case of an error
@@ -1181,6 +1216,14 @@ def _serialize_question(question):
     elif question.question_type.name == 'ORDERING':
         question_data["points_per_correct_order"] = question.points_per_correct_order
         question_data["bonus_for_full_order"] = question.bonus_for_full_order
+    elif question.question_type.name == 'SLIDER':
+        question_data["slider_unit"] = question.slider_unit
+        question_data["slider_min_value"] = question.slider_min_value
+        question_data["slider_max_value"] = question.slider_max_value
+        question_data["slider_step"] = question.slider_step
+        question_data["slider_points_exact"] = question.slider_points_exact
+        question_data["slider_threshold_partial"] = question.slider_threshold_partial
+        question_data["slider_points_partial"] = question.slider_points_partial
 
     options_output = []
     # Order options by ID for consistent output, could also be creation order or specific order field
@@ -1811,6 +1854,221 @@ def update_ordering_question(question_id):
         db.session.rollback()
         print(f"Error updating ordering question: {e}")
         return jsonify(message="Error updating ordering question"), 500
+
+# --- CRUD for Slider Questions ---
+@app.route('/api/races/<int:race_id>/questions/slider', methods=['POST'])
+@login_required
+def create_slider_question(race_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        return jsonify(message="Race not found"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="La quiniela ya esta cerrada y no se pueden añadir nuevas preguntas"), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Validate required fields
+    text = data.get('text')
+    slider_unit = data.get('slider_unit') # Can be None or empty string
+    slider_min_value = data.get('slider_min_value')
+    slider_max_value = data.get('slider_max_value')
+    slider_step = data.get('slider_step')
+    slider_points_exact = data.get('slider_points_exact')
+    # Optional fields for partial scoring
+    slider_threshold_partial = data.get('slider_threshold_partial')
+    slider_points_partial = data.get('slider_points_partial')
+
+
+    if not text or not isinstance(text, str) or not text.strip():
+        return jsonify(message="Question text is required and must be a non-empty string"), 400
+    if slider_unit is not None and not isinstance(slider_unit, str): # Allow empty string, but if present, must be string
+        return jsonify(message="Slider unit must be a string if provided"), 400
+
+    try:
+        slider_min_value = float(slider_min_value)
+        slider_max_value = float(slider_max_value)
+        slider_step = float(slider_step)
+    except (ValueError, TypeError):
+        return jsonify(message="slider_min_value, slider_max_value, and slider_step must be valid numbers"), 400
+
+    if not isinstance(slider_points_exact, int) or slider_points_exact < 0:
+        return jsonify(message="slider_points_exact is required and must be a non-negative integer"), 400
+
+    if slider_min_value >= slider_max_value:
+        return jsonify(message="slider_min_value must be less than slider_max_value"), 400
+    if slider_step <= 0:
+        return jsonify(message="slider_step must be a positive number"), 400
+
+    # Validate partial scoring fields if present
+    if slider_threshold_partial is not None or slider_points_partial is not None:
+        if slider_threshold_partial is None or slider_points_partial is None:
+            return jsonify(message="For partial scoring, both threshold and points must be provided"), 400
+        try:
+            slider_threshold_partial = float(slider_threshold_partial)
+        except (ValueError, TypeError):
+            return jsonify(message="slider_threshold_partial must be a valid number if provided for partial scoring"),400
+        if not isinstance(slider_points_partial, int):
+             return jsonify(message="slider_points_partial must be an integer if provided for partial scoring"), 400
+
+        if slider_threshold_partial < 0:
+            return jsonify(message="slider_threshold_partial must be non-negative if provided"), 400
+        if slider_points_partial < 0:
+            return jsonify(message="slider_points_partial must be non-negative if provided"), 400
+    else: # Ensure they are None if not provided for partial scoring
+        slider_threshold_partial = None
+        slider_points_partial = None
+
+
+    question_type_slider = QuestionType.query.filter_by(name='SLIDER').first()
+    if not question_type_slider:
+        # This case should ideally not happen if DB is seeded correctly
+        return jsonify(message="QuestionType 'SLIDER' not found. Please seed database."), 500
+
+    new_question = Question(
+        race_id=race_id,
+        question_type_id=question_type_slider.id,
+        text=text,
+        is_active=data.get('is_active', True), # Default to True
+        slider_unit=slider_unit if (slider_unit and slider_unit.strip()) else None, # Store None if empty string
+        slider_min_value=slider_min_value,
+        slider_max_value=slider_max_value,
+        slider_step=slider_step,
+        slider_points_exact=slider_points_exact,
+        slider_threshold_partial=slider_threshold_partial,
+        slider_points_partial=slider_points_partial
+    )
+
+    try:
+        db.session.add(new_question)
+        db.session.commit()
+        return jsonify(_serialize_question(new_question)), 201
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error creating slider question: {e}", exc_info=True)
+        return jsonify(message="Error creating slider question"), 500
+
+@app.route('/api/questions/slider/<int:question_id>', methods=['PUT'])
+@login_required
+def update_slider_question(question_id):
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify(message="Question not found"), 404
+    if question.question_type.name != 'SLIDER':
+        return jsonify(message="Cannot update non-SLIDER question via this endpoint"), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Update common fields
+    if 'text' in data:
+        text = data.get('text')
+        if not isinstance(text, str) or not text.strip():
+            return jsonify(message="Question text must be a non-empty string if provided"), 400
+        question.text = text
+    if 'is_active' in data:
+        is_active = data.get('is_active')
+        if not isinstance(is_active, bool):
+            return jsonify(message="is_active must be a boolean if provided"), 400
+        question.is_active = is_active
+
+    # Update slider-specific fields
+    if 'slider_unit' in data:
+        slider_unit = data.get('slider_unit')
+        if slider_unit is not None and not isinstance(slider_unit, str): # Allow null or empty string to clear
+             return jsonify(message="Slider unit must be a string if provided, or null/empty to clear"), 400
+        question.slider_unit = slider_unit if (slider_unit and slider_unit.strip()) else None
+
+
+    min_val_present = 'slider_min_value' in data
+    max_val_present = 'slider_max_value' in data
+    step_present = 'slider_step' in data
+
+    # Temporary variables to hold new values for validation
+    temp_min_value = question.slider_min_value
+    temp_max_value = question.slider_max_value
+    temp_step_value = question.slider_step
+
+    if min_val_present:
+        try:
+            temp_min_value = float(data['slider_min_value'])
+        except (ValueError, TypeError):
+            return jsonify(message="slider_min_value must be a valid number if provided"), 400
+    if max_val_present:
+        try:
+            temp_max_value = float(data['slider_max_value'])
+        except (ValueError, TypeError):
+            return jsonify(message="slider_max_value must be a valid number if provided"), 400
+    if step_present:
+        try:
+            temp_step_value = float(data['slider_step'])
+        except (ValueError, TypeError):
+            return jsonify(message="slider_step must be a valid number if provided"), 400
+
+    # Validate combined min/max/step
+    if temp_min_value >= temp_max_value:
+        return jsonify(message="slider_min_value must be less than slider_max_value"), 400
+    if temp_step_value <= 0:
+        return jsonify(message="slider_step must be a positive number"), 400
+
+    # If validation passes, assign to question object
+    if min_val_present: question.slider_min_value = temp_min_value
+    if max_val_present: question.slider_max_value = temp_max_value
+    if step_present: question.slider_step = temp_step_value
+
+
+    if 'slider_points_exact' in data:
+        points_exact = data.get('slider_points_exact')
+        if not isinstance(points_exact, int) or points_exact < 0:
+            return jsonify(message="slider_points_exact must be a non-negative integer if provided"), 400
+        question.slider_points_exact = points_exact
+
+    # Handle partial scoring fields - they must be provided together or not at all
+    threshold_partial_present = 'slider_threshold_partial' in data
+    points_partial_present = 'slider_points_partial' in data
+
+    if threshold_partial_present and points_partial_present:
+        threshold_partial = data.get('slider_threshold_partial')
+        points_partial = data.get('slider_points_partial')
+        if threshold_partial is None and points_partial is None: # Both explicitly set to null
+            question.slider_threshold_partial = None
+            question.slider_points_partial = None
+        else:
+            try:
+                threshold_partial = float(threshold_partial)
+            except (ValueError, TypeError):
+                 return jsonify(message="slider_threshold_partial must be a valid number if provided for partial scoring"),400
+            if not isinstance(points_partial, int):
+                return jsonify(message="slider_points_partial must be an integer if provided for partial scoring"), 400
+
+            if threshold_partial < 0:
+                return jsonify(message="slider_threshold_partial must be non-negative if provided"), 400
+            if points_partial < 0:
+                return jsonify(message="slider_points_partial must be non-negative if provided"), 400
+            question.slider_threshold_partial = threshold_partial
+            question.slider_points_partial = points_partial
+    elif threshold_partial_present or points_partial_present: # Only one is present
+        return jsonify(message="For partial scoring, both slider_threshold_partial and slider_points_partial must be provided together, or neither."), 400
+
+
+    try:
+        db.session.commit()
+        return jsonify(_serialize_question(question)), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating slider question {question_id}: {e}", exc_info=True)
+        return jsonify(message="Error updating slider question"), 500
+
 
 @app.route('/api/user/me', methods=['GET'])
 @login_required
@@ -2459,6 +2717,22 @@ def save_user_answers(race_id):
                 if new_user_answer.answer_text is None:
                      app.logger.debug(f"No ordered_options_text provided for ORDERING question {question.id}")
 
+            elif question_type_name == 'SLIDER':
+                slider_value = answer_data.get('slider_answer_value')
+                if slider_value is not None:
+                    try:
+                        new_user_answer.slider_answer_value = float(slider_value)
+                        # Ensure other fields are None for slider questions
+                        new_user_answer.answer_text = None
+                        new_user_answer.selected_option_id = None
+                        # No UserAnswerMultipleChoiceOption for slider type
+                    except (ValueError, TypeError):
+                        app.logger.warning(f"Invalid slider_answer_value '{slider_value}' for SLIDER question {question.id}. Storing as None.")
+                        new_user_answer.slider_answer_value = None
+                else:
+                    app.logger.debug(f"No slider_answer_value provided for SLIDER question {question.id}")
+                    new_user_answer.slider_answer_value = None # Explicitly set to None if not provided or invalid
+
             else:
                 app.logger.warning(f"Unsupported question type '{question_type_name}' encountered for question {question.id}")
                 # Skip adding this answer if type is unknown or unhandled by this logic
@@ -2516,6 +2790,7 @@ def get_user_answers(race_id):
             "user_answer_id": ua.id,
             "answer_text": ua.answer_text,
             "selected_option_id": ua.selected_option_id,
+            "slider_answer_value": ua.slider_answer_value, # Added slider answer value
             "selected_option_text": None, # Initialize
             "selected_mc_options": [], # Initialize
             "all_question_options": all_q_options_list
@@ -2640,6 +2915,24 @@ def update_user_answer(user_answer_id):
                 user_answer.selected_option_id = new_selected_option_id
                 UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
                 app.logger.info(f"Updated MC Single for UserAnswer {user_answer_id} to option_id: {new_selected_option_id}")
+
+        elif question_type_name == 'SLIDER':
+            new_slider_value = data.get('slider_answer_value')
+            if new_slider_value is None: # Explicitly allow null to clear the answer
+                user_answer.slider_answer_value = None
+            else:
+                try:
+                    user_answer.slider_answer_value = float(new_slider_value)
+                except (ValueError, TypeError):
+                    app.logger.warning(f"Invalid 'slider_answer_value' format for UserAnswer {user_answer_id} (SLIDER)")
+                    return jsonify(message="Invalid 'slider_answer_value': must be a number or null."), 400
+
+            # Clear other answer type fields
+            user_answer.answer_text = None
+            user_answer.selected_option_id = None
+            UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
+            app.logger.info(f"Updated SLIDER for UserAnswer {user_answer_id} to value: {user_answer.slider_answer_value}")
+
         else:
             app.logger.error(f"Unsupported question type '{question_type_name}' for update on UserAnswer {user_answer_id}")
             return jsonify(message=f"Unsupported question type for update: {question_type_name}"), 400
@@ -2902,6 +3195,7 @@ def get_official_answers(race_id):
             "question_type": question.question_type.name,
             "answer_text": oa.answer_text,
             "selected_option_id": oa.selected_option_id,
+            "correct_slider_value": oa.correct_slider_value, # Added for slider questions
             "selected_option_text": None,
             "selected_mc_options": [],
             "all_question_options": all_q_options_list
@@ -3009,6 +3303,23 @@ def save_official_answers(race_id):
                                 new_official_answer.selected_option_id = None
                     else:
                         new_official_answer.selected_option_id = None
+            elif question_type_name == 'SLIDER':
+                correct_value = answer_data.get('correct_slider_value')
+                if correct_value is not None:
+                    try:
+                        new_official_answer.correct_slider_value = float(correct_value)
+                    except (ValueError, TypeError):
+                        app.logger.warning(f"Invalid correct_slider_value '{correct_value}' for SLIDER question {question.id}. Storing as None.")
+                        new_official_answer.correct_slider_value = None
+                else: # If null is sent, store null.
+                    new_official_answer.correct_slider_value = None
+
+                # Ensure other type-specific fields are None
+                new_official_answer.answer_text = None
+                new_official_answer.selected_option_id = None
+                # Clear any potential OfficialAnswerMultipleChoiceOption if type changed
+                OfficialAnswerMultipleChoiceOption.query.filter_by(official_answer_id=new_official_answer.id).delete()
+
             else:
                 app.logger.warning(f"Unsupported question type '{question_type_name}' for official answer to question {question.id}")
                 continue

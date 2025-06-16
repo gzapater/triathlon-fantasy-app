@@ -272,3 +272,81 @@ def test_get_official_answers_structure(authenticated_client, sample_race, db_se
              assert len(answer_detail["all_question_options"]) == 2
              assert answer_detail["all_question_options"][0]["option_text"] == "Runner P"
              assert answer_detail["all_question_options"][0]["correct_order_index"] == 0
+
+# --- Tests for Slider Questions (Official Answers) ---
+
+def test_post_official_slider_answer(authenticated_client, sample_race, sample_slider_question, db_session):
+    client, _ = authenticated_client("ADMIN")
+    race_id = sample_race.id
+    question_id = sample_slider_question.id
+
+    payload = {
+        str(question_id): {
+            "correct_slider_value": 35.5
+        }
+    }
+    response = client.post(f'/api/races/{race_id}/official_answers', json=payload)
+    assert response.status_code == 201
+    assert "Official answers saved successfully" in response.json['message']
+
+    official_answer_in_db = OfficialAnswer.query.filter_by(
+        race_id=race_id,
+        question_id=question_id
+    ).first()
+    assert official_answer_in_db is not None
+    assert official_answer_in_db.correct_slider_value == 35.5
+    assert official_answer_in_db.answer_text is None
+    assert official_answer_in_db.selected_option_id is None
+
+def test_post_official_slider_answer_clear_value(authenticated_client, sample_race, sample_slider_question, db_session):
+    client, _ = authenticated_client("ADMIN")
+    race_id = sample_race.id
+    question_id = sample_slider_question.id
+
+    # First set a value
+    initial_payload = {str(question_id): {"correct_slider_value": 40.0}}
+    client.post(f'/api/races/{race_id}/official_answers', json=initial_payload)
+
+    # Now clear it by sending null
+    clear_payload = {
+        str(question_id): {
+            "correct_slider_value": None
+        }
+    }
+    response = client.post(f'/api/races/{race_id}/official_answers', json=clear_payload)
+    assert response.status_code == 201
+
+    official_answer_in_db = OfficialAnswer.query.filter_by(
+        race_id=race_id,
+        question_id=question_id
+    ).first()
+    assert official_answer_in_db is not None
+    assert official_answer_in_db.correct_slider_value is None
+
+
+def test_get_official_slider_answer(authenticated_client, sample_race, sample_slider_question, db_session):
+    client, _ = authenticated_client("ADMIN")
+    race_id = sample_race.id
+    question_id = sample_slider_question.id
+
+    # Pre-populate an official slider answer
+    oa = OfficialAnswer(
+        race_id=race_id,
+        question_id=question_id,
+        correct_slider_value=22.75
+    )
+    db_session.add(oa)
+    db_session.commit()
+
+    response = client.get(f'/api/races/{race_id}/official_answers')
+    assert response.status_code == 200
+    data = response.json
+    assert isinstance(data, list)
+
+    slider_answer_detail = next((ans for ans in data if ans['question_id'] == question_id), None)
+
+    assert slider_answer_detail is not None
+    assert slider_answer_detail['question_type'] == 'SLIDER'
+    assert slider_answer_detail['correct_slider_value'] == 22.75
+    assert slider_answer_detail.get('answer_text') is None
+    assert slider_answer_detail.get('selected_option_id') is None

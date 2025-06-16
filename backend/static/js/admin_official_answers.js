@@ -304,6 +304,37 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
                 inputContainer.appendChild(originalOrderInfo);
                 break;
 
+            case 'SLIDER':
+                const sliderInfoContainer = document.createElement('div');
+                sliderInfoContainer.className = 'text-sm text-gray-600 space-y-1 mb-2';
+
+                const unitP = document.createElement('p');
+                unitP.textContent = `Unidad: ${question.slider_unit || 'N/A'}`;
+                sliderInfoContainer.appendChild(unitP);
+
+                const rangeP = document.createElement('p');
+                rangeP.textContent = `Rango: ${question.slider_min_value} a ${question.slider_max_value}`;
+                sliderInfoContainer.appendChild(rangeP);
+
+                const stepP = document.createElement('p');
+                stepP.textContent = `Paso: ${question.slider_step}`;
+                sliderInfoContainer.appendChild(stepP);
+
+                inputContainer.appendChild(sliderInfoContainer);
+
+                const sliderCorrectInput = document.createElement('input');
+                sliderCorrectInput.type = 'number';
+                sliderCorrectInput.name = `question-${question.id}-slider-correct`;
+                sliderCorrectInput.step = question.slider_step; // Use question's step for the input
+                sliderCorrectInput.min = question.slider_min_value;
+                sliderCorrectInput.max = question.slider_max_value;
+                sliderCorrectInput.className = 'w-full p-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500';
+                if (officialAnswer && officialAnswer.correct_slider_value !== undefined && officialAnswer.correct_slider_value !== null) {
+                    sliderCorrectInput.value = officialAnswer.correct_slider_value;
+                }
+                inputContainer.appendChild(sliderCorrectInput);
+                break;
+
             default:
                 inputContainer.innerHTML = `<p class="text-sm text-red-500">Tipo de pregunta no soportado: ${question.question_type}</p>`;
         }
@@ -354,6 +385,15 @@ document.getElementById('save-official-answers-btn').addEventListener('click', f
                     answerData.ordered_options_text = orderedOptions.join(',');
                 } else {
                     answerData.ordered_options_text = ''; // Or handle as an error/empty state
+                }
+                break;
+
+            case 'SLIDER':
+                const sliderCorrectInput = questionDiv.querySelector(`input[name="question-${questionId}-slider-correct"]`);
+                if (sliderCorrectInput && sliderCorrectInput.value !== '') {
+                    answerData.correct_slider_value = parseFloat(sliderCorrectInput.value);
+                } else {
+                    answerData.correct_slider_value = null; // Send null if empty, backend should validate if it's required
                 }
                 break;
         }
