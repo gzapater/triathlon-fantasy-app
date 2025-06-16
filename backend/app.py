@@ -844,6 +844,7 @@ def get_participant_answers(race_id, user_id):
             "question_id": question.id,
             "question_text": question.text,
             "question_type": question.question_type.name,
+            "question_is_mc_multiple_correct": question.is_mc_multiple_correct, # ADDED THIS LINE
             "participant_answer": participant_answer_formatted,
             "official_answer": official_answer_formatted,
             "is_correct": correct,
