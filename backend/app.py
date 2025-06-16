@@ -2121,6 +2121,96 @@ def serve_hello_world_page():
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year)
 
+
+@app.route('/races', methods=['GET'])
+@login_required
+def serve_races_list_page():
+    filter_date_from_str = request.args.get('filter_date_from')
+    filter_date_to_str = request.args.get('filter_date_to')
+    filter_race_format_id_str = request.args.get('filter_race_format_id')
+
+    all_race_formats = RaceFormat.query.order_by(RaceFormat.name).all()
+
+    date_from_obj = None
+    date_to_obj = None
+    race_format_id_int = None
+
+    if filter_date_from_str:
+        try:
+            date_from_obj = datetime.strptime(filter_date_from_str, '%Y-%m-%d')
+        except ValueError:
+            app.logger.warning(f"Invalid 'from' date format received for /races: {filter_date_from_str}")
+            pass
+
+    if filter_date_to_str:
+        try:
+            parsed_date_to = datetime.strptime(filter_date_to_str, '%Y-%m-%d')
+            date_to_obj = datetime.combine(parsed_date_to.date(), datetime.max.time())
+        except ValueError:
+            app.logger.warning(f"Invalid 'to' date format received for /races: {filter_date_to_str}")
+            pass
+
+    if filter_race_format_id_str and filter_race_format_id_str.strip():
+        try:
+            race_format_id_int = int(filter_race_format_id_str)
+        except ValueError:
+            app.logger.warning(f"Invalid 'race_format_id' format received for /races: {filter_race_format_id_str}")
+            pass
+
+    # Query all public races
+    query = Race.query.filter_by(is_general=True)
+
+    if date_from_obj:
+        query = query.filter(Race.event_date >= date_from_obj)
+    if date_to_obj:
+        query = query.filter(Race.event_date <= date_to_obj)
+    if race_format_id_int is not None:
+        query = query.filter(Race.race_format_id == race_format_id_int)
+
+    races_query_result = []
+    try:
+        races_query_result = query.order_by(Race.event_date.desc()).all()
+    except Exception as e:
+        app.logger.error(f"Error fetching public races for /races page: {e}")
+
+    processed_races = []
+    for race in races_query_result:
+        race_dict = race.to_dict()
+        is_quiniela_actionable = True
+        if race_dict.get('quiniela_close_date'):
+            try:
+                qcd_str = race_dict['quiniela_close_date']
+                if qcd_str.endswith('Z'):
+                    close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                else:
+                    close_date_obj = datetime.fromisoformat(qcd_str)
+
+                if close_date_obj.tzinfo is None:
+                    if close_date_obj > datetime.utcnow():
+                        is_quiniela_actionable = False
+                else:
+                    # This part might need `from datetime import timezone`
+                    # For now, assuming quiniela_close_date is stored as naive UTC based on existing patterns
+                    # If it's truly offset-aware, then `datetime.now(timezone.utc)` would be needed.
+                    # Sticking to `datetime.utcnow()` for naive comparison as per existing code.
+                    if close_date_obj.replace(tzinfo=None) > datetime.utcnow(): # Convert to naive for comparison
+                        is_quiniela_actionable = False
+            except ValueError as ve:
+                app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race.id} on /races: {ve}")
+                is_quiniela_actionable = True
+        race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+        processed_races.append(race_dict)
+
+    current_year = datetime.utcnow().year
+
+    return render_template('races_list.html',
+                           races=processed_races,
+                           all_race_formats=all_race_formats,
+                           filter_date_from_str=filter_date_from_str,
+                           filter_date_to_str=filter_date_to_str,
+                           filter_race_format_id_str=filter_race_format_id_str,
+                           current_year=current_year)
+
 @app.route('/create-race')
 @login_required
 def serve_create_race_page():
