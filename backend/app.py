@@ -576,6 +576,8 @@ def get_race_participants(race_id):
     if not race:
         return jsonify(message="Race not found"), 404
 
+    total_questions_in_race = Question.query.filter_by(race_id=race_id).count()
+
     registrations = UserRaceRegistration.query.filter_by(race_id=race_id).all()
 
     participants_list = []
@@ -586,16 +588,17 @@ def get_race_participants(race_id):
             app.logger.warning(f"UserRaceRegistration {reg.id} refers to a non-existent user {reg.user_id}.")
             continue
 
-        # Check if the user has answered any question for this race
-        has_answered = UserAnswer.query.filter_by(user_id=user.id, race_id=race_id).first() is not None
+        answered_questions_count = UserAnswer.query.filter_by(user_id=user.id, race_id=race_id).count()
+        has_answered = answered_questions_count > 0
 
         participants_list.append({
             "user_id": user.id,
             "username": user.username,
-            "has_answered": has_answered
+            "has_answered": has_answered,
+            "answered_questions_count": answered_questions_count
         })
 
-    return jsonify(participants_list), 200
+    return jsonify(total_questions_in_race=total_questions_in_race, participants=participants_list), 200
 
 
 # Helper function to calculate score for a single answer

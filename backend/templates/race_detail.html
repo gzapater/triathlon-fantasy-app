@@ -1979,11 +1979,13 @@
                                 }
                                 return response.json();
                             })
-                            .then(participants => {
+                            .then(data => { // Changed 'participants' to 'data' to reflect the new structure
                                 participantsContainer.innerHTML = ''; // Clear previous content or loading message
 
-                                if (participants && participants.length > 0) {
-                                    participants.forEach(participant => {
+                                const totalQuestionsInRace = data.total_questions_in_race;
+
+                                if (data.participants && data.participants.length > 0) {
+                                    data.participants.forEach(participant => {
                                         const participantItem = document.createElement('div');
                                         participantItem.className = 'participant-item flex justify-between items-center py-2 border-b border-gray-200';
 
@@ -1994,23 +1996,26 @@
                                         userLink.dataset.userId = participant.user_id;
                                         userLink.addEventListener('click', function(event) {
                                             event.preventDefault();
-                                            // Placeholder for opening a modal or navigating to user-specific answers
-                                            // For now, it will use the existing reviewUserAnswersModal logic
-                                            // but ideally, this would be adapted to show a specific user's answers for admin
                                             console.log(`Clicked participant: ${participant.username}, ID: ${participant.user_id}`);
-                                            // alert(`Mostrar detalles/respuestas para ${participant.username} (ID: ${participant.user_id})`);
-                                            // TODO: Implement modal or view for specific user's answers for admin.
-                                            // As a temporary measure, if reviewUserAnswersModal exists and can be adapted:
-                                            // openReviewModalForUser(participant.user_id, raceId);
+                                            // Placeholder for future functionality to show specific user answers
                                         });
 
-
                                         const answeredIcon = document.createElement('i');
-                                        answeredIcon.className = participant.has_answered
-                                            ? 'fas fa-check-circle text-green-500'
-                                            : 'fas fa-times-circle text-red-500';
-                                        answeredIcon.title = participant.has_answered ? 'Ha respondido' : 'No ha respondido';
+                                        const answeredCount = participant.answered_questions_count;
 
+                                        if (answeredCount === 0) {
+                                            answeredIcon.className = 'fas fa-minus-circle text-red-500';
+                                            answeredIcon.title = 'No ha respondido nada';
+                                        } else if (answeredCount > 0 && answeredCount < totalQuestionsInRace) {
+                                            answeredIcon.className = 'fas fa-exclamation-circle text-yellow-500';
+                                            answeredIcon.title = `Respuestas incompletas (${answeredCount}/${totalQuestionsInRace})`;
+                                        } else if (answeredCount === totalQuestionsInRace) {
+                                            answeredIcon.className = 'fas fa-check-circle text-green-500';
+                                            answeredIcon.title = `Todo respondido (${answeredCount}/${totalQuestionsInRace})`;
+                                        } else { // Fallback, though ideally answeredCount should not exceed totalQuestionsInRace
+                                            answeredIcon.className = 'fas fa-question-circle text-gray-500';
+                                            answeredIcon.title = `Datos de respuesta inusuales (${answeredCount}/${totalQuestionsInRace})`;
+                                        }
 
                                         participantItem.appendChild(userLink);
                                         participantItem.appendChild(answeredIcon);
