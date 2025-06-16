@@ -2245,9 +2245,16 @@
         const quinielaLeaderboardListContainer = document.getElementById('quinielaLeaderboardListContainer');
         const loadingLeaderboardMsg = document.getElementById('loadingLeaderboardMsg');
 
-        const participantAnswersModal = document.getElementById('participantAnswersModal');
-        const participantAnswersModalTitle = document.getElementById('participantAnswersModalTitle');
-        const participantAnswersModalBody = document.getElementById('participantAnswersModalBody');
+        // Global declarations - keep them for now, but their values might be stale if DOM changes.
+        // The click handler will re-select them.
+        const _participantAnswersModalGlobal = document.getElementById('participantAnswersModal');
+        const _participantAnswersModalTitleGlobal = document.getElementById('participantAnswersModalTitle');
+        const _participantAnswersModalBodyGlobal = document.getElementById('participantAnswersModalBody');
+        console.log('Initial modal elements selection (GLOBAL - for leaderboard click):', {
+            modal: _participantAnswersModalGlobal,
+            title: _participantAnswersModalTitleGlobal,
+            body: _participantAnswersModalBodyGlobal
+        });
         // Close buttons for this modal are already handled by existing generic modal logic if their IDs match patterns.
 
         function formatAnswerForDisplay(answerData, questionType, isMultipleCorrect) {
@@ -2340,25 +2347,43 @@
 
                 const userId = participantItem.dataset.userId;
                 const username = participantItem.dataset.username;
-                console.log('User ID:', userId, 'Username:', username); // LOG ADDED
+                console.log('User ID:', userId, 'Username:', username);
+
+                // Select modal elements *inside* the handler
+                const participantAnswersModal = document.getElementById('participantAnswersModal');
+                const participantAnswersModalTitle = document.getElementById('participantAnswersModalTitle');
+                const participantAnswersModalBody = document.getElementById('participantAnswersModalBody');
+
+                // Log their state immediately after selection within the handler
+                console.log('Modal elements selected INSIDE click handler:', {
+                    modal: participantAnswersModal,
+                    title: participantAnswersModalTitle,
+                    body: participantAnswersModalBody
+                });
+
+                // LOG ADDED - Check variables right before use in the handler (this refers to the locally scoped ones now)
+                // console.log('Modal elements in click handler (before check):', { // This log becomes redundant due to the one above
+                //     modal: participantAnswersModal,
+                //     title: participantAnswersModalTitle,
+                //     body: participantAnswersModalBody
+                // });
 
                 if (!participantAnswersModal || !participantAnswersModalTitle || !participantAnswersModalBody) {
-                    console.error("Participant answers modal elements not found.");
+                    console.error('Participant answers modal elements not found (selected inside handler). Modal:', participantAnswersModal, 'Title:', participantAnswersModalTitle, 'Body:', participantAnswersModalBody);
                     return;
                 }
-                console.log('Modal elements selected:', participantAnswersModal, participantAnswersModalTitle, participantAnswersModalBody); // LOG ADDED
 
                 participantAnswersModalTitle.textContent = `Respuestas de ${username}`;
                 participantAnswersModalBody.innerHTML = '<p class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando respuestas detalladas...</p>';
 
-                console.log('Attempting to show participantAnswersModal...'); // LOG ADDED
+                console.log('Attempting to show participantAnswersModal (selected inside handler)...');
                 participantAnswersModal.classList.remove('hidden'); // Show modal
                 participantAnswersModal.classList.add('flex');
-                console.log('participantAnswersModal display attempted. Check if visible. Computed display:', window.getComputedStyle(participantAnswersModal).display); // LOG ADDED
+                console.log('participantAnswersModal display attempted. Check if visible. Computed display:', window.getComputedStyle(participantAnswersModal).display);
 
 
                 try {
-                    console.log('Fetching answers for User ID:', userId, 'Race ID:', raceId); // LOG ADDED
+                    console.log('Fetching answers for User ID:', userId, 'Race ID:', raceId);
                     const response = await fetch(`/api/races/${raceId}/participants/${userId}/answers`);
                     if (!response.ok) {
                         const errData = await response.json().catch(() => null);
