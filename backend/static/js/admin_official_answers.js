@@ -18,6 +18,22 @@ function getDragAfterElement(container, y) {
     }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
+// Helper function to update the enabled/disabled state of move buttons in an ordering list
+function updateOrderingButtonStates(ulElement) {
+    const listItems = ulElement.querySelectorAll('li[data-option-id]');
+    listItems.forEach((li, index) => {
+        const upButton = li.querySelector('.move-up-btn');
+        const downButton = li.querySelector('.move-down-btn');
+
+        if (upButton) {
+            upButton.disabled = (index === 0);
+        }
+        if (downButton) {
+            downButton.disabled = (index === listItems.length - 1);
+        }
+    });
+}
+
 function openOfficialAnswersModal(buttonElement) {
     const raceId = buttonElement.getAttribute('data-race-id');
     const raceTitle = buttonElement.getAttribute('data-race-title');
@@ -149,18 +165,57 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
 
                     optionsToRender.forEach(option => {
                         const li = document.createElement('li');
-                        li.textContent = option.option_text;
+                        li.dataset.optionId = option.id; // Keep data attribute on li
                         li.draggable = true;
-                        li.dataset.optionId = option.id;
-                        li.className = 'p-2 border mb-1 bg-gray-100 cursor-grab'; // Styling for draggable item
+                        // Use flex to arrange text and buttons
+                        li.className = 'p-2 border mb-1 bg-gray-100 cursor-grab flex justify-between items-center';
+
+                        const textSpan = document.createElement('span');
+                        textSpan.textContent = option.option_text;
+                        li.appendChild(textSpan);
+
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.className = 'space-x-1'; // Use space-x for horizontal spacing
+
+                        const moveUpBtn = document.createElement('button');
+                        moveUpBtn.innerHTML = '↑'; // Up arrow
+                        moveUpBtn.className = 'move-up-btn px-2 py-1 border rounded text-xs hover:bg-gray-200';
+                        buttonContainer.appendChild(moveUpBtn);
+
+                        const moveDownBtn = document.createElement('button');
+                        moveDownBtn.innerHTML = '↓'; // Down arrow
+                        moveDownBtn.className = 'move-down-btn px-2 py-1 border rounded text-xs hover:bg-gray-200';
+                        buttonContainer.appendChild(moveDownBtn);
+
+                        li.appendChild(buttonContainer);
+
+                        moveUpBtn.addEventListener('click', () => {
+                            const currentLi = moveUpBtn.closest('li');
+                            if (currentLi && currentLi.previousElementSibling) {
+                                currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                                updateOrderingButtonStates(ul);
+                            }
+                        });
+
+                        moveDownBtn.addEventListener('click', () => {
+                            const currentLi = moveDownBtn.closest('li');
+                            if (currentLi && currentLi.nextElementSibling) {
+                                // currentLi.parentNode.insertBefore(currentLi.nextElementSibling, currentLi); // This moves next one before current
+                                currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling); // Correct way to move currentLi down
+                                updateOrderingButtonStates(ul);
+                            }
+                        });
 
                         li.addEventListener('dragstart', (event) => {
-                            draggedItem = event.target; // event.target is the li element
-                            event.dataTransfer.setData('text/plain', event.target.dataset.optionId);
-                            // Timeout to allow browser to capture drag image before styles change
-                            setTimeout(() => {
-                                event.target.classList.add('opacity-50', 'dragging');
-                            }, 0);
+                            if (event.target === li) { // Ensure drag only starts on li itself
+                                draggedItem = event.target;
+                                event.dataTransfer.setData('text/plain', event.target.dataset.optionId);
+                                setTimeout(() => {
+                                    event.target.classList.add('opacity-50', 'dragging');
+                                }, 0);
+                            } else {
+                                event.preventDefault(); // Prevent dragging by buttons
+                            }
                         });
 
                         li.addEventListener('dragend', (event) => {
@@ -188,20 +243,19 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
                         ul.appendChild(li);
                     });
 
+                    updateOrderingButtonStates(ul); // Initial call to set button states
+
                     ul.addEventListener('dragenter', (event) => {
                         event.preventDefault();
-                        // Check if the event target is the UL itself or a child that isn't an LI (e.g. padding space)
                         if (event.target === ul) {
-                             ul.classList.add('bg-yellow-100', 'drag-over-active-ul'); // Highlight UL as active drop zone
+                             ul.classList.add('bg-yellow-100', 'drag-over-active-ul');
                         }
                     });
 
                     ul.addEventListener('dragleave', (event) => {
-                        // Remove UL highlight if cursor leaves UL or enters an LI child
                         if (event.target === ul && !ul.contains(event.relatedTarget) || event.relatedTarget && event.relatedTarget.matches('li[draggable="true"]')) {
                            ul.classList.remove('bg-yellow-100', 'drag-over-active-ul');
                         }
-                         // If leaving to outside the window/modal
                         if (!event.relatedTarget) {
                              ul.classList.remove('bg-yellow-100', 'drag-over-active-ul');
                         }
@@ -231,6 +285,8 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
                         // Clean up target highlighting on LIs and UL
                         ul.querySelectorAll('.drag-over-target-li').forEach(item => item.classList.remove('drag-over-target-li', 'bg-gray-200'));
                         ul.classList.remove('bg-yellow-100', 'drag-over-active-ul');
+
+                        updateOrderingButtonStates(ul); // Update button states after drop
                         // draggedItem is cleared in dragend
                     });
 
