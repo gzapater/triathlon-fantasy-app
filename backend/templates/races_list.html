@@ -386,28 +386,6 @@
             mobileMenu.classList.toggle('hidden');
         });
 
-        // Sidebar toggle
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('open');
-        }
-
-        // Modal functions
-        function showModal() {
-            document.getElementById('example-modal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('example-modal').classList.add('hidden');
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('example-modal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal();
-            }
-        });
-
         // Add some interactive effects on load
         document.addEventListener('DOMContentLoaded', function() {
             // Animate cards on scroll (simple effect)
