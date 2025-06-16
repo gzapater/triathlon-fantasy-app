@@ -327,10 +327,16 @@
                         </div>
                     </div>
                     <div class="bg-white rounded-xl p-6 shadow-lg">
-                        <h3 class="font-bold text-gray-800 mb-4">Enlaces Rápidos (Próx.)</h3>
-                        <div class="space-y-2">
-                            <a href="#" class="flex items-center space-x-2 text-sm text-gray-600 hover:text-orange-500"><i class="fas fa-info-circle w-4"></i><span>Reglamento</span></a>
-                            <a href="#" class="flex items-center space-x-2 text-sm text-gray-600 hover:text-orange-500"><i class="fas fa-map w-4"></i><span>Mapa</span></a>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-gray-800">Enlaces de Interés</h3>
+                            {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                            <button id="openFavoriteLinksModalBtn" class="btn btn-secondary btn-sm py-1 px-3">
+                                <i class="fas fa-edit mr-1"></i>Editar Enlaces
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div id="favoriteLinksListContainer" class="space-y-2">
+                            <!-- Favorite links will be dynamically inserted here -->
                         </div>
                     </div>
                 </div>
@@ -2927,7 +2933,61 @@
                 fetchAndDisplayRaceStats(raceId);
             }
 
+            // Fetch and Display Favorite Links
+            if (raceId) {
+                fetchAndDisplayFavoriteLinks(raceId);
+            }
+
         }); // Main DOMContentLoaded closing bracket
+
+        function fetchAndDisplayFavoriteLinks(raceIdForLinks) {
+            const container = document.getElementById('favoriteLinksListContainer');
+            if (!container) {
+                console.error('Favorite links container not found.');
+                return;
+            }
+            container.innerHTML = '<p class="text-gray-500 text-sm">Cargando enlaces...</p>'; // Loading message
+
+            if (!raceIdForLinks) {
+                container.innerHTML = '<p class="text-red-500 text-sm">Error: ID de carrera no disponible.</p>';
+                return;
+            }
+
+            fetch(`/api/races/${raceIdForLinks}/favorite_links`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(links => {
+                    container.innerHTML = ''; // Clear loading message
+                    if (links && links.length > 0) {
+                        links.forEach(link => {
+                            const linkElement = document.createElement('a');
+                            linkElement.href = link.url;
+                            linkElement.target = '_blank';
+                            linkElement.className = 'flex items-center space-x-2 text-sm text-gray-600 hover:text-orange-500 transition-colors';
+
+                            const iconElement = document.createElement('i');
+                            iconElement.className = 'fas fa-link w-4 text-gray-400'; // Generic link icon
+
+                            const spanElement = document.createElement('span');
+                            spanElement.textContent = link.title;
+
+                            linkElement.appendChild(iconElement);
+                            linkElement.appendChild(spanElement);
+                            container.appendChild(linkElement);
+                        });
+                    } else {
+                        container.innerHTML = '<p class="text-gray-500 text-sm">No hay enlaces de interés para esta carrera.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching favorite links:', error);
+                    container.innerHTML = '<p class="text-red-500 text-sm">No se pudieron cargar los enlaces.</p>';
+                });
+        }
     </script>
 
     {% include '_official_answers_modal.html' %}
@@ -3250,5 +3310,95 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
     </script>
+
+    <!-- Favorite Links Management Modal -->
+    {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+    <div id="favoriteLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 150;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto">
+            <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-200">
+                <h2 class="text-2xl font-bold text-gray-800">Gestionar Enlaces de Interés</h2>
+                <button id="closeFavoriteLinksModalHeaderBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+
+            <!-- Section to list and reorder existing links -->
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Enlaces Existentes</h3>
+                <div id="existingFavoriteLinksList" class="space-y-3 max-h-60 overflow-y-auto border border-gray-200 p-3 rounded-md bg-gray-50">
+                    <!-- JS will populate this list. Example item structure:
+                    <div class="flex items-center justify-between p-2 border rounded bg-white shadow-sm" data-link-id="1">
+                        <span class="link-title">Reglamento</span> - <a href="url" target="_blank" class="link-url text-blue-500 hover:underline text-sm">url</a> (Orden: <span class="link-order">0</span>)
+                        <div>
+                            <button class="edit-link-btn btn btn-xs btn-secondary py-1 px-2"><i class="fas fa-edit"></i></button>
+                            <button class="delete-link-btn btn btn-xs btn-danger py-1 px-2"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                     -->
+                     <p class="text-gray-500">Cargando enlaces existentes...</p>
+                </div>
+                 <p class="text-xs text-gray-500 mt-2">Puedes arrastrar y soltar los enlaces para reordenarlos.</p>
+            </div>
+
+            <!-- Form to add a new link -->
+            <div class="mb-6 pt-4 border-t border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Añadir Nuevo Enlace</h3>
+                <form id="addFavoriteLinkForm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="newLinkTitle" class="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                            <input type="text" id="newLinkTitle" name="title" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Ej: Reglamento Oficial">
+                        </div>
+                        <div>
+                            <label for="newLinkUrl" class="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                            <input type="url" id="newLinkUrl" name="url" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="https://ejemplo.com/documento.pdf">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="newLinkOrder" class="block text-sm font-medium text-gray-700 mb-1">Orden (opcional)</label>
+                        <input type="number" id="newLinkOrder" name="order" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Ej: 0 (menor primero)">
+                         <p class="text-xs text-gray-500 mt-1">Si se deja vacío, se añadirá al final.</p>
+                    </div>
+                    <div class="mt-4 text-right">
+                        <button type="button" id="addNewFavoriteLinkBtn" class="btn btn-primary"><i class="fas fa-plus mr-2"></i>Añadir Enlace</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Form to edit an existing link (hidden by default) -->
+            <div id="editFavoriteLinkFormContainer" class="mb-6 pt-4 border-t border-gray-200" style="display:none;">
+                <h3 class="text-xl font-semibold text-gray-700 mb-3">Editar Enlace</h3>
+                <input type="hidden" id="editingFavoriteLinkId" value="">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="editLinkTitle" class="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                        <input type="text" id="editLinkTitle" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="editLinkUrl" class="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                        <input type="url" id="editLinkUrl" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <label for="editLinkOrder" class="block text-sm font-medium text-gray-700 mb-1">Orden</label>
+                    <input type="number" id="editLinkOrder" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                </div>
+                <div class="mt-4 text-right space-x-2">
+                    <button type="button" id="cancelEditFavoriteLinkBtn" class="btn btn-secondary">Cancelar Edición</button>
+                    <button type="button" id="saveEditedFavoriteLinkBtn" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Guardar Cambios Enlace</button>
+                </div>
+            </div>
+
+
+            <!-- Modal Action Buttons -->
+            <div class="flex justify-end items-center pt-6 border-t border-gray-200 space-x-3">
+                <button id="closeFavoriteLinksModalBtn" class="btn btn-secondary">Cerrar</button>
+                <button id="saveFavoriteLinksOrderBtn" class="btn btn-primary"><i class="fas fa-save mr-2"></i>Guardar Orden</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='js/favorite_links_admin.js') }}"></script>
 </body>
 </html>

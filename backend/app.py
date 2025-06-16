@@ -2,7 +2,7 @@ import os
 import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace # Added Official Models & UserFavoriteRace
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink # Added Official Models & UserFavoriteRace & FavoriteLink
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -746,6 +746,242 @@ def unfavorite_race(race_id):
         app.logger.error(f"Error unfavoriting race {race.id} for user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while unfavoriting the race."), 500
 
+# --- FavoriteLink API Endpoints ---
+
+@app.route('/api/races/<int:race_id>/favorite_links', methods=['POST'])
+@login_required
+def create_favorite_link(race_id):
+    app.logger.info(f"User {current_user.id} attempting to create favorite link for race {race_id}")
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.id} with role {current_user.role.code} forbidden to create favorite link for race {race_id}")
+        return jsonify(message="Forbidden: You do not have permission to create favorite links."), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Race with id {race_id} not found when creating favorite link.")
+        return jsonify(message="Race not found"), 404
+
+    # LEAGUE_ADMIN can only add links to their own races
+    if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
+        app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to create favorite link for race {race_id} they do not own.")
+        return jsonify(message="Forbidden: You can only add links to races you created."), 403
+
+    data = request.get_json()
+    if not data:
+        app.logger.warning(f"No data provided for creating favorite link for race {race_id}")
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    title = data.get('title')
+    url = data.get('url')
+    order = data.get('order', 0)
+
+    if not title or not isinstance(title, str) or not title.strip():
+        return jsonify(message="Title is required and must be a non-empty string."), 400
+    if not url or not isinstance(url, str) or not url.strip():
+        return jsonify(message="URL is required and must be a non-empty string."), 400
+    if not isinstance(order, int):
+        try:
+            order = int(order)
+        except (ValueError, TypeError):
+            return jsonify(message="Order must be an integer."), 400
+
+    # Basic URL validation (can be more sophisticated)
+    if not (url.startswith('http://') or url.startswith('https://')):
+        return jsonify(message="URL must start with http:// or https://"), 400
+
+
+    new_link = FavoriteLink(
+        race_id=race_id,
+        title=title,
+        url=url,
+        order=order
+    )
+
+    try:
+        db.session.add(new_link)
+        db.session.commit()
+        app.logger.info(f"FavoriteLink {new_link.id} created for race {race_id} by user {current_user.id}")
+        return jsonify(new_link.to_dict()), 201
+    except IntegrityError as e:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError creating favorite link for race {race_id}: {e}", exc_info=True)
+        # Check if it's a specific constraint violation if any unique constraints were on FavoriteLink (none specified for now beyond PK)
+        return jsonify(message="Database integrity error while creating favorite link."), 500 # Or 409 if a unique constraint failed
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception creating favorite link for race {race_id}: {e}", exc_info=True)
+        return jsonify(message="Error creating favorite link"), 500
+
+@app.route('/api/races/<int:race_id>/favorite_links', methods=['GET'])
+def get_favorite_links_for_race(race_id):
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.info(f"Attempt to get favorite links for non-existent race {race_id}")
+        return jsonify(message="Race not found"), 404
+
+    links = FavoriteLink.query.filter_by(race_id=race_id).order_by(FavoriteLink.order, FavoriteLink.id).all()
+    return jsonify([link.to_dict() for link in links]), 200
+
+@app.route('/api/favorite_links/<int:link_id>', methods=['PUT'])
+@login_required
+def update_favorite_link(link_id):
+    app.logger.info(f"User {current_user.id} attempting to update favorite link {link_id}")
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.id} with role {current_user.role.code} forbidden to update favorite link {link_id}")
+        return jsonify(message="Forbidden: You do not have permission to update favorite links."), 403
+
+    link = FavoriteLink.query.get(link_id)
+    if not link:
+        app.logger.warning(f"FavoriteLink with id {link_id} not found for update by user {current_user.id}")
+        return jsonify(message="FavoriteLink not found"), 404
+
+    race = Race.query.get(link.race_id)
+    if not race: # Should not happen if DB integrity is maintained
+        app.logger.error(f"Race with id {link.race_id} associated with FavoriteLink {link_id} not found.")
+        return jsonify(message="Associated race not found, cannot update link."), 500
+
+    # LEAGUE_ADMIN can only update links for their own races
+    if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
+        app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to update favorite link {link_id} for race {race.id} they do not own.")
+        return jsonify(message="Forbidden: You can only update links for races you created."), 403
+
+    data = request.get_json()
+    if not data:
+        app.logger.warning(f"No data provided for updating favorite link {link_id}")
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    updated = False
+    if 'title' in data:
+        title = data.get('title')
+        if not title or not isinstance(title, str) or not title.strip():
+            return jsonify(message="Title must be a non-empty string if provided."), 400
+        link.title = title
+        updated = True
+
+    if 'url' in data:
+        url = data.get('url')
+        if not url or not isinstance(url, str) or not url.strip():
+            return jsonify(message="URL must be a non-empty string if provided."), 400
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return jsonify(message="URL must start with http:// or https://"), 400
+        link.url = url
+        updated = True
+
+    if 'order' in data:
+        order = data.get('order')
+        if not isinstance(order, int):
+            try:
+                order = int(order)
+            except (ValueError, TypeError):
+                return jsonify(message="Order must be an integer if provided."), 400
+        link.order = order
+        updated = True
+
+    if not updated:
+        return jsonify(message="No updatable fields provided."), 400
+
+    try:
+        db.session.commit()
+        app.logger.info(f"FavoriteLink {link.id} updated by user {current_user.id}")
+        return jsonify(link.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception updating favorite link {link.id}: {e}", exc_info=True)
+        return jsonify(message="Error updating favorite link"), 500
+
+@app.route('/api/favorite_links/<int:link_id>', methods=['DELETE'])
+@login_required
+def delete_favorite_link(link_id):
+    app.logger.info(f"User {current_user.id} attempting to delete favorite link {link_id}")
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.id} with role {current_user.role.code} forbidden to delete favorite link {link_id}")
+        return jsonify(message="Forbidden: You do not have permission to delete favorite links."), 403
+
+    link = FavoriteLink.query.get(link_id)
+    if not link:
+        app.logger.warning(f"FavoriteLink with id {link_id} not found for deletion by user {current_user.id}")
+        return jsonify(message="FavoriteLink not found"), 404
+
+    race = Race.query.get(link.race_id)
+    if not race: # Should not happen
+        app.logger.error(f"Race with id {link.race_id} associated with FavoriteLink {link_id} not found during delete.")
+        # Link still exists so proceed with deletion of link, but log this anomaly.
+    elif current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
+        app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to delete favorite link {link_id} for race {race.id} they do not own.")
+        return jsonify(message="Forbidden: You can only delete links for races you created."), 403
+
+    try:
+        db.session.delete(link)
+        db.session.commit()
+        app.logger.info(f"FavoriteLink {link.id} deleted by user {current_user.id}")
+        return jsonify(message="FavoriteLink deleted successfully"), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception deleting favorite link {link.id}: {e}", exc_info=True)
+        return jsonify(message="Error deleting favorite link"), 500
+
+@app.route('/api/races/<int:race_id>/favorite_links/reorder', methods=['POST'])
+@login_required
+def reorder_favorite_links(race_id):
+    app.logger.info(f"User {current_user.id} attempting to reorder favorite links for race {race_id}")
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.id} forbidden to reorder links for race {race_id}")
+        return jsonify(message="Forbidden: You do not have permission to reorder links."), 403
+
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Race with id {race_id} not found when reordering links.")
+        return jsonify(message="Race not found"), 404
+
+    if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
+        app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to reorder links for race {race_id} they do not own.")
+        return jsonify(message="Forbidden: You can only reorder links for races you created."), 403
+
+    data = request.get_json()
+    if not data or 'link_ids' not in data or not isinstance(data['link_ids'], list):
+        app.logger.warning(f"Invalid payload for reordering links for race {race_id}: {data}")
+        return jsonify(message="Invalid input: 'link_ids' (list) is required."), 400
+
+    link_ids = data['link_ids']
+
+    try:
+        with db.session.no_autoflush: # Avoid premature flushes that might cause issues with temp states
+            links_to_reorder = FavoriteLink.query.filter(FavoriteLink.id.in_(link_ids), FavoriteLink.race_id == race_id).all()
+
+            if len(links_to_reorder) != len(link_ids):
+                 # This means some link_ids were not found or don't belong to this race
+                app.logger.warning(f"Mismatch in link_ids for reorder. Provided: {link_ids}, Found for race {race_id}: {[l.id for l in links_to_reorder]}")
+                # Find which ones are problematic
+                valid_link_ids_for_race = {link.id for link in FavoriteLink.query.filter_by(race_id=race_id).with_entities(FavoriteLink.id).all()}
+                problematic_ids = [lid for lid in link_ids if lid not in valid_link_ids_for_race]
+                if problematic_ids:
+                    return jsonify(message=f"Error: Some link IDs do not belong to this race or are invalid: {problematic_ids}."), 400
+                # If all provided IDs are valid but some are missing from the database, it's a different issue.
+                # For simplicity, we'll just error out if counts don't match after confirming all provided IDs are for this race.
+                # This check is more complex than it needs to be if we assume client sends correct IDs.
+                # A simpler check:
+                # if any(link.race_id != race_id for link in links_to_reorder_map.values()):
+                #    return jsonify(message="Error: One or more links do not belong to the specified race."), 400
+
+            link_map = {link.id: link for link in links_to_reorder}
+
+            for index, link_id in enumerate(link_ids):
+                if link_id in link_map:
+                    link_map[link_id].order = index
+                else:
+                    # This case should be caught by the length check above if all link_ids are unique
+                    app.logger.error(f"Link ID {link_id} provided in reorder list not found in database for race {race_id}.")
+                    # Not rolling back here, as some orders might be valid. Client should ensure valid list.
+                    # Or, stricter: db.session.rollback(); return jsonify(message=f"Error: Link ID {link_id} not found for this race."), 400
+                    continue
+
+        db.session.commit()
+        app.logger.info(f"FavoriteLinks for race {race_id} reordered successfully by user {current_user.id}")
+        return jsonify(message="Favorite links reordered successfully."), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception reordering favorite links for race {race_id}: {e}", exc_info=True)
+        return jsonify(message="Error reordering favorite links"), 500
 
 # --- Helper function for question serialization ---
 def _serialize_question(question):

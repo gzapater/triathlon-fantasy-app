@@ -87,6 +87,7 @@ class Race(db.Model):
     segment_details = db.relationship('RaceSegmentDetail', backref='race', lazy=True, cascade="all, delete-orphan") # Added cascade
     questions = db.relationship('Question', backref='race', lazy='dynamic', cascade="all, delete-orphan") # Added cascade
     answers = db.relationship('UserAnswer', backref='race', lazy=True, cascade="all, delete-orphan")
+    favorite_links = db.relationship('FavoriteLink', backref='race', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self):
         return {
@@ -296,3 +297,32 @@ class OfficialAnswerMultipleChoiceOption(db.Model):
 
     def __repr__(self):
         return f'<OfficialAnswerMultipleChoiceOption id={self.id} official_answer_id={self.official_answer_id} option_id={self.question_option_id}>'
+
+
+class FavoriteLink(db.Model):
+    __tablename__ = 'favorite_links'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    url = db.Column(db.String(2048), nullable=False)
+    order = db.Column(db.Integer, nullable=False, default=0)
+    race_id = db.Column(db.Integer, db.ForeignKey('races.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # The 'race' attribute is automatically created by the backref in Race.favorite_links
+    # race = db.relationship('Race', backref=db.backref('race_favorite_links', lazy=True)) # Changed backref to avoid conflict
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'url': self.url,
+            'order': self.order,
+            'race_id': self.race_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+    def __repr__(self):
+        return f'<FavoriteLink {self.title}>'
