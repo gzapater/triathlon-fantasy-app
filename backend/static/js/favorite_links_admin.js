@@ -12,14 +12,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const existingLinksListDiv = document.getElementById('existingFavoriteLinksList');
 
     const addLinkForm = document.getElementById('addFavoriteLinkForm');
-    const newLinkTitleInput = document.getElementById('newLinkTitle');
+    // New title select and custom input for Add form
+    const newLinkTitleSelect = document.getElementById('newLinkTitleSelect');
+    const newLinkCustomTitleInput = document.getElementById('newLinkCustomTitle');
     const newLinkUrlInput = document.getElementById('newLinkUrl');
     const newLinkOrderInput = document.getElementById('newLinkOrder');
     const addNewLinkBtn = document.getElementById('addNewFavoriteLinkBtn');
 
     const editLinkFormContainer = document.getElementById('editFavoriteLinkFormContainer');
-    const editingFavoriteLinkIdInput = document.getElementById('editingFavoriteLinkId'); // Hidden input in HTML
-    const editLinkTitleInput = document.getElementById('editLinkTitle');
+    const editingFavoriteLinkIdInput = document.getElementById('editingFavoriteLinkId');
+    // New title select and custom input for Edit form
+    const editLinkTitleSelect = document.getElementById('editLinkTitleSelect');
+    const editLinkCustomTitleInput = document.getElementById('editLinkCustomTitle');
     const editLinkUrlInput = document.getElementById('editLinkUrl');
     const editLinkOrderInput = document.getElementById('editLinkOrder');
     const saveEditedLinkBtn = document.getElementById('saveEditedFavoriteLinkBtn');
@@ -30,9 +34,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Utility for API calls ---
     async function callApi(endpoint, method = 'GET', body = null) {
         const headers = { 'Content-Type': 'application/json' };
-        // Add CSRF token if needed by your Flask setup (e.g., for POST, PUT, DELETE)
-        // headers['X-CSRFToken'] = '{{ csrf_token() }}'; // This Jinja won't work in JS file. Get from HTML if needed.
-
         const config = { method, headers };
         if (body) {
             config.body = JSON.stringify(body);
@@ -44,13 +45,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 const errorData = await response.json().catch(() => ({ message: response.statusText }));
                 throw new Error(errorData.message || `HTTP error ${response.status}`);
             }
-            if (response.status === 204) return null; // No content
+            if (response.status === 204) return null;
             return response.json();
         } catch (error) {
             console.error('API Call Error:', error);
             alert(`Error: ${error.message}`);
-            throw error; // Re-throw to be caught by caller
+            throw error;
         }
+    }
+
+    // --- Custom Title Visibility Logic ---
+    function handleTitleDropdownChange(dropdownElement, customTitleInputElement) {
+        if (dropdownElement.value === "Otros") {
+            customTitleInputElement.style.display = "block";
+        } else {
+            customTitleInputElement.style.display = "none";
+            customTitleInputElement.value = ""; // Clear custom title if not "Otros"
+        }
+    }
+
+    if (newLinkTitleSelect && newLinkCustomTitleInput) {
+        newLinkTitleSelect.addEventListener('change', () => handleTitleDropdownChange(newLinkTitleSelect, newLinkCustomTitleInput));
+    }
+    if (editLinkTitleSelect && editLinkCustomTitleInput) {
+        editLinkTitleSelect.addEventListener('change', () => handleTitleDropdownChange(editLinkTitleSelect, editLinkCustomTitleInput));
     }
 
     // --- Modal Operations ---
@@ -60,11 +78,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof raceId !== 'undefined' && raceId) {
                 fetchAndRenderExistingFavoriteLinks(raceId);
             } else {
-                existingLinksListDiv.innerHTML = '<p class="text-red-500">Error: Race ID no disponible.</p>';
+                if(existingLinksListDiv) existingLinksListDiv.innerHTML = '<p class="text-red-500">Error: Race ID no disponible.</p>';
             }
-            editLinkFormContainer.style.display = 'none';
-            if(addLinkForm) addLinkForm.style.display = 'block';
-            if(addLinkForm) addLinkForm.reset();
+            if(editLinkFormContainer) editLinkFormContainer.style.display = 'none';
+            if(addLinkForm) {
+                addLinkForm.style.display = 'block';
+                addLinkForm.reset(); // Reset add form
+            }
+            if(newLinkTitleSelect) newLinkTitleSelect.value = newLinkTitleSelect.options[0].value; // Reset select
+            if(newLinkCustomTitleInput) { // Reset custom title field
+                newLinkCustomTitleInput.value = '';
+                newLinkCustomTitleInput.style.display = 'none';
+            }
         }
     }
 
@@ -74,7 +99,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if(editLinkFormContainer) editLinkFormContainer.style.display = 'none';
         if(addLinkForm) addLinkForm.style.display = 'block';
-        editingFavoriteLinkIdInput.value = ''; // Clear editing ID
+        if(editingFavoriteLinkIdInput) editingFavoriteLinkIdInput.value = '';
+        // Reset edit form fields as well
+        if(editLinkTitleSelect) editLinkTitleSelect.value = editLinkTitleSelect.options[0].value;
+        if(editLinkCustomTitleInput) {
+            editLinkCustomTitleInput.value = '';
+            editLinkCustomTitleInput.style.display = 'none';
+        }
+        if(editLinkUrlInput) editLinkUrlInput.value = '';
+        if(editLinkOrderInput) editLinkOrderInput.value = '';
     }
 
     if (openModalBtn) openModalBtn.addEventListener('click', openFavoriteLinksModal);
@@ -88,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const links = await callApi(`/api/races/${currentRaceId}/favorite_links`);
-            existingLinksListDiv.innerHTML = ''; // Clear loading
+            existingLinksListDiv.innerHTML = '';
             if (links && links.length > 0) {
                 links.forEach(link => {
                     const itemDiv = document.createElement('div');
@@ -110,7 +143,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     existingLinksListDiv.appendChild(itemDiv);
                 });
 
-                // Add event listeners to new buttons
                 existingLinksListDiv.querySelectorAll('.edit-link-btn').forEach(btn => btn.addEventListener('click', handleEditLinkBtnClick));
                 existingLinksListDiv.querySelectorAll('.delete-link-btn').forEach(btn => btn.addEventListener('click', handleDeleteLinkBtnClick));
             } else {
@@ -123,9 +155,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Add New Link ---
     async function handleAddNewFavoriteLink() {
-        if (!newLinkTitleInput || !newLinkUrlInput || !newLinkOrderInput || !addNewLinkBtn) return;
+        if (!newLinkTitleSelect || !newLinkCustomTitleInput || !newLinkUrlInput || !newLinkOrderInput || !addNewLinkBtn) return;
 
-        const title = newLinkTitleInput.value.trim();
+        let title = newLinkTitleSelect.value;
+        if (title === "Otros") {
+            title = newLinkCustomTitleInput.value.trim();
+            if (!title) {
+                alert("El título personalizado no puede estar vacío si se selecciona 'Otros'.");
+                return;
+            }
+        }
+
         const url = newLinkUrlInput.value.trim();
         const order = newLinkOrderInput.value ? parseInt(newLinkOrderInput.value) : 0;
 
@@ -143,9 +183,13 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             await callApi(`/api/races/${raceId}/favorite_links`, 'POST', { title, url, order });
             if(addLinkForm) addLinkForm.reset();
-            fetchAndRenderExistingFavoriteLinks(raceId); // Refresh list in modal
-            if (typeof fetchAndDisplayFavoriteLinks === "function") { // This function is in race_detail.html
-                fetchAndDisplayFavoriteLinks(raceId); // Refresh public list
+            newLinkTitleSelect.value = newLinkTitleSelect.options[0].value; // Reset select
+            newLinkCustomTitleInput.value = ''; // Reset custom input
+            newLinkCustomTitleInput.style.display = 'none'; // Hide custom input
+
+            fetchAndRenderExistingFavoriteLinks(raceId);
+            if (typeof fetchAndDisplayFavoriteLinks === "function") {
+                fetchAndDisplayFavoriteLinks(raceId);
             }
         } finally {
             addNewLinkBtn.disabled = false; addNewLinkBtn.innerHTML = '<i class="fas fa-plus mr-2"></i>Añadir Enlace';
@@ -156,10 +200,38 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Edit Link ---
     function handleEditLinkBtnClick(event) {
         const btn = event.currentTarget;
-        editingFavoriteLinkIdInput.value = btn.dataset.linkId;
-        editLinkTitleInput.value = btn.dataset.title;
-        editLinkUrlInput.value = btn.dataset.url;
-        editLinkOrderInput.value = btn.dataset.order;
+        const linkData = {
+            id: btn.dataset.linkId,
+            title: btn.dataset.title,
+            url: btn.dataset.url,
+            order: btn.dataset.order
+        };
+        populateEditLinkForm(linkData);
+    }
+
+    function populateEditLinkForm(linkData) {
+        editingFavoriteLinkIdInput.value = linkData.id;
+        editLinkUrlInput.value = linkData.url;
+        editLinkOrderInput.value = linkData.order;
+
+        const currentTitle = linkData.title;
+        let isPredefined = false;
+        for (let option of editLinkTitleSelect.options) {
+            if (option.value === currentTitle && option.value !== "Otros") {
+                isPredefined = true;
+                break;
+            }
+        }
+
+        if (isPredefined) {
+            editLinkTitleSelect.value = currentTitle;
+            editLinkCustomTitleInput.value = "";
+            editLinkCustomTitleInput.style.display = "none";
+        } else {
+            editLinkTitleSelect.value = "Otros";
+            editLinkCustomTitleInput.value = currentTitle; // Could be "" if title was "Otros" literally
+            editLinkCustomTitleInput.style.display = "block";
+        }
 
         if(addLinkForm) addLinkForm.style.display = 'none';
         if(editLinkFormContainer) editLinkFormContainer.style.display = 'block';
@@ -169,20 +241,34 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditLinkBtn.addEventListener('click', () => {
             if(editLinkFormContainer) editLinkFormContainer.style.display = 'none';
             if(addLinkForm) addLinkForm.style.display = 'block';
-            editingFavoriteLinkIdInput.value = '';
+            if(editingFavoriteLinkIdInput) editingFavoriteLinkIdInput.value = '';
+            // Reset edit form select and custom input too
+            if(editLinkTitleSelect) editLinkTitleSelect.value = editLinkTitleSelect.options[0].value;
+            if(editLinkCustomTitleInput) {
+                editLinkCustomTitleInput.value = '';
+                editLinkCustomTitleInput.style.display = 'none';
+            }
         });
     }
 
     async function handleSaveEditedFavoriteLink() {
-        if (!saveEditedLinkBtn || !editingFavoriteLinkIdInput || !editLinkTitleInput || !editLinkUrlInput || !editLinkOrderInput) return;
+        if (!saveEditedLinkBtn || !editingFavoriteLinkIdInput || !editLinkTitleSelect || !editLinkCustomTitleInput || !editLinkUrlInput || !editLinkOrderInput) return;
 
         const linkId = editingFavoriteLinkIdInput.value;
-        const title = editLinkTitleInput.value.trim();
+        let title = editLinkTitleSelect.value;
+        if (title === "Otros") {
+            title = editLinkCustomTitleInput.value.trim();
+            if (!title) {
+                alert("El título personalizado no puede estar vacío si se selecciona 'Otros'.");
+                return;
+            }
+        }
+
         const url = editLinkUrlInput.value.trim();
         const order = parseInt(editLinkOrderInput.value);
 
         if (!linkId || !title || !url) {
-            alert('Título y URL son obligatorios.');
+            alert('ID, Título y URL son obligatorios.');
             return;
         }
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -200,10 +286,11 @@ document.addEventListener('DOMContentLoaded', function() {
             await callApi(`/api/favorite_links/${linkId}`, 'PUT', { title, url, order });
             if(editLinkFormContainer) editLinkFormContainer.style.display = 'none';
             if(addLinkForm) addLinkForm.style.display = 'block';
-            editingFavoriteLinkIdInput.value = '';
-            fetchAndRenderExistingFavoriteLinks(raceId); // Refresh list in modal
+            if(editingFavoriteLinkIdInput) editingFavoriteLinkIdInput.value = '';
+
+            fetchAndRenderExistingFavoriteLinks(raceId);
             if (typeof fetchAndDisplayFavoriteLinks === "function") {
-                fetchAndDisplayFavoriteLinks(raceId); // Refresh public list
+                fetchAndDisplayFavoriteLinks(raceId);
             }
         } finally {
             saveEditedLinkBtn.disabled = false; saveEditedLinkBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Cambios Enlace';
@@ -215,17 +302,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleDeleteLinkBtnClick(event) {
         const linkId = event.currentTarget.dataset.linkId;
         if (confirm(`¿Estás seguro de que quieres eliminar este enlace?`)) {
-            handleDeleteFavoriteLink(linkId);
+            actualDeleteFavoriteLink(linkId); // Renamed to avoid conflict
         }
     }
 
-    async function handleDeleteFavoriteLink(linkId) {
-        // Consider adding loading state to the specific delete button if possible
+    async function actualDeleteFavoriteLink(linkId) {
         try {
             await callApi(`/api/favorite_links/${linkId}`, 'DELETE');
-            fetchAndRenderExistingFavoriteLinks(raceId); // Refresh list in modal
+            fetchAndRenderExistingFavoriteLinks(raceId);
             if (typeof fetchAndDisplayFavoriteLinks === "function") {
-                fetchAndDisplayFavoriteLinks(raceId); // Refresh public list
+                fetchAndDisplayFavoriteLinks(raceId);
             }
         } catch (error) {
             // Error already alerted by callApi
@@ -241,11 +327,10 @@ document.addEventListener('DOMContentLoaded', function() {
         linkOrderInputs.forEach(input => {
             linksData.push({
                 id: parseInt(input.dataset.linkId),
-                order: parseInt(input.value)
+                order: parseInt(input.value) || 0 // Default to 0 if NaN or empty
             });
         });
 
-        // Sort by the new order values, then by ID for stability if orders are same
         linksData.sort((a, b) => {
             if (a.order === b.order) return a.id - b.id;
             return a.order - b.order;
@@ -253,20 +338,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const orderedLinkIds = linksData.map(link => link.id);
 
-        if (orderedLinkIds.length === 0) {
-            // alert("No hay enlaces para reordenar o no se pudo determinar el orden.");
-            // This is fine, maybe user cleared all links or inputs.
-            // The API should handle empty list if necessary, or we can skip call.
-            // For now, let's proceed, API should handle it.
-        }
-
         saveOrderBtn.disabled = true; saveOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando Orden...';
 
         try {
             await callApi(`/api/races/${raceId}/favorite_links/reorder`, 'POST', { link_ids: orderedLinkIds });
-            fetchAndRenderExistingFavoriteLinks(raceId); // Refresh list in modal
+            fetchAndRenderExistingFavoriteLinks(raceId);
             if (typeof fetchAndDisplayFavoriteLinks === "function") {
-                fetchAndDisplayFavoriteLinks(raceId); // Refresh public list
+                fetchAndDisplayFavoriteLinks(raceId);
             }
             alert('Orden de enlaces guardado.');
         } finally {
