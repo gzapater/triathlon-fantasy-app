@@ -404,6 +404,22 @@
 
             <!-- Sidebar -->
             <aside class="space-y-6 lg:sticky lg:top-24 self-start"> <!-- Added self-start for sticky behavior -->
+                <!-- Clasificacion de la Quiniela Section -->
+                {% if race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
+                <div id="quinielaLeaderboardSection" class="bg-white rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Clasificación de la Quiniela</h2>
+                    <div id="quinielaLeaderboardListContainer">
+                        <p id="loadingLeaderboardMsg" class="text-gray-600">Cargando clasificación...</p>
+                        <!-- Leaderboard items will be populated here by JavaScript -->
+                    </div>
+                </div>
+                {% else %}
+                <div class="bg-white rounded-xl p-6 shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Clasificación de la Quiniela</h2>
+                    <p class="text-gray-600">La clasificación estará disponible cuando se cierre la quiniela.</p>
+                </div>
+                {% endif %}
+
                 <!-- Race Participants Section (Moved Here) -->
                 {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
                 <div id="raceParticipantsSection" class="bg-white rounded-xl p-6 shadow-lg">
@@ -2223,6 +2239,174 @@
         });
 
         // --- End Question Wizard Logic ---
+
+        // --- Quiniela Leaderboard & Participant Answer Details ---
+        const quinielaLeaderboardSection = document.getElementById('quinielaLeaderboardSection');
+        const quinielaLeaderboardListContainer = document.getElementById('quinielaLeaderboardListContainer');
+        const loadingLeaderboardMsg = document.getElementById('loadingLeaderboardMsg');
+
+        const participantAnswersModal = document.getElementById('participantAnswersModal');
+        const participantAnswersModalTitle = document.getElementById('participantAnswersModalTitle');
+        const participantAnswersModalBody = document.getElementById('participantAnswersModalBody');
+        // Close buttons for this modal are already handled by existing generic modal logic if their IDs match patterns.
+
+        function formatAnswerForDisplay(answerData, questionType, isMultipleCorrect) {
+            if (answerData === null || answerData === undefined) {
+                return '<span class="italic text-gray-500">No respondida</span>';
+            }
+            switch (questionType) {
+                case 'FREE_TEXT':
+                case 'ORDERING': // For ordering, the answer_text is a comma-separated string
+                    return `<p class="text-gray-700">${answerData || '<span class="italic text-gray-500">No respondida</span>'}</p>`;
+                case 'MULTIPLE_CHOICE':
+                    if (isMultipleCorrect) { // Array of {id, text} objects
+                        if (Array.isArray(answerData) && answerData.length > 0) {
+                            let html = '<ul class="list-disc list-inside text-gray-700 space-y-1">';
+                            answerData.forEach(opt => { html += `<li>${opt.text} (ID: ${opt.id})</li>`; });
+                            html += '</ul>';
+                            return html;
+                        }
+                        return '<span class="italic text-gray-500">Ninguna opción seleccionada.</span>';
+                    } else { // Single object {id, text}
+                        return answerData.text ? `<p class="text-gray-700">${answerData.text} (ID: ${answerData.id})</p>` : '<span class="italic text-gray-500">Ninguna opción seleccionada.</span>';
+                    }
+                default:
+                    return '<span class="text-red-500">Tipo de respuesta no reconocido.</span>';
+            }
+        }
+
+        async function fetchAndDisplayLeaderboard(currentRaceId) {
+            if (!quinielaLeaderboardListContainer || !loadingLeaderboardMsg) return;
+
+            loadingLeaderboardMsg.style.display = 'block';
+            quinielaLeaderboardListContainer.innerHTML = ''; // Clear previous
+
+            try {
+                const response = await fetch(`/api/races/${currentRaceId}/quiniela_leaderboard`);
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => null);
+                    throw new Error(errData?.message || `Error ${response.status}`);
+                }
+                const leaderboard = await response.json();
+                loadingLeaderboardMsg.style.display = 'none';
+
+                if (!leaderboard || !Array.isArray(leaderboard) || leaderboard.length === 0) {
+                    quinielaLeaderboardListContainer.innerHTML = '<p class="text-gray-600">No hay datos de clasificación disponibles.</p>';
+                    return;
+                }
+
+                const ul = document.createElement('ul');
+                ul.className = 'space-y-2';
+                leaderboard.forEach(participant => {
+                    const li = document.createElement('li');
+                    li.className = 'leaderboard-participant-item flex justify-between items-center py-2 px-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer transition-colors';
+                    li.dataset.userId = participant.user_id;
+                    li.dataset.username = participant.username; // Store username for modal title
+
+                    const usernameSpan = document.createElement('span');
+                    usernameSpan.className = 'font-medium text-gray-700';
+                    usernameSpan.textContent = participant.username;
+
+                    const scoreSpan = document.createElement('span');
+                    scoreSpan.className = 'text-sm font-semibold text-orange-600 px-2 py-1 bg-orange-100 rounded-full';
+                    scoreSpan.textContent = `${participant.score} pts`;
+
+                    li.appendChild(usernameSpan);
+                    li.appendChild(scoreSpan);
+                    ul.appendChild(li);
+                });
+                quinielaLeaderboardListContainer.appendChild(ul);
+
+            } catch (error) {
+                console.error('Error fetching leaderboard:', error);
+                loadingLeaderboardMsg.style.display = 'none';
+                quinielaLeaderboardListContainer.innerHTML = `<p class="text-red-500">Error al cargar la clasificación: ${error.message}</p>`;
+            }
+        }
+
+        if (quinielaLeaderboardSection && loadingLeaderboardMsg) { // Check if the section is rendered (quiniela closed)
+            fetchAndDisplayLeaderboard(raceId); // raceId is globally available from the template
+        }
+
+        if (quinielaLeaderboardListContainer) {
+            quinielaLeaderboardListContainer.addEventListener('click', async function(event) {
+                const participantItem = event.target.closest('.leaderboard-participant-item');
+                if (!participantItem) return;
+
+                const userId = participantItem.dataset.userId;
+                const username = participantItem.dataset.username;
+
+                if (!participantAnswersModal || !participantAnswersModalTitle || !participantAnswersModalBody) {
+                    console.error("Participant answers modal elements not found.");
+                    return;
+                }
+
+                participantAnswersModalTitle.textContent = `Respuestas de ${username}`;
+                participantAnswersModalBody.innerHTML = '<p class="text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando respuestas detalladas...</p>';
+                participantAnswersModal.classList.remove('hidden'); // Show modal
+                participantAnswersModal.classList.add('flex');
+
+
+                try {
+                    const response = await fetch(`/api/races/${raceId}/participants/${userId}/answers`);
+                    if (!response.ok) {
+                        const errData = await response.json().catch(() => null);
+                        throw new Error(errData?.message || `Error ${response.status}`);
+                    }
+                    const answerDetails = await response.json();
+                    participantAnswersModalBody.innerHTML = ''; // Clear loading
+
+                    if (!answerDetails || answerDetails.length === 0) {
+                        participantAnswersModalBody.innerHTML = '<p class="text-gray-600 text-center py-4">No se encontraron respuestas para este participante.</p>';
+                        return;
+                    }
+
+                    answerDetails.forEach(detail => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow mb-3';
+
+                        let correctnessClass = detail.is_correct ? 'text-green-500' : 'text-red-500';
+                        let correctnessIcon = detail.is_correct ? 'fa-check-circle' : 'fa-times-circle';
+                        let correctnessText = detail.is_correct ? 'Correcto' : 'Incorrecto';
+                        if (detail.official_answer === null || detail.official_answer === undefined) { // If no official answer, can't determine correctness
+                             correctnessClass = 'text-gray-500';
+                             correctnessIcon = 'fa-question-circle';
+                             correctnessText = 'No evaluado';
+                        }
+
+
+                        itemDiv.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h4 class="font-semibold text-gray-800 flex-1 pr-2">${detail.question_text}</h4>
+                                <span class="${correctnessClass} text-sm font-medium whitespace-nowrap">
+                                    <i class="fas ${correctnessIcon} mr-1"></i> ${correctnessText}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                <div class="bg-gray-50 p-3 rounded-md border border-gray-100">
+                                    <p class="text-xs text-gray-500 mb-1">Tu Respuesta:</p>
+                                    ${formatAnswerForDisplay(detail.participant_answer, detail.question_type, detail.question_is_mc_multiple_correct)}
+                                </div>
+                                <div class="bg-blue-50 p-3 rounded-md border border-blue-100">
+                                    <p class="text-xs text-blue-500 mb-1">Respuesta Oficial:</p>
+                                    ${formatAnswerForDisplay(detail.official_answer, detail.question_type, detail.question_is_mc_multiple_correct)}
+                                </div>
+                            </div>
+                            <div class="text-right text-sm">
+                                <span class="font-semibold text-gray-700">Puntos: ${detail.points_obtained} / ${detail.max_points_possible}</span>
+                            </div>
+                        `;
+                        participantAnswersModalBody.appendChild(itemDiv);
+                    });
+
+                } catch (error) {
+                    console.error('Error fetching participant answer details:', error);
+                    participantAnswersModalBody.innerHTML = `<p class="text-red-500 text-center py-4">Error al cargar los detalles: ${error.message}</p>`;
+                }
+            });
+        }
+        // End Quiniela Leaderboard & Participant Answer Details ---
+
 
         // --- Official Results Modal & Logic ---
             // const editOfficialResultsBtn = document.getElementById('editOfficialResultsBtn'); // Added in previous step, ensure it's declared if used here

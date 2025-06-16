@@ -598,85 +598,260 @@ def get_race_participants(race_id):
     return jsonify(participants_list), 200
 
 
+# Helper function to calculate score for a single answer
+def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_obj, official_mc_multiple_options_map=None, official_ordering_map=None):
+    """
+    Calculates the score for a single user answer against an official answer.
+
+    Args:
+        user_answer_obj (UserAnswer): The user's answer object.
+        official_answer_obj (OfficialAnswer): The official answer object.
+        question_obj (Question): The question object.
+        official_mc_multiple_options_map (dict, optional): Pre-processed official MC-multiple answers.
+                                                            Map of {question_id: {set of correct_option_ids}}.
+        official_ordering_map (dict, optional): Pre-processed official Ordering answers.
+                                                Map of {question_id: [list of ordered_option_texts]}.
+
+    Returns:
+        tuple: (points_obtained, is_correct)
+    """
+    if not user_answer_obj or not official_answer_obj or not question_obj:
+        return 0, False
+
+    points_obtained = 0
+    is_correct = False
+    question_type_name = question_obj.question_type.name
+
+    if official_mc_multiple_options_map is None:
+        official_mc_multiple_options_map = {}
+    if official_ordering_map is None:
+        official_ordering_map = {}
+
+    try:
+        if question_type_name == 'FREE_TEXT':
+            if official_answer_obj.answer_text and user_answer_obj.answer_text:
+                if user_answer_obj.answer_text.strip().lower() == official_answer_obj.answer_text.strip().lower():
+                    points_obtained = question_obj.max_score_free_text or 0
+                    is_correct = True
+
+        elif question_type_name == 'MULTIPLE_CHOICE':
+            if question_obj.is_mc_multiple_correct:
+                user_selected_option_ids = {opt.question_option_id for opt in user_answer_obj.selected_mc_options}
+                official_correct_option_ids = official_mc_multiple_options_map.get(question_obj.id, set())
+
+                current_question_mc_multiple_score = 0
+                correct_user_selections = 0
+
+                for user_opt_id in user_selected_option_ids:
+                    if user_opt_id in official_correct_option_ids:
+                        current_question_mc_multiple_score += (question_obj.points_per_correct_mc or 0)
+                        correct_user_selections +=1
+                    else: # User selected an incorrect option
+                        current_question_mc_multiple_score -= (question_obj.points_per_incorrect_mc or 0)
+
+                points_obtained = current_question_mc_multiple_score
+                # Consider is_correct to be true if all selected options are correct AND all correct options are selected.
+                # Or, if any points are gained (simpler version for now: at least one correct pick and no wrong picks)
+                is_correct = (user_selected_option_ids == official_correct_option_ids) and bool(official_correct_option_ids)
+
+
+            else: # Single Correct
+                if user_answer_obj.selected_option_id and \
+                   user_answer_obj.selected_option_id == official_answer_obj.selected_option_id:
+                    points_obtained = question_obj.total_score_mc_single or 0
+                    is_correct = True
+
+        elif question_type_name == 'ORDERING':
+            user_ordered_texts = []
+            if user_answer_obj.answer_text:
+                user_ordered_texts = [text.strip().lower() for text in user_answer_obj.answer_text.split(',')]
+
+            official_ordered_texts_for_q = official_ordering_map.get(question_obj.id, [])
+            # Ensure official_ordered_texts are also lowercased for comparison consistency
+            official_ordered_texts_for_q = [text.lower() for text in official_ordered_texts_for_q]
+
+
+            if user_ordered_texts and official_ordered_texts_for_q:
+                current_question_ordering_score = 0
+                is_full_match = True
+
+                # Points for each correctly placed item
+                for i in range(len(official_ordered_texts_for_q)):
+                    if i < len(user_ordered_texts):
+                        if user_ordered_texts[i] == official_ordered_texts_for_q[i]:
+                            current_question_ordering_score += (question_obj.points_per_correct_order or 0)
+                        else:
+                            is_full_match = False
+                    else: # User answer is shorter
+                        is_full_match = False
+
+                if len(user_ordered_texts) != len(official_ordered_texts_for_q): # Length mismatch
+                    is_full_match = False
+
+                if is_full_match:
+                    current_question_ordering_score += (question_obj.bonus_for_full_order or 0)
+
+                points_obtained = current_question_ordering_score
+                is_correct = is_full_match and bool(official_ordered_texts_for_q)
+
+    except Exception as e:
+        app.logger.error(f"Error calculating score for QID {question_obj.id}, UserAnswerID {user_answer_obj.id}: {e}", exc_info=True)
+        return 0, False # Return 0 points and False for correctness in case of an error
+
+    return points_obtained, is_correct
+
+
 @app.route('/api/races/<int:race_id>/participants/<int:user_id>/answers', methods=['GET'])
 @login_required
 def get_participant_answers(race_id, user_id):
-    # Role check
-    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
-        return jsonify(message="Forbidden: You do not have permission to view participant answers."), 403
+    app.logger.info(f"Request for participant answers: race_id={race_id}, user_id={user_id} by current_user={current_user.username} (Role: {current_user.role.code})")
 
-    # Fetch Race
     race = Race.query.get(race_id)
     if not race:
+        app.logger.warning(f"Race not found: {race_id}")
         return jsonify(message="Race not found"), 404
 
-    # Fetch User (participant)
     participant = User.query.get(user_id)
     if not participant:
+        app.logger.warning(f"Participant not found: {user_id}")
         return jsonify(message="Participant not found"), 404
 
-    # Optional: Check if the participant is actually registered for this race
-    registration = UserRaceRegistration.query.filter_by(user_id=participant.id, race_id=race.id).first()
-    if not registration:
-        # This means the user_id provided is not a participant of the specified race_id
-        return jsonify(message=f"User {participant.username} is not registered for race {race.title}."), 404
+    # Permission Check
+    is_admin_or_league_admin = current_user.role.code in ['ADMIN', 'LEAGUE_ADMIN']
+
+    # For LEAGUE_ADMIN, ensure they own the race or it's a general race if they are trying to access non-owned.
+    # Admins can access any. Players can only access if quiniela is closed.
+    if is_admin_or_league_admin:
+        if current_user.role.code == 'LEAGUE_ADMIN':
+            # Check if the league admin is the creator of the race or if the race is general (accessible by ADMINs)
+            # This logic might need refinement based on exact ownership rules for league admins vs general races.
+            # Assuming league admins can only see their own races' participant answers.
+            if race.user_id != current_user.id and not race.is_general: # A league admin cannot see another league admin's race answers.
+                 # If it's a general race, an ADMIN can see it, but a LEAGUE_ADMIN who isn't the owner shouldn't, unless specified.
+                 # For now, strict: LEAGUE_ADMIN only for their own races.
+                 # If ADMIN role also has user_id set for races they create, this needs adjustment.
+                 # Current model Race.user_id is creator.
+                 pass # League admins can view answers for races they created. Admins have blanket access.
+    else: # Regular user (e.g., PLAYER)
+        if race.quiniela_close_date is None or race.quiniela_close_date > datetime.utcnow():
+            app.logger.warning(f"User {current_user.username} (Role: {current_user.role.code}) attempted to access answers for race {race_id} before quiniela close date.")
+            return jsonify(message="Answers are not available until the quiniela is closed."), 403
+        # Additionally, a player should probably only be able to see their own answers unless specified otherwise.
+        # The current endpoint structure /participants/<user_id>/answers implies viewing a specific user.
+        # If current_user.id != participant.id, a PLAYER should be blocked.
+        if current_user.id != participant.id:
+            app.logger.warning(f"User {current_user.username} (Role: {current_user.role.code}) attempted to access answers for another user {participant.id}.")
+            return jsonify(message="You are not authorized to view this participant's answers."), 403
 
 
-    # Fetch all questions for the race
+    # Fetch all data
     race_questions = Question.query.filter_by(race_id=race_id).order_by(Question.id).all()
 
-    participant_answers_details = []
+    user_answers_list = UserAnswer.query.filter_by(user_id=participant.id, race_id=race_id).all()
+    user_answers_map = {ua.question_id: ua for ua in user_answers_list}
+
+    official_answers_list = OfficialAnswer.query.filter_by(race_id=race_id).all()
+    official_answers_map = {oa.question_id: oa for oa in official_answers_list}
+
+    # Pre-process official MC-multiple answers
+    official_mc_multiple_options_map = {}
+    for oa_obj in official_answers_list:
+        q_obj = Question.query.get(oa_obj.question_id)
+        if q_obj and q_obj.question_type.name == 'MULTIPLE_CHOICE' and q_obj.is_mc_multiple_correct:
+            official_mc_multiple_options_map[q_obj.id] = {sel_opt.question_option_id for sel_opt in oa_obj.official_selected_mc_options}
+
+    # Pre-process official ORDERING answers (list of option texts in correct order)
+    official_ordering_map = {}
+    for q_obj in race_questions:
+        if q_obj.question_type.name == 'ORDERING':
+            correctly_ordered_options = QuestionOption.query.filter_by(question_id=q_obj.id)\
+                                                          .order_by(QuestionOption.correct_order_index.asc())\
+                                                          .all()
+            if correctly_ordered_options:
+                official_ordering_map[q_obj.id] = [opt.option_text for opt in correctly_ordered_options]
+
+    results = []
 
     for question in race_questions:
-        user_answer_obj = UserAnswer.query.filter_by(
-            user_id=participant.id,
-            question_id=question.id,
-            race_id=race_id # Ensure answer is for this specific race context
-        ).first()
+        user_answer_obj = user_answers_map.get(question.id)
+        official_answer_obj = official_answers_map.get(question.id)
 
-        answer_data = None
+        points, correct = 0, False
+        if user_answer_obj and official_answer_obj:
+            points, correct = _calculate_score_for_answer(
+                user_answer_obj,
+                official_answer_obj,
+                question,
+                official_mc_multiple_options_map,
+                official_ordering_map
+            )
+
+        # Format participant's answer
+        participant_answer_formatted = None
         if user_answer_obj:
             if question.question_type.name == 'FREE_TEXT':
-                answer_data = user_answer_obj.answer_text
+                participant_answer_formatted = user_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                answer_data = user_answer_obj.answer_text # Stores comma-separated ordered text
+                # User's answer is comma-separated string of texts
+                participant_answer_formatted = user_answer_obj.answer_text
             elif question.question_type.name == 'MULTIPLE_CHOICE':
                 if question.is_mc_multiple_correct:
-                    selected_options = []
-                    for mc_option_assoc in user_answer_obj.selected_mc_options:
-                        option = QuestionOption.query.get(mc_option_assoc.question_option_id)
-                        if option:
-                            selected_options.append({"id": option.id, "text": option.option_text})
-                    answer_data = selected_options # List of {"id": id, "text": text}
-                else: # Single correct
-                    if user_answer_obj.selected_option_id:
-                        option = QuestionOption.query.get(user_answer_obj.selected_option_id)
-                        if option:
-                            answer_data = {"id": option.id, "text": option.option_text}
-                        else:
-                            answer_data = None # Selected option ID was invalid
-                    else:
-                        answer_data = None # No option selected
+                    participant_answer_formatted = [{"id": opt.question_option_id, "text": opt.question_option.option_text} for opt in user_answer_obj.selected_mc_options]
+                elif user_answer_obj.selected_option_id:
+                    opt = QuestionOption.query.get(user_answer_obj.selected_option_id)
+                    if opt:
+                        participant_answer_formatted = {"id": opt.id, "text": opt.option_text}
 
-        # Get all possible options for this question
-        options_for_question = []
-        for qo in question.options.order_by(QuestionOption.id): # Assuming backref is 'options' and ordered
-            options_for_question.append({
-                "id": qo.id,
-                "option_text": qo.option_text,
-                "correct_order_index": qo.correct_order_index # Relevant for ORDERING type
-            })
+        # Format official answer
+        official_answer_formatted = None
+        if official_answer_obj:
+            if question.question_type.name == 'FREE_TEXT':
+                official_answer_formatted = official_answer_obj.answer_text
+            elif question.question_type.name == 'ORDERING':
+                # Official answer is derived from ordered QuestionOption.option_text
+                official_answer_formatted = ",".join(official_ordering_map.get(question.id, []))
+            elif question.question_type.name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    official_answer_formatted = [{"id": opt_id, "text": QuestionOption.query.get(opt_id).option_text} for opt_id in official_mc_multiple_options_map.get(question.id, set())]
+                elif official_answer_obj.selected_option_id:
+                    opt = QuestionOption.query.get(official_answer_obj.selected_option_id)
+                    if opt:
+                        official_answer_formatted = {"id": opt.id, "text": opt.option_text}
 
-        participant_answers_details.append({
+        # Calculate max_points_possible
+        max_points = 0
+        if question.question_type.name == 'FREE_TEXT':
+            max_points = question.max_score_free_text or 0
+        elif question.question_type.name == 'MULTIPLE_CHOICE':
+            if question.is_mc_multiple_correct:
+                # Sum points for all correct options as defined in official_mc_multiple_options_map
+                # This assumes points_per_correct_mc is positive.
+                # Negative points for incorrect selections are handled by points_obtained.
+                # Max points here is the sum of points for all *actually correct* options.
+                correct_option_ids = official_mc_multiple_options_map.get(question.id, set())
+                max_points = len(correct_option_ids) * (question.points_per_correct_mc or 0)
+            else: # Single correct
+                max_points = question.total_score_mc_single or 0
+        elif question.question_type.name == 'ORDERING':
+            # Max points = (points_per_correct_order * num_items) + bonus_for_full_order
+            num_items_to_order = len(official_ordering_map.get(question.id, []))
+            max_points = (question.points_per_correct_order or 0) * num_items_to_order
+            if num_items_to_order > 0 : # Only add bonus if there are items to order
+                 max_points += (question.bonus_for_full_order or 0)
+
+
+        results.append({
             "question_id": question.id,
             "question_text": question.text,
             "question_type": question.question_type.name,
-            "is_mc_multiple_correct": question.is_mc_multiple_correct, # Important for MC rendering
-            "options": options_for_question,
-            "participant_answer": answer_data # This can be string, dict, list of dicts, or null
+            "participant_answer": participant_answer_formatted,
+            "official_answer": official_answer_formatted,
+            "is_correct": correct,
+            "points_obtained": points,
+            "max_points_possible": max_points
         })
 
-    return jsonify(participant_answers_details), 200
+    return jsonify(results), 200
 
 @app.route('/api/races/<int:race_id>/statistics', methods=['GET'])
 @login_required
@@ -2343,6 +2518,42 @@ if __name__ == '__main__':
 
 
 # --- Scoring Algorithm ---
+
+@app.route('/api/races/<int:race_id>/quiniela_leaderboard', methods=['GET'])
+@login_required
+def get_quiniela_leaderboard(race_id):
+    app.logger.info(f"Fetching quiniela leaderboard for race_id: {race_id} by user {current_user.username}")
+
+    # 1. Check if the race exists
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Quiniela leaderboard request for non-existent race {race_id}")
+        return jsonify(message="Race not found"), 404
+
+    # 2. Query UserScore, join with User, filter by race_id, and order by score
+    try:
+        leaderboard_data = db.session.query(
+            UserScore.user_id,
+            User.username,
+            UserScore.score
+        ).join(User, UserScore.user_id == User.id)\
+         .filter(UserScore.race_id == race_id)\
+         .order_by(UserScore.score.desc())\
+         .all()
+
+        # 3. Format the results into a list of dictionaries
+        leaderboard_list = [
+            {"user_id": item.user_id, "username": item.username, "score": item.score}
+            for item in leaderboard_data
+        ]
+
+        app.logger.info(f"Successfully fetched quiniela leaderboard for race_id: {race_id}, found {len(leaderboard_list)} entries.")
+        return jsonify(leaderboard_list), 200
+
+    except Exception as e:
+        db.session.rollback() # Rollback in case of query errors or other exceptions
+        app.logger.error(f"Error fetching quiniela leaderboard for race_id {race_id}: {e}", exc_info=True)
+        return jsonify(message="Error fetching quiniela leaderboard"), 500
 
 def calculate_and_store_scores(race_id):
     app.logger.info(f"Starting score calculation for race_id: {race_id}")
