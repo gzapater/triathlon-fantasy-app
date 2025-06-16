@@ -2322,7 +2322,7 @@
 
                     const participantItem = document.createElement('li');
                     // Tailwind classes for flex, items-center, justify-between, py-2, border-b
-                    participantItem.className = 'leaderboard-participant-item flex items-center justify-between py-2 px-3 border-b border-gray-100 hover:bg-gray-50 transition-colors'; // Removed cursor-pointer from li
+                    participantItem.className = 'leaderboard-participant-item flex items-center justify-between py-2 px-3 border-b border-gray-100 hover:bg-gray-50 transition-colors';
                     participantItem.dataset.userId = participant.user_id;
                     participantItem.dataset.username = participant.username;
 
@@ -2331,11 +2331,10 @@
                             <span class="w-7 text-sm text-gray-500 text-right">${displayRank}.</span>
                             <span class="text-xl">${medalEmoji}</span>
                         </div>
-                        <span class="flex-grow text-gray-800 truncate mx-2 min-w-0" title="${participant.username}">${participant.username}</span> <!-- Username with min-w-0 -->
-                        <span class="font-semibold text-orange-600 text-sm whitespace-nowrap mr-3 flex-shrink-0">${participant.score} pts</span> <!-- Score -->
-                        <button class="view-answers-button text-blue-600 hover:text-blue-800 text-sm font-medium py-1 px-2 rounded hover:bg-blue-100 transition-colors whitespace-nowrap flex-shrink-0">
-                            Ver Respuestas
-                        </button>
+                        <span class="flex-grow text-gray-800 truncate mx-2 min-w-0" title="${participant.username}"> <!-- Username container -->
+                            <a href="#" class="username-answers-link text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-sm">${participant.username}</a>
+                        </span>
+                        <span class="font-semibold text-orange-600 text-sm whitespace-nowrap ml-3 flex-shrink-0">${participant.score} pts</span> <!-- Score (changed mr-3 to ml-3 for spacing from username) -->
                     `;
 
                     ul.appendChild(participantItem);
@@ -2355,19 +2354,20 @@
 
         if (quinielaLeaderboardListContainer) {
             quinielaLeaderboardListContainer.addEventListener('click', async function(event) {
-                const viewButton = event.target.closest('.view-answers-button');
-                if (!viewButton) {
-                    // console.log('Click was not on a .view-answers-button.'); // Optional: for debugging non-button clicks
+                const usernameLink = event.target.closest('.username-answers-link');
+                if (!usernameLink) {
+                    // console.log('Click was not on a .username-answers-link.'); // Optional
                     return;
                 }
-                console.log('View Answers button clicked.'); // LOG ADDED
+                event.preventDefault(); // Prevent default <a> tag behavior
+                console.log('Username link clicked.');
 
-                const participantItem = viewButton.closest('.leaderboard-participant-item');
+                const participantItem = usernameLink.closest('.leaderboard-participant-item');
                 if (!participantItem) {
-                    console.error('Could not find parent .leaderboard-participant-item for the clicked button.');
+                    console.error('Could not find parent .leaderboard-participant-item for the clicked username link.');
                     return;
                 }
-                console.log('Parent participant item found:', participantItem); // LOG ADDED
+                console.log('Parent participant item found for username link:', participantItem);
 
                 const userId = participantItem.dataset.userId;
                 const username = participantItem.dataset.username;
