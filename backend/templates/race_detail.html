@@ -3006,30 +3006,122 @@
                         if (!wizardAnswerOptions) break;
                         wizardAnswerOptions.innerHTML = ''; // Clear previous content
 
-                        const sliderContainer = document.createElement('div');
-                        sliderContainer.className = 'py-4';
+                        // Ensure essential slider configuration values are numbers
+                        const minValue = parseFloat(question.slider_min_value);
+                        const maxValue = parseFloat(question.slider_max_value);
+                        const stepValue = parseFloat(question.slider_step);
+                        const unit = question.slider_unit || "";
+
+                        // Defensive check for invalid range (max <= min) or non-numeric configuration
+                        if (isNaN(minValue) || isNaN(maxValue) || isNaN(stepValue) || maxValue <= minValue) {
+                            let errorMessage = "Error en la configuración del slider: ";
+                            if (isNaN(minValue) || isNaN(maxValue) || isNaN(stepValue)) {
+                                errorMessage += "valores no numéricos para min, max o step.";
+                            } else {
+                                errorMessage += "el valor máximo debe ser mayor que el mínimo.";
+                            }
+                            wizardAnswerOptions.innerHTML = `<p class="text-center text-red-500 py-4">${errorMessage}</p>`;
+                            // Consider disabling next/finish buttons if this state is reached
+                            if(wizardNextBtn) wizardNextBtn.style.display = 'none';
+                            if(wizardFinishBtn) wizardFinishBtn.style.display = 'none';
+                            break;
+                        }
+
+                        const sliderMainContainer = document.createElement('div');
+                        sliderMainContainer.className = 'slider-component-container relative my-4 py-4';
+
+                        const labelsContainer = document.createElement('div');
+                        labelsContainer.className = 'slider-labels-container flex justify-between text-xs text-gray-500 mb-1';
+                        const minLabel = document.createElement('span');
+                        minLabel.className = 'min-label';
+                        minLabel.textContent = `${minValue} ${unit}`;
+                        const maxLabel = document.createElement('span');
+                        maxLabel.className = 'max-label';
+                        maxLabel.textContent = `${maxValue} ${unit}`;
+                        labelsContainer.appendChild(minLabel);
+                        labelsContainer.appendChild(maxLabel);
+                        sliderMainContainer.appendChild(labelsContainer);
+
+                        const trackOuterContainer = document.createElement('div');
+                        trackOuterContainer.className = 'slider-track-container relative h-6 bg-gray-200 rounded-full flex items-center';
+
+                        const sliderTrack = document.createElement('div');
+                        sliderTrack.className = 'slider-track absolute h-2 bg-gray-300 top-1/2 transform -translate-y-1/2 rounded-full w-full';
+                        trackOuterContainer.appendChild(sliderTrack);
+
+                        const greenRange = document.createElement('div');
+                        greenRange.className = 'green-range absolute h-2 bg-green-500 top-1/2 transform -translate-y-1/2 rounded-full';
+                        trackOuterContainer.appendChild(greenRange);
+
+                        const yellowRangeLower = document.createElement('div');
+                        yellowRangeLower.className = 'yellow-range-lower absolute h-2 bg-yellow-400 top-1/2 transform -translate-y-1/2 rounded-full w-4';
+                        yellowRangeLower.style.left = '0';
+                        trackOuterContainer.appendChild(yellowRangeLower);
+
+                        const yellowRangeUpper = document.createElement('div');
+                        yellowRangeUpper.className = 'yellow-range-upper absolute h-2 bg-yellow-400 top-1/2 transform -translate-y-1/2 rounded-full w-4';
+                        yellowRangeUpper.style.right = '0';
+                        trackOuterContainer.appendChild(yellowRangeUpper);
 
                         const sliderInput = document.createElement('input');
                         sliderInput.type = 'range';
                         sliderInput.id = `wizardSliderAnswer_${question.id}`;
-                        sliderInput.min = question.slider_min_value;
-                        sliderInput.max = question.slider_max_value;
-                        sliderInput.step = question.slider_step;
-                        sliderInput.value = existingAnswer?.slider_answer_value ?? question.slider_min_value; // Default to min if no answer
-                        sliderInput.className = 'w-full h-3 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg dark:bg-gray-700'; // Increased height
+                        sliderInput.min = minValue.toString(); // Set as string, input will coerce
+                        sliderInput.max = maxValue.toString();
+                        sliderInput.step = stepValue.toString();
+                        sliderInput.value = existingAnswer?.slider_answer_value?.toString() ?? minValue.toString();
+                        sliderInput.className = 'slider-input w-full appearance-none bg-transparent cursor-pointer relative z-10 h-6 focus:outline-none';
+                        trackOuterContainer.appendChild(sliderInput);
+
+                        sliderMainContainer.appendChild(trackOuterContainer);
+
+                        const tickContainer = document.createElement('div');
+                        tickContainer.className = 'tick-container relative mt-1 flex justify-between text-xs text-gray-600 px-1';
+                        sliderMainContainer.appendChild(tickContainer);
+
+                        const numTicks = 5;
+                        tickContainer.innerHTML = '';
+                        for (let i = 0; i < numTicks; i++) {
+                            const tickWrapper = document.createElement('div');
+                            tickWrapper.className = 'flex flex-col items-center';
+                            const tickLine = document.createElement('div');
+                            tickLine.className = 'h-2 w-px bg-gray-400';
+                            tickWrapper.appendChild(tickLine);
+
+                            // Calculate tick value based on parsed minValue and maxValue
+                            const tickValueNum = minValue + (i * (maxValue - minValue) / (numTicks - 1));
+                            const tickLabel = document.createElement('span');
+                            tickLabel.className = 'tick-label';
+                            tickLabel.textContent = Number.isInteger(tickValueNum) ? tickValueNum.toString() : tickValueNum.toFixed(1);
+                            tickWrapper.appendChild(tickLabel);
+                            tickContainer.appendChild(tickWrapper);
+                        }
 
                         const valueDisplay = document.createElement('div');
                         valueDisplay.id = `wizardSliderValueDisplay_${question.id}`;
-                        valueDisplay.className = 'text-center text-lg font-semibold text-gray-700 mt-3';
-                        valueDisplay.textContent = `${sliderInput.value} ${question.slider_unit || ''}`;
+                        valueDisplay.className = 'value-display text-center text-lg font-semibold text-gray-700 mt-1';
+                        // Initialize with parsed current value
+                        valueDisplay.textContent = `${parseFloat(sliderInput.value)} ${unit}`;
+                        sliderMainContainer.appendChild(valueDisplay);
 
-                        sliderInput.oninput = function() {
-                            valueDisplay.textContent = `${this.value} ${question.slider_unit || ''}`;
+                        const updateGreenRange = (currentValStr) => {
+                            const currentVal = parseFloat(currentValStr);
+                            // minValue and maxValue are already numbers from the top of the case block
+                            let percent = ((currentVal - minValue) / (maxValue - minValue)) * 100;
+                            percent = Math.max(0, Math.min(percent, 100)); // Clamp
+                            greenRange.style.left = `0%`;
+                            greenRange.style.width = `${percent}%`;
                         };
 
-                        sliderContainer.appendChild(sliderInput);
-                        sliderContainer.appendChild(valueDisplay);
-                        wizardAnswerOptions.appendChild(sliderContainer);
+                        updateGreenRange(sliderInput.value);
+
+                        sliderInput.oninput = function() {
+                            // Update display with current value (parsed for consistency)
+                            valueDisplay.textContent = `${parseFloat(this.value)} ${unit}`;
+                            updateGreenRange(this.value);
+                        };
+
+                        wizardAnswerOptions.appendChild(sliderMainContainer);
                         break;
                     default:
                         if (wizardAnswerOptions) wizardAnswerOptions.innerHTML = `<p class="text-red-500">Tipo de pregunta '${question.question_type}' no soportado en el wizard.</p>`;
