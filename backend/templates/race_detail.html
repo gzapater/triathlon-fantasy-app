@@ -203,6 +203,10 @@
             align-items: center;
             justify-content: center;
         }
+        .slider-value-display {
+            min-height: 2.5em; /* Accommodate unit text wrapping */
+            text-align: center; /* Ensure text is centered if not already by Tailwind */
+        }
     </style>
 </head>
 <body class="text-gray-700">
@@ -3298,6 +3302,24 @@
                                 document.removeEventListener('pointermove', onPointerMove);
                                 document.removeEventListener('pointerup', onPointerUp);
                             }
+
+                            // Scoring Info Display
+                            const scoringInfoContainer = document.createElement('div');
+                            scoringInfoContainer.className = 'slider-scoring-info mt-3 pt-3 border-t border-gray-200 text-sm text-gray-600';
+
+                            const exactPointsP = document.createElement('p');
+                            exactPointsP.className = 'mb-1';
+                            exactPointsP.innerHTML = `Puntos por respuesta exacta (zona verde): <strong class="text-green-600">${question.slider_points_exact !== null ? question.slider_points_exact : 'N/A'}</strong>`;
+                            scoringInfoContainer.appendChild(exactPointsP);
+
+                            if (question.slider_points_partial !== null && question.slider_points_partial > 0 && question.slider_threshold_partial !== null) {
+                                const partialPointsP = document.createElement('p');
+                                // 'unit' is already defined in this requestAnimationFrame scope
+                                partialPointsP.innerHTML = `Puntos por respuesta parcial (zona amarilla, +/- ${question.slider_threshold_partial} ${unit}): <strong class="text-yellow-600">${question.slider_points_partial}</strong>`;
+                                scoringInfoContainer.appendChild(partialPointsP);
+                            }
+                            wizardAnswerOptions.appendChild(scoringInfoContainer); // Append below sliderContainer
+
                         }); // End of requestAnimationFrame
                         break;
                     default:
