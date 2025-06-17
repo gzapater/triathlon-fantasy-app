@@ -3,165 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - TriFantasy</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Iniciar Sesión - TriPredict</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome is kept as it might be used by social icons, though not explicitly in the form provided -->
     <style>
-        :root {
-            --orange-primary: #FF6B35;
-            --orange-light: #FF8F65;
-            --orange-dark: #FF4500;
-            --orange-pale: #FFB380;
-            --gray-dark: #2C3E50;
-            --gray-medium: #34495E;
-            --gray-light: #7F8C8D;
-            --blue-water: #3498DB;
-            --green-run: #27AE60;
-            --red-accent: #E74C3C;
-        }
         body {
-            font-family: 'Roboto', sans-serif;
-            background: linear-gradient(135deg, #F8F9FA 0%, #E8F4FD 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
         }
-        .brand-font {
-            font-family: 'Orbitron', monospace;
-        }
-        .gradient-orange-text {
-            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .login-container {
-            background-color: white;
-            padding: 2.5rem; /* Increased padding */
-            border-radius: 0.75rem; /* More rounded corners */
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            width: 100%;
-            max-width: 420px; /* Slightly wider */
-        }
-        .input-field {
-            width: 100%;
-            padding: 0.875rem 1.25rem; /* Increased padding */
-            margin-bottom: 1.25rem; /* More space */
-            border: 1px solid #D1D5DB; /* Tailwind gray-300 */
-            border-radius: 0.5rem; /* More rounded */
-            box-sizing: border-box;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        .input-field:focus {
-            outline: none;
-            border-color: var(--orange-primary);
-            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.3); /* Orange focus ring */
-        }
-        .btn-primary {
-            width: 100%;
-            padding: 0.875rem 1.5rem;
-            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
-            color: white;
-            border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600; /* Semibold */
-            transition: all 0.3s ease;
-            text-transform: uppercase; /* Uppercase text */
-            letter-spacing: 0.05em; /* Slight letter spacing */
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange-primary) 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(255, 107, 53, 0.4), 0 4px 6px -2px rgba(255, 107, 53, 0.2);
-        }
-        .message-area {
-            margin-top: 1.25rem;
-            padding: 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            text-align: center;
-        }
-        .message-area.error {
-            background-color: #FEE2E2; /* Tailwind red-100 */
-            color: #B91C1C; /* Tailwind red-700 */
-            border: 1px solid #FCA5A5; /* Tailwind red-300 */
-        }
-        .message-area.success {
-            background-color: #D1FAE5; /* Tailwind green-100 */
-            color: #047857; /* Tailwind green-700 */
-            border: 1px solid #6EE7B7; /* Tailwind green-300 */
-        }
-        .logo-container {
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .footer-link {
-            margin-top: 1.5rem;
-            text-align: center;
-            font-size: 0.875rem;
-            color: var(--gray-medium);
-        }
-        .footer-link a {
-            color: var(--orange-primary);
-            font-weight: 500;
-            text-decoration: none;
-        }
-        .footer-link a:hover {
-            text-decoration: underline;
-            color: var(--orange-dark);
+        .bg-triathlon {
+            /* URL de imagen de muestra para demostración */
+            background-image: url('https://images.unsplash.com/photo-1541696432-82c6da8ce733?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
         }
     </style>
 </head>
-<body>
-    <div class="login-container">
-        <div class="logo-container">
-            <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-16 w-auto inline-block'> tag -->
-            <h1 class="brand-font gradient-orange-text text-4xl font-bold">TriFantasy</h1>
+<body class="bg-gray-100">
+
+    <div class="min-h-screen flex items-center justify-center bg-gray-50 lg:bg-transparent">
+        <div class="w-full max-w-6xl lg:grid lg:grid-cols-2 lg:shadow-2xl lg:rounded-xl overflow-hidden">
+
+            <!-- Panel Izquierdo: Formulario de Login -->
+            <div class="bg-white p-8 sm:p-12 flex flex-col justify-center">
+                <div class="w-full max-w-md mx-auto">
+                    <!-- Logo Apilado -->
+                    <div class="flex justify-center mb-6">
+                        <a href="#">
+                           <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <g transform="translate(37, 10)">
+                                  <path d="M1 29L16 14L1 0" stroke="#F97316" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                  <path d="M16 29L31 14L16 0" stroke="#F97316" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                  <path d="M31 29L46 14L31 0" stroke="#F97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </g>
+                                <text x="60" y="80" font-family="Inter, sans-serif" font-size="24" fill="#6B7280" font-weight="300" text-anchor="middle">Tri<tspan font-weight="700" fill="#1F2937">Predict</tspan></text>
+                            </svg>
+                        </a>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-gray-900 text-center">Bienvenido de nuevo</h2>
+                    <p class="text-gray-600 text-center mt-2 mb-8">Inicia sesión para acceder a tus ligas.</p>
+
+                    <!-- Formulario -->
+                    <form id="loginForm" action="#" method="POST" class="space-y-6">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700">Email</label>
+                            <div class="mt-1">
+                                <input id="username" name="username" type="email" autocomplete="username" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                            <div class="mt-1">
+                                <input id="password" name="password" type="password" autocomplete="current-password" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
+                                <label for="remember-me" class="ml-2 block text-sm text-gray-900">Recuérdame</label>
+                            </div>
+
+                            <div class="text-sm">
+                                <a href="#" class="font-medium text-orange-600 hover:text-orange-500">¿Olvidaste tu contraseña?</a>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                                Iniciar Sesión
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="messageArea" class="mt-4 text-center text-sm" style="display: none;"></div>
+                    <!-- login.js will make this visible and add content/classes -->
+
+                    <div class="mt-6">
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-gray-300"></div>
+                            </div>
+                            <div class="relative flex justify-center text-sm">
+                                <span class="px-2 bg-white text-gray-500">O continúa con</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 grid grid-cols-1 gap-3">
+                            <div>
+                                <a href="#" class="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                    <span class="sr-only">Sign in with Google</span>
+                                    <svg class="w-5 h-5" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 0C4.477 0 0 4.477 0 10c0 4.418 2.865 8.166 6.839 9.49.5.092.682-.217.682-.482 0-.237-.009-.868-.014-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.031-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.378.203 2.398.1 2.651.64.7 1.03 1.595 1.03 2.688 0 3.848-2.338 4.695-4.566 4.943.359.308.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.578.688.48A10.001 10.001 0 0020 10c0-5.523-4.477-10-10-10z" clip-rule="evenodd"></path></svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-8 text-center text-sm text-gray-600">
+                    <p>¿No tienes una cuenta? <a href="{{ url_for('register_page') }}" class="font-medium text-orange-600 hover:text-orange-500">Regístrate ahora</a></p>
+                </div>
+            </div>
+
+            <!-- Panel Derecho: Imagen -->
+            <div class="hidden lg:block relative">
+                <div class="absolute inset-0 bg-gray-800 opacity-25"></div> <!-- Overlay sutil -->
+                <div class="bg-triathlon h-full w-full"></div>
+            </div>
+
         </div>
-
-        <form id="loginForm">
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
-                <input type="text" id="username" name="username" class="input-field" placeholder="Tu nombre de usuario" required>
-            </div>
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                <input type="password" id="password" name="password" class="input-field" placeholder="Tu contraseña" required>
-            </div>
-            <button type="submit" class="btn-primary mt-2">Login</button>
-        </form>
-
-        <div id="messageArea" class="message-area" style="display: none;"></div>
-        <!-- Initially hidden, JS will show it if there's a message -->
-
-        <p class="footer-link">
-            ¿No tienes una cuenta? <a href="{{ url_for('register_page') }}">Regístrate aquí</a>
-        </p>
     </div>
-
-    <!-- The existing login.js will be loaded here and should work with the IDs preserved -->
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
-    <script>
-        // Small script to make messageArea visible only when it has content
-        const messageArea = document.getElementById('messageArea');
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                    if (messageArea.textContent.trim() !== '') {
-                        messageArea.style.display = 'block';
-                    } else {
-                        messageArea.style.display = 'none';
-                    }
-                }
-            });
-        });
-        observer.observe(messageArea, { childList: true, characterData: true, subtree: true });
-    </script>
 </body>
 </html>
