@@ -3189,12 +3189,12 @@
                         wizardAnswerOptions.appendChild(sliderContainer);
 
                         // Calculate Dimensions and Apply Initial Styles (after appending to DOM)
-                        const minValue = parseFloat(question.slider_min_value);
-                        const maxValue = parseFloat(question.slider_max_value);
-                        const stepValue = parseFloat(question.slider_step) > 0 ? parseFloat(question.slider_step) : 1;
-                        const unit = question.slider_unit || "";
-                        const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0;
-                        const greenZoneUnitWidth = 1; // Represents the "exact" answer point
+                        // const minValue = parseFloat(question.slider_min_value); // Redundant Declaration
+                        // const maxValue = parseFloat(question.slider_max_value); // Redundant Declaration
+                        // const stepValue = parseFloat(question.slider_step) > 0 ? parseFloat(question.slider_step) : 1; // Redundant Declaration
+                        // const unit = question.slider_unit || ""; // Redundant Declaration
+                        // const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0; // Redundant Declaration
+                        // const greenZoneUnitWidth = 1; // Redundant Declaration
 
                         const trackWidthPx = trackBackground.offsetWidth;
                         const valueRange = maxValue - minValue;
