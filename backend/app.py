@@ -258,18 +258,46 @@ def create_race():
                     slider_unit_raw = question_payload.get('slider_unit')
                     new_question.slider_unit = slider_unit_raw if slider_unit_raw and slider_unit_raw.strip() else None
 
-                    try:
-                        new_question.slider_min_value = float(question_payload.get('slider_min_value'))
-                        new_question.slider_max_value = float(question_payload.get('slider_max_value'))
-                        new_question.slider_step = float(question_payload.get('slider_step'))
-                        new_question.slider_points_exact = int(question_payload.get('slider_points_exact'))
-                    except (ValueError, TypeError) as e:
-                        # Handle error appropriately, perhaps log and skip, or return error response
-                        app.logger.error(f"Error converting slider numeric values for question '{question_payload.get('text')}': {e}")
-                        # Depending on desired behavior, you might want to `continue` or raise an error
-                        # For now, let's assume the values might be missing or wrong, and they'd be null/default in DB
-                        pass # Or set to None explicitly if model allows and that's desired
 
+                    slider_min_val_payload = question_payload.get('slider_min_value')
+                    slider_max_val_payload = question_payload.get('slider_max_value')
+
+                    if slider_min_val_payload is None or slider_max_val_payload is None:
+                        # Consider rolling back if parts of the race are already added to db.session,
+                        # but create_race commits at the end, so returning early is okay.
+                        return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_min_value and slider_max_value are required."), 400
+
+                    try:
+                        slider_min_val = float(slider_min_val_payload)
+                        slider_max_val = float(slider_max_val_payload)
+                    except (ValueError, TypeError):
+                        return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_min_value and slider_max_value must be valid numbers."), 400
+
+                    if slider_min_val >= slider_max_val:
+                        return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_min_value must be less than slider_max_value."), 400
+
+                    new_question.slider_min_value = slider_min_val
+                    new_question.slider_max_value = slider_max_val
+
+                    # Process other slider fields (step, points_exact are also critical)
+                    slider_step_payload = question_payload.get('slider_step')
+                    slider_points_exact_payload = question_payload.get('slider_points_exact')
+
+                    if slider_step_payload is None or slider_points_exact_payload is None:
+                        return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_step and slider_points_exact are required."), 400
+
+                    try:
+                        new_question.slider_step = float(slider_step_payload)
+                        new_question.slider_points_exact = int(slider_points_exact_payload)
+                    except (ValueError, TypeError):
+                         return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_step must be a number and slider_points_exact must be an integer."), 400
+
+                    if new_question.slider_step <= 0:
+                        return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_step must be positive."), 400
+                    if new_question.slider_points_exact < 0:
+                         return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_points_exact must be non-negative."), 400
+
+                    # Optional fields: threshold_partial, points_partial
                     slider_threshold_partial_raw = question_payload.get('slider_threshold_partial')
                     if slider_threshold_partial_raw is not None:
                         try:
@@ -281,13 +309,22 @@ def create_race():
                         new_question.slider_threshold_partial = None
 
                     slider_points_partial_raw = question_payload.get('slider_points_partial')
-                    if slider_points_partial_raw is not None:
+
+                    # Validate partial scoring fields if either is present
+                    if slider_threshold_partial_raw is not None or slider_points_partial_raw is not None:
+                        if slider_threshold_partial_raw is None or slider_points_partial_raw is None:
+                            return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', if providing partial scoring, both slider_threshold_partial and slider_points_partial must be present."), 400
                         try:
+                            new_question.slider_threshold_partial = float(slider_threshold_partial_raw)
                             new_question.slider_points_partial = int(slider_points_partial_raw)
                         except (ValueError, TypeError):
-                            app.logger.error(f"Error converting slider_points_partial for question '{question_payload.get('text')}'")
-                            new_question.slider_points_partial = None # Or handle error
+                            return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_threshold_partial must be a number and slider_points_partial must be an integer."), 400
+                        if new_question.slider_threshold_partial < 0:
+                             return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_threshold_partial must be non-negative."), 400
+                        if new_question.slider_points_partial < 0:
+                             return jsonify(message=f"For slider question '{question_payload.get('text', 'N/A')}', slider_points_partial must be non-negative."), 400
                     else:
+                        new_question.slider_threshold_partial = None
                         new_question.slider_points_partial = None
 
                 db.session.add(new_question)

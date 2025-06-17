@@ -3188,101 +3188,117 @@
 
                         wizardAnswerOptions.appendChild(sliderContainer);
 
-                        // Calculate Dimensions and Apply Initial Styles (after appending to DOM)
-                        // const minValue = parseFloat(question.slider_min_value); // Redundant Declaration
-                        // const maxValue = parseFloat(question.slider_max_value); // Redundant Declaration
-                        // const stepValue = parseFloat(question.slider_step) > 0 ? parseFloat(question.slider_step) : 1; // Redundant Declaration
-                        // const unit = question.slider_unit || ""; // Redundant Declaration
-                        // const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0; // Redundant Declaration
-                        // const greenZoneUnitWidth = 1; // Redundant Declaration
+                        // Defer dimension calculations and initial setup
+                        requestAnimationFrame(() => {
+                            const minValue = parseFloat(question.slider_min_value); // Initial declaration now inside requestAnimationFrame
+                            const maxValue = parseFloat(question.slider_max_value);
+                            const stepValue = parseFloat(question.slider_step) > 0 ? parseFloat(question.slider_step) : 1;
+                            const unit = question.slider_unit || "";
+                            const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0;
+                            const greenZoneUnitWidth = 1;
 
-                        const trackWidthPx = trackBackground.offsetWidth;
-                        const valueRange = maxValue - minValue;
+                            console.log("Slider Init: wizardAnswerOptions offsetWidth", wizardAnswerOptions.offsetWidth);
+                            console.log("Slider Init: sliderContainer offsetWidth", sliderContainer.offsetWidth);
+                            console.log("Slider Init: trackBackground offsetWidth before query", trackBackground.offsetWidth);
+                            console.log("Slider Init: trackBackground display style", window.getComputedStyle(trackBackground).display);
+                            // Also log visibility of the modal itself
+                            const questionWizardModal = document.getElementById('questionWizardModal');
+                            if (questionWizardModal) {
+                                console.log("Slider Init: questionWizardModal display style", window.getComputedStyle(questionWizardModal).display);
+                                console.log("Slider Init: questionWizardModal visibility", window.getComputedStyle(questionWizardModal).visibility);
+                                console.log("Slider Init: questionWizardModal opacity", window.getComputedStyle(questionWizardModal).opacity);
+                            }
 
-                        if (valueRange <= 0 || trackWidthPx === 0) {
-                            wizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center">Error: Configuración de slider inválida o el contenedor no es visible.</p>';
-                            break;
-                        }
-                        const pixelsPerUnit = trackWidthPx / valueRange;
+                            const trackWidthPx = trackBackground.offsetWidth;
+                            const valueRange = maxValue - minValue;
 
-                        const greenZonePxWidth = Math.max(2, greenZoneUnitWidth * pixelsPerUnit);
-                        const yellowZonePxWidth = Math.max(0, thresholdPartial * pixelsPerUnit);
+                            if (valueRange <= 0 || trackWidthPx === 0) {
+                                wizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center">Error: Configuración de slider inválida o el contenedor no es visible (offsetWidth issue).</p>';
+                                if(wizardNextBtn) wizardNextBtn.style.display = 'none';
+                                if(wizardFinishBtn) wizardFinishBtn.style.display = 'none';
+                                return;
+                            }
+                            const pixelsPerUnit = trackWidthPx / valueRange;
 
-                        greenZone.style.width = `${greenZonePxWidth}px`;
-                        yellowZoneLeft.style.width = `${yellowZonePxWidth}px`;
-                        yellowZoneRight.style.width = `${yellowZonePxWidth}px`;
+                            const greenZonePxWidth = Math.max(2, greenZoneUnitWidth * pixelsPerUnit);
+                            const yellowZonePxWidth = Math.max(0, thresholdPartial * pixelsPerUnit);
 
-                        const thumbWidthPx = greenZonePxWidth + (2 * yellowZonePxWidth);
-                        thumb.style.width = `${thumbWidthPx}px`;
+                            greenZone.style.width = `${greenZonePxWidth}px`;
+                            yellowZoneLeft.style.width = `${yellowZonePxWidth}px`;
+                            yellowZoneRight.style.width = `${yellowZonePxWidth}px`;
 
-                        minLabel.textContent = `${minValue} ${unit}`;
-                        maxLabel.textContent = `${maxValue} ${unit}`;
+                            const thumbWidthPx = greenZonePxWidth + (2 * yellowZonePxWidth);
+                            thumb.style.width = `${thumbWidthPx}px`;
 
-                        let initialValue = parseFloat(existingAnswer?.slider_answer_value ?? minValue);
-                        initialValue = Math.max(minValue, Math.min(maxValue, initialValue));
-                        let numDecimalPlaces = stepValue.toString().includes('.') ? (stepValue.toString().split('.')[1].length || 0) : 0;
-                        initialValue = parseFloat((Math.round((initialValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlaces));
+                            minLabel.textContent = `${minValue} ${unit}`;
+                            maxLabel.textContent = `${maxValue} ${unit}`;
 
-                        hiddenInput.value = initialValue;
-                        valueDisplay.textContent = `${initialValue} ${unit}`;
-
-                        const valuePointOffsetWithinThumbPx = yellowZonePxWidth + (greenZonePxWidth / 2);
-                        let initialValuePointOnTrackPx = ((initialValue - minValue) / valueRange) * trackWidthPx;
-                        initialValuePointOnTrackPx = Math.max(0, Math.min(initialValuePointOnTrackPx, trackWidthPx));
-                        thumb.style.left = (initialValuePointOnTrackPx - valuePointOffsetWithinThumbPx) + 'px';
-
-                        // Implement Dragging Logic
-                        let isDragging = false;
-                        let dragStartX;
-                        let thumbInitialLeftPx;
-
-                        thumb.addEventListener('pointerdown', (e) => {
-                            if (e.button !== 0) return;
-                            isDragging = true;
-                            dragStartX = e.clientX;
-                            thumbInitialLeftPx = thumb.offsetLeft;
-
-                            thumb.setPointerCapture(e.pointerId);
-                            thumb.style.cursor = 'grabbing';
-                            document.body.style.userSelect = 'none';
-
-                            document.addEventListener('pointermove', onPointerMove);
-                            document.addEventListener('pointerup', onPointerUp);
-                        });
-
-                        function onPointerMove(e) {
-                            if (!isDragging) return;
-                            let dx = e.clientX - dragStartX;
-                            let desiredThumbLeftPx = thumbInitialLeftPx + dx;
-
-                            const valuePointOffsetWithinThumbPx = parseFloat(yellowZoneLeft.style.width) + (parseFloat(greenZone.style.width) / 2);
-                            let desiredValuePointOnTrackPx = desiredThumbLeftPx + valuePointOffsetWithinThumbPx;
-                            let clampedValuePointOnTrackPx = Math.max(0, Math.min(desiredValuePointOnTrackPx, trackWidthPx));
-
-                            let currentValue = (clampedValuePointOnTrackPx / trackWidthPx) * valueRange + minValue;
-                            currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
-
+                            let initialValue = parseFloat(existingAnswer?.slider_answer_value ?? minValue);
+                            initialValue = Math.max(minValue, Math.min(maxValue, initialValue));
                             let numDecimalPlaces = stepValue.toString().includes('.') ? (stepValue.toString().split('.')[1].length || 0) : 0;
-                            currentValue = parseFloat((Math.round((currentValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlaces));
-                            currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+                            initialValue = parseFloat((Math.round((initialValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlaces));
 
-                            hiddenInput.value = currentValue;
-                            valueDisplay.textContent = `${currentValue} ${unit}`;
+                            hiddenInput.value = initialValue;
+                            valueDisplay.textContent = `${initialValue} ${unit}`;
 
-                            let finalValuePointOnTrackPx = ((currentValue - minValue) / valueRange) * trackWidthPx;
-                            finalValuePointOnTrackPx = Math.max(0, Math.min(finalValuePointOnTrackPx, trackWidthPx));
-                            thumb.style.left = (finalValuePointOnTrackPx - valuePointOffsetWithinThumbPx) + 'px';
-                        }
+                            const valuePointOffsetWithinThumbPx = yellowZonePxWidth + (greenZonePxWidth / 2);
+                            let initialValuePointOnTrackPx = ((initialValue - minValue) / valueRange) * trackWidthPx;
+                            initialValuePointOnTrackPx = Math.max(0, Math.min(initialValuePointOnTrackPx, trackWidthPx));
+                            thumb.style.left = (initialValuePointOnTrackPx - valuePointOffsetWithinThumbPx) + 'px';
 
-                        function onPointerUp(e) {
-                            if (!isDragging) return;
-                            isDragging = false;
-                            thumb.releasePointerCapture(e.pointerId);
-                            thumb.style.cursor = 'grab';
-                            document.body.style.userSelect = '';
-                            document.removeEventListener('pointermove', onPointerMove);
-                            document.removeEventListener('pointerup', onPointerUp);
-                        }
+                            // Dragging logic (moved inside setTimeout to access calculated variables)
+                            let isDragging = false;
+                            let dragStartX;
+                            let thumbInitialLeftPx;
+
+                            thumb.addEventListener('pointerdown', (e) => {
+                                if (e.button !== 0) return;
+                                isDragging = true;
+                                dragStartX = e.clientX;
+                                thumbInitialLeftPx = thumb.offsetLeft;
+
+                                thumb.setPointerCapture(e.pointerId);
+                                thumb.style.cursor = 'grabbing';
+                                document.body.style.userSelect = 'none';
+
+                                document.addEventListener('pointermove', onPointerMove);
+                                document.addEventListener('pointerup', onPointerUp);
+                            });
+
+                            function onPointerMove(e) {
+                                if (!isDragging) return;
+                                let dx = e.clientX - dragStartX;
+                                let desiredThumbLeftPx = thumbInitialLeftPx + dx;
+
+                                const valuePointOffsetWithinThumbPxLocal = parseFloat(yellowZoneLeft.style.width) + (parseFloat(greenZone.style.width) / 2);
+                                let desiredValuePointOnTrackPx = desiredThumbLeftPx + valuePointOffsetWithinThumbPxLocal;
+                                let clampedValuePointOnTrackPx = Math.max(0, Math.min(desiredValuePointOnTrackPx, trackWidthPx));
+
+                                let currentValue = (clampedValuePointOnTrackPx / trackWidthPx) * valueRange + minValue;
+                                currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+
+                                let numDecimalPlacesLocal = stepValue.toString().includes('.') ? (stepValue.toString().split('.')[1].length || 0) : 0;
+                                currentValue = parseFloat((Math.round((currentValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlacesLocal));
+                                currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+
+                                hiddenInput.value = currentValue;
+                                valueDisplay.textContent = `${currentValue} ${unit}`;
+
+                                let finalValuePointOnTrackPx = ((currentValue - minValue) / valueRange) * trackWidthPx;
+                                finalValuePointOnTrackPx = Math.max(0, Math.min(finalValuePointOnTrackPx, trackWidthPx));
+                                thumb.style.left = (finalValuePointOnTrackPx - valuePointOffsetWithinThumbPxLocal) + 'px';
+                            }
+
+                            function onPointerUp(e) {
+                                if (!isDragging) return;
+                                isDragging = false;
+                                thumb.releasePointerCapture(e.pointerId);
+                                thumb.style.cursor = 'grab';
+                                document.body.style.userSelect = '';
+                                document.removeEventListener('pointermove', onPointerMove);
+                                document.removeEventListener('pointerup', onPointerUp);
+                            }
+                        }); // End of requestAnimationFrame
                         break;
                     default:
                         if (wizardAnswerOptions) wizardAnswerOptions.innerHTML = `<p class="text-red-500">Tipo de pregunta '${question.question_type}' no soportado en el wizard.</p>`;
