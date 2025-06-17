@@ -931,12 +931,19 @@
             const mcFieldsContainer = document.getElementById('multipleChoiceFieldsContainer');
             const oFieldsContainer = document.getElementById('orderingFieldsContainer');
             const ftFieldsContainer = document.getElementById('freeTextFieldsContainer');
+            const slFieldsContainer = document.getElementById('sliderFieldsContainer'); // Get slider container
             const qTypeSelect = document.getElementById('questionTypeSelect');
 
-            if (!mcFieldsContainer || !oFieldsContainer || !ftFieldsContainer || !qTypeSelect) return;
+            // Ensure all containers are valid before trying to set display property
+            if (!mcFieldsContainer || !oFieldsContainer || !ftFieldsContainer || !slFieldsContainer || !qTypeSelect) {
+                console.error("One or more question type field containers not found in handleQuestionTypeChange.");
+                return;
+            }
+
             mcFieldsContainer.style.display = 'none';
             oFieldsContainer.style.display = 'none';
             ftFieldsContainer.style.display = 'none';
+            slFieldsContainer.style.display = 'none'; // Hide slider container by default
 
             const selectedType = qTypeSelect.value;
             if (selectedType === 'MULTIPLE_CHOICE') {
@@ -945,6 +952,8 @@
                 oFieldsContainer.style.display = 'block';
             } else if (selectedType === 'FREE_TEXT') {
                 ftFieldsContainer.style.display = 'block';
+            } else if (selectedType === 'SLIDER') { // Show slider container
+                slFieldsContainer.style.display = 'block';
             }
         }
 
@@ -960,10 +969,21 @@
             const ptsPerCorrectOrd = document.getElementById('pointsPerCorrectOrder');
             const bonusFullOrd = document.getElementById('bonusForFullOrder');
             const maxScoreFt = document.getElementById('maxScoreFreeText');
+            // Slider fields for reset
+            const sliderUnitInput = document.getElementById('sliderUnitInput');
+            const sliderMinValueInput = document.getElementById('sliderMinValueInput');
+            const sliderMaxValueInput = document.getElementById('sliderMaxValueInput');
+            const sliderStepInput = document.getElementById('sliderStepInput');
+            const sliderPointsExactInput = document.getElementById('sliderPointsExactInput');
+            const sliderThresholdPartialInput = document.getElementById('sliderThresholdPartialInput');
+            const sliderPointsPartialInput = document.getElementById('sliderPointsPartialInput');
+
 
             if(form) form.reset();
             if(editingIdInput) editingIdInput.value = '';
             if(qTypeSelect) qTypeSelect.disabled = false;
+
+            // Reset common fields
             if(mcOptContainer) mcOptContainer.innerHTML = '';
             if(oOptContainer) oOptContainer.innerHTML = '';
             if(ptsPerCorrectMc) ptsPerCorrectMc.value = '';
@@ -972,7 +992,17 @@
             if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = '';
             if(bonusFullOrd) bonusFullOrd.value = '';
             if(maxScoreFt) maxScoreFt.value = '';
-            if(qTypeSelect) handleQuestionTypeChange();
+
+            // Reset SLIDER specific fields
+            if(sliderUnitInput) sliderUnitInput.value = '';
+            if(sliderMinValueInput) sliderMinValueInput.value = '';
+            if(sliderMaxValueInput) sliderMaxValueInput.value = '';
+            if(sliderStepInput) sliderStepInput.value = '1'; // Default step to 1
+            if(sliderPointsExactInput) sliderPointsExactInput.value = '';
+            if(sliderThresholdPartialInput) sliderThresholdPartialInput.value = '';
+            if(sliderPointsPartialInput) sliderPointsPartialInput.value = '';
+
+            if(qTypeSelect) handleQuestionTypeChange(); // Apply visibility based on current (reset) type
         }
 
         function createOptionInputDiv(optionText = "", optionId = null, isCorrect = false, questionType = "MULTIPLE_CHOICE") {
@@ -1039,6 +1069,15 @@
             const ptsPerCorrectOrd = document.getElementById('pointsPerCorrectOrder');
             const bonusForFullOrd = document.getElementById('bonusForFullOrder');
             const oOptContainer = document.getElementById('orderingOptionsContainer');
+            // Slider specific input elements for editing
+            const sliderUnitInput = document.getElementById('sliderUnitInput');
+            const sliderMinValueInput = document.getElementById('sliderMinValueInput');
+            const sliderMaxValueInput = document.getElementById('sliderMaxValueInput');
+            const sliderStepInput = document.getElementById('sliderStepInput');
+            const sliderPointsExactInput = document.getElementById('sliderPointsExactInput');
+            const sliderThresholdPartialInput = document.getElementById('sliderThresholdPartialInput');
+            const sliderPointsPartialInput = document.getElementById('sliderPointsPartialInput');
+
 
             if (!modal || !allRaceQuestions) return;
             const question = allRaceQuestions.find(q => q.id === questionId);
@@ -1077,6 +1116,14 @@
                         oOptContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
                     });
                 }
+            } else if (question.question_type === 'SLIDER') {
+                if(sliderUnitInput) sliderUnitInput.value = question.slider_unit || '';
+                if(sliderMinValueInput) sliderMinValueInput.value = question.slider_min_value !== null ? question.slider_min_value : '';
+                if(sliderMaxValueInput) sliderMaxValueInput.value = question.slider_max_value !== null ? question.slider_max_value : '';
+                if(sliderStepInput) sliderStepInput.value = question.slider_step !== null ? question.slider_step : '1';
+                if(sliderPointsExactInput) sliderPointsExactInput.value = question.slider_points_exact !== null ? question.slider_points_exact : '';
+                if(sliderThresholdPartialInput) sliderThresholdPartialInput.value = question.slider_threshold_partial !== null ? question.slider_threshold_partial : '';
+                if(sliderPointsPartialInput) sliderPointsPartialInput.value = question.slider_points_partial !== null ? question.slider_points_partial : '';
             }
             modal.style.display = 'flex';
         }
@@ -1770,7 +1817,43 @@
                             saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
                         questionData.max_score_free_text = maxScore;
+                    } else if (type === 'SLIDER') {
+                        // Retrieve values from SLIDER specific fields
+                        questionData.slider_unit = document.getElementById('sliderUnitInput').value.trim();
+                        questionData.slider_min_value = parseFloat(document.getElementById('sliderMinValueInput').value);
+                        questionData.slider_max_value = parseFloat(document.getElementById('sliderMaxValueInput').value);
+                        questionData.slider_step = parseFloat(document.getElementById('sliderStepInput').value);
+                        questionData.slider_points_exact = parseInt(document.getElementById('sliderPointsExactInput').value);
+
+                        const thresholdPartialStr = document.getElementById('sliderThresholdPartialInput').value;
+                        questionData.slider_threshold_partial = thresholdPartialStr.trim() === '' ? null : parseFloat(thresholdPartialStr);
+
+                        const pointsPartialStr = document.getElementById('sliderPointsPartialInput').value;
+                        questionData.slider_points_partial = pointsPartialStr.trim() === '' ? null : parseInt(pointsPartialStr);
+
+                        // Basic validation for slider (can be expanded)
+                        if (isNaN(questionData.slider_min_value) || isNaN(questionData.slider_max_value) || isNaN(questionData.slider_step) || isNaN(questionData.slider_points_exact)) {
+                            alert('Los campos numéricos del slider (Min, Max, Step, Puntos Exactos) son obligatorios y deben ser números.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
+                        if (questionData.slider_max_value <= questionData.slider_min_value) {
+                            alert('El valor máximo del slider debe ser mayor que el valor mínimo.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
+                         if (questionData.slider_step <= 0) {
+                            alert('El paso (step) del slider debe ser un número positivo.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
+                        if ((questionData.slider_threshold_partial !== null && isNaN(questionData.slider_threshold_partial)) || (questionData.slider_points_partial !== null && isNaN(questionData.slider_points_partial))) {
+                            alert('Si se proporcionan, el umbral parcial y los puntos parciales deben ser números.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
+                        if ((questionData.slider_threshold_partial === null && questionData.slider_points_partial !== null) || (questionData.slider_threshold_partial !== null && questionData.slider_points_partial === null)) {
+                            alert('Para la puntuación parcial, se deben proporcionar tanto el umbral como los puntos, o ninguno de los dos.');
+                            saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
+                        }
                     }
+
 
                     let url, method;
                     const currentQuestionType = questionTypeSelect.value;
@@ -3525,6 +3608,48 @@
                             <input type="number" id="maxScoreFreeText" name="max_score_free_text" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 50">
                         </div>
                         <!-- Potentially add fields for keywords, case sensitivity etc. later -->
+                    </div>
+
+                    <!-- Fields for SLIDER -->
+                    <div id="sliderFieldsContainer" style="display:none;" class="p-4 border border-gray-200 rounded-md space-y-3">
+                        <h4 class="font-semibold text-gray-700 mb-2">Configuración de Slider:</h4>
+
+                        <div>
+                            <label for="sliderUnitInput" class="block text-sm font-medium text-gray-700">Unidad del Slider (ej: km, min, pts)</label>
+                            <input type="text" id="sliderUnitInput" name="slider_unit" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: minutos">
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="sliderMinValueInput" class="block text-sm font-medium text-gray-700">Valor Mínimo</label>
+                                <input type="number" id="sliderMinValueInput" name="slider_min_value" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 0">
+                            </div>
+                            <div>
+                                <label for="sliderMaxValueInput" class="block text-sm font-medium text-gray-700">Valor Máximo</label>
+                                <input type="number" id="sliderMaxValueInput" name="slider_max_value" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 100">
+                            </div>
+                            <div>
+                                <label for="sliderStepInput" class="block text-sm font-medium text-gray-700">Paso (Step)</label>
+                                <input type="number" id="sliderStepInput" name="slider_step" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 1">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="sliderPointsExactInput" class="block text-sm font-medium text-gray-700">Puntos por Respuesta Exacta</label>
+                            <input type="number" id="sliderPointsExactInput" name="slider_points_exact" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 50">
+                        </div>
+
+                        <h5 class="font-medium text-gray-700 pt-2 border-t border-gray-200">Puntuación Parcial (Opcional):</h5>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="sliderThresholdPartialInput" class="block text-sm font-medium text-gray-700">Umbral para Puntuación Parcial (+/-)</label>
+                                <input type="number" id="sliderThresholdPartialInput" name="slider_threshold_partial" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 5 (si la respuesta está a +/- 5 de la correcta)">
+                            </div>
+                            <div>
+                                <label for="sliderPointsPartialInput" class="block text-sm font-medium text-gray-700">Puntos Parciales</label>
+                                <input type="number" id="sliderPointsPartialInput" name="slider_points_partial" class="mt-1 block w-full py-2 px-3 border-gray-300 rounded-md shadow-sm sm:text-sm" placeholder="Ej: 20">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
