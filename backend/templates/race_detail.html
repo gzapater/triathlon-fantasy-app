@@ -3009,19 +3009,31 @@
                         // Ensure essential slider configuration values are numbers
                         const minValue = parseFloat(question.slider_min_value);
                         const maxValue = parseFloat(question.slider_max_value);
-                        const stepValue = parseFloat(question.slider_step);
                         const unit = question.slider_unit || "";
 
-                        // Defensive check for invalid range (max <= min) or non-numeric configuration
-                        if (isNaN(minValue) || isNaN(maxValue) || isNaN(stepValue) || maxValue <= minValue) {
-                            let errorMessage = "Error en la configuración del slider: ";
-                            if (isNaN(minValue) || isNaN(maxValue) || isNaN(stepValue)) {
-                                errorMessage += "valores no numéricos para min, max o step.";
-                            } else {
-                                errorMessage += "el valor máximo debe ser mayor que el mínimo.";
-                            }
-                            wizardAnswerOptions.innerHTML = `<p class="text-center text-red-500 py-4">${errorMessage}</p>`;
-                            // Consider disabling next/finish buttons if this state is reached
+                        // Robust stepValue parsing
+                        let parsedStep = parseFloat(question.slider_step);
+                        let stepValue;
+                        if (question.slider_step == null || isNaN(parsedStep) || parsedStep <= 0) { // Also ensure step is positive
+                            stepValue = 1;
+                        } else {
+                            stepValue = parsedStep;
+                        }
+
+                        // Defensive check for invalid range or non-numeric configuration
+                        let errorMessage = "";
+                        if (isNaN(minValue)) {
+                            errorMessage = "Error en la configuración del slider: El valor mínimo (min) no es numérico o no está definido.";
+                        } else if (isNaN(maxValue)) {
+                            errorMessage = "Error en la configuración del slider: El valor máximo (max) no es numérico o no está definido.";
+                        } else if (maxValue <= minValue) {
+                            errorMessage = "Error en la configuración del slider: El valor máximo debe ser mayor que el valor mínimo.";
+                        } else if (isNaN(stepValue)) { // Fallback, stepValue should be 1 if parsing failed
+                            errorMessage = "Error en la configuración del slider: El valor de paso (step) es inválido.";
+                        }
+
+                        if (errorMessage) {
+                            wizardAnswerOptions.innerHTML = `<p class="text-red-500 text-center py-4">${errorMessage}</p>`;
                             if(wizardNextBtn) wizardNextBtn.style.display = 'none';
                             if(wizardFinishBtn) wizardFinishBtn.style.display = 'none';
                             break;
