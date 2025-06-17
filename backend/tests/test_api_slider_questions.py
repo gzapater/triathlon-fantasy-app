@@ -159,3 +159,41 @@ def test_update_slider_question_unauthorized(client, sample_slider_question):
     payload = {"text": "Test"}
     response = client.put(f'/api/questions/slider/{question_id}', json=payload) # No auth header
     assert response.status_code == 401 # Or 302
+
+def test_get_race_questions_includes_slider_attributes(client, authenticated_user_admin, sample_race, sample_slider_question, db_session):
+    """
+    Test that GET /api/races/<race_id>/questions includes all slider-specific attributes
+    for slider questions.
+    """
+    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    race_id = sample_race.id # The race associated with sample_slider_question
+
+    # Ensure sample_slider_question is associated with sample_race
+    # The fixture setup should handle this, but double-check or reassign if necessary for clarity.
+    # sample_slider_question.race_id = race_id
+    # db_session.add(sample_slider_question)
+    # db_session.commit()
+
+    response = client.get(f'/api/races/{race_id}/questions', headers=headers)
+    assert response.status_code == 200
+
+    data = response.get_json()
+    assert isinstance(data, list)
+
+    found_slider_question_in_response = False
+    for question_data in data:
+        if question_data.get("id") == sample_slider_question.id:
+            found_slider_question_in_response = True
+            assert question_data["question_type"] == "SLIDER"
+            assert question_data["text"] == sample_slider_question.text
+            assert question_data["slider_unit"] == sample_slider_question.slider_unit
+            assert question_data["slider_min_value"] == sample_slider_question.slider_min_value
+            assert question_data["slider_max_value"] == sample_slider_question.slider_max_value
+            assert question_data["slider_step"] == sample_slider_question.slider_step
+            assert question_data["slider_points_exact"] == sample_slider_question.slider_points_exact
+            assert question_data["slider_threshold_partial"] == sample_slider_question.slider_threshold_partial
+            assert question_data["slider_points_partial"] == sample_slider_question.slider_points_partial
+            assert question_data["is_active"] == sample_slider_question.is_active
+            break
+
+    assert found_slider_question_in_response, "Sample slider question not found in API response."

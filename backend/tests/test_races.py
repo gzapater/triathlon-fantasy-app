@@ -1330,6 +1330,63 @@ def test_delete_question_success_league_admin(authenticated_client, created_ft_q
     assert Question.query.get(q_id) is None
 
 
+def test_create_race_with_slider_question(authenticated_client, db_session):
+    admin_client, admin_user = authenticated_client("ADMIN")
+    triatlon_format = RaceFormat.query.filter_by(name="Triatlón").first()
+    natacion_segment = Segment.query.filter_by(name="Natación").first()
+
+    assert triatlon_format, "Triatlón format not found for slider test"
+    assert natacion_segment, "Natación segment not found for slider test"
+
+    slider_question_payload = {
+        "text": "Rate your confidence (1-10)",
+        "type": "SLIDER",
+        "slider_unit": "points",
+        "slider_min_value": 1.0,
+        "slider_max_value": 10.0,
+        "slider_step": 0.5,
+        "slider_points_exact": 100,
+        "slider_threshold_partial": 1.0,
+        "slider_points_partial": 50,
+        "is_active": True
+        # No options for slider
+    }
+
+    race_data_with_slider = {
+        "title": "Race with Slider Question",
+        "description": "Testing slider question creation within a race.",
+        "race_format_id": triatlon_format.id,
+        "event_date": "2025-09-10",
+        "location": "Slider Test City",
+        "gender_category": "Ambos",
+        "segments": [
+            {"segment_id": natacion_segment.id, "distance_km": 0.5}
+        ],
+        "questions": [slider_question_payload],
+        "is_general": True
+    }
+
+    response = admin_client.post('/api/races', json=race_data_with_slider)
+    assert response.status_code == 201, f"Failed to create race with slider question: {response.get_data(as_text=True)}"
+
+    data = response.get_json()
+    assert "race_id" in data
+    race_id = data['race_id']
+
+    # Verify the question in the database
+    question_in_db = Question.query.filter_by(race_id=race_id, text=slider_question_payload["text"]).first()
+    assert question_in_db is not None
+    assert question_in_db.question_type.name == "SLIDER"
+    assert question_in_db.slider_unit == slider_question_payload["slider_unit"]
+    assert question_in_db.slider_min_value == slider_question_payload["slider_min_value"]
+    assert question_in_db.slider_max_value == slider_question_payload["slider_max_value"]
+    assert question_in_db.slider_step == slider_question_payload["slider_step"]
+    assert question_in_db.slider_points_exact == slider_question_payload["slider_points_exact"]
+    assert question_in_db.slider_threshold_partial == slider_question_payload["slider_threshold_partial"]
+    assert question_in_db.slider_points_partial == slider_question_payload["slider_points_partial"]
+    assert question_in_db.is_active == slider_question_payload["is_active"]
+
+
 def test_delete_question_unauthenticated(client, created_ft_question):
     q_id = created_ft_question["id"]
     response = client.delete(f'/api/questions/{q_id}')

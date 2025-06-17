@@ -253,6 +253,42 @@ def create_race():
                 elif question_type_name == 'ORDERING':
                     new_question.points_per_correct_order = question_payload.get('points_per_correct_order')
                     new_question.bonus_for_full_order = question_payload.get('bonus_for_full_order', 0)
+                elif question_type_name == 'SLIDER':
+                    # Retrieve and process slider-specific fields
+                    slider_unit_raw = question_payload.get('slider_unit')
+                    new_question.slider_unit = slider_unit_raw if slider_unit_raw and slider_unit_raw.strip() else None
+
+                    try:
+                        new_question.slider_min_value = float(question_payload.get('slider_min_value'))
+                        new_question.slider_max_value = float(question_payload.get('slider_max_value'))
+                        new_question.slider_step = float(question_payload.get('slider_step'))
+                        new_question.slider_points_exact = int(question_payload.get('slider_points_exact'))
+                    except (ValueError, TypeError) as e:
+                        # Handle error appropriately, perhaps log and skip, or return error response
+                        app.logger.error(f"Error converting slider numeric values for question '{question_payload.get('text')}': {e}")
+                        # Depending on desired behavior, you might want to `continue` or raise an error
+                        # For now, let's assume the values might be missing or wrong, and they'd be null/default in DB
+                        pass # Or set to None explicitly if model allows and that's desired
+
+                    slider_threshold_partial_raw = question_payload.get('slider_threshold_partial')
+                    if slider_threshold_partial_raw is not None:
+                        try:
+                            new_question.slider_threshold_partial = float(slider_threshold_partial_raw)
+                        except (ValueError, TypeError):
+                            app.logger.error(f"Error converting slider_threshold_partial for question '{question_payload.get('text')}'")
+                            new_question.slider_threshold_partial = None # Or handle error
+                    else:
+                        new_question.slider_threshold_partial = None
+
+                    slider_points_partial_raw = question_payload.get('slider_points_partial')
+                    if slider_points_partial_raw is not None:
+                        try:
+                            new_question.slider_points_partial = int(slider_points_partial_raw)
+                        except (ValueError, TypeError):
+                            app.logger.error(f"Error converting slider_points_partial for question '{question_payload.get('text')}'")
+                            new_question.slider_points_partial = None # Or handle error
+                    else:
+                        new_question.slider_points_partial = None
 
                 db.session.add(new_question)
                 # Flushing here can be useful if new_question.id is needed immediately by options
@@ -479,6 +515,14 @@ def get_race_questions(race_id):
         elif question.question_type.name == 'ORDERING':
             question_data["points_per_correct_order"] = question.points_per_correct_order
             question_data["bonus_for_full_order"] = question.bonus_for_full_order
+        elif question.question_type.name == 'SLIDER':
+            question_data["slider_unit"] = question.slider_unit
+            question_data["slider_min_value"] = question.slider_min_value
+            question_data["slider_max_value"] = question.slider_max_value
+            question_data["slider_step"] = question.slider_step
+            question_data["slider_points_exact"] = question.slider_points_exact
+            question_data["slider_threshold_partial"] = question.slider_threshold_partial
+            question_data["slider_points_partial"] = question.slider_points_partial
 
         options_output = []
         # Assuming question.options is the backref from QuestionOption model

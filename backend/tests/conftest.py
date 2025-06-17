@@ -189,3 +189,31 @@ def new_race_format(db_session): # Changed from test_client to db_session for di
         db_session.add(race_format)
         db_session.commit()
     return race_format
+
+@pytest.fixture
+def sample_slider_question(db_session, sample_race, admin_user):
+    """A sample slider question created in the DB for tests."""
+    from backend.models import Question, QuestionType # Local import
+
+    slider_type = QuestionType.query.filter_by(name="SLIDER").first()
+    if not slider_type:
+        slider_type = QuestionType(name="SLIDER", description="Slider question type")
+        db_session.add(slider_type)
+        db_session.commit()
+
+    question = Question(
+        race_id=sample_race.id,
+        question_type_id=slider_type.id,
+        text="Rate your experience from 1 to 10.",
+        is_active=True,
+        slider_unit="stars",
+        slider_min_value=1.0,
+        slider_max_value=10.0,
+        slider_step=1.0,
+        slider_points_exact=50,
+        slider_threshold_partial=2.0, # e.g., within 2 units
+        slider_points_partial=20
+    )
+    db_session.add(question)
+    db_session.commit()
+    return question
