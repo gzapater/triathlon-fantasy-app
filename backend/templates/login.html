@@ -16,7 +16,6 @@
         .bg-triathlon {
             /* URL de imagen de muestra para demostración */
             /* TODO: Replace with your desired background image URL */
-            background-image: url('https://d1le4h54pkkjcy.cloudfront.net/Login_Mujer_corriendo_sunset.png');
             background-size: cover;
             background-position: center;
         }
@@ -99,5 +98,20 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const images = [
+                'https://d1le4h54pkkjcy.cloudfront.net/Login_Mujer_corriendo_sunset.png',
+                'https://d1le4h54pkkjcy.cloudfront.net/Login_hombre_bici_montan%CC%83a.png',
+                'https://d1le4h54pkkjcy.cloudfront.net/Login_nadadora_amanecer.png'
+            ];
+            const randomIndex = Math.floor(Math.random() * images.length);
+            const selectedImage = images[randomIndex];
+            const bgElement = document.querySelector('.bg-triathlon');
+            if (bgElement) {
+                bgElement.style.backgroundImage = `url('${selectedImage}')`;
+            }
+        });
+    </script>
 </body>
 </html>
