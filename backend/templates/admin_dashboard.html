@@ -228,17 +228,6 @@
                                 </div>
                                 <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                             </div>
-                            <div class="mt-2 pt-2 border-t border-gray-200"> {# MODIFIED #}
-                                {% if race.is_quiniela_actionable %}
-                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-xs bg-indigo-500 hover:bg-indigo-600 text-white py-1 px-3 rounded-md transition-colors"> {# MODIFIED #}
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
-                                {% else %}
-                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-xs bg-gray-400 text-gray-700 py-1 px-3 rounded-md cursor-not-allowed"> {# MODIFIED #}
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
-                                {% endif %}
-                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -283,17 +272,6 @@
                                 </div>
                                 <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
                             </div>
-                            <div class="mt-2 pt-2 border-t border-gray-200"> {# MODIFIED #}
-                                {% if race.is_quiniela_actionable %}
-                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-xs bg-indigo-500 hover:bg-indigo-600 text-white py-1 px-3 rounded-md transition-colors"> {# MODIFIED #}
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
-                                {% else %}
-                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-xs bg-gray-400 text-gray-700 py-1 px-3 rounded-md cursor-not-allowed"> {# MODIFIED #}
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
-                                {% endif %}
-                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -337,17 +315,6 @@
                                     <span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span>
                                 </div>
                                 <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
-                            </div>
-                            <div class="mt-2 pt-2 border-t border-gray-200"> {# MODIFIED #}
-                                {% if race.is_quiniela_actionable %}
-                                    <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-xs bg-indigo-500 hover:bg-indigo-600 text-white py-1 px-3 rounded-md transition-colors"> {# MODIFIED #}
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
-                                {% else %}
-                                    <button disabled title="Se activará cuando se cierre la quiniela." class="w-full text-xs bg-gray-400 text-gray-700 py-1 px-3 rounded-md cursor-not-allowed"> {# MODIFIED #}
-                                        <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
-                                    </button>
-                                {% endif %}
                             </div>
                         </div>
                     </div>
