@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutButton) {
         logoutButton.addEventListener('click', async () => {
             try {
+                // Clear remembered user credentials on logout
+                localStorage.removeItem('rememberedUser');
+                localStorage.removeItem('rememberedPassword');
+
                 const response = await fetch('/api/logout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }

@@ -1,6 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const messageArea = document.getElementById('messageArea');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const rememberMeCheckbox = document.getElementById('remember-me');
+
+    // Pre-fill form on page load if "Remember me" was checked previously
+    if (localStorage.getItem('rememberedUser') && localStorage.getItem('rememberedPassword')) {
+        usernameInput.value = localStorage.getItem('rememberedUser');
+        passwordInput.value = localStorage.getItem('rememberedPassword');
+        rememberMeCheckbox.checked = true;
+    }
+
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         messageArea.textContent = '';
@@ -31,6 +42,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 messageArea.textContent = result.message || 'Login successful! Redirecting...';
                 messageArea.classList.add('success');
+
+                // Handle "Remember me" functionality
+                if (rememberMeCheckbox.checked) {
+                    localStorage.setItem('rememberedUser', username);
+                    localStorage.setItem('rememberedPassword', password);
+                    console.warn("Storing password in localStorage is not recommended for production environments due to security risks.");
+                } else {
+                    localStorage.removeItem('rememberedUser');
+                    localStorage.removeItem('rememberedPassword');
+                }
                 
                 // Esperar un poco más para asegurar que las cookies se establecen
                 setTimeout(() => {
