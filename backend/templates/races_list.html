@@ -113,93 +113,7 @@
     </style>
 </head>
 <body class="no-scroll">
-    <!-- Header/Navbar -->
-    <header class="gradient-orange shadow-lg relative z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-4">
-                <!-- Logo -->
-                <div class="flex items-center space-x-3">
-                    <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-10 w-auto'> tag, for example -->
-                    <div class="bg-white rounded-full p-2 pulse-orange">
-                        <div class="flex items-center space-x-1">
-                            <i class="fas fa-swimmer icon-swim text-lg"></i>
-                            <i class="fas fa-biking icon-bike text-lg"></i>
-                            <i class="fas fa-running icon-run text-lg"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <h1 class="brand-font text-white text-2xl font-bold">TriFantasy</h1>
-                        <p class="text-orange-100 text-xs">Liga de Triatlón</p>
-                    </div>
-                </div>
-
-                <!-- Desktop Navigation -->
-                <nav class="hidden md:flex items-center space-x-8">
-                    <a href="{{ url_for('serve_hello_world_page') }}" class="text-white hover:text-orange-100 transition-colors flex items-center space-x-1">
-                        <i class="fas fa-tachometer-alt"></i>
-                        <span>Dashboard</span>
-                    </a>
-                    <a href="{{ url_for('serve_races_list_page') }}" class="text-white hover:text-orange-100 transition-colors flex items-center space-x-1">
-                        <i class="fas fa-flag-checkered"></i>
-                        <span>Races</span>
-                    </a>
-                    <a href="#" class="text-white hover:text-orange-100 transition-colors flex items-center space-x-1">
-                        <i class="fas fa-trophy"></i>
-                        <span>Leagues</span>
-                    </a>
-                    <a href="#" class="text-white hover:text-orange-100 transition-colors flex items-center space-x-1">
-                        <i class="fas fa-user"></i>
-                        <span>Profile</span>
-                    </a>
-                </nav>
-
-                <!-- User Info & Actions -->
-                <div class="flex items-center space-x-4">
-                    <div class="hidden md:flex items-center space-x-3">
-                        <div class="text-right">
-                            <p class="text-white font-medium">{{ current_user.username }}</p>
-                            {% set badge_class = 'badge-player' %} {# Default #}
-                            {% if current_user.role.code == 'ADMIN' %}
-                                {% set badge_class = 'badge-admin' %}
-                            {% elif current_user.role.code == 'LEAGUE_ADMIN' %}
-                                {% set badge_class = 'badge-league' %}
-                            {% endif %}
-                            <span class="{{ badge_class }} text-xs px-2 py-1 rounded-full text-white">{{ current_user.role.description }}</span>
-                        </div>
-                        <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white">
-                    </div>
-                    <button id="newLogoutBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                    </button>
-                    <button id="mobile-menu-btn" class="md:hidden text-white p-2">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Mobile Menu -->
-    <div id="mobile-menu" class="hidden md:hidden bg-white shadow-lg">
-        <div class="px-4 py-6 space-y-4">
-            <a href="{{ url_for('serve_hello_world_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-                <i class="fas fa-tachometer-alt w-5"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{{ url_for('serve_races_list_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-                <i class="fas fa-flag-checkered w-5"></i>
-                <span>Races</span>
-            </a>
-            <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-                <i class="fas fa-trophy w-5"></i>
-                <span>Leagues</span>
-            </a>
-            <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-                <i class="fas fa-user w-5"></i>
-                <span>Profile</span>
-            </a>
-        </div>
-    </div>
+    {% include '_header.html' %}
 
     <!-- Main Layout -->
     <div class="flex min-h-screen">
@@ -380,12 +294,6 @@
     </footer>
 
     <script>
-        // Mobile menu toggle
-        document.getElementById('mobile-menu-btn').addEventListener('click', function() {
-            const mobileMenu = document.getElementById('mobile-menu');
-            mobileMenu.classList.toggle('hidden');
-        });
-
         // Add some interactive effects on load
         document.addEventListener('DOMContentLoaded', function() {
             // Animate cards on scroll (simple effect)
@@ -407,29 +315,7 @@
                 observer.observe(card);
             });
 
-            // Logout functionality for the new button
-            const newLogoutBtn = document.getElementById('newLogoutBtn');
-            if (newLogoutBtn) { // Check if button exists on page
-                newLogoutBtn.addEventListener('click', function(event) {
-                    event.preventDefault(); // Prevent default anchor behavior if it were a link
-                    fetch("{{ url_for('logout_api') }}", { method: 'POST' }) // Use url_for for robustness
-                        .then(response => {
-                            if (response.ok) {
-                                window.location.href = "{{ url_for('serve_login_page') }}"; // Redirect to login page
-                            } else {
-                                response.json().then(data => {
-                                    alert('Logout failed: ' + (data.message || 'Unknown error'));
-                                }).catch(() => {
-                                    alert('Logout failed and could not parse error response.');
-                                });
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Logout error:', error);
-                            alert('Error during logout. Please check console.');
-                        });
-                });
-            }
+            // Header-related JavaScript (logout, dropdown, mobile menu) is in _header.html
         });
     </script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>

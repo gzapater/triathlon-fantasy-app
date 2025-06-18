@@ -1,0 +1,138 @@
+<!-- Header/Navbar -->
+<header class="bg-gray-700 shadow-lg relative z-50">
+    <div class="px-6"> <!-- MODIFIED: Removed max-w-7xl, mx-auto and updated padding -->
+        <div class="flex justify-between items-center py-4">
+            <div class="flex items-center space-x-8"> <!-- New Group for Logo and Nav -->
+                <!-- Logo -->
+                <div class="flex-shrink-0">
+                    <svg width="170" height="48" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg"><g><path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text></svg>
+                </div>
+
+                <!-- Desktop Navigation -->
+                <nav class="hidden md:flex items-center space-x-8">
+                    <a href="#" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('serve_races_list_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                        <i class="fas fa-flag-checkered"></i>
+                        <span>Races</span>
+                    </a>
+                    <a href="#" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                        <i class="fas fa-trophy"></i>
+                        <span>Leagues</span>
+                    </a>
+                    <!-- MODIFIED: Removed Profile Link -->
+                </nav>
+            </div>
+
+            <!-- User Info & Actions -->
+            <div class="flex items-center space-x-4">
+                <div class="hidden md:flex items-center space-x-3">
+                    <div class="text-right">
+                        <p class="text-white font-medium">{{ current_user.username }}</p>
+                        {% set badge_class = 'badge-player' %} {# Default #}
+                        {% if current_user.role.code == 'ADMIN' %}
+                            {% set badge_class = 'badge-admin' %}
+                        {% elif current_user.role.code == 'LEAGUE_ADMIN' %}
+                            {% set badge_class = 'badge-league' %}
+                        {% endif %}
+                        <span class="{{ badge_class }} text-xs px-2 py-1 rounded-full text-white">{{ current_user.role.description }}</span>
+                    </div>
+                    <div class="relative">
+                        <button type="button" id="profileDropdownToggle" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-orange-600 focus:ring-white">
+                            <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white">
+                        </button>
+                        <div id="profileDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden">
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                            <a href="#" id="logoutLink" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                        </div>
+                    </div>
+                </div>
+                <!-- The old Logout button is removed -->
+                <button id="mobile-menu-btn" class="md:hidden text-white p-2">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="hidden md:hidden bg-white shadow-lg">
+    <div class="px-4 py-6 space-y-4">
+        <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-tachometer-alt w-5"></i>
+            <span>Dashboard</span>
+        </a>
+        <a href="{{ url_for('serve_races_list_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-flag-checkered w-5"></i>
+            <span>Races</span>
+        </a>
+        <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-trophy w-5"></i>
+            <span>Leagues</span>
+        </a>
+        <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-user w-5"></i>
+            <span>Profile</span>
+        </a>
+    </div>
+</div>
+
+<script>
+    // Mobile menu toggle
+    document.getElementById('mobile-menu-btn').addEventListener('click', function() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        mobileMenu.classList.toggle('hidden');
+    });
+
+    // This script block assumes that it will be included in a page that also
+    // defines `url_for` for Flask and `current_user` context if those are needed
+    // for other parts of the page. The parts specific to header elements are below.
+    // It's generally better to have JS in static files, but for this exercise,
+    // it's included as requested.
+
+    // Logout functionality for the header
+    const logoutLink = document.getElementById('logoutLink');
+    if (logoutLink) {
+        logoutLink.addEventListener('click', function(event) {
+            event.preventDefault();
+            // Ensure url_for('logout_api') is available in the including template's context
+            fetch("{{ url_for('logout_api') }}", { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        // Ensure url_for('serve_login_page') is available
+                        window.location.href = "{{ url_for('serve_login_page') }}";
+                    } else {
+                        response.json().then(data => {
+                            alert('Logout failed: ' + (data.message || 'Unknown error'));
+                        }).catch(() => {
+                            alert('Logout failed and could not parse error response.');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Logout error:', error);
+                    alert('Error during logout. Please check console.');
+                });
+        });
+    }
+
+    // Profile Dropdown Toggle for the header
+    const profileDropdownToggle = document.getElementById('profileDropdownToggle');
+    const profileDropdown = document.getElementById('profileDropdown');
+
+    if (profileDropdownToggle && profileDropdown) {
+        profileDropdownToggle.addEventListener('click', function() {
+            profileDropdown.classList.toggle('hidden');
+        });
+
+        // Optional: Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!profileDropdownToggle.contains(event.target) && !profileDropdown.contains(event.target)) {
+                profileDropdown.classList.add('hidden');
+            }
+        });
+    }
+</script>

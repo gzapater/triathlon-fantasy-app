@@ -210,45 +210,7 @@
     </style>
 </head>
 <body class="text-gray-700">
-    <!-- Navigation -->
-    <nav class="bg-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center space-x-4">
-                    <a href="{{ url_for('serve_hello_world_page') }}" class="flex items-center space-x-2">
-                        <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-8 w-auto'> tag -->
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-center">
-                            <i class="fas fa-trophy text-white text-lg"></i> <!-- Changed icon to trophy -->
-                        </div>
-                        <span class="text-xl font-bold text-gray-800">Fantasy Tri</span>
-                    </a>
-                </div>
-                <div class="hidden md:flex items-center space-x-6">
-                    <a href="{{ url_for('serve_hello_world_page') }}" class="text-gray-600 hover:text-orange-500 transition-colors">Dashboard</a>
-                    <a href="{{ url_for('serve_hello_world_page') }}" class="text-orange-500 font-medium">Carreras</a>
-                    <a href="#" class="text-gray-600 hover:text-orange-500 transition-colors">Ligas (Próx.)</a>
-                    <a href="#" class="text-gray-600 hover:text-orange-500 transition-colors">Perfil (Próx.)</a>
-                </div>
-                <div class="flex items-center space-x-3">
-                    {% if current_user and current_user.is_authenticated %}
-                        {% set badge_class = 'badge-player' %} {# Default #}
-                        {% if current_user.role and current_user.role.code == 'ADMIN' %}
-                            {% set badge_class = 'badge-admin' %}
-                        {% elif current_user.role and current_user.role.code == 'LEAGUE_ADMIN' %}
-                            {% set badge_class = 'badge-league' %}
-                        {% endif %}
-                        <span class="badge-role {{ badge_class }} hidden sm:inline">{{ current_user.role.description if current_user.role else 'Rol no definido' }}</span>
-                        <span class="text-sm text-gray-700 hidden sm:inline">{{ current_user.username }}</span>
-                         <button id="logoutButtonNav" class="text-gray-600 hover:text-orange-500 transition-colors">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
-                    {% else %}
-                        <a href="{{ url_for('serve_login_page') }}" class="text-gray-600 hover:text-orange-500 transition-colors">Login</a>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </nav>
+    {% include '_header.html' %}
 
     <!-- Hero Section -->
     <div class="hero-bg text-white py-12 md:py-16 lg:py-20">
@@ -1167,7 +1129,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             // DOM Element Declarations
-            const logoutButtonNav = document.getElementById('logoutButtonNav');
+            // const logoutButtonNav = document.getElementById('logoutButtonNav'); // Removed, handled by _header.html
             // const questionsContent = document.getElementById('questionsContent'); // Commented out
             // const expandIcon = document.getElementById('expandIcon'); // Commented out
             // const toggleQuestionsBtn = document.getElementById('toggleQuestionsBtn'); // Commented out
@@ -1223,17 +1185,18 @@
             const deleteRaceBtn = document.getElementById('deleteRaceBtn');
 
             // Event Listener Attachments
-            if (logoutButtonNav) {
-                logoutButtonNav.addEventListener('click', function(event) {
-                    event.preventDefault();
-                    fetch("{{ url_for('logout_api') }}", { method: 'POST' })
-                        .then(response => {
-                            if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
-                            else alert('Logout failed.');
-                        })
-                        .catch(error => console.error('Logout error:', error));
-                });
-            }
+            // Logout is now handled by _header.html
+            // if (logoutButtonNav) {
+            //     logoutButtonNav.addEventListener('click', function(event) {
+            //         event.preventDefault();
+            //         fetch("{{ url_for('logout_api') }}", { method: 'POST' })
+            //             .then(response => {
+            //                 if (response.ok) window.location.href = "{{ url_for('serve_login_page') }}";
+            //                 else alert('Logout failed.');
+            //             })
+            //             .catch(error => console.error('Logout error:', error));
+            //     });
+            // }
 
             // if(toggleQuestionsBtn) { // Commented out
             //      toggleQuestionsBtn.addEventListener('click', toggleQuestions);

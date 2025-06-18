@@ -36,44 +36,7 @@
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
-    <!-- Header/Navbar -->
-    <header class="gradient-orange shadow-lg relative z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-4">
-                <!-- Logo -->
-                <div class="flex items-center space-x-3">
-                    <div class="bg-white rounded-full p-2">
-                        <div class="flex items-center space-x-1">
-                            <i class="fas fa-swimmer text-blue-500 text-lg"></i>
-                            <i class="fas fa-biking text-gray-700 text-lg"></i>
-                            <i class="fas fa-running text-green-500 text-lg"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <h1 class="brand-font text-white text-2xl font-bold">TriFantasy</h1>
-                        <p class="text-orange-100 text-xs">Admin Panel</p>
-                    </div>
-                </div>
-
-                <!-- User Info & Actions -->
-                <div class="flex items-center space-x-4">
-                    {% if current_user.is_authenticated %}
-                    <div class="hidden md:flex items-center space-x-3">
-                        <div class="text-right">
-                            <p class="text-white font-medium">{{ current_user.username }}</p>
-                            <span class="bg-red-500 text-xs px-2 py-1 rounded-full text-white">{{ current_user.role.description }}</span>
-                        </div>
-                        {# Placeholder for avatar, if available #}
-                        {# <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white"> #}
-                    </div>
-                    <button id="adminLogoutBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </header>
+    {% include '_header.html' %}
 
     <!-- Main Content -->
     <main class="flex-1 flex items-center justify-center p-6">
@@ -92,25 +55,11 @@
     </footer>
 
     <script>
+        // Page-specific JavaScript can go here if needed.
+        // Header-related JavaScript (logout, dropdown, mobile menu) is in _header.html
         document.addEventListener('DOMContentLoaded', function() {
-            const logoutButton = document.getElementById('adminLogoutBtn');
-            if (logoutButton) {
-                logoutButton.addEventListener('click', function(event) {
-                    event.preventDefault();
-                    fetch("{{ url_for('logout_api') }}", { method: 'POST' })
-                        .then(response => {
-                            if (response.ok) {
-                                window.location.href = "{{ url_for('serve_login_page') }}";
-                            } else {
-                                alert('Logout failed. Please try again.');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Logout error:', error);
-                            alert('Error during logout.');
-                        });
-                });
-            }
+            // Example: const somePageSpecificElement = document.getElementById('someId');
+            // if (somePageSpecificElement) { ... }
         });
     </script>
 </body>

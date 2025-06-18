@@ -192,42 +192,7 @@
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Header -->
-    <header class="bg-white shadow-lg border-b-4 border-orange-500">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-4">
-                    <!-- LOGO_PLACEHOLDER: Replace this with your <img src='your_logo_url_here' alt='TriFantasy Logo' class='h-10 w-auto'> tag -->
-                    <div class="triathlon-gradient w-12 h-12 rounded-full flex items-center justify-center">
-                        <i class="fas fa-trophy text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900 brand-font">Crear Nueva Carrera</h1>
-                        <nav aria-label="Breadcrumb" class="text-sm text-gray-500">
-                            <ol class="list-none p-0 inline-flex">
-                                <li class="flex items-center">
-                                    <a href="{{ url_for('serve_hello_world_page') }}" class="hover:text-orange-500">Dashboard</a>
-                                    <i class="fas fa-chevron-right mx-2"></i>
-                                </li>
-                                <li class="flex items-center text-orange-500" aria-current="page">
-                                    <span>Crear Nueva</span>
-                                </li>
-                            </ol>
-                        </nav>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <div class="text-right">
-                        <p id="headerUsername" class="text-sm font-medium text-gray-900">Usuario</p>
-                        <p id="headerUserRole" class="text-xs text-gray-500">Rol</p>
-                    </div>
-                    <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-                        <i class="fas fa-user text-white"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    {% include '_header.html' %}
 
     <!-- Progress Indicator -->
     <div class="bg-white border-b sticky top-0 z-40">
@@ -871,16 +836,16 @@
             // ALL_RACE_FORMATS = {{ all_race_formats_json | safe }};
             // ALL_SEGMENTS = {{ all_segments_json | safe }};
 
-            // User info in header (if current_user is available)
-            const usernameEl = document.getElementById('headerUsername');
-            const userRoleEl = document.getElementById('headerUserRole');
-            {% if current_user and current_user.is_authenticated %}
-                if(usernameEl) usernameEl.textContent = "{{ current_user.username }}";
-                if(userRoleEl) userRoleEl.textContent = "{{ current_user.role.description }}";
-            {% else %}
-                if(usernameEl) usernameEl.textContent = "Invitado";
-                if(userRoleEl) userRoleEl.textContent = "No autenticado";
-            {% endif %}
+            // User info in header is now handled by _header.html using Jinja context
+            // const usernameEl = document.getElementById('headerUsername'); // Removed
+            // const userRoleEl = document.getElementById('headerUserRole'); // Removed
+            // {% if current_user and current_user.is_authenticated %}
+            //     if(usernameEl) usernameEl.textContent = "{{ current_user.username }}";
+            //     if(userRoleEl) userRoleEl.textContent = "{{ current_user.role.description }}";
+            // {% else %}
+            //     if(usernameEl) usernameEl.textContent = "Invitado";
+            //     if(userRoleEl) userRoleEl.textContent = "No autenticado";
+            // {% endif %}
 
             populateRaceFormats(); // This will populate format choices
             updateStepUI(); // Set initial step display
