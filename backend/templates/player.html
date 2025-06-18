@@ -166,11 +166,17 @@
                             {% endif %}
                             <span class="{{ badge_class }} text-xs px-2 py-1 rounded-full text-white">{{ current_user.role.description }}</span>
                         </div>
-                        <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white">
+                        <div class="relative">
+                            <button type="button" id="profileDropdownTogglePlayer" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-orange-600 focus:ring-white">
+                                <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white">
+                            </button>
+                            <div id="profileDropdownPlayer" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                                <a href="#" id="logoutLinkPlayer" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                            </div>
+                        </div>
                     </div>
-                    <button id="newLogoutBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">
-                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                    </button>
+                    <!-- The old Logout button is removed -->
                     <button id="mobile-menu-btn" class="md:hidden text-white p-2">
                         <i class="fas fa-bars text-xl"></i>
                     </button>
@@ -228,6 +234,7 @@
         <main class="flex-1 p-6 md:ml-0">
             <!-- Hero Section -->
             <div class="gradient-orange rounded-2xl p-8 mb-8 text-white">
+                <div style="font-size: large; color: red;">New Banner Design Placeholder</div>
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="brand-font text-3xl font-bold mb-2">¡Bienvenido a TriFantasy, {{ current_user.username }}!</h2>
@@ -512,14 +519,14 @@
             });
 
             // Logout functionality for the new button
-            const newLogoutBtn = document.getElementById('newLogoutBtn');
-            if (newLogoutBtn) { // Check if button exists on page
-                newLogoutBtn.addEventListener('click', function(event) {
-                    event.preventDefault(); // Prevent default anchor behavior if it were a link
-                    fetch("{{ url_for('logout_api') }}", { method: 'POST' }) // Use url_for for robustness
+            const logoutLinkPlayer = document.getElementById('logoutLinkPlayer');
+            if (logoutLinkPlayer) {
+                logoutLinkPlayer.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    fetch("{{ url_for('logout_api') }}", { method: 'POST' })
                         .then(response => {
                             if (response.ok) {
-                                window.location.href = "{{ url_for('serve_login_page') }}"; // Redirect to login page
+                                window.location.href = "{{ url_for('serve_login_page') }}";
                             } else {
                                 response.json().then(data => {
                                     alert('Logout failed: ' + (data.message || 'Unknown error'));
@@ -532,6 +539,23 @@
                             console.error('Logout error:', error);
                             alert('Error during logout. Please check console.');
                         });
+                });
+            }
+
+            // Profile Dropdown Toggle for Player
+            const profileDropdownTogglePlayer = document.getElementById('profileDropdownTogglePlayer');
+            const profileDropdownPlayer = document.getElementById('profileDropdownPlayer');
+
+            if (profileDropdownTogglePlayer && profileDropdownPlayer) {
+                profileDropdownTogglePlayer.addEventListener('click', function() {
+                    profileDropdownPlayer.classList.toggle('hidden');
+                });
+
+                // Optional: Close dropdown when clicking outside
+                document.addEventListener('click', function(event) {
+                    if (!profileDropdownTogglePlayer.contains(event.target) && !profileDropdownPlayer.contains(event.target)) {
+                        profileDropdownPlayer.classList.add('hidden');
+                    }
                 });
             }
 
