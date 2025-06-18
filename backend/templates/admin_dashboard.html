@@ -140,6 +140,11 @@
 
             <div id="dashboard-content-wrapper">
                 <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
+                    <div class="mb-6 text-right"> <!-- Wrapper for alignment and margin -->
+                        <a href="{{ url_for('serve_create_race_page') }}" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow">
+                            <i class="fas fa-plus mr-2"></i>Crear Nueva Carrera
+                        </a>
+                    </div>
                     <!-- Dashboard Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
