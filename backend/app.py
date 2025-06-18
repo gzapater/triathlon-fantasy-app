@@ -2325,16 +2325,36 @@ def serve_hello_world_page():
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year)
     elif current_user.role.code == 'LEAGUE_ADMIN':
+        # --- Active Players KPI Calculation ---
+        active_players_count = 0
+        # Get all races created by this league admin, ordered by event date descending
+        admin_races = Race.query.filter_by(user_id=current_user.id).order_by(Race.event_date.desc()).all()
+
+        # Determine the races to consider for active players
+        if admin_races:
+            races_for_kpi = admin_races[:3] # Last 3 races (or fewer if less than 3 exist)
+            race_ids_for_kpi = [r.id for r in races_for_kpi]
+
+            if race_ids_for_kpi:
+                # Count unique players who submitted at least one UserAnswer in these races
+                active_players_count = db.session.query(func.count(UserAnswer.user_id.distinct())) \
+                    .filter(UserAnswer.race_id.in_(race_ids_for_kpi)) \
+                    .scalar() or 0 # Ensure 0 if scalar() returns None
+        # --- End of Active Players KPI Calculation ---
+
         # 1. Organized Races (created by this league admin, not general)
-        organized_races_query = Race.query.filter_by(user_id=current_user.id, is_general=False)
-        # Apply filters from request.args to organized races
-        if date_from_obj: organized_races_query = organized_races_query.filter(Race.event_date >= date_from_obj)
-        if date_to_obj: organized_races_query = organized_races_query.filter(Race.event_date <= date_to_obj)
-        if race_format_id_int is not None: organized_races_query = organized_races_query.filter(Race.race_format_id == race_format_id_int)
-        organized_races_result = organized_races_query.order_by(Race.event_date.desc()).all()
+        # Re-fetch organized_races_result if admin_races was only for KPI or adapt existing logic
+        # For simplicity, we'll use the admin_races already fetched if no filters are applied,
+        # otherwise, we need to re-apply filters.
+        # The original code re-queries with filters, so we stick to that for organized_races_dicts.
+        organized_races_query_for_display = Race.query.filter_by(user_id=current_user.id, is_general=False)
+        if date_from_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date >= date_from_obj)
+        if date_to_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None: organized_races_query_for_display = organized_races_query_for_display.filter(Race.race_format_id == race_format_id_int)
+        organized_races_result_for_display = organized_races_query_for_display.order_by(Race.event_date.desc()).all()
 
         organized_races_dicts = []
-        for race in organized_races_result:
+        for race in organized_races_result_for_display: # Use the filtered list for display
             race_dict = race.to_dict()
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
@@ -2417,7 +2437,8 @@ def serve_hello_world_page():
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
-                               current_year=current_year)
+                               current_year=current_year,
+                               active_players_count=active_players_count) # Pass the count to the template
     elif current_user.role.code == 'PLAYER':
         # Query UserRaceRegistration for all race_ids for the current_user
         user_registrations = UserRaceRegistration.query.filter_by(user_id=current_user.id).all()

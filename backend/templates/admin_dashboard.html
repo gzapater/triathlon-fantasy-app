@@ -162,9 +162,9 @@
                         <div class="gradient-run rounded-full p-3">
                             <i class="fas fa-users text-white text-xl"></i>
                         </div>
-                        <span class="text-2xl font-bold text-gray-800">1,247</span>
+                        <span class="text-2xl font-bold text-gray-800">{{ active_players_count if active_players_count is defined else 'N/A' }}</span>
                     </div>
-                    <h3 class="text-gray-600 font-medium">Participantes</h3>
+                    <h3 class="text-gray-600 font-medium">Jugadores Activos</h3>
                 </div>
 
                 <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
