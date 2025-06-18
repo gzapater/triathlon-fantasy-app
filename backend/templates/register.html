@@ -60,6 +60,13 @@
             background-size: cover;
             background-position: center;
         }
+        select#role {
+           background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+           background-position: right 0.5rem center;
+           background-repeat: no-repeat;
+           background-size: 1.5em 1.5em;
+           padding-right: 2.5rem; /* Add padding to prevent text from overlapping the arrow */
+       }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -121,7 +128,9 @@
                             <div class="mt-1">
                                 <select id="role" name="role" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" required>
                                     {% for role_obj in roles %}
-                                        <option value="{{ role_obj.code }}">{{ role_obj.description }}</option>
+                                        {% if role_obj.description != 'Administrador' %}
+                                            <option value="{{ role_obj.code }}">{{ role_obj.description }}</option>
+                                        {% endif %}
                                     {% endfor %}
                                 </select>
                             </div>
