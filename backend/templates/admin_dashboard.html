@@ -120,35 +120,9 @@
 
         <!-- Main Content -->
         <main class="flex-1 pb-6"> <!-- MODIFIED: Removed top and horizontal padding, kept bottom padding -->
-            <!-- Hero Section -->
-            <div class="gradient-orange py-8 px-6 mb-8 text-white"> <!-- MODIFIED: Reverted full-bleed, adjusted padding -->
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h2 class="brand-font text-3xl font-bold mb-2">Dashboard Administrador General</h2>
-                        <p class="text-orange-100 text-lg">Gestiona todas las carreras públicas y la configuración global</p>
-                    </div>
-                    <div class="hidden md:flex space-x-4">
-                        <div class="text-center">
-                            <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
-                                <i class="fas fa-swimmer text-3xl"></i>
-                            </div>
-                            <p class="text-sm">Natación</p>
-                        </div>
-                        <div class="text-center">
-                            <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
-                                <i class="fas fa-biking text-3xl"></i>
-                            </div>
-                            <p class="text-sm">Ciclismo</p>
-                        </div>
-                        <div class="text-center">
-                            <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
-                                <i class="fas fa-running text-3xl"></i>
-                            </div>
-                            <p class="text-sm">Running</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {% set hero_title = "Dashboard Administrador General" %}
+            {% set hero_subtitle = "Gestiona todas las carreras públicas y la configuración global" %}
+            {% include '_hero_section.html' %}
 
             <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
                 <!-- Dashboard Cards -->

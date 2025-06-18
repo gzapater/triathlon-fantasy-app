@@ -1,0 +1,37 @@
+<!-- Hero Section -->
+<div class="gradient-orange py-8 px-6 mb-8 text-white">
+    <div class="flex items-center justify-between">
+        <div>
+            {% if hero_title and hero_subtitle %}
+                <h2 class="brand-font text-3xl font-bold mb-2">{{ hero_title }}</h2>
+                <p class="text-orange-100 text-lg">{{ hero_subtitle }}</p>
+            {% elif current_user and current_user.is_authenticated %}
+                <h2 class="brand-font text-3xl font-bold mb-2">¡Bienvenido, {{ current_user.username }}!</h2>
+                <p class="text-orange-100 text-lg">Gestiona tu actividad en TriPredict.</p>
+            {% else %}
+                <h2 class="brand-font text-3xl font-bold mb-2">Bienvenido a TriPredict</h2>
+                <p class="text-orange-100 text-lg">Tu plataforma de Fantasy Triatlón.</p>
+            {% endif %}
+        </div>
+        <div class="hidden md:flex space-x-4">
+            <div class="text-center">
+                <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
+                    <i class="fas fa-swimmer text-3xl"></i>
+                </div>
+                <p class="text-sm">Natación</p>
+            </div>
+            <div class="text-center">
+                <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
+                    <i class="fas fa-biking text-3xl"></i>
+                </div>
+                <p class="text-sm">Ciclismo</p>
+            </div>
+            <div class="text-center">
+                <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
+                    <i class="fas fa-running text-3xl"></i>
+                </div>
+                <p class="text-sm">Running</p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -221,10 +221,15 @@
         </div>
     </div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form id="createRaceWizardForm" novalidate>
-            <div class="flex flex-col lg:flex-row gap-8">
-                <!-- Main Content -->
+    <main class="flex-1 pb-6"> <!-- MODIFIED: main tag classes -->
+        {% set hero_title = "Create New Race" %}
+        {% set hero_subtitle = "Define the details for your new triathlon event." %}
+        {% include '_hero_section.html' %}
+
+        <div class="max-w-7xl mx-auto px-6 pt-6"> <!-- MODIFIED: Wrapper for original main content, retaining centering and adding padding -->
+            <form id="createRaceWizardForm" novalidate>
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- Main Content -->
                 <div class="flex-1">
                     <!-- Step 1: Información Básica -->
                     <div id="step1Content" class="step-content">
@@ -432,6 +437,7 @@
                 </aside>
             </div>
         </form>
+        </div> <!-- MODIFIED: End of new content wrapper -->
     </main>
 
     <!-- Floating Save Button (Optional, if autosave is implemented later) -->
