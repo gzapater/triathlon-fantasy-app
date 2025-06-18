@@ -93,6 +93,20 @@
             background-color: rgba(255, 107, 53, 0.1);
         }
 
+        @media (min-width: 1024px) { /* Or another breakpoint like 1280px if it suits the design better */
+            #dashboard-content-wrapper {
+                max-width: 1280px; /* Max width for the content area */
+                margin-left: auto;
+                margin-right: auto;
+                /* The 4:3 aspect ratio is more of a guideline for content width.
+                   If a strict height based on width is needed, it would be more complex
+                   and might require `padding-bottom: 75%` on an outer container and
+                   absolute positioning for an inner one, or using the `aspect-ratio` CSS property.
+                   For now, constraining the width and centering is the primary goal.
+                   The existing `px-6 pt-6` on the inner div will handle padding. */
+            }
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -124,9 +138,10 @@
             {% set hero_subtitle = "Gestiona todas las carreras públicas y la configuración global" %}
             {% include '_hero_section.html' %}
 
-            <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
-                <!-- Dashboard Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div id="dashboard-content-wrapper">
+                <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
+                    <!-- Dashboard Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
                         <div class="flex items-center justify-between mb-4">
                         <div class="gradient-water rounded-full p-3">
@@ -379,7 +394,8 @@
             </div>
 
             {% include '_official_answers_modal.html' %}
-            </div> <!-- MODIFIED: End of wrapper for content below hero -->
+                </div> <!-- MODIFIED: End of wrapper for content below hero -->
+            </div>
         </main>
     </div>
 
