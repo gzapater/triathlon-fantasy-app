@@ -59,7 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = '/Hello-world';
                 }, 2000); // Aumentado a 2 segundos
             } else {
-                messageArea.textContent = result.message || 'Login failed. Check username or password.';
+                if (response.status === 401) {
+                    messageArea.textContent = "Las crdenciales son incorrectas, por favor prueba de nuevo.";
+                } else {
+                    messageArea.textContent = result.message || 'Login failed. Please check your input or try again later.';
+                }
                 messageArea.classList.add('error');
             }
         } catch (error) {
