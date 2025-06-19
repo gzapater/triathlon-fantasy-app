@@ -3202,6 +3202,28 @@
             let currentQuestionIndex = 0;
             let userWizardAnswers = {}; // Stores answers as { question_id: { ...answer_data } }
 
+            // Helper function to update enabled/disabled state of move buttons in wizard ordering list
+            function updateWizardOrderingButtonStates(ulElement) {
+                if (!ulElement) return;
+                const listItems = ulElement.querySelectorAll('li[data-option-id]');
+                listItems.forEach((li, index) => {
+                    const upButton = li.querySelector('.wizard-move-up-btn');
+                    const downButton = li.querySelector('.wizard-move-down-btn');
+
+                    if (upButton) {
+                        upButton.disabled = (index === 0);
+                        upButton.classList.toggle('opacity-50', upButton.disabled);
+                        upButton.classList.toggle('cursor-not-allowed', upButton.disabled);
+                    }
+                    if (downButton) {
+                        downButton.disabled = (index === listItems.length - 1);
+                        downButton.classList.toggle('opacity-50', downButton.disabled);
+                        downButton.classList.toggle('cursor-not-allowed', downButton.disabled);
+                    }
+                });
+            }
+
+
             // Wizard Modal DOM Elements
             const questionWizardModal = document.getElementById('questionWizardModal');
             const wizardQuestionProgress = document.getElementById('wizardQuestionProgress');
@@ -3394,13 +3416,88 @@
                         });
                         if (wizardAnswerOptions) wizardAnswerOptions.appendChild(listContainer);
 
-                        const orderingTextarea = document.createElement('textarea');
-                        orderingTextarea.id = `wizardOrderingAnswer_${question.id}`;
-                        orderingTextarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
-                        orderingTextarea.rows = 3;
-                        orderingTextarea.placeholder = 'Ej: Item C, Item A, Item B';
-                        orderingTextarea.value = existingAnswer?.ordered_options_text || '';
-                        if (wizardAnswerOptions) wizardAnswerOptions.appendChild(orderingTextarea);
+                        const orderingListContainer = document.createElement('ul');
+                        orderingListContainer.id = `wizardOrderingList_${question.id}`;
+                        orderingListContainer.className = 'list-none p-0 m-0 space-y-2';
+
+                        if (question.options && question.options.length > 0) {
+                            let orderedOptions = [...question.options]; // Default to original order
+
+                            if (existingAnswer && existingAnswer.ordered_options_text) {
+                                const savedOrderIds = existingAnswer.ordered_options_text.split(',').map(id => parseInt(id.trim(), 10));
+                                const optionsMap = new Map(question.options.map(opt => [opt.id, opt]));
+                                const newOrderedOptions = [];
+                                const addedOptionIds = new Set();
+
+                                // Add options based on saved order
+                                savedOrderIds.forEach(id => {
+                                    if (optionsMap.has(id)) {
+                                        newOrderedOptions.push(optionsMap.get(id));
+                                        addedOptionIds.add(id);
+                                    }
+                                });
+
+                                // Add any remaining options not in the saved order (e.g., if new options were added to question)
+                                question.options.forEach(opt => {
+                                    if (!addedOptionIds.has(opt.id)) {
+                                        newOrderedOptions.push(opt);
+                                    }
+                                });
+                                orderedOptions = newOrderedOptions;
+                            }
+
+                            orderedOptions.forEach(opt => {
+                                const listItem = document.createElement('li');
+                                listItem.dataset.optionId = opt.id;
+                                listItem.className = 'p-3 border rounded-md bg-gray-50 flex justify-between items-center shadow-sm';
+
+                                const textSpan = document.createElement('span');
+                                textSpan.className = 'text-gray-700';
+                                textSpan.textContent = opt.option_text;
+                                listItem.appendChild(textSpan);
+
+                                const buttonContainer = document.createElement('div');
+                                buttonContainer.className = 'space-x-1';
+
+                                const moveUpBtn = document.createElement('button');
+                                moveUpBtn.innerHTML = '↑';
+                                moveUpBtn.type = 'button'; // Important for forms
+                                moveUpBtn.className = 'wizard-move-up-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveUpBtn.addEventListener('click', () => {
+                                    const currentLi = moveUpBtn.closest('li');
+                                    if (currentLi && currentLi.previousElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                                        updateWizardOrderingButtonStates(orderingListContainer);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveUpBtn);
+
+                                const moveDownBtn = document.createElement('button');
+                                moveDownBtn.innerHTML = '↓';
+                                moveDownBtn.type = 'button'; // Important for forms
+                                moveDownBtn.className = 'wizard-move-down-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveDownBtn.addEventListener('click', () => {
+                                    const currentLi = moveDownBtn.closest('li');
+                                    if (currentLi && currentLi.nextElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling);
+                                        updateWizardOrderingButtonStates(orderingListContainer);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveDownBtn);
+
+                                listItem.appendChild(buttonContainer);
+                                orderingListContainer.appendChild(listItem);
+                            });
+                        } else {
+                            orderingListContainer.innerHTML = '<p class="text-sm text-gray-500">No hay opciones para ordenar en esta pregunta.</p>';
+                        }
+                        if (wizardAnswerOptions) {
+                            wizardAnswerOptions.appendChild(orderingListContainer);
+                            // Initial call to set button states for the newly rendered list
+                            if (orderingListContainer.firstChild) { // Check if there are items
+                                updateWizardOrderingButtonStates(orderingListContainer);
+                            }
+                        }
                         break;
                     case 'SLIDER':
                         if (!wizardAnswerOptions) break;
@@ -3670,9 +3767,11 @@
                         }
                         break;
                     case 'ORDERING':
-                        const orderingTextarea = document.getElementById(`wizardOrderingAnswer_${question.id}`);
-                        if (orderingTextarea) {
-                             userWizardAnswers[question.id] = { question_id: question.id, ordered_options_text: orderingTextarea.value.trim() };
+                        const orderingListContainer = document.getElementById(`wizardOrderingList_${question.id}`);
+                        if (orderingListContainer) {
+                            const orderedOptionIds = Array.from(orderingListContainer.querySelectorAll('li[data-option-id]'))
+                                                          .map(li => li.dataset.optionId);
+                            userWizardAnswers[question.id] = { question_id: question.id, ordered_options_text: orderedOptionIds.join(',') };
                         }
                         break;
                     case 'SLIDER':
