@@ -2521,6 +2521,27 @@
                 });
             }
 
+            // Helper function for Edit Answer Modal ordering buttons
+            function updateEditAnswerModalOrderingButtonStates(ulElement) {
+                if (!ulElement) return;
+                const listItems = ulElement.querySelectorAll('li[data-option-id]'); // Target li with data-option-id
+                listItems.forEach((li, index) => {
+                    const upButton = li.querySelector('.edit-answer-move-up-btn');
+                    const downButton = li.querySelector('.edit-answer-move-down-btn');
+
+                    if (upButton) {
+                        upButton.disabled = (index === 0);
+                        upButton.classList.toggle('opacity-50', upButton.disabled);
+                        upButton.classList.toggle('cursor-not-allowed', upButton.disabled);
+                    }
+                    if (downButton) {
+                        downButton.disabled = (index === listItems.length - 1);
+                        downButton.classList.toggle('opacity-50', downButton.disabled);
+                        downButton.classList.toggle('cursor-not-allowed', downButton.disabled);
+                    }
+                });
+            }
+
             // Initial data fetch
             // fetchAndRenderQuestions(); // Commented out - questions are now fetched by wizard or admin section
             // Admin might still need a way to see questions even if user hasn't answered.
