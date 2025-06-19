@@ -49,7 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         } catch (error) {
             console.error('API Call Error:', error);
-            alert(`Error: ${error.message}`);
+            // Assumes showNotificationModal is available globally from race_detail.html
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Error de API', error.message, 'error');
+            } else {
+                alert(`Error: ${error.message}`); // Fallback
+            }
             throw error;
         }
     }
@@ -161,7 +166,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (title === "Otros") {
             title = newLinkCustomTitleInput.value.trim();
             if (!title) {
-                alert("El título personalizado no puede estar vacío si se selecciona 'Otros'.");
+                if (typeof showNotificationModal === 'function') {
+                    showNotificationModal('Validación Fallida', "El título personalizado no puede estar vacío si se selecciona 'Otros'.", 'validation');
+                } else {
+                    alert("El título personalizado no puede estar vacío si se selecciona 'Otros'.");
+                }
                 return;
             }
         }
@@ -170,11 +179,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const order = newLinkOrderInput.value ? parseInt(newLinkOrderInput.value) : 0;
 
         if (!title || !url) {
-            alert('Título y URL son obligatorios.');
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Validación Fallida', 'Título y URL son obligatorios.', 'validation');
+            } else {
+                alert('Título y URL son obligatorios.');
+            }
             return;
         }
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            alert('URL debe empezar con http:// o https://');
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Validación Fallida', 'URL debe empezar con http:// o https://', 'validation');
+            } else {
+                alert('URL debe empezar con http:// o https://');
+            }
             return;
         }
 
@@ -259,7 +276,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (title === "Otros") {
             title = editLinkCustomTitleInput.value.trim();
             if (!title) {
-                alert("El título personalizado no puede estar vacío si se selecciona 'Otros'.");
+                if (typeof showNotificationModal === 'function') {
+                    showNotificationModal('Validación Fallida', "El título personalizado no puede estar vacío si se selecciona 'Otros'.", 'validation');
+                } else {
+                    alert("El título personalizado no puede estar vacío si se selecciona 'Otros'.");
+                }
                 return;
             }
         }
@@ -268,15 +289,27 @@ document.addEventListener('DOMContentLoaded', function() {
         const order = parseInt(editLinkOrderInput.value);
 
         if (!linkId || !title || !url) {
-            alert('ID, Título y URL son obligatorios.');
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Validación Fallida', 'ID, Título y URL son obligatorios.', 'validation');
+            } else {
+                alert('ID, Título y URL son obligatorios.');
+            }
             return;
         }
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            alert('URL debe empezar con http:// o https://');
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Validación Fallida', 'URL debe empezar con http:// o https://', 'validation');
+            } else {
+                alert('URL debe empezar con http:// o https://');
+            }
             return;
         }
         if (isNaN(order)) {
-            alert('Orden debe ser un número.');
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Validación Fallida', 'Orden debe ser un número.', 'validation');
+            } else {
+                alert('Orden debe ser un número.');
+            }
             return;
         }
 
@@ -301,20 +334,37 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- Delete Link ---
     function handleDeleteLinkBtnClick(event) {
         const linkId = event.currentTarget.dataset.linkId;
-        if (confirm(`¿Estás seguro de que quieres eliminar este enlace?`)) {
-            actualDeleteFavoriteLink(linkId); // Renamed to avoid conflict
+        const linkTitle = event.currentTarget.closest('.flex.items-center.justify-between').querySelector('.link-title').textContent;
+
+        const title = 'Confirmar Eliminación';
+        const message = `¿Estás seguro de que quieres eliminar el enlace "${linkTitle}"?`;
+
+        // Assuming showConfirmDeleteRaceModal is generic enough or we'll create a new one.
+        // For now, let's use the existing one if available, understanding it might need adjustment or a dedicated function.
+        if (typeof showConfirmDeleteRaceModal === 'function') {
+            showConfirmDeleteRaceModal(title, message, () => {
+                actualDeleteFavoriteLink(linkId);
+            });
+        } else if (confirm(message)) { // Fallback to original confirm
+            actualDeleteFavoriteLink(linkId);
         }
     }
 
     async function actualDeleteFavoriteLink(linkId) {
         try {
             await callApi(`/api/favorite_links/${linkId}`, 'DELETE');
+            // showNotificationModal is assumed to be available for success message
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Éxito', 'Enlace eliminado correctamente.', 'success');
+            } else {
+                // alert('Enlace eliminado correctamente.'); // No alert on success if modal not found, error handled by callApi
+            }
             fetchAndRenderExistingFavoriteLinks(raceId);
             if (typeof fetchAndDisplayFavoriteLinks === "function") {
                 fetchAndDisplayFavoriteLinks(raceId);
             }
         } catch (error) {
-            // Error already alerted by callApi
+            // Error already alerted by callApi (which now uses showNotificationModal)
         }
     }
 
@@ -346,7 +396,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (typeof fetchAndDisplayFavoriteLinks === "function") {
                 fetchAndDisplayFavoriteLinks(raceId);
             }
-            alert('Orden de enlaces guardado.');
+            if (typeof showNotificationModal === 'function') {
+                showNotificationModal('Éxito', 'Orden de enlaces guardado.', 'success');
+            } else {
+                alert('Orden de enlaces guardado.'); // Fallback
+            }
         } finally {
             saveOrderBtn.disabled = false; saveOrderBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Orden';
         }
