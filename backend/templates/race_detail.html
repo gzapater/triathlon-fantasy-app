@@ -2252,7 +2252,7 @@
                                                         answerDisplay = detail.participant_answer ? detail.participant_answer : '<span class="italic text-gray-500">No respondida</span>';
                                                         break;
                                                     case 'MULTIPLE_CHOICE':
-                                                        if (detail.is_mc_multiple_correct) {
+                                                        if (detail.question_is_mc_multiple_correct) {
                                                             if (Array.isArray(detail.participant_answer) && detail.participant_answer.length > 0) {
                                                                 answerDisplay = '<ul class="list-disc list-inside">';
                                                                 detail.participant_answer.forEach(opt => {
