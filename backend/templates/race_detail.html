@@ -357,6 +357,12 @@
                         <!-- If you need to load questions for admins to manage even if user hasn't answered, that logic needs to be separate -->
                     {% else %}
                         <p class="text-gray-700 text-lg mb-3"><i class="fas fa-check-circle text-green-500 mr-2"></i>Ya has participado en esta Quiniela.</p>
+                        {% if has_user_answered_pool and num_answered_questions_pool < num_total_questions_pool %}
+                        <div id="unansweredQuestionsWarning" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 my-4 rounded-md cursor-pointer hover:bg-yellow-200 transition-colors">
+                            <p class="font-bold">Atención</p>
+                            <p>Hay preguntas sin contestar.</p>
+                        </div>
+                        {% endif %}
                         <button id="reviewUserAnswersBtn" class="btn btn-secondary"
                                 {% if race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
                                     disabled
@@ -2543,6 +2549,34 @@
             const shareableLinkInput = document.getElementById('shareableLinkInput');
             const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
             const copyShareLinkFeedback = document.getElementById('copyShareLinkFeedback');
+
+            // Event listener for the unanswered questions warning
+            const unansweredWarningDiv = document.getElementById('unansweredQuestionsWarning');
+            if (unansweredWarningDiv) {
+                unansweredWarningDiv.addEventListener('click', function() {
+                    // Option 1: If "Revisar respuestas" button opens the same wizard to edit/complete.
+                    // Simulate a click on the "Revisar respuestas" button.
+                    // This assumes the "Revisar respuestas" button's logic correctly handles opening the wizard
+                    // in a state where users can complete or edit answers.
+                    const reviewBtn = document.getElementById('reviewUserAnswersBtn');
+                    if (reviewBtn) {
+                        reviewBtn.click();
+                    }
+
+                    // Option 2: Directly call openWizard() if that's more appropriate
+                    // and `openWizard` is globally available and handles loading existing answers.
+                    // if (typeof openWizard === 'function') {
+                    //    openWizard();
+                    // }
+                    // Ensure that when the wizard opens, it loads the user's existing answers.
+                    // The existing logic for `reviewUserAnswersBtn` should already handle this,
+                    // as it calls `loadAndDisplayUserAnswers`. If `openWizard` is used directly,
+                    // it should also ensure answers are loaded or that `reviewUserAnswersBtn`'s functionality
+                    // for loading answers is triggered.
+                    // Given the current structure, clicking `reviewUserAnswersBtn` seems more robust
+                    // as it's already set up to open the modal and load answers.
+                });
+            }
 
             if (shareRaceBtn) {
                 shareRaceBtn.addEventListener('click', function(event) {

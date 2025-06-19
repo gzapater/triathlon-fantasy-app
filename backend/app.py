@@ -2717,6 +2717,8 @@ def serve_race_detail_page(race_id):
     is_user_registered_for_race = False # Default to false
     has_user_answered_pool = False # Initialize default for the new variable
     is_favorite = False # Initialize favorite status
+    num_total_questions_pool = 0 # Initialize
+    num_answered_questions_pool = 0 # Initialize
 
     if current_user and current_user.is_authenticated:
         user_role_code = current_user.role.code
@@ -2726,9 +2728,14 @@ def serve_race_detail_page(race_id):
             is_user_registered_for_race = True
 
         # Check if the user has answered any questions for this race pool
-        user_answers = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).first()
-        if user_answers:
+        user_answers_list = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).all()
+        if user_answers_list: # Check if the list is not empty
             has_user_answered_pool = True
+            num_answered_questions_pool = len(user_answers_list)
+
+        # Get total number of active questions for this race's pool
+        num_total_questions_pool = Question.query.filter_by(race_id=race_id, is_active=True).count()
+
 
         # Check if this race is a favorite for the current user
         if UserFavoriteRace.query.filter_by(user_id=current_user.id, race_id=race.id).first():
@@ -2753,6 +2760,8 @@ def serve_race_detail_page(race_id):
                            currentUserRole=user_role_code,
                            is_user_registered_for_race=is_user_registered_for_race,
                            has_user_answered_pool=has_user_answered_pool,
+                           num_total_questions_pool=num_total_questions_pool, # Add this
+                           num_answered_questions_pool=num_answered_questions_pool, # Add this
                            is_quiniela_actionable=is_quiniela_actionable_detail,
                            is_favorite=is_favorite, # Add this new variable
                            current_time_utc=current_time_utc) # Pass current_time_utc to template
@@ -2935,12 +2944,18 @@ def get_user_answers(race_id):
         return jsonify(message="Race not found"), 404
 
     user_answers = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).all()
+    num_total_questions_pool = Question.query.filter_by(race_id=race_id, is_active=True).count()
+    num_answered_questions_pool = len(user_answers)
 
     if not user_answers:
         # It's important to return an empty list if no answers, not a 404 or error
-        return jsonify([]), 200
+        return jsonify({
+            "answers": [],
+            "num_total_questions": num_total_questions_pool,
+            "num_answered_questions": num_answered_questions_pool
+        }), 200
 
-    processed_answers = []
+    processed_answers_list = []
     for ua in user_answers:
         question = ua.question
         if not question:
@@ -2988,9 +3003,13 @@ def get_user_answers(race_id):
         # For ORDERING, the user's raw answer (sequence of texts) is already in ua.answer_text.
         # all_question_options provides the list of original items that were ordered.
 
-        processed_answers.append(answer_data)
+        processed_answers_list.append(answer_data)
 
-    return jsonify(processed_answers), 200
+    return jsonify({
+        "answers": processed_answers_list,
+        "num_total_questions": num_total_questions_pool,
+        "num_answered_questions": num_answered_questions_pool
+    }), 200
 
 @app.route('/api/user_answers/<int:user_answer_id>', methods=['PUT'])
 @login_required
