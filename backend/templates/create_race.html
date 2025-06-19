@@ -32,6 +32,10 @@
             font-family: 'Orbitron', monospace;
         }
 
+        .gradient-orange { /* Added to ensure hero background is applied */
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--orange-light) 100%);
+        }
+
         .triathlon-gradient { /* Kept from new design for specific elements */
             background: linear-gradient(45deg, #3498DB 0%, #FF6B35 50%, #27AE60 100%);
         }
@@ -748,18 +752,37 @@
                 .then(response => response.json().then(data => ({ok: response.ok, status: response.status, data})))
                 .then(result => {
                     if (result.ok && result.status === 201) {
-                        // Assumes showNotificationModal is available
-                        if (typeof showNotificationModal === 'function') {
-                            showNotificationModal('Éxito', '¡Carrera creada exitosamente!', 'success');
-                            setTimeout(() => {
-                                window.location.href = `{{ url_for('serve_race_detail_page', race_id=0) }}`.replace('0', result.data.race_id);
-                            }, 1500); // Delay for user to see modal
-                        } else {
-                            alert('¡Carrera creada exitosamente!'); // Fallback
+                        // Use showNotificationModal, which should be defined in this file's scope or globally
+                        showNotificationModal('Éxito', '¡Carrera creada exitosamente!', 'success');
+                        setTimeout(() => {
                             window.location.href = `{{ url_for('serve_race_detail_page', race_id=0) }}`.replace('0', result.data.race_id);
-                        }
+                        }, 1500); // Delay for user to see modal
                     } else {
-                        formErrorMessages.textContent = result.data.message || `Error (${result.status}) al crear la carrera.`;
+                        // Use showNotificationModal for errors too, if available and appropriate
+                        if (typeof showNotificationModal === 'function') {
+                            showNotificationModal('Error al Crear Carrera', result.data.message || `Error (${result.status}) al crear la carrera.`, 'error');
+                            if (result.data.errors) {
+                                let errorHtml = '<ul>';
+                                for (const field in result.data.errors) {
+                                    errorHtml += `<li>${field}: ${result.data.errors[field].join(', ')}</li>`;
+                                }
+                                errorHtml += '</ul>';
+                                // Append detailed errors to modal or a specific error display area if desired
+                                // For now, adding to existing formErrorMessages, but modal is better.
+                                const detailErrorMsg = document.createElement('div');
+                                detailErrorMsg.innerHTML = errorHtml;
+                                notificationModalMessage.appendChild(detailErrorMsg); // Assuming notificationModalMessage is the p tag in the modal
+                            }
+                        } else {
+                            formErrorMessages.textContent = result.data.message || `Error (${result.status}) al crear la carrera.`;
+                            if (result.data.errors) {
+                                let errorDetails = '';
+                                for (const field in result.data.errors) {
+                                    errorDetails += `\n- ${field}: ${result.data.errors[field].join(', ')}`;
+                                }
+                                formErrorMessages.textContent += errorDetails;
+                            }
+                        }
                         // Display more detailed errors if available
                         if (result.data.errors) {
                             let errorHtml = '<ul>';
