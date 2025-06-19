@@ -2480,8 +2480,73 @@ def serve_hello_world_page():
             race_dict['is_quiniela_actionable'] = is_quiniela_actionable
             registered_races_dicts.append(race_dict)
 
+        # Fetch Favorite Races for Player
+        favorites = UserFavoriteRace.query.filter_by(user_id=current_user.id).all()
+        favorite_race_ids = [fav.race_id for fav in favorites]
+        favorite_races_query_result = []
+        if favorite_race_ids:
+            query_fav_races = Race.query.filter(Race.id.in_(favorite_race_ids))
+            # Apply same filters to favorite races if needed, or decide to show all favorites regardless of filters
+            if date_from_obj: query_fav_races = query_fav_races.filter(Race.event_date >= date_from_obj)
+            if date_to_obj: query_fav_races = query_fav_races.filter(Race.event_date <= date_to_obj)
+            if race_format_id_int is not None: query_fav_races = query_fav_races.filter(Race.race_format_id == race_format_id_int)
+
+            try:
+                favorite_races_query_result = query_fav_races.order_by(Race.event_date.desc()).all()
+            except Exception as e:
+                app.logger.error(f"Error fetching favorite races for player {current_user.id}: {e}")
+
+        favorite_races_dicts = []
+        for race in favorite_races_query_result:
+            race_dict = race.to_dict()
+            # is_quiniela_actionable logic can be copied if needed for favorite cards too
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'): close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else: close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj > datetime.utcnow(): is_quiniela_actionable = False
+                except ValueError as ve:
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for fav race {race.id}: {ve}")
+                    is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            favorite_races_dicts.append(race_dict)
+
+        # Fetch "Carreras Destacadas" - these are general races not necessarily linked to the user
+        # This logic is similar to the 'else' block's fallback, but specifically for the PLAYER role
+        query_destacadas = Race.query.filter_by(is_general=True)
+        if date_from_obj: query_destacadas = query_destacadas.filter(Race.event_date >= date_from_obj)
+        if date_to_obj: query_destacadas = query_destacadas.filter(Race.event_date <= date_to_obj)
+        if race_format_id_int is not None: query_destacadas = query_destacadas.filter(Race.race_format_id == race_format_id_int)
+
+        destacadas_races_query_result = []
+        try:
+            destacadas_races_query_result = query_destacadas.order_by(Race.event_date.desc()).limit(6).all() # Example: Limit to 6
+        except Exception as e:
+            app.logger.error(f"Error fetching destacadas races for player {current_user.id}: {e}")
+
+        destacadas_races_dicts = []
+        for race in destacadas_races_query_result:
+            race_dict = race.to_dict()
+            # is_quiniela_actionable logic can be copied if needed
+            is_quiniela_actionable = True
+            if race_dict.get('quiniela_close_date'):
+                try:
+                    qcd_str = race_dict['quiniela_close_date']
+                    if qcd_str.endswith('Z'): close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
+                    else: close_date_obj = datetime.fromisoformat(qcd_str)
+                    if close_date_obj > datetime.utcnow(): is_quiniela_actionable = False
+                except ValueError as ve:
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for destacada race {race.id}: {ve}")
+                    is_quiniela_actionable = True
+            race_dict['is_quiniela_actionable'] = is_quiniela_actionable
+            destacadas_races_dicts.append(race_dict)
+
         return render_template('player.html',
-                               registered_races=registered_races_dicts, # Pass new list
+                               registered_races=registered_races_dicts,
+                               favorite_races=favorite_races_dicts, # Pass favorite races
+                               races=destacadas_races_dicts, # Pass destacadas races as 'races' for the existing section
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,

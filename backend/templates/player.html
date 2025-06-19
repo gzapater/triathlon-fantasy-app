@@ -110,6 +110,14 @@
             height: auto;
             overflow: visible;
         }
+
+        @media (min-width: 1024px) { /* Or another breakpoint like 1280px if it suits the design better */
+            #dashboard-content-wrapper {
+                max-width: 1280px; /* Max width for the content area */
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
     </style>
 </head>
 <body class="no-scroll">
@@ -121,9 +129,10 @@
         <main class="flex-1 pb-6"> <!-- MODIFIED: Removed top and horizontal padding, kept bottom padding, removed md:ml-0 as sidebar is gone -->
             {% include '_hero_section.html' %}
 
-            <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
-                <!-- Mis Carreras Inscritas Section -->
-                <div class="mb-8">
+            <div id="dashboard-content-wrapper">
+                <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
+                    <!-- Mis Carreras Inscritas Section -->
+                    <div class="mb-8">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="brand-font text-2xl font-bold text-gray-800">Mis Carreras Inscritas</h2>
                 </div>
@@ -192,45 +201,76 @@
                 </div>
             </div>
 
-            <!-- Filters Form -->
-            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-                <h3 class="text-lg font-semibold text-gray-700 mb-4">Filtrar Carreras</h3>
-                <form method="GET" action="{{ url_for('serve_hello_world_page') }}" class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <div>
-                            <label for="filter_race_format_id" class="block text-sm font-medium text-gray-700">Formato:</label>
-                            <select id="filter_race_format_id" name="filter_race_format_id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
-                                <option value="">Todos los Formatos</option>
-                                {% if all_race_formats %} {# Ensure all_race_formats is passed and not None #}
-                                    {% for rf_item in all_race_formats %}
-                                        <option value="{{ rf_item.id }}" {% if rf_item.id|string == filter_race_format_id_str %}selected{% endif %}>
-                                            {{ rf_item.name }}
-                                        </option>
-                                    {% endfor %}
+            <!-- Section for "Carreras favoritas" -->
+            <div class="mb-8">
+                <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras favoritas</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% if favorite_races and favorite_races|length > 0 %}
+                        {% for race in favorite_races %}
+                            <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 3 %}hidden initially-hidden-favorite{% endif %} flex flex-col">
+                                {# Determine card header gradient and icon based on race_format #}
+                                {% set race_format_name = race['race_format']['name'] %}
+                                {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
+                                {% set race_icon = 'fas fa-flag-checkered' %} {# Default icon #}
+
+                                {% if race_format_name == 'Duatlón' %}
+                                    {% set card_gradient_class = 'gradient-run' %}
+                                    {% set race_icon = 'fas fa-road' %}
+                                {% elif race_format_name == 'Acuatlón' %}
+                                    {% set card_gradient_class = 'gradient-bike' %} {# Using bike gradient as placeholder #}
+                                    {% set race_icon = 'fas fa-swimmer' %}
+                                {% elif race_format_name == 'Triatlón' %}
+                                     {% set race_icon = 'fas fa-water' %}
                                 {% endif %}
-                            </select>
-                        </div>
-                        <div>
-                            <label for="filter_date_from" class="block text-sm font-medium text-gray-700">Desde:</label>
-                            <input type="date" id="filter_date_from" name="filter_date_from" value="{{ filter_date_from_str or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="filter_date_to" class="block text-sm font-medium text-gray-700">Hasta:</label>
-                            <input type="date" id="filter_date_to" name="filter_date_to" value="{{ filter_date_to_str or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
-                        </div>
-                        <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 md:pt-5"> {# Adjusted for better button stacking on small screens #}
-                            <button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg font-medium flex items-center w-full sm:w-auto justify-center">
-                                <i class="fas fa-filter mr-2"></i>Filtrar
-                            </button>
-                            <a href="{{ url_for('serve_hello_world_page') }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors w-full sm:w-auto text-center">
-                                Limpiar
-                            </a>
-                        </div>
+
+                                {# Header: Icon, Title, Format Name - Left Aligned #}
+                                <div class="{{ card_gradient_class }} h-24 p-4 flex items-center space-x-4 text-white">
+                                    <i class="{{ race_icon }} text-3xl flex-shrink-0"></i>
+                                    <div class="flex-grow overflow-hidden">
+                                        <h3 class="font-bold text-xl leading-tight truncate" title="{{ race['title'] }}">{{ race['title'] }}</h3>
+                                        <p class="text-sm font-semibold">{{ race_format_name }}</p>
+                                    </div>
+                                </div>
+
+                                {# Card Body #}
+                                <div class="p-6 flex-grow flex flex-col">
+                                    <div class="flex items-center justify-end mb-3"> {# Date aligned to the right, badge removed #}
+                                        <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
+                                    </div>
+
+                                    {% if race['description'] %}
+                                        <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
+                                    {% else %}
+                                         <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden italic">No hay descripción disponible.</p>
+                                    {% endif %}
+
+                                    {# Location info moved here, directly after description #}
+                                    <div class="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+                                        <i class="fas fa-map-marker-alt text-gray-400"></i>
+                                        <span>{{ race['location'] if race['location'] else 'N/A' }}</span>
+                                    </div>
+
+                                    {# Button at the bottom #}
+                                    <div class="mt-auto">
+                                        <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="btn-primary w-full text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center text-center">
+                                            Acceder a la carrera
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="col-span-full text-center text-gray-500 py-10">No tienes ninguna carrera marcada como favorita.</p>
+                    {% endif %}
+                </div>
+                {% if favorite_races and favorite_races|length > 3 %}
+                    <div class="mt-4 text-center">
+                        <button id="viewMoreFavoriteBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras favoritas</button>
                     </div>
-                </form>
+                {% endif %}
             </div>
 
-            <!-- Race Cards Section -->
+            <!-- Race Cards Section (original "Carreras Destacadas") -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="brand-font text-2xl font-bold text-gray-800">Carreras Destacadas</h2>
@@ -306,7 +346,8 @@
             <!-- Removed Modal Example -->
 
             <!-- Removed Button to show modal -->
-            </div> <!-- MODIFIED: End of wrapper for content below hero -->
+                </div> <!-- MODIFIED: End of wrapper for content below hero -->
+            </div> <!-- END of dashboard-content-wrapper -->
         </main>
     </div>
 
@@ -384,6 +425,19 @@
     </footer>
 
     <script>
+        function setupViewMoreButton(buttonId, cardClassToShow) {
+            const viewMoreBtn = document.getElementById(buttonId);
+            if (viewMoreBtn) {
+                viewMoreBtn.addEventListener('click', function() {
+                    const hiddenCards = document.querySelectorAll('.' + cardClassToShow);
+                    hiddenCards.forEach(card => {
+                        card.classList.remove('hidden');
+                    });
+                    viewMoreBtn.style.display = 'none'; // Hide the button after showing all
+                });
+            }
+        }
+
         // Add some interactive effects on load
         document.addEventListener('DOMContentLoaded', function() {
             // Animate cards on scroll (simple effect)
@@ -551,6 +605,13 @@
 
             }
             // --- End Join Race Modal Logic ---
+
+            setupViewMoreButton('viewMoreFavoriteBtn', 'initially-hidden-favorite');
+            // If other sections like "Mis Carreras Inscritas" or "Carreras Destacadas"
+            // also implement this pattern, their setup calls would go here too.
+            // For example:
+            // setupViewMoreButton('viewMoreRegisteredBtn', 'initially-hidden-registered');
+            // setupViewMoreButton('viewMoreDestacadasBtn', 'initially-hidden-destacadas');
         });
     </script>
 </body>
