@@ -117,29 +117,8 @@
 
     <!-- Main Layout -->
     <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <aside id="sidebar" class="sidebar sidebar-transition w-64 bg-white shadow-lg fixed md:relative z-40 h-full md:h-auto">
-            <div class="p-6">
-                <h3 class="brand-font text-gray-800 font-semibold text-lg mb-6">Quick Actions</h3>
-                <nav class="space-y-3">
-                    <a href="#" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
-                        <i class="fas fa-users"></i>
-                        <span>Gestionar Liga</span>
-                    </a>
-                    <a href="#" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
-                        <i class="fas fa-chart-line"></i>
-                        <span>Estadísticas</span>
-                    </a>
-                    <a href="#" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
-                        <i class="fas fa-cogs"></i>
-                        <span>Configuración</span>
-                    </a>
-                </nav>
-            </div>
-        </aside>
-
         <!-- Main Content -->
-        <main class="flex-1 pb-6 md:ml-0"> <!-- MODIFIED: Removed top and horizontal padding, kept bottom padding -->
+        <main class="flex-1 pb-6"> <!-- MODIFIED: Removed top and horizontal padding, kept bottom padding, removed md:ml-0 as sidebar is gone -->
             {% include '_hero_section.html' %}
 
             <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
@@ -405,12 +384,6 @@
     </footer>
 
     <script>
-        // Sidebar toggle
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('open');
-        }
-
         // Add some interactive effects on load
         document.addEventListener('DOMContentLoaded', function() {
             // Animate cards on scroll (simple effect)
