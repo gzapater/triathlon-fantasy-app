@@ -111,19 +111,16 @@
             overflow: visible;
         }
 
-        /* Styles for 4:3 centered content */
+        /* Styles for centered content with a max-width */
         #races-content-wrapper {
-            max-width: 1280px; /* Adjust as needed, this is a common width for centered content */
+            max-width: 1024px; /* Standard max-width for centered content */
             margin-left: auto;
             margin-right: auto;
-            /* For a 4:3 feel, if we fix height, it might not be responsive.
-               Instead, we ensure the width is constrained and centered.
-               The content itself will determine the height.
-               If a strict 4:3 box is needed, it would require more complex CSS
-               like aspect-ratio property or padding-bottom trick.
-               For now, centering a max-width container is the goal. */
+            padding-left: 1rem; /* Optional: adds some padding inside the wrapper */
+            padding-right: 1rem; /* Optional: adds some padding inside the wrapper */
         }
-        /* Apply padding to the direct content children if needed, or keep existing padding structure */
+        /* The 4:3 aspect ratio feel is achieved by constraining width and centering.
+           Actual content height will vary. A fixed aspect ratio is not practical here. */
 
     </style>
 </head>
@@ -139,8 +136,8 @@
             {% set hero_subtitle = "Busca y unete a nuestrso triatlones" %}
             {% include '_hero_section.html' %}
 
-            <div id="races-content-wrapper"> <!-- Added wrapper for centering -->
-                <div class="px-6 pt-6"> <!-- Existing wrapper for content below hero -->
+            <div id="races-content-wrapper"> <!-- Wrapper for centering -->
+                <div class="px-4 md:px-6 pt-6"> <!-- Adjusted padding for content below hero -->
                     <!-- Filters Form -->
                     <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
                         <h3 class="text-lg font-semibold text-gray-700 mb-4">Filtrar Carreras</h3>
