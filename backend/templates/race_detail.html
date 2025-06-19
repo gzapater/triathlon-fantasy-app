@@ -3435,7 +3435,22 @@
             function updateEditModalOrderingButtonStates(ulElement) {
                 if (!ulElement) return;
                 const listItems = ulElement.querySelectorAll('li.edit-modal-ordering-item');
-            } // This seems to be a duplicate or incomplete function from a previous attempt. Will replace with the correct one.
+                listItems.forEach((li, index) => {
+                    const upButton = li.querySelector('.edit-modal-move-up-btn');
+                    const downButton = li.querySelector('.edit-modal-move-down-btn');
+
+                    if (upButton) {
+                        upButton.disabled = (index === 0);
+                        upButton.classList.toggle('opacity-50', upButton.disabled);
+                        upButton.classList.toggle('cursor-not-allowed', upButton.disabled);
+                    }
+                    if (downButton) {
+                        downButton.disabled = (index === listItems.length - 1);
+                        downButton.classList.toggle('opacity-50', downButton.disabled);
+                        downButton.classList.toggle('cursor-not-allowed', downButton.disabled);
+                    }
+                });
+            }
 
             // Helper function for Edit Answer Modal ordering buttons
             function updateEditAnswerModalOrderingButtonStates(ulElement) {
