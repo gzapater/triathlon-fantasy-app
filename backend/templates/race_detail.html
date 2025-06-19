@@ -1296,10 +1296,10 @@
             const reviewUserAnswersBtn = document.getElementById('reviewUserAnswersBtn');
             const reviewUserAnswersModal = document.getElementById('reviewUserAnswersModal');
             const closeReviewUserAnswersModalBtn = document.getElementById('closeReviewUserAnswersModalBtn');
-            // Corrected variable to get the wrapper that contains loading/error/display area
             const reviewUserAnswersContentWrapper = document.getElementById('reviewUserAnswersContentWrapper');
             const reviewUserAnswersDisplayArea = document.getElementById('reviewUserAnswersDisplayArea');
-            const confirmAndCloseReviewModalBtn = document.getElementById('confirmAndCloseReviewModalBtn');
+            // Renamed confirmAndCloseReviewModalBtn to saveAllReviewedAnswersBtn
+            const saveAllReviewedAnswersBtn = document.getElementById('saveAllReviewedAnswersBtn');
             const reviewAnswersLoading = document.getElementById('reviewAnswersLoading');
             const reviewAnswersError = document.getElementById('reviewAnswersError');
 
@@ -1316,6 +1316,7 @@
             const editAnswerError = document.getElementById('editAnswerError');
 
             let currentUserAnswersData = []; // To store fetched user answers
+            let reviewModeAnswers = {}; // To store answers edited/added in review modal before final save
 
             // Refactored function to load and display user answers
             async function loadAndDisplayUserAnswers(raceIdToLoad) {
@@ -1329,25 +1330,40 @@
                 // reviewUserAnswersModal.style.display = 'flex'; // Ensure modal is visible if called independently
 
                 try {
-                    const response = await fetch(`/api/races/${raceIdToLoad}/user_answers`);
-                    if (!response.ok) {
-                        const errData = await response.json().catch(() => null);
-                        throw new Error(errData?.message || `Error ${response.status}: ${response.statusText}`);
+                    // Fetch all questions for the race first
+                    const questionsResponse = await fetch(`/api/races/${raceIdToLoad}/questions`);
+                    if (!questionsResponse.ok) {
+                        const errData = await questionsResponse.json().catch(() => null);
+                        throw new Error(errData?.message || `Error fetching all questions: ${questionsResponse.status}: ${questionsResponse.statusText}`);
                     }
-                    const answers = await response.json();
-                    currentUserAnswersData = answers; // Store/update fetched answers
+                    allRaceQuestions = await questionsResponse.json(); // Update global allRaceQuestions
+
+                    // Then fetch the user's specific answers
+                    const userAnswersResponse = await fetch(`/api/races/${raceIdToLoad}/user_answers`);
+                    if (!userAnswersResponse.ok) {
+                        const errData = await userAnswersResponse.json().catch(() => null);
+                        throw new Error(errData?.message || `Error fetching user answers: ${userAnswersResponse.status}: ${userAnswersResponse.statusText}`);
+                    }
+                    const userAnswers = await userAnswersResponse.json();
+                    currentUserAnswersData = userAnswers; // Store/update user's answers
+
                     reviewAnswersLoading.style.display = 'none';
-                    if (answers && answers.length > 0) {
-                        answers.forEach(answer => {
-                            reviewUserAnswersDisplayArea.appendChild(renderSingleUserAnswer(answer));
+
+                    if (allRaceQuestions && allRaceQuestions.length > 0) {
+                        allRaceQuestions.forEach(question => {
+                            const userAnswer = currentUserAnswersData.find(ua => ua.question_id === question.id);
+                            // Pass the full question object and the specific user answer (if it exists)
+                            // to renderSingleUserAnswer or a new function that handles this combined display.
+                            // For now, renderSingleUserAnswer will be modified to accept the question and optional answer.
+                            reviewUserAnswersDisplayArea.appendChild(renderSingleUserAnswer(question, userAnswer));
                         });
                     } else {
-                        reviewUserAnswersDisplayArea.innerHTML = '<p class="text-gray-600 text-center py-4">No has respondido ninguna pregunta para esta quiniela todavía.</p>';
+                        reviewUserAnswersDisplayArea.innerHTML = '<p class="text-gray-600 text-center py-4">No hay preguntas definidas para esta carrera.</p>';
                     }
                 } catch (error) {
-                    console.error('Error fetching user answers:', error);
+                    console.error('Error loading questions or user answers:', error);
                     reviewAnswersLoading.style.display = 'none';
-                    reviewAnswersError.textContent = `Error al cargar tus respuestas: ${error.message}. Inténtalo de nuevo.`;
+                    reviewAnswersError.textContent = `Error al cargar datos: ${error.message}. Inténtalo de nuevo.`;
                     reviewAnswersError.style.display = 'block';
                     reviewUserAnswersDisplayArea.innerHTML = '';
                 }
@@ -1363,66 +1379,173 @@
             if (closeReviewUserAnswersModalBtn) {
                 closeReviewUserAnswersModalBtn.addEventListener('click', function() {
                     if(reviewUserAnswersModal) reviewUserAnswersModal.style.display = 'none';
+                    reviewModeAnswers = {}; // Clear pending changes if modal is closed via "X"
                 });
             }
 
-            if (confirmAndCloseReviewModalBtn) {
-                confirmAndCloseReviewModalBtn.addEventListener('click', function() {
-                     if(reviewUserAnswersModal) reviewUserAnswersModal.style.display = 'none';
+            if (saveAllReviewedAnswersBtn) {
+                saveAllReviewedAnswersBtn.textContent = 'Guardar Todos los Cambios'; // Ensure button text is updated
+                saveAllReviewedAnswersBtn.addEventListener('click', function() {
+                    saveAllReviewedAnswersBtn.disabled = true;
+                    saveAllReviewedAnswersBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando Todo...';
+
+                    // Prepare the final payload. Start with existing answers, then override with reviewModeAnswers.
+                    // The backend /api/races/<race_id>/answers expects a flat dict of {question_id: answer_payload}
+                    let finalPayload = {};
+
+                    // Iterate over ALL questions for the race
+                    allRaceQuestions.forEach(q => {
+                        const questionIdStr = q.id.toString();
+                        if (reviewModeAnswers.hasOwnProperty(questionIdStr)) {
+                            // If this question was edited/answered in review mode, use that data
+                            finalPayload[questionIdStr] = reviewModeAnswers[questionIdStr];
+                        } else {
+                            // Otherwise, check if there was an original answer for this question
+                            const originalAnswer = currentUserAnswersData.find(ans => ans.question_id == q.id);
+                            if (originalAnswer) {
+                                // Map originalAnswer to the expected payload structure for the backend
+                                // This is crucial if the structure of currentUserAnswersData items differs from what backend expects for POST
+                                let answerForPayload = { question_id: q.id };
+                                if (q.question_type === 'FREE_TEXT') answerForPayload.answer_text = originalAnswer.answer_text;
+                                if (q.question_type === 'ORDERING') answerForPayload.ordered_options_text = originalAnswer.answer_text; // Assuming original answer_text is already in correct format
+                                if (q.question_type === 'SLIDER') answerForPayload.slider_answer_value = originalAnswer.slider_answer_value;
+                                if (q.question_type === 'MULTIPLE_CHOICE') {
+                                    if (q.is_mc_multiple_correct) {
+                                        answerForPayload.selected_option_ids = originalAnswer.selected_mc_options ? originalAnswer.selected_mc_options.map(opt => opt.option_id) : [];
+                                    } else {
+                                        answerForPayload.selected_option_id = originalAnswer.selected_option_id;
+                                    }
+                                }
+                                finalPayload[questionIdStr] = answerForPayload;
+                            } else {
+                                // This is a new question that wasn't touched in reviewMode, so no answer to submit for it
+                                // unless we want to submit "empty" answers, but the backend POST usually only processes what's sent.
+                            }
+                        }
+                    });
+
+                    if (Object.keys(finalPayload).length === 0) {
+                        showNotificationModal("Sin Cambios", "No hay respuestas nuevas o modificadas para guardar.", "info");
+                        saveAllReviewedAnswersBtn.disabled = false;
+                        saveAllReviewedAnswersBtn.innerHTML = 'Guardar Todos los Cambios';
+                        if(reviewUserAnswersModal) reviewUserAnswersModal.style.display = 'none';
+                        return;
+                    }
+
+                    fetch(`/api/races/${raceId}/answers`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+                        },
+                        body: JSON.stringify(finalPayload)
+                    })
+                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                    .then(result => {
+                        if (result.ok) {
+                            showNotificationModal("Éxito", result.body.message || 'Todas las respuestas guardadas con éxito.', "success");
+                            if(reviewUserAnswersModal) reviewUserAnswersModal.style.display = 'none';
+                            reviewModeAnswers = {}; // Clear pending changes
+                            // Potentially reload the page or just update UI state
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving all reviewed answers:', error);
+                        showNotificationModal("Error de Conexión", "Error de conexión al guardar las respuestas. Por favor, inténtalo de nuevo.", "error");
+                    })
+                    .finally(() => {
+                        saveAllReviewedAnswersBtn.disabled = false;
+                        saveAllReviewedAnswersBtn.innerHTML = 'Guardar Todos los Cambios';
+                    });
                 });
             }
 
-            function renderSingleUserAnswer(answer) {
-                const answerItemDiv = document.createElement('div');
-                // Added some bottom margin for spacing between answer items
-                answerItemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow mb-3';
+            // Renamed from renderSingleUserAnswer to renderQuestionForReview
+            // Now accepts a full `question` object and an optional `userAnswer` object.
+            function renderQuestionForReview(question, userAnswer) {
+                const questionItemDiv = document.createElement('div');
+                questionItemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow mb-3';
 
                 let formattedAnswerHtml = '';
-                switch (answer.question_type) {
-                    case 'FREE_TEXT':
-                        formattedAnswerHtml = `<p class="text-gray-700">${answer.answer_text || '<span class="text-gray-500 italic">No respondida</span>'}</p>`;
-                        break;
-                    case 'ORDERING':
-                        formattedAnswerHtml = `<p class="text-gray-700">${answer.answer_text || '<span class="text-gray-500 italic">No respondida</span>'}</p>`;
-                        break;
-                    case 'MULTIPLE_CHOICE':
-                        if (answer.selected_option_text) {
-                            formattedAnswerHtml = `<p class="text-gray-700">${answer.selected_option_text}</p>`;
-                        } else if (answer.selected_mc_options && answer.selected_mc_options.length > 0) {
-                            formattedAnswerHtml = '<ul class="list-disc list-inside text-gray-700 space-y-1">';
-                            answer.selected_mc_options.forEach(opt => {
-                                formattedAnswerHtml += `<li>${opt.option_text}</li>`;
-                            });
-                            formattedAnswerHtml += '</ul>';
-                        } else {
-                            formattedAnswerHtml = '<p class="text-gray-500 italic">No seleccionaste ninguna opción.</p>';
-                        }
-                        break;
-                    default:
-                        formattedAnswerHtml = '<p class="text-red-500">Tipo de respuesta no reconocido.</p>';
+                // userAnswerIdForButton will be the actual ID if userAnswer exists, otherwise it's an empty string.
+                // This helps the button's data attribute.
+                const userAnswerIdForButton = userAnswer ? userAnswer.user_answer_id : '';
+
+                if (userAnswer) {
+                    // We have an existing answer from the user for this question.
+                    // Note: question.question_type refers to the type of the question itself,
+                    // userAnswer.question_type might also exist if your /api/races/<id>/user_answers returns it per answer.
+                    // Prefer question.question_type for consistency.
+                    switch (question.question_type) {
+                        case 'FREE_TEXT':
+                            formattedAnswerHtml = `<p class="text-gray-700">${userAnswer.answer_text || '<span class="text-gray-500 italic">No respondida</span>'}</p>`;
+                            break;
+                        case 'ORDERING':
+                            formattedAnswerHtml = `<p class="text-gray-700">${userAnswer.answer_text || '<span class="text-gray-500 italic">No respondida</span>'}</p>`;
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            // The structure of userAnswer for MC questions needs to be consistent.
+                            // Assuming userAnswer.selected_option_text for single-choice,
+                            // and userAnswer.selected_mc_options (array of {option_id, option_text}) for multi-choice.
+                            if (question.is_mc_multiple_correct) { // Check the question's property
+                                if (userAnswer.selected_mc_options && userAnswer.selected_mc_options.length > 0) {
+                                    formattedAnswerHtml = '<ul class="list-disc list-inside text-gray-700 space-y-1">';
+                                    userAnswer.selected_mc_options.forEach(opt => {
+                                        formattedAnswerHtml += `<li>${opt.option_text}</li>`;
+                                    });
+                                    formattedAnswerHtml += '</ul>';
+                                } else {
+                                    formattedAnswerHtml = '<p class="text-gray-500 italic">No seleccionaste ninguna opción.</p>';
+                                }
+                            } else { // Single choice
+                                if (userAnswer.selected_option_text) {
+                                    formattedAnswerHtml = `<p class="text-gray-700">${userAnswer.selected_option_text}</p>`;
+                                } else {
+                                    formattedAnswerHtml = '<p class="text-gray-500 italic">No seleccionaste ninguna opción.</p>';
+                                }
+                            }
+                            break;
+                        case 'SLIDER':
+                            if (userAnswer.slider_answer_value !== null && userAnswer.slider_answer_value !== undefined) {
+                                // Ensure question.slider_unit is accessed correctly, it's part of the question object.
+                                formattedAnswerHtml = `<p class="text-gray-700">${userAnswer.slider_answer_value} ${question.slider_unit || ''}</p>`;
+                            } else {
+                                formattedAnswerHtml = '<p class="text-gray-500 italic">No respondida.</p>';
+                            }
+                            break;
+                        default:
+                            formattedAnswerHtml = '<p class="text-red-500">Tipo de respuesta no reconocido.</p>';
+                    }
+                } else {
+                    // This is a new question for the user, not yet answered.
+                    formattedAnswerHtml = '<p class="text-gray-500 italic">Aún no has respondido esta pregunta.</p>';
                 }
 
-                answerItemDiv.innerHTML = `
-                    <p class="font-semibold text-gray-800 mb-1">${answer.question_text}</p>
-                    <div class="text-xs text-gray-500 mb-2">Tu respuesta:</div>
+                questionItemDiv.innerHTML = `
+                    <p class="font-semibold text-gray-800 mb-1">${question.text}</p>
+                    <div class="text-xs text-gray-500 mb-2">${userAnswer ? 'Tu respuesta:' : 'Respuesta pendiente:'}</div>
                     <div class="p-3 bg-gray-50 border border-gray-300 rounded-md min-h-[40px]">
                         ${formattedAnswerHtml}
                     </div>
                     <div class="text-right mt-3">
-                        <button class="editAnswerBtn btn btn-sm btn-secondary hover:bg-gray-300" data-question-id="${answer.question_id}" data-user-answer-id="${answer.user_answer_id}"
-                                ${quinielaCloseDate && new Date(quinielaCloseDate) < new Date() ? 'disabled title="La quiniela ya esta cerrada y no se pueden añadir nuevas predicciones"' : ''}>
-                            <i class="fas fa-edit mr-1"></i>Editar
+                        <button class="editAnswerBtn btn btn-sm btn-secondary hover:bg-gray-300"
+                                data-question-id="${question.id}"
+                                data-user-answer-id="${userAnswerIdForButton}"
+                                ${quinielaCloseDate && new Date(quinielaCloseDate) < new Date() ? 'disabled title="La quiniela ya esta cerrada y no se pueden modificar las predicciones"' : ''}>
+                            <i class="fas fa-edit mr-1"></i>${userAnswer ? 'Editar' : 'Responder'}
                         </button>
                     </div>
                 `;
 
-                const editButton = answerItemDiv.querySelector('.editAnswerBtn');
+                const editButton = questionItemDiv.querySelector('.editAnswerBtn');
                 if(editButton) {
-                    // Disable click event if button is disabled
                     if (!editButton.hasAttribute('disabled')) {
                         editButton.addEventListener('click', function() {
                             const questionId = this.dataset.questionId;
-                            const userAnswerId = this.dataset.userAnswerId;
+                            const userAnswerId = this.dataset.userAnswerId; // This will be empty string for new questions
 
                             if (!editAnswerModal || !editingQuestionIdStore || !editingUserAnswerIdStore || !editAnswerQuestionText || !editAnswerOptionsArea || !editAnswerLoading || !editAnswerError) {
                                 console.error("Edit answer modal elements not found");
@@ -1437,80 +1560,98 @@
                             editingQuestionIdStore.value = questionId;
                             editingUserAnswerIdStore.value = userAnswerId;
 
-                            const foundAnswer = currentUserAnswersData.find(ans => ans.question_id == questionId && ans.user_answer_id == userAnswerId);
+                            const fullQuestionData = allRaceQuestions.find(q => q.id == questionId);
+                            // If userAnswerId is an empty string, existingUserAnswerData will be null, which is correct.
+                            const existingUserAnswerData = userAnswerId ? currentUserAnswersData.find(ans => ans.user_answer_id == userAnswerId) : null;
 
-                            if (foundAnswer) {
-                                editAnswerQuestionText.textContent = foundAnswer.question_text;
-                                populateEditAnswerForm(foundAnswer);
+                            if (fullQuestionData) {
+                                editAnswerQuestionText.textContent = fullQuestionData.text;
+                                populateEditAnswerForm(fullQuestionData, existingUserAnswerData); // Pass both
                                 editAnswerLoading.style.display = 'none';
                             } else {
-                                editAnswerQuestionText.textContent = '';
-                                editAnswerError.textContent = 'Error: No se pudieron cargar los detalles de la respuesta. Intenta cerrar y abrir esta ventana.';
+                                editAnswerQuestionText.textContent = 'Error: Pregunta no encontrada.';
+                                editAnswerError.textContent = 'Error: No se pudieron cargar los detalles de la pregunta.';
                                 editAnswerError.style.display = 'block';
                                 editAnswerLoading.style.display = 'none';
                             }
                         });
                     }
                 }
-                return answerItemDiv;
+                return questionItemDiv;
             }
 
-            function populateEditAnswerForm(answerData) {
-                if (!editAnswerOptionsArea) return;
+            // Modified to accept the full question data and an optional existing answer data
+            function populateEditAnswerForm(questionData, userAnswerData) {
+                if (!editAnswerOptionsArea || !questionData) {
+                    console.error("populateEditAnswerForm: Essential elements or questionData missing.");
+                    editAnswerOptionsArea.innerHTML = '<p class="text-red-500">Error al cargar el formulario de edición.</p>';
+                    return;
+                }
                 editAnswerOptionsArea.innerHTML = ''; // Clear previous inputs
 
-                switch (answerData.question_type) {
+                // Use questionData for question type and options, userAnswerData for existing values
+                switch (questionData.question_type) {
                     case 'FREE_TEXT':
                         const textarea = document.createElement('textarea');
-                        textarea.id = `editFreeTextAnswer_${answerData.question_id}`;
+                        textarea.id = `editFreeTextAnswer_${questionData.id}`; // Use questionData.id
                         textarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
                         textarea.rows = 4;
-                        textarea.value = answerData.answer_text || '';
+                        textarea.value = userAnswerData?.answer_text || ''; // Pre-fill if userAnswerData exists
                         editAnswerOptionsArea.appendChild(textarea);
                         break;
 
                     case 'ORDERING':
                         const orderingInfo = document.createElement('p');
                         orderingInfo.className = 'text-sm text-gray-600 mb-2';
-                        orderingInfo.textContent = "Reordena los items en el cuadro de texto de abajo, separados por comas y en el orden deseado. Items originales para referencia:";
+                        orderingInfo.textContent = "Reordena los siguientes items. Indica tu orden en el cuadro de texto (ej: Opción C, Opción A, Opción B).";
                         editAnswerOptionsArea.appendChild(orderingInfo);
 
                         const itemsList = document.createElement('ul');
                         itemsList.className = 'list-disc list-inside bg-gray-100 p-3 rounded-md mb-2';
-                        answerData.all_question_options.forEach(opt => {
-                            const item = document.createElement('li');
-                            item.textContent = opt.option_text;
-                            itemsList.appendChild(item);
-                        });
+                        // Options should come from questionData.options
+                        if (questionData.options && questionData.options.length > 0) {
+                            questionData.options.forEach(opt => {
+                                const item = document.createElement('li');
+                                item.textContent = opt.option_text;
+                                itemsList.appendChild(item);
+                            });
+                        } else {
+                            itemsList.innerHTML = '<li class="text-gray-500 italic">No hay opciones definidas para esta pregunta.</li>';
+                        }
                         editAnswerOptionsArea.appendChild(itemsList);
 
                         const orderingTextarea = document.createElement('textarea');
-                        orderingTextarea.id = `editOrderingAnswer_${answerData.question_id}`;
+                        orderingTextarea.id = `editOrderingAnswer_${questionData.id}`;
                         orderingTextarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
                         orderingTextarea.rows = 3;
                         orderingTextarea.placeholder = 'Ej: Item C, Item A, Item B';
-                        orderingTextarea.value = answerData.answer_text || '';
+                        orderingTextarea.value = userAnswerData?.answer_text || ''; // Pre-fill
                         editAnswerOptionsArea.appendChild(orderingTextarea);
                         break;
 
                     case 'MULTIPLE_CHOICE':
-                        answerData.all_question_options.forEach(opt => {
+                        if (!questionData.options || questionData.options.length === 0) {
+                            editAnswerOptionsArea.innerHTML = '<p class="text-red-500">No hay opciones definidas para esta pregunta de opción múltiple.</p>';
+                            return;
+                        }
+                        questionData.options.forEach(opt => {
                             const label = document.createElement('label');
                             label.className = 'flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300';
                             const input = document.createElement('input');
-                            input.name = `edit_q_${answerData.question_id}`; // Unique name for radio group
+                            input.name = `edit_q_${questionData.id}`;
                             input.value = opt.id;
                             input.className = 'text-orange-500 focus:ring-orange-400 focus:ring-offset-0';
 
-                            if (answerData.selected_mc_options && answerData.selected_mc_options.length > 0) { // Is multi-select
+                            if (questionData.is_mc_multiple_correct) {
                                 input.type = 'checkbox';
                                 input.classList.add('rounded');
-                                if (answerData.selected_mc_options.some(selOpt => selOpt.option_id == opt.id)) {
+                                // Check if this option was selected in userAnswerData
+                                if (userAnswerData?.selected_mc_options?.some(selOpt => selOpt.option_id == opt.id)) {
                                     input.checked = true;
                                 }
-                            } else { // Is single-select
+                            } else { // Single-select
                                 input.type = 'radio';
-                                if (answerData.selected_option_id == opt.id) {
+                                if (userAnswerData?.selected_option_id == opt.id) {
                                     input.checked = true;
                                 }
                             }
@@ -1524,8 +1665,49 @@
                             editAnswerOptionsArea.appendChild(label);
                         });
                         break;
+
+                    case 'SLIDER':
+                        const sliderMinValue = parseFloat(questionData.slider_min_value);
+                        const sliderMaxValue = parseFloat(questionData.slider_max_value);
+                        const sliderStep = parseFloat(questionData.slider_step) > 0 ? parseFloat(questionData.slider_step) : 1;
+                        const sliderUnit = questionData.slider_unit || "";
+
+                        const editSliderContainer = document.createElement('div');
+                        editSliderContainer.className = 'pt-4 pb-2';
+
+                        const sliderInput = document.createElement('input');
+                        sliderInput.type = 'range';
+                        sliderInput.id = `editSliderAnswer_${questionData.id}`;
+                        sliderInput.min = sliderMinValue;
+                        sliderInput.max = sliderMaxValue;
+                        sliderInput.step = sliderStep;
+                        // Pre-fill with user's answer, or default to min value if no answer or invalid
+                        let currentSliderValue = userAnswerData?.slider_answer_value;
+                        if (currentSliderValue === null || currentSliderValue === undefined || isNaN(parseFloat(currentSliderValue))) {
+                            currentSliderValue = sliderMinValue;
+                        } else {
+                            currentSliderValue = parseFloat(currentSliderValue);
+                        }
+                        sliderInput.value = Math.max(sliderMinValue, Math.min(sliderMaxValue, currentSliderValue));
+
+                        sliderInput.className = 'w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500';
+
+                        const sliderValueDisplay = document.createElement('div');
+                        sliderValueDisplay.id = `editSliderValueDisplay_${questionData.id}`;
+                        sliderValueDisplay.className = 'text-center text-sm text-gray-700 mt-2';
+                        sliderValueDisplay.textContent = `${sliderInput.value} ${sliderUnit}`;
+
+                        sliderInput.oninput = () => {
+                            sliderValueDisplay.textContent = `${sliderInput.value} ${sliderUnit}`;
+                        };
+
+                        editSliderContainer.appendChild(sliderInput);
+                        editSliderContainer.appendChild(sliderValueDisplay);
+                        editAnswerOptionsArea.appendChild(editSliderContainer);
+                        break;
+
                     default:
-                        editAnswerOptionsArea.innerHTML = '<p class="text-red-500">Tipo de pregunta no soportado para edición.</p>';
+                        editAnswerOptionsArea.innerHTML = `<p class="text-red-500">Tipo de pregunta '${questionData.question_type}' no soportado para edición.</p>`;
                 }
             }
 
@@ -1540,95 +1722,140 @@
                     const userAnswerId = editingUserAnswerIdStore.value;
                     const questionId = editingQuestionIdStore.value;
 
-                    if (!userAnswerId || !questionId) {
-                        editAnswerError.textContent = 'Error: No se pudo identificar la respuesta a guardar.';
+                    const questionId = editingQuestionIdStore.value;
+                    // const userAnswerId = editingUserAnswerIdStore.value; // Not directly needed for saving to reviewModeAnswers
+
+                    if (!questionId) {
+                        editAnswerError.textContent = 'Error: No se pudo identificar la pregunta para guardar los cambios.';
                         editAnswerError.style.display = 'block';
                         return;
                     }
 
                     saveEditedAnswerBtn.disabled = true;
-                    saveEditedAnswerBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+                    saveEditedAnswerBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Confirmando...';
                     editAnswerError.style.display = 'none';
 
-                    const originalAnswerData = currentUserAnswersData.find(ans => ans.question_id == questionId && ans.user_answer_id == userAnswerId);
-                    if (!originalAnswerData) {
-                        editAnswerError.textContent = 'Error: Datos originales de la respuesta no encontrados.';
+                    const questionData = allRaceQuestions.find(q => q.id == questionId);
+                    if (!questionData) {
+                        editAnswerError.textContent = 'Error: Datos de la pregunta no encontrados.';
                         editAnswerError.style.display = 'block';
                         saveEditedAnswerBtn.disabled = false;
-                        saveEditedAnswerBtn.innerHTML = 'Guardar Cambios';
+                        saveEditedAnswerBtn.innerHTML = 'Confirmar Cambios para esta Pregunta';
                         return;
                     }
 
-                    let payload = {};
-                    switch (originalAnswerData.question_type) {
+                    let collectedAnswerData = { question_id: parseInt(questionId) };
+                    // Important: for existing answers, we need to preserve the user_answer_id if we want to treat them as updates later.
+                    // However, the target POST endpoint /api/races/<race_id>/answers handles this by deleting and recreating.
+                    // So, not strictly necessary to pass userAnswerId in reviewModeAnswers if that's the final submission target.
+
+                    switch (questionData.question_type) {
                         case 'FREE_TEXT':
                             const ftTextarea = editAnswerOptionsArea.querySelector(`#editFreeTextAnswer_${questionId}`);
-                            payload.answer_text = ftTextarea ? ftTextarea.value : null;
+                            collectedAnswerData.answer_text = ftTextarea ? ftTextarea.value.trim() : null;
                             break;
                         case 'ORDERING':
                             const orTextarea = editAnswerOptionsArea.querySelector(`#editOrderingAnswer_${questionId}`);
-                            payload.ordered_options_text = orTextarea ? orTextarea.value : null;
+                            collectedAnswerData.ordered_options_text = orTextarea ? orTextarea.value.trim() : null; // Matches wizard payload
                             break;
                         case 'MULTIPLE_CHOICE':
-                            // For MC, need to check if it's single or multi based on original data.
-                            // The original API for UserAnswer returns `selected_mc_options` as an array for multi,
-                            // and `selected_option_id` for single.
-                            // The `populateEditAnswerForm` uses `answerData.selected_mc_options.length > 0` to infer multi for form creation.
-                            // A more robust way would be to have `is_mc_multiple_correct` in `originalAnswerData`.
-                            // Assuming `originalAnswerData.all_question_options` exists and `originalAnswerData` has enough info.
-
-                            // Let's find the question details from allRaceQuestions if available, or rely on structure of originalAnswerData
-                            const questionDetails = allRaceQuestions.find(q => q.id == questionId) || {is_mc_multiple_correct: (originalAnswerData.selected_mc_options && originalAnswerData.selected_mc_options.length > 0)};
-
-                            if (questionDetails.is_mc_multiple_correct) {
-                                payload.selected_option_ids = [];
+                            if (questionData.is_mc_multiple_correct) {
+                                collectedAnswerData.selected_option_ids = [];
                                 editAnswerOptionsArea.querySelectorAll(`input[name="edit_q_${questionId}"]:checked`).forEach(cb => {
-                                    payload.selected_option_ids.push(parseInt(cb.value));
+                                    collectedAnswerData.selected_option_ids.push(parseInt(cb.value));
                                 });
                             } else { // Single-select
                                 const checkedRadio = editAnswerOptionsArea.querySelector(`input[name="edit_q_${questionId}"]:checked`);
-                                payload.selected_option_id = checkedRadio ? parseInt(checkedRadio.value) : null;
+                                collectedAnswerData.selected_option_id = checkedRadio ? parseInt(checkedRadio.value) : null;
+                            }
+                            break;
+                        case 'SLIDER':
+                            const sliderInput = editAnswerOptionsArea.querySelector(`#editSliderAnswer_${questionId}`);
+                            if (sliderInput) {
+                                collectedAnswerData.slider_answer_value = parseFloat(sliderInput.value);
+                            } else {
+                                collectedAnswerData.slider_answer_value = null;
                             }
                             break;
                         default:
                             editAnswerError.textContent = 'Tipo de pregunta no reconocido para guardar.';
                             editAnswerError.style.display = 'block';
                             saveEditedAnswerBtn.disabled = false;
-                            saveEditedAnswerBtn.innerHTML = 'Guardar Cambios';
+                            saveEditedAnswerBtn.innerHTML = 'Confirmar Cambios para esta Pregunta';
                             return;
                     }
 
-                    fetch(`/api/user_answers/${userAnswerId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}' // Add CSRF token if needed by your Flask setup
-                        },
-                        body: JSON.stringify(payload)
-                    })
-                    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
-                    .then(result => {
-                        if (result.ok) {
-                            if(editAnswerModal) editAnswerModal.style.display = 'none';
-                            alert(result.body.message || "Respuesta actualizada con éxito.");
-                            // Refresh the review modal to show the updated answer
-                            if(reviewUserAnswersModal.style.display === 'flex' || reviewUserAnswersModal.classList.contains('flex')) { // Check if review modal was open
-                                loadAndDisplayUserAnswers(raceId);
+                    reviewModeAnswers[questionId] = collectedAnswerData;
+
+                    // Visually update the item in the reviewUserAnswersDisplayArea
+                    // This requires finding the specific div for this question and re-rendering it.
+                    const displayArea = document.getElementById('reviewUserAnswersDisplayArea');
+                    const questionDivToUpdate = displayArea.querySelector(`div[class*="p-4 border border-gray-200"][data-question-id="${questionId}"]`);
+
+                    // To re-render, we need to reconstruct the `userAnswer` object structure that `renderQuestionForReview` expects.
+                    // This involves mapping `collectedAnswerData` to the structure of `currentUserAnswersData` items.
+                    // This is a bit complex as `currentUserAnswersData` items have `selected_option_text`, etc.
+                    // For simplicity, we might just reload the entire review modal's content after this local "save".
+                    // Or, better, ensure `renderQuestionForReview` can derive its display from `collectedAnswerData` combined with `questionData`.
+
+                    // For now, let's just close the edit modal. The visual update in the list is complex.
+                    // A simpler visual update would be to mark it as "edited" or just rely on the user remembering.
+                    // The proper way is to re-render that specific item.
+                    // Let's try to re-render the whole list for now, it's simpler than targeted DOM update with complex data mapping.
+                    if(editAnswerModal) editAnswerModal.style.display = 'none';
+
+                    // After "saving" to reviewModeAnswers and closing edit modal, refresh the review list display
+                    // This will make renderQuestionForReview pick up the changes from reviewModeAnswers (or we adapt it to do so)
+                    // This implies loadAndDisplayUserAnswers or renderQuestionForReview needs to check reviewModeAnswers.
+                    // This is getting complex. Let's simplify: the save to reviewModeAnswers is enough for now.
+                    // The final "Save All" will use reviewModeAnswers.
+                    // The visual update in the list can be a later refinement if needed.
+                    // For now, just closing the modal is fine. The data IS in reviewModeAnswers.
+
+                    saveEditedAnswerBtn.disabled = false;
+                    saveEditedAnswerBtn.innerHTML = 'Confirmar Cambios para esta Pregunta'; // Changed text
+
+                    // Let's try to refresh the specific item.
+                    // We need to create a temporary "userAnswer" like object from reviewModeAnswers[questionId]
+                    // and the original questionData.
+                    let tempUserAnswerForDisplay = { // Construct a temporary object for rendering
+                        ...reviewModeAnswers[questionId], // The core answer values
+                        question_id: parseInt(questionId),
+                        question_text: questionData.text, // From full question data
+                        question_type: questionData.question_type,
+                        // For MC single, we need to derive selected_option_text
+                        // For MC multi, we need to derive selected_mc_options (array of {option_id, option_text})
+                    };
+
+                    if (questionData.question_type === 'MULTIPLE_CHOICE') {
+                        if (questionData.is_mc_multiple_correct) {
+                            tempUserAnswerForDisplay.selected_mc_options = [];
+                            if (collectedAnswerData.selected_option_ids) {
+                                collectedAnswerData.selected_option_ids.forEach(id => {
+                                    const opt = questionData.options.find(o => o.id == id);
+                                    if (opt) tempUserAnswerForDisplay.selected_mc_options.push({option_id: id, option_text: opt.option_text});
+                                });
                             }
                         } else {
-                            editAnswerError.textContent = result.body.message || 'Error al guardar la respuesta.';
-                            editAnswerError.style.display = 'block';
+                            if (collectedAnswerData.selected_option_id !== null) {
+                                const opt = questionData.options.find(o => o.id == collectedAnswerData.selected_option_id);
+                                tempUserAnswerForDisplay.selected_option_text = opt ? opt.option_text : 'Opción no encontrada';
+                            } else {
+                                tempUserAnswerForDisplay.selected_option_text = null;
+                            }
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error saving answer:', error);
-                        editAnswerError.textContent = `Error de conexión al guardar: ${error.message}. Inténtalo de nuevo.`;
-                        editAnswerError.style.display = 'block';
-                    })
-                    .finally(() => {
-                        saveEditedAnswerBtn.disabled = false;
-                        saveEditedAnswerBtn.innerHTML = 'Guardar Cambios';
-                    });
+                    }
+                    // Update the display in the review list
+                    if (questionDivToUpdate && displayArea) {
+                         // Find the question div in reviewUserAnswersDisplayArea and replace it
+                        const parent = questionDivToUpdate.parentNode;
+                        const newRenderedItem = renderQuestionForReview(questionData, tempUserAnswerForDisplay);
+                        // Add the question ID to the new rendered item for future lookups
+                        newRenderedItem.dataset.questionId = questionData.id;
+                        parent.replaceChild(newRenderedItem, questionDivToUpdate);
+                    }
+
+
                 });
             }
 
@@ -3871,8 +4098,8 @@
 
             <!-- Modal Footer -->
             <div class="flex justify-end items-center pt-6 border-t border-gray-200">
-                <button id="confirmAndCloseReviewModalBtn" class="btn btn-primary">
-                    Confirmar y Volver
+                <button id="saveAllReviewedAnswersBtn" class="btn btn-primary"> <!-- ID and Text Updated -->
+                    Guardar Todos los Cambios
                 </button>
             </div>
         </div>
