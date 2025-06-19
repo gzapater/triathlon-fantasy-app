@@ -745,6 +745,14 @@
                 case 'ORDERING':
                     scoringText = `Ordenamiento. ${question.points_per_correct_order || 'N/A'} pts/item, ${question.bonus_for_full_order || '0'} pts bonus.`;
                     break;
+                case 'SLIDER':
+                    scoringText = `Slider. Rango: [${question.slider_min_value !== null ? question.slider_min_value : 'N/A'} - ${question.slider_max_value !== null ? question.slider_max_value : 'N/A'}]${question.slider_unit ? ' ' + question.slider_unit : ''}.`;
+                    scoringText += ` Paso: ${question.slider_step !== null ? question.slider_step : 'N/A'}.`;
+                    scoringText += ` Pts exactos: ${question.slider_points_exact !== null ? question.slider_points_exact : 'N/A'}.`;
+                    if (question.slider_threshold_partial !== null && question.slider_points_partial !== null) {
+                        scoringText += ` Pts parciales: ${question.slider_points_partial} (umbral +/- ${question.slider_threshold_partial}).`;
+                    }
+                    break;
                 default:
                     scoringText = 'Puntuación no especificada.';
             }
@@ -3682,6 +3690,7 @@
                         <option value="FREE_TEXT">Texto Libre</option>
                         <option value="MULTIPLE_CHOICE">Opción Múltiple</option>
                         <option value="ORDERING">Ordenamiento</option>
+                        <option value="SLIDER">Slider</option>
                     </select>
                 </div>
 
