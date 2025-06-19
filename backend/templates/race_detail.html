@@ -1183,6 +1183,79 @@
             const editRaceQuinielaCloseDateInput = document.getElementById('editRaceQuinielaCloseDate'); // Added
             const deleteRaceBtn = document.getElementById('deleteRaceBtn');
 
+            // --- Notification Modal Elements & Functions ---
+            const notificationModal = document.getElementById('notificationModal');
+            const notificationModalTitle = document.getElementById('notificationModalTitle');
+            const notificationModalMessage = document.getElementById('notificationModalMessage');
+            const closeNotificationModalBtn = document.getElementById('closeNotificationModalBtn');
+            const acceptNotificationModalBtn = document.getElementById('acceptNotificationModalBtn');
+
+            function showNotificationModal(title, message, type = 'info') {
+                if (!notificationModal || !notificationModalTitle || !notificationModalMessage) return;
+
+                notificationModalTitle.textContent = title;
+                notificationModalMessage.textContent = message;
+
+                // Reset title color
+                notificationModalTitle.classList.remove('text-green-600', 'text-red-600', 'text-orange-600', 'text-blue-600', 'text-gray-800');
+
+                switch (type) {
+                    case 'success':
+                        notificationModalTitle.classList.add('text-green-600');
+                        break;
+                    case 'error':
+                        notificationModalTitle.classList.add('text-red-600');
+                        break;
+                    case 'validation':
+                        notificationModalTitle.classList.add('text-orange-600');
+                        break;
+                    case 'info':
+                    default:
+                        notificationModalTitle.classList.add('text-blue-600'); // Default to blue for info
+                        break;
+                }
+                notificationModal.style.display = 'flex';
+            }
+
+            function closeNotificationModal() {
+                if (notificationModal) notificationModal.style.display = 'none';
+            }
+
+            if (closeNotificationModalBtn) closeNotificationModalBtn.addEventListener('click', closeNotificationModal);
+            if (acceptNotificationModalBtn) acceptNotificationModalBtn.addEventListener('click', closeNotificationModal);
+
+
+            // --- Confirm Delete Race Modal Elements & Functions ---
+            const confirmDeleteRaceModal = document.getElementById('confirmDeleteRaceModal');
+            const confirmDeleteRaceModalTitle = document.getElementById('confirmDeleteRaceModalTitle');
+            const confirmDeleteRaceModalMessage = document.getElementById('confirmDeleteRaceModalMessage');
+            const cancelDeleteRaceBtnModal = document.getElementById('cancelDeleteRaceBtnModal');
+            const confirmDeleteRaceActionBtn = document.getElementById('confirmDeleteRaceActionBtn');
+            let confirmDeleteRaceCallback = null;
+
+            function showConfirmDeleteRaceModal(title, message, callback) {
+                if (!confirmDeleteRaceModal || !confirmDeleteRaceModalTitle || !confirmDeleteRaceModalMessage) return;
+                confirmDeleteRaceModalTitle.textContent = title;
+                confirmDeleteRaceModalMessage.textContent = message;
+                confirmDeleteRaceCallback = callback;
+                confirmDeleteRaceModal.style.display = 'flex';
+            }
+
+            function closeConfirmDeleteRaceModal() {
+                if (confirmDeleteRaceModal) confirmDeleteRaceModal.style.display = 'none';
+                confirmDeleteRaceCallback = null;
+            }
+
+            if (cancelDeleteRaceBtnModal) cancelDeleteRaceBtnModal.addEventListener('click', closeConfirmDeleteRaceModal);
+            if (confirmDeleteRaceActionBtn) {
+                confirmDeleteRaceActionBtn.addEventListener('click', () => {
+                    if (typeof confirmDeleteRaceCallback === 'function') {
+                        confirmDeleteRaceCallback();
+                    }
+                    closeConfirmDeleteRaceModal();
+                });
+            }
+
             // Event Listener Attachments
             // Logout is now handled by _header.html
             // if (logoutButtonNav) {
@@ -1610,13 +1683,13 @@
                     };
 
                     if (!formData.title.trim()) {
-                        alert('El título de la carrera es obligatorio.');
+                        showNotificationModal('Validación Fallida', 'El título de la carrera es obligatorio.', 'validation');
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
                         return;
                     }
                      if (!formData.event_date) {
-                        alert('La fecha del evento es obligatoria.');
+                        showNotificationModal('Validación Fallida', 'La fecha del evento es obligatoria.', 'validation');
                         saveRaceChangesBtn.disabled = false;
                         saveRaceChangesBtn.classList.remove('opacity-50');
                         return;
@@ -1630,7 +1703,7 @@
                     .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
                     .then(result => {
                         if (result.ok) {
-                            alert(result.body.message || 'Detalles de la carrera actualizados con éxito.');
+                            showNotificationModal('Éxito', result.body.message || 'Detalles de la carrera actualizados con éxito.', 'success');
                             closeEditRaceModal();
                             // Update page content dynamically
                             const titleElement = document.querySelector('.hero-bg h1');
@@ -1677,14 +1750,13 @@
                                 race.quiniela_close_date = result.body.race.quiniela_close_date;
                             }
 
-
                         } else {
-                            alert(`Error: ${result.body.message || 'No se pudo actualizar la carrera.'}`);
+                            showNotificationModal('Error', result.body.message || 'No se pudo actualizar la carrera.', 'error');
                         }
                     })
                     .catch(error => {
                         console.error('Error saving race details:', error);
-                        alert('Error de conexión al guardar los detalles de la carrera.');
+                        showNotificationModal('Error de Conexión', 'No se pudo guardar los detalles de la carrera debido a un problema de red.', 'error');
                     })
                     .finally(() => {
                         if(saveRaceChangesBtn) {
@@ -1912,10 +1984,12 @@
 
             if (deleteRaceBtn) {
                 deleteRaceBtn.addEventListener('click', function() {
-                    const confirmationMessage = '¿Estás seguro de que quieres eliminar esta carrera? Esta acción no se puede deshacer y eliminará todos los datos asociados (segmentos, preguntas, etc.).';
-                    if (confirm(confirmationMessage)) {
+                    const title = 'Confirmar Eliminación';
+                    const message = '¿Estás seguro de que quieres eliminar esta carrera? Esta acción no se puede deshacer y eliminará todos los datos asociados (segmentos, preguntas, etc.).';
+
+                    showConfirmDeleteRaceModal(title, message, () => {
                         if (!raceId) {
-                            alert('Error: ID de la carrera no encontrado.');
+                            showNotificationModal('Error', 'ID de la carrera no encontrado.', 'error');
                             return;
                         }
                         fetch(`/api/races/${raceId}`, { method: 'DELETE' })
@@ -1932,17 +2006,21 @@
                         })
                         .then(result => {
                             if (result.ok) {
-                                alert(result.body.message || 'Carrera eliminada con éxito.');
-                                window.location.href = "{{ url_for('serve_hello_world_page') }}";
+                                // Show success message and then redirect
+                                showNotificationModal('Éxito', result.body.message || 'Carrera eliminada con éxito.', 'success');
+                                // Add a small delay before redirecting to allow the user to see the message
+                                setTimeout(() => {
+                                    window.location.href = "{{ url_for('serve_hello_world_page') }}";
+                                }, 2000); // 2 seconds delay
                             } else {
-                                alert(`Error al eliminar la carrera: ${result.body.message || `Error de servidor ${result.status}`}`);
+                                showNotificationModal('Error', `Error al eliminar la carrera: ${result.body.message || `Error de servidor ${result.status}`}`, 'error');
                             }
                         })
                         .catch(error => {
                             console.error('Error deleting race:', error);
-                            alert('Error en la conexión o al procesar la solicitud de eliminación.');
+                            showNotificationModal('Error de Conexión', 'Error en la conexión o al procesar la solicitud de eliminación.', 'error');
                         });
-                    }
+                    });
                 });
             }
 
@@ -3990,5 +4068,33 @@ document.addEventListener('DOMContentLoaded', function() {
     {% endif %}
 
     <script src="{{ url_for('static', filename='js/favorite_links_admin.js') }}"></script>
+
+    <!-- Confirm Delete Race Modal -->
+    <div id="confirmDeleteRaceModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 105;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-auto">
+            <h2 id="confirmDeleteRaceModalTitle" class="text-xl font-bold text-gray-800 mb-4">Confirmar Eliminación</h2>
+            <p id="confirmDeleteRaceModalMessage" class="text-gray-600 mb-6">¿Estás seguro de que quieres eliminar esta carrera? Esta acción no se puede deshacer y eliminará todos los datos asociados.</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancelDeleteRaceBtnModal" class="btn btn-secondary">Cancelar</button>
+                <button type="button" id="confirmDeleteRaceActionBtn" class="btn btn-danger bg-red-600 hover:bg-red-700 text-white">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simple Notification Modal -->
+    <div id="notificationModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 160;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="notificationModalTitle" class="text-xl font-bold">Notificación</h2>
+                <button id="closeNotificationModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+            <p id="notificationModalMessage" class="text-gray-600 mb-6">Mensaje aquí.</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="acceptNotificationModalBtn" class="btn btn-primary">Aceptar</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
