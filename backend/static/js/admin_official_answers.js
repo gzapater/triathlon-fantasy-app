@@ -345,7 +345,12 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
 
 document.getElementById('save-official-answers-btn').addEventListener('click', function() {
     if (!currentRaceIdForOfficialAnswers || !questionsDataForOfficialAnswers) {
-        alert('Error: No hay carrera seleccionada o preguntas cargadas.');
+        // Assumes showNotificationModal is available globally from race_detail.html
+        if (typeof showNotificationModal === 'function') {
+            showNotificationModal('Error', 'No hay carrera seleccionada o preguntas cargadas.', 'error');
+        } else {
+            alert('Error: No hay carrera seleccionada o preguntas cargadas.'); // Fallback
+        }
         return;
     }
 
@@ -418,12 +423,20 @@ document.getElementById('save-official-answers-btn').addEventListener('click', f
         }
     })
     .then(data => {
-        alert(data.message || 'Resultados oficiales guardados con éxito!');
+        if (typeof showNotificationModal === 'function') {
+            showNotificationModal('Éxito', data.message || 'Resultados oficiales guardados con éxito!', 'success');
+        } else {
+            alert(data.message || 'Resultados oficiales guardados con éxito!'); // Fallback
+        }
         closeOfficialAnswersModal();
     })
     .catch(error => {
         console.error('Error saving official answers:', error);
-        alert('Error al guardar los resultados: ' + (error.message || 'Error desconocido. Revise la consola.'));
+        if (typeof showNotificationModal === 'function') {
+            showNotificationModal('Error', 'Error al guardar los resultados: ' + (error.message || 'Error desconocido. Revise la consola.'), 'error');
+        } else {
+            alert('Error al guardar los resultados: ' + (error.message || 'Error desconocido. Revise la consola.')); // Fallback
+        }
     });
 });
 
