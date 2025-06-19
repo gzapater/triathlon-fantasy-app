@@ -1353,9 +1353,9 @@
                         allRaceQuestions.forEach(question => {
                             const userAnswer = currentUserAnswersData.find(ua => ua.question_id === question.id);
                             // Pass the full question object and the specific user answer (if it exists)
-                            // to renderSingleUserAnswer or a new function that handles this combined display.
-                            // For now, renderSingleUserAnswer will be modified to accept the question and optional answer.
-                            reviewUserAnswersDisplayArea.appendChild(renderSingleUserAnswer(question, userAnswer));
+                            // to renderQuestionForReview or a new function that handles this combined display.
+                            // For now, renderQuestionForReview will be modified to accept the question and optional answer.
+                            reviewUserAnswersDisplayArea.appendChild(renderQuestionForReview(question, userAnswer));
                         });
                     } else {
                         reviewUserAnswersDisplayArea.innerHTML = '<p class="text-gray-600 text-center py-4">No hay preguntas definidas para esta carrera.</p>';
