@@ -1274,21 +1274,15 @@
             //      toggleQuestionsBtn.addEventListener('click', toggleQuestions);
             // }
 
-            console.log('DEBUG: Looking for participateInPoolBtn.');
             const participateInPoolBtn = document.getElementById('participateInPoolBtn');
             if (participateInPoolBtn) {
-                console.log('DEBUG: participateInPoolBtn FOUND. Attaching listener. Typeof openWizard at this point:', typeof openWizard);
                 participateInPoolBtn.addEventListener('click', function(event) {
-                    console.log('DEBUG: participateInPoolBtn clicked. Calling openWizard. Typeof openWizard now:', typeof openWizard);
                     if (typeof openWizard === 'function') {
                         openWizard();
-                    } else {
-                        console.error('DEBUG: openWizard is NOT a function when participateInPoolBtn was clicked!');
-                        alert('DEBUG: Critical error - openWizard is not a function. Check console.');
                     }
+                    // El else que contenía el console.error y el alert ha sido eliminado,
+                    // ya que la funcionalidad principal de openWizard es correcta al momento del click.
                 });
-            } else {
-                console.log('DEBUG: participateInPoolBtn NOT FOUND.');
             }
 
             const reviewUserAnswersBtn = document.getElementById('reviewUserAnswersBtn');
@@ -2948,10 +2942,9 @@
             const wizardFinishBtn = document.getElementById('wizardFinishBtn');
             const answerQuestionsBtn = document.getElementById('answerQuestionsBtn'); // This is the hero button
 
-            console.log('DEBUG: About to define openWizard function.');
             function openWizard() {
                 if (quinielaCloseDate && new Date(quinielaCloseDate) < new Date()) {
-                    alert("La quiniela ya está cerrada y no se puede participar.");
+                    showNotificationModal("Quiniela Cerrada", "La quiniela ya está cerrada y no se puede participar.", "info");
                     return;
                 }
                 // If questions haven't been loaded yet (e.g. for a player who hasn't answered)
@@ -2973,9 +2966,8 @@
                         })
                         .then(questions => {
                             allRaceQuestions = questions; // Populate global questions
-                            console.log('Wizard: Fetched questions inside openWizard:', allRaceQuestions);
                             if (!allRaceQuestions || allRaceQuestions.length === 0) {
-                                alert("No hay preguntas disponibles para esta carrera en este momento.");
+                                showNotificationModal("Sin Preguntas", "No hay preguntas disponibles para esta carrera en este momento.", "info");
                                 if (wizardTriggerButton) { // Restore button
                                     wizardTriggerButton.innerHTML = originalButtonText;
                                     wizardTriggerButton.disabled = false;
@@ -2998,7 +2990,7 @@
                         })
                         .catch(error => {
                             console.error('Error fetching questions for wizard:', error);
-                            alert(`Error al cargar las preguntas de la quiniela: ${error.message}. Inténtalo de nuevo.`);
+                            showNotificationModal("Error", `Error al cargar las preguntas de la quiniela: ${error.message}. Inténtalo de nuevo.`, "error");
                         })
                         .finally(() => {
                             if (wizardTriggerButton) { // Restore button
@@ -3008,7 +3000,6 @@
                         });
                 } else {
                     // Questions are already loaded, open wizard directly
-                    console.log('Wizard: Using pre-loaded questions in openWizard:', allRaceQuestions);
                     currentQuestionIndex = 0;
                     userWizardAnswers = {}; // Reset answers
                     displayWizardQuestion(currentQuestionIndex);
@@ -3030,13 +3021,13 @@
             }
 
             function displayWizardQuestion(index) {
-                const questionForLog = allRaceQuestions && index >= 0 && index < allRaceQuestions.length ? allRaceQuestions[index] : undefined;
-                console.log('Wizard: displayWizardQuestion called. Index:', index, 'Question to display:', questionForLog);
+                // const questionForLog = allRaceQuestions && index >= 0 && index < allRaceQuestions.length ? allRaceQuestions[index] : undefined;
+                // console.log('Wizard: displayWizardQuestion called. Index:', index, 'Question to display:', questionForLog);
 
                 if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = '<p class="text-center text-gray-500 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando pregunta...</p>';
 
                 if (!allRaceQuestions || allRaceQuestions.length === 0) {
-                    console.error("displayWizardQuestion called with no questions available.");
+                    // console.error("displayWizardQuestion called with no questions available."); // Puede ser útil mantenerlo si hay problemas futuros
                     if(wizardQuestionText) wizardQuestionText.textContent = 'Error';
                     if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center py-4">Error: No hay preguntas disponibles para esta carrera.</p>';
                     if(wizardNextBtn) wizardNextBtn.style.display = 'none';
@@ -3046,7 +3037,7 @@
                     return;
                 }
                 if (index < 0 || index >= allRaceQuestions.length) {
-                    console.error("Invalid question index:", index);
+                    // console.error("Invalid question index:", index);  // Puede ser útil mantenerlo si hay problemas futuros
                     if(wizardQuestionText) wizardQuestionText.textContent = 'Error';
                     if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center py-4">Error: Índice de pregunta no válido.</p>';
                     if(wizardNextBtn) wizardNextBtn.style.display = 'none';
@@ -3058,7 +3049,7 @@
                 if (!question) {
                     if(wizardQuestionText) wizardQuestionText.textContent = 'Error';
                     if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center py-4">Error: No se pudo cargar esta pregunta (datos no válidos).</p>';
-                    console.error('displayWizardQuestion: question data is invalid for index', index, 'in allRaceQuestions:', allRaceQuestions);
+                    // console.error('displayWizardQuestion: question data is invalid for index', index, 'in allRaceQuestions:', allRaceQuestions); // Puede ser útil
                     if(wizardNextBtn) wizardNextBtn.style.display = 'none';
                     if(wizardFinishBtn) wizardFinishBtn.style.display = 'none';
                     return;
@@ -3241,17 +3232,16 @@
                             const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0;
                             const greenZoneUnitWidth = 1;
 
-                            console.log("Slider Init: wizardAnswerOptions offsetWidth", wizardAnswerOptions.offsetWidth);
-                            console.log("Slider Init: sliderContainer offsetWidth", sliderContainer.offsetWidth);
-                            console.log("Slider Init: trackBackground offsetWidth before query", trackBackground.offsetWidth);
-                            console.log("Slider Init: trackBackground display style", window.getComputedStyle(trackBackground).display);
-                            // Also log visibility of the modal itself
-                            const questionWizardModal = document.getElementById('questionWizardModal');
-                            if (questionWizardModal) {
-                                console.log("Slider Init: questionWizardModal display style", window.getComputedStyle(questionWizardModal).display);
-                                console.log("Slider Init: questionWizardModal visibility", window.getComputedStyle(questionWizardModal).visibility);
-                                console.log("Slider Init: questionWizardModal opacity", window.getComputedStyle(questionWizardModal).opacity);
-                            }
+                            // console.log("Slider Init: wizardAnswerOptions offsetWidth", wizardAnswerOptions.offsetWidth); // Debug
+                            // console.log("Slider Init: sliderContainer offsetWidth", sliderContainer.offsetWidth); // Debug
+                            // console.log("Slider Init: trackBackground offsetWidth before query", trackBackground.offsetWidth); // Debug
+                            // console.log("Slider Init: trackBackground display style", window.getComputedStyle(trackBackground).display); // Debug
+                            // const questionWizardModal = document.getElementById('questionWizardModal'); // Debug
+                            // if (questionWizardModal) { // Debug
+                            //     console.log("Slider Init: questionWizardModal display style", window.getComputedStyle(questionWizardModal).display); // Debug
+                            //     console.log("Slider Init: questionWizardModal visibility", window.getComputedStyle(questionWizardModal).visibility); // Debug
+                            //     console.log("Slider Init: questionWizardModal opacity", window.getComputedStyle(questionWizardModal).opacity); // Debug
+                            // } // Debug
 
                             const trackWidthPx = trackBackground.offsetWidth;
                             const valueRange = maxValue - minValue;
@@ -3422,10 +3412,10 @@
                                 userWizardAnswers[question.id] = { question_id: question.id, slider_answer_value: sliderValue };
                             } else {
                                 userWizardAnswers[question.id] = { question_id: question.id, slider_answer_value: null };
-                                console.warn(`Could not parse slider value for question ${question.id}. Value was: ${hiddenSliderInput.value}`);
+                                    // console.warn(`Could not parse slider value for question ${question.id}. Value was: ${hiddenSliderInput.value}`); // Mantener por si acaso
                             }
                         } else {
-                            console.error(`Hidden slider input not found for question ${question.id}`);
+                                // console.error(`Hidden slider input not found for question ${question.id}`); // Mantener por si acaso
                         }
                         break;
                 }
@@ -3465,7 +3455,7 @@
                     saveCurrentWizardAnswer();
 
                     if (Object.keys(userWizardAnswers).length === 0) {
-                        alert("No has respondido ninguna pregunta aún.");
+                        showNotificationModal("Sin Respuestas", "No has respondido ninguna pregunta aún.", "info");
                         return;
                     }
 
@@ -3482,20 +3472,17 @@
                     .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
                     .then(result => {
                         if (result.ok) {
-                            alert(result.body.message || '¡Respuestas guardadas con éxito!');
+                            showNotificationModal("Éxito", result.body.message || '¡Respuestas guardadas con éxito!', "success");
                             closeWizard();
-                                // Update UI to reflect that user has answered
-                                // This might involve hiding the "Participar" button and showing "Ya has participado"
-                                // This can be done by re-evaluating the Jinja or by JS DOM manipulation
-                                // For simplicity, we can reload the page to let Jinja handle it:
-                                window.location.reload();
+                            // Reload to update UI (e.g., show "Ya has participado")
+                            setTimeout(() => window.location.reload(), 1500); // Delay for user to see modal
                         } else {
-                            alert(`Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`);
+                            showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
                         }
                     })
                     .catch(error => {
                         console.error('Error saving answers:', error);
-                        alert('Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.');
+                        showNotificationModal("Error de Conexión", "Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.", "error");
                     })
                     .finally(() => {
                         wizardFinishBtn.disabled = false;
@@ -3503,7 +3490,7 @@
                     });
                 });
             }
-            console.log('DEBUG: openWizard function should now be defined. Typeof openWizard:', typeof openWizard);
+            // console.log('DEBUG: openWizard function should now be defined. Typeof openWizard:', typeof openWizard); // Depuración finalizada
             // --- End Question Wizard Logic ---
 
             // DOM Element Declarations
