@@ -2826,10 +2826,15 @@ def save_user_answers(race_id):
                 continue
 
 
-            # Delete existing answers for this user and question
-            # This also handles deletion of UserAnswerMultipleChoiceOption due to cascade
-            UserAnswer.query.filter_by(user_id=current_user.id, question_id=question.id).delete()
-            # db.session.flush() # Ensure deletes are processed before adds if there are unique constraints or complex interactions
+            # Fetch and delete existing answer and its MC options to ensure clean state and proper cascade
+            existing_answer = UserAnswer.query.filter_by(user_id=current_user.id, question_id=question.id).first()
+            if existing_answer:
+                # Explicitly delete related UserAnswerMultipleChoiceOption records
+                # This is belt-and-suspenders; cascade="all, delete-orphan" should handle it,
+                # but direct deletion ensures it if there are any session synchronization issues.
+                UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=existing_answer.id).delete()
+                db.session.delete(existing_answer)
+                db.session.flush() # Ensure deletion is processed before adding new answer
 
             new_user_answer = UserAnswer(
                 user_id=current_user.id,
