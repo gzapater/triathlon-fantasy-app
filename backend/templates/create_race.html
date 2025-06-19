@@ -748,8 +748,16 @@
                 .then(response => response.json().then(data => ({ok: response.ok, status: response.status, data})))
                 .then(result => {
                     if (result.ok && result.status === 201) {
-                        alert('¡Carrera creada exitosamente!');
-                        window.location.href = `{{ url_for('serve_race_detail_page', race_id=0) }}`.replace('0', result.data.race_id);
+                        // Assumes showNotificationModal is available
+                        if (typeof showNotificationModal === 'function') {
+                            showNotificationModal('Éxito', '¡Carrera creada exitosamente!', 'success');
+                            setTimeout(() => {
+                                window.location.href = `{{ url_for('serve_race_detail_page', race_id=0) }}`.replace('0', result.data.race_id);
+                            }, 1500); // Delay for user to see modal
+                        } else {
+                            alert('¡Carrera creada exitosamente!'); // Fallback
+                            window.location.href = `{{ url_for('serve_race_detail_page', race_id=0) }}`.replace('0', result.data.race_id);
+                        }
                     } else {
                         formErrorMessages.textContent = result.data.message || `Error (${result.status}) al crear la carrera.`;
                         // Display more detailed errors if available
