@@ -996,21 +996,74 @@
         }
 
         function createOptionInputDiv(optionText = "", optionId = null, isCorrect = false, questionType = "MULTIPLE_CHOICE") {
-            const optionDiv = document.createElement('div');
-            optionDiv.className = 'flex items-center space-x-2 mb-2';
-            const textInput = document.createElement('input');
-            textInput.type = 'text';
-            textInput.className = 'mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flex-grow';
-            textInput.value = optionText;
-            textInput.placeholder = (questionType === "ORDERING") ? "Texto del ítem" : "Texto de la opción";
-            optionDiv.appendChild(textInput);
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'text-red-500 hover:text-red-700';
-            removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
-            removeBtn.onclick = () => optionDiv.remove();
-            optionDiv.appendChild(removeBtn);
-            return optionDiv;
+            if (questionType === "ORDERING") {
+                const listItem = document.createElement('li');
+                // optionId is not strictly needed for new items until saved, but dataset can be used if ever required.
+                // listItem.dataset.optionId = optionId || ''; // New items won't have an opt.id from the DB yet
+                listItem.className = 'edit-modal-ordering-item p-2 border rounded-md bg-gray-50 flex items-center space-x-2 shadow-sm mb-2';
+
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.value = optionText; // Will be empty for new options
+                textInput.className = 'flex-grow p-2 border border-gray-300 rounded-md shadow-sm sm:text-sm';
+                textInput.placeholder = 'Texto del ítem';
+                listItem.appendChild(textInput);
+
+                const upButton = document.createElement('button');
+                upButton.innerHTML = '↑';
+                upButton.type = 'button';
+                upButton.className = 'edit-modal-move-up-btn px-2 py-1 border rounded-md text-sm hover:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-orange-300';
+                upButton.addEventListener('click', () => {
+                    const currentLi = upButton.closest('li');
+                    if (currentLi && currentLi.previousElementSibling) {
+                        currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                        updateEditModalOrderingButtonStates(currentLi.parentNode);
+                    }
+                });
+                listItem.appendChild(upButton);
+
+                const downButton = document.createElement('button');
+                downButton.innerHTML = '↓';
+                downButton.type = 'button';
+                downButton.className = 'edit-modal-move-down-btn px-2 py-1 border rounded-md text-sm hover:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-orange-300';
+                downButton.addEventListener('click', () => {
+                    const currentLi = downButton.closest('li');
+                    if (currentLi && currentLi.nextElementSibling) {
+                        currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling);
+                        updateEditModalOrderingButtonStates(currentLi.parentNode);
+                    }
+                });
+                listItem.appendChild(downButton);
+
+                const removeButton = document.createElement('button');
+                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                removeButton.type = 'button';
+                removeButton.className = 'text-red-500 hover:text-red-700 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-300';
+                removeButton.onclick = () => {
+                    const parentUl = listItem.parentNode;
+                    listItem.remove();
+                    if (parentUl) updateEditModalOrderingButtonStates(parentUl);
+                };
+                listItem.appendChild(removeButton);
+                return listItem;
+
+            } else { // Existing logic for MULTIPLE_CHOICE
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'flex items-center space-x-2 mb-2';
+                const textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.className = 'mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm sm:text-sm flex-grow';
+                textInput.value = optionText;
+                textInput.placeholder = "Texto de la opción"; // Default placeholder
+                optionDiv.appendChild(textInput);
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'text-red-500 hover:text-red-700';
+                removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                removeBtn.onclick = () => optionDiv.remove();
+                optionDiv.appendChild(removeBtn);
+                return optionDiv;
+            }
         }
 
         function openAddQuestionModal() {
@@ -1101,10 +1154,62 @@
                 if(ptsPerCorrectOrd) ptsPerCorrectOrd.value = question.points_per_correct_order !== null ? question.points_per_correct_order : '';
                 if(bonusForFullOrd) bonusForFullOrd.value = question.bonus_for_full_order !== null ? question.bonus_for_full_order : '';
                 if(oOptContainer) {
-                    oOptContainer.innerHTML = '';
+                    oOptContainer.innerHTML = ''; // Clear existing
                     question.options.forEach(opt => {
-                        oOptContainer.appendChild(createOptionInputDiv(opt.option_text, opt.id, false, "ORDERING"));
+                        const listItem = document.createElement('li');
+                        listItem.dataset.optionId = opt.id || ''; // Store original ID if present
+                        listItem.className = 'edit-modal-ordering-item p-2 border rounded-md bg-gray-50 flex items-center space-x-2 shadow-sm mb-2';
+
+                        const textInput = document.createElement('input');
+                        textInput.type = 'text';
+                        textInput.value = opt.option_text;
+                        textInput.className = 'flex-grow p-2 border border-gray-300 rounded-md shadow-sm sm:text-sm';
+                        textInput.placeholder = 'Texto del ítem';
+                        listItem.appendChild(textInput);
+
+                        const upButton = document.createElement('button');
+                        upButton.innerHTML = '↑';
+                        upButton.type = 'button';
+                        upButton.className = 'edit-modal-move-up-btn px-2 py-1 border rounded-md text-sm hover:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-orange-300';
+                        upButton.addEventListener('click', () => {
+                            const currentLi = upButton.closest('li');
+                            if (currentLi && currentLi.previousElementSibling) {
+                                currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                                updateEditModalOrderingButtonStates(oOptContainer);
+                            }
+                        });
+                        listItem.appendChild(upButton);
+
+                        const downButton = document.createElement('button');
+                        downButton.innerHTML = '↓';
+                        downButton.type = 'button';
+                        downButton.className = 'edit-modal-move-down-btn px-2 py-1 border rounded-md text-sm hover:bg-gray-200 focus:outline-none focus:ring-1 focus:ring-orange-300';
+                        downButton.addEventListener('click', () => {
+                            const currentLi = downButton.closest('li');
+                            if (currentLi && currentLi.nextElementSibling) {
+                                currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling);
+                                updateEditModalOrderingButtonStates(oOptContainer);
+                            }
+                        });
+                        listItem.appendChild(downButton);
+
+                        const removeButton = document.createElement('button');
+                        removeButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                        removeButton.type = 'button';
+                        removeButton.className = 'text-red-500 hover:text-red-700 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-300';
+                        removeButton.onclick = () => {
+                            listItem.remove();
+                            // Potentially call updateEditModalOrderingButtonStates here if the list becomes empty or changes significantly
+                            const listContainer = document.getElementById('orderingOptionsContainer');
+                            if (listContainer) updateEditModalOrderingButtonStates(listContainer);
+                        };
+                        listItem.appendChild(removeButton);
+
+                        oOptContainer.appendChild(listItem);
                     });
+                    if (oOptContainer.firstChild) { // Check if there are items before calling
+                        updateEditModalOrderingButtonStates(oOptContainer);
+                    }
                 }
             } else if (question.question_type === 'SLIDER') {
                 if(sliderUnitInput) sliderUnitInput.value = question.slider_unit || '';
@@ -2076,14 +2181,25 @@
                             questionData.total_score_mc_single = totalScore;
                         }
                     } else if (type === 'ORDERING') {
-                        orderingOptionsContainer.querySelectorAll('input[type="text"]').forEach(input => {
-                           if(input.value.trim()) options.push({ option_text: input.value.trim() });
+                        // Iterate over li elements to preserve order and potentially IDs
+                        orderingOptionsContainer.querySelectorAll('li.edit-modal-ordering-item').forEach(li => {
+                            const textInput = li.querySelector('input[type="text"]');
+                            if (textInput && textInput.value.trim()) {
+                                const optionData = { option_text: textInput.value.trim() };
+                                if (li.dataset.optionId && li.dataset.optionId !== 'null' && li.dataset.optionId !== '') {
+                                    // Include original ID if it exists (for existing options)
+                                    // The backend needs to handle how it uses these IDs (e.g., for updates vs. creates)
+                                    optionData.id = parseInt(li.dataset.optionId, 10);
+                                }
+                                options.push(optionData);
+                            }
                         });
+
                         if (options.length < 2) {
                             alert('Las preguntas de ordenamiento deben tener al menos 2 ítems con texto.');
                             saveQuestionBtn.disabled = false; saveQuestionBtn.classList.remove('opacity-50'); return;
                         }
-                        questionData.options = options;
+                        questionData.options = options; // This now sends an array of {option_text: "...", id: ...} in the correct order
                         const pointsPerCorrect = parseInt(pointsPerCorrectOrderInput.value);
                         const bonusFullOrder = parseInt(bonusForFullOrderInput.value);
                         if (isNaN(pointsPerCorrect) || pointsPerCorrect <= 0) {
@@ -3209,6 +3325,27 @@
                 listItems.forEach((li, index) => {
                     const upButton = li.querySelector('.wizard-move-up-btn');
                     const downButton = li.querySelector('.wizard-move-down-btn');
+
+                    if (upButton) {
+                        upButton.disabled = (index === 0);
+                        upButton.classList.toggle('opacity-50', upButton.disabled);
+                        upButton.classList.toggle('cursor-not-allowed', upButton.disabled);
+                    }
+                    if (downButton) {
+                        downButton.disabled = (index === listItems.length - 1);
+                        downButton.classList.toggle('opacity-50', downButton.disabled);
+                        downButton.classList.toggle('cursor-not-allowed', downButton.disabled);
+                    }
+                });
+            }
+
+            // Helper function for Edit Modal ordering buttons
+            function updateEditModalOrderingButtonStates(ulElement) {
+                if (!ulElement) return;
+                const listItems = ulElement.querySelectorAll('li.edit-modal-ordering-item');
+                listItems.forEach((li, index) => {
+                    const upButton = li.querySelector('.edit-modal-move-up-btn');
+                    const downButton = li.querySelector('.edit-modal-move-down-btn');
 
                     if (upButton) {
                         upButton.disabled = (index === 0);
