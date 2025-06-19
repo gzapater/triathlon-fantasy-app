@@ -1740,7 +1740,91 @@
                         orderingTextarea.rows = 3;
                         orderingTextarea.placeholder = 'Ej: Item C, Item A, Item B';
                         orderingTextarea.value = userAnswerData?.answer_text || ''; // Pre-fill
-                        editAnswerOptionsArea.appendChild(orderingTextarea);
+                        // editAnswerOptionsArea.appendChild(orderingTextarea); // Old textarea logic
+
+                        // New list-based rendering for ordering questions
+                        editAnswerOptionsArea.innerHTML = ''; // Clear previous content like info text or old textarea
+
+                        const orderingList = document.createElement('ul');
+                        orderingList.id = `editAnswerOrderingList_${questionData.id}`;
+                        orderingList.className = 'list-none p-0 m-0 space-y-2';
+
+                        let optionsInOrder = [...questionData.options]; // Default to original question option order
+
+                        if (userAnswerData && userAnswerData.answer_text) {
+                            const savedOrderIds = userAnswerData.answer_text.split(',').map(id => parseInt(id.trim(), 10));
+                            const questionOptionsMap = new Map(questionData.options.map(opt => [opt.id, opt]));
+                            const reorderedOptions = [];
+                            const addedIds = new Set();
+
+                            savedOrderIds.forEach(id => {
+                                if (questionOptionsMap.has(id)) {
+                                    reorderedOptions.push(questionOptionsMap.get(id));
+                                    addedIds.add(id);
+                                }
+                            });
+                            // Add any options from questionData.options not present in savedOrderIds (e.g. new options to question)
+                            questionData.options.forEach(opt => {
+                                if (!addedIds.has(opt.id)) {
+                                    reorderedOptions.push(opt);
+                                }
+                            });
+                            if (reorderedOptions.length === questionData.options.length) { // Ensure integrity
+                                optionsInOrder = reorderedOptions;
+                            }
+                        }
+
+                        if (optionsInOrder && optionsInOrder.length > 0) {
+                            optionsInOrder.forEach(opt => {
+                                const listItem = document.createElement('li');
+                                listItem.dataset.optionId = opt.id;
+                                listItem.className = 'p-3 border rounded-md bg-gray-50 flex justify-between items-center shadow-sm';
+
+                                const textSpan = document.createElement('span');
+                                textSpan.className = 'text-gray-700';
+                                textSpan.textContent = opt.option_text; // Text is not editable here
+                                listItem.appendChild(textSpan);
+
+                                const buttonContainer = document.createElement('div');
+                                buttonContainer.className = 'space-x-1';
+
+                                const moveUpBtn = document.createElement('button');
+                                moveUpBtn.innerHTML = '↑';
+                                moveUpBtn.type = 'button';
+                                moveUpBtn.className = 'edit-answer-move-up-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveUpBtn.addEventListener('click', () => {
+                                    const currentLi = moveUpBtn.closest('li');
+                                    if (currentLi && currentLi.previousElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                                        updateEditAnswerModalOrderingButtonStates(orderingList);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveUpBtn);
+
+                                const moveDownBtn = document.createElement('button');
+                                moveDownBtn.innerHTML = '↓';
+                                moveDownBtn.type = 'button';
+                                moveDownBtn.className = 'edit-answer-move-down-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveDownBtn.addEventListener('click', () => {
+                                    const currentLi = moveDownBtn.closest('li');
+                                    if (currentLi && currentLi.nextElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling);
+                                        updateEditAnswerModalOrderingButtonStates(orderingList);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveDownBtn);
+
+                                listItem.appendChild(buttonContainer);
+                                orderingList.appendChild(listItem);
+                            });
+                            // Initial call to update button states
+                            if (orderingList.firstChild) {
+                                updateEditAnswerModalOrderingButtonStates(orderingList);
+                            }
+                        } else {
+                            orderingList.innerHTML = '<p class="text-sm text-gray-500">No hay opciones para ordenar.</p>';
+                        }
+                        editAnswerOptionsArea.appendChild(orderingList);
                         break;
 
                     case 'MULTIPLE_CHOICE':
@@ -1868,8 +1952,16 @@
                             collectedAnswerData.answer_text = ftTextarea ? ftTextarea.value.trim() : null;
                             break;
                         case 'ORDERING':
-                            const orTextarea = editAnswerOptionsArea.querySelector(`#editOrderingAnswer_${questionId}`);
-                            collectedAnswerData.ordered_options_text = orTextarea ? orTextarea.value.trim() : null; // Matches wizard payload
+                            // const orTextarea = editAnswerOptionsArea.querySelector(`#editOrderingAnswer_${questionId}`); // Old textarea logic
+                            // collectedAnswerData.ordered_options_text = orTextarea ? orTextarea.value.trim() : null;
+                            const orderingList = editAnswerOptionsArea.querySelector(`#editAnswerOrderingList_${questionId}`);
+                            if (orderingList) {
+                                const orderedOptionIds = Array.from(orderingList.querySelectorAll('li[data-option-id]'))
+                                                              .map(li => li.dataset.optionId);
+                                collectedAnswerData.ordered_options_text = orderedOptionIds.join(',');
+                            } else {
+                                collectedAnswerData.ordered_options_text = ''; // Should not happen if populated correctly
+                            }
                             break;
                         case 'MULTIPLE_CHOICE':
                             if (questionData.is_mc_multiple_correct) {
@@ -3343,9 +3435,15 @@
             function updateEditModalOrderingButtonStates(ulElement) {
                 if (!ulElement) return;
                 const listItems = ulElement.querySelectorAll('li.edit-modal-ordering-item');
+            } // This seems to be a duplicate or incomplete function from a previous attempt. Will replace with the correct one.
+
+            // Helper function for Edit Answer Modal ordering buttons
+            function updateEditAnswerModalOrderingButtonStates(ulElement) {
+                if (!ulElement) return;
+                const listItems = ulElement.querySelectorAll('li[data-option-id]'); // Target li with data-option-id
                 listItems.forEach((li, index) => {
-                    const upButton = li.querySelector('.edit-modal-move-up-btn');
-                    const downButton = li.querySelector('.edit-modal-move-down-btn');
+                    const upButton = li.querySelector('.edit-answer-move-up-btn'); // Corrected class
+                    const downButton = li.querySelector('.edit-answer-move-down-btn'); // Corrected class
 
                     if (upButton) {
                         upButton.disabled = (index === 0);
