@@ -184,38 +184,48 @@
                                 {# Maybe a specific color for general races, e.g., a neutral or global color theme #}
                                 {# For now, let's keep it based on format or default #}
                             {% endif %}
-                            {% if race['race_format']['name'] == 'Duatlón' %}
-                                {% set card_gradient_class = 'gradient-run' %} {# Green for Duathlon (run-bike-run) #}
-                            {% elif race['race_format']['name'] == 'Acuatlón' %}
-                                {% set card_gradient_class = 'gradient-bike' %} {# Dark for Acuatlon (swim-run) - using bike as placeholder #}
+                            {% set race_format_name = race['race_format']['name'] %}
+                            {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
+                            {% set race_icon = 'fas fa-flag-checkered' %} {# Default icon #}
+
+                            {% if race_format_name == 'Duatlón' %}
+                                {% set card_gradient_class = 'gradient-run' %} {# Green for Duathlon #}
+                                {% set race_icon = 'fas fa-road' %} {# Icon for Duathlon #}
+                            {% elif race_format_name == 'Acuatlón' %}
+                                {% set card_gradient_class = 'gradient-bike' %} {# Dark for Acuatlon (swim-run) - using bike as placeholder gradient #}
+                                {% set race_icon = 'fas fa-swimmer' %} {# Icon for Acuatlon #}
+                            {% elif race_format_name == 'Triatlón' %}
+                                {% set race_icon = 'fas fa-water' %} {# Specific icon for Triathlon, can add more complex logic later #}
                             {% endif %}
-                            <div class="{{ card_gradient_class }} h-32 flex items-center justify-center">
-                                <div class="text-center text-white">
-                                    {# Icon could also be dynamic based on format #}
-                                    <i class="fas fa-flag-checkered text-3xl mb-2"></i>
-                                    <p class="font-semibold">{{ race['race_format']['name'] }}</p>
-                                </div>
+
+                            <div class="{{ card_gradient_class }} h-40 flex flex-col items-center justify-center p-4 text-white">
+                                <i class="{{ race_icon }} text-3xl mb-2"></i>
+                                <h3 class="font-bold text-xl text-center mb-1">{{ race['title'] }}</h3>
+                                <p class="font-semibold text-sm">{{ race_format_name }}</p>
                             </div>
                             <div class="p-6">
                                 <div class="flex items-center justify-between mb-3">
                                     {# Badge for race format - using badge-league as a placeholder style #}
-                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race['race_format']['name'] }}</span>
+                                    <span class="badge-league text-xs px-3 py-1 rounded-full text-white">{{ race_format_name }}</span>
                                     <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
                                 </div>
-                                <h3 class="font-bold text-lg text-gray-800 mb-2">{{ race['title'] }}</h3>
+                                <!-- Title removed from here -->
                                 {% if race['description'] %}
                                     <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
                                 {% else %}
                                     <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">Ubicación: {{ race['location'] if race['location'] else 'No especificada' }}</p>
                                 {% endif %}
-                                <div class="flex items-center justify-between">
+                                <div class="flex items-center justify-between mb-4"> {# Added mb-4 for spacing #}
                                     <div class="flex items-center space-x-2">
                                         <i class="fas fa-map-marker-alt text-gray-400"></i>
                                         <span class="text-sm text-gray-600">{{ race['location'] if race['location'] else 'N/A' }}</span>
                                     </div>
-                                    <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="text-orange-500 hover:text-orange-600 font-medium">Ver detalles</a>
+                                    <!-- "Ver detalles" link will be replaced by a button below -->
                                 </div>
-                                <div class="mt-4 pt-4 border-t border-gray-200">
+                                <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="btn-primary w-full text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center mb-3">
+                                    Acceder a la carrera
+                                </a>
+                                <div class="pt-4 border-t border-gray-200">
                                     {% if race.is_quiniela_actionable %}
                                         <button data-race-id="{{ race.id }}" data-race-title="{{ race.title | e }}" onclick="openOfficialAnswersModal(this)" class="w-full text-sm bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md transition-colors">
                                             <i class="fas fa-gavel mr-2"></i>Gestionar Quiniela
