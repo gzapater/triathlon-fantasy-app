@@ -1350,8 +1350,11 @@
                         const errData = await userAnswersResponse.json().catch(() => null);
                         throw new Error(errData?.message || `Error fetching user answers: ${userAnswersResponse.status}: ${userAnswersResponse.statusText}`);
                     }
-                    const userAnswers = await userAnswersResponse.json();
-                    currentUserAnswersData = userAnswers; // Store/update user's answers
+                    const userAnswersResponseData = await userAnswersResponse.json();
+                    currentUserAnswersData = userAnswersResponseData.answers; // Assign the array of answers
+
+                    // You might want to use userAnswersResponseData.num_total_questions and
+                    // userAnswersResponseData.num_answered_questions here if needed for the UI
 
                     reviewAnswersLoading.style.display = 'none';
 
