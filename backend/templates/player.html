@@ -606,46 +606,98 @@
             }
             // --- End Join Race Modal Logic ---
 
-            // Check for auto_join_race_id passed from server (this part is added for player.html)
+            // Combined and refactored logic for Join Race Modal
             const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('null') }}";
             const raceToJoinTitleFromServer = "{{ race_to_join_title | default('null') | e }}";
 
-            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer !== 'null' && raceToJoinTitleFromServer && raceToJoinTitleFromServer !== 'null') {
-                // The openSharedRaceModal function would be defined similarly to how it was for admin_dashboard.html
-                // or reuse if script.js contains it. For this example, assuming it's locally defined or available.
-                // This implies the 'joinRaceModal' and its related elements are present in player.html
-                if (typeof openSharedRaceModal === 'function') { // Check if function is defined
-                    openSharedRaceModal(autoJoinRaceIdFromServer, raceToJoinTitleFromServer);
+            const urlParamsClean = new URLSearchParams(window.location.search); // Use a new name to avoid conflict if needed later
+            const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
+            const raceNotFoundError = urlParamsClean.get('error') === 'race_not_found';
+            const originalRaceIdAttempt = urlParamsClean.get('original_race_id');
+
+            let effectiveRaceId = null;
+            let effectiveRaceTitle = null;
+            let source = null;
+
+            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer !== 'null') {
+                effectiveRaceId = autoJoinRaceIdFromServer;
+                effectiveRaceTitle = (raceToJoinTitleFromServer && raceToJoinTitleFromServer !== 'null' && raceToJoinTitleFromServer.toLowerCase() !== 'none') ? raceToJoinTitleFromServer : null;
+                source = 'server';
+            } else if (joinRaceIdFromQuery) {
+                const parsedId = parseInt(joinRaceIdFromQuery, 10);
+                if (!isNaN(parsedId) && parsedId > 0) {
+                    effectiveRaceId = parsedId.toString();
+                    source = 'query';
                 } else {
-                    // Fallback or specific implementation for player.html if openSharedRaceModal isn't global
-                    // This re-uses the existing modal logic in player.html
-                    if (joinRaceModal && joinRaceModalTitle && joinRaceError) {
-                        raceToJoinId = autoJoinRaceIdFromServer; // Use the global raceToJoinId for the modal
-                        joinRaceModalTitle.textContent = raceToJoinTitleFromServer;
-                        joinRaceError.style.display = 'none';
-                        joinRaceModal.style.display = 'flex';
+                    console.error(`Invalid join_race_id from query parameter: ${joinRaceIdFromQuery}`);
+                    if (joinRaceError) {
+                        joinRaceError.textContent = `El ID de carrera proporcionado (${joinRaceIdFromQuery}) no es válido.`;
+                        joinRaceError.style.display = 'block';
                     }
                 }
             }
-             // Clean URL parameters (same logic as in admin_dashboard.html)
-            const currentUrlPlayer = new URL(window.location.href);
-            let needsRedirectPlayer = false;
-            if (currentUrlPlayer.searchParams.has('join_race_id')) {
-                currentUrlPlayer.searchParams.delete('join_race_id');
-                needsRedirectPlayer = true;
-            }
-            if (currentUrlPlayer.searchParams.has('error')) {
-                currentUrlPlayer.searchParams.delete('error');
-                needsRedirectPlayer = true;
-            }
-            if (currentUrlPlayer.searchParams.has('original_race_id')) {
-                currentUrlPlayer.searchParams.delete('original_race_id');
-                needsRedirectPlayer = true;
-            }
-            if (needsRedirectPlayer && window.history.replaceState) {
-                window.history.replaceState({}, document.title, currentUrlPlayer.pathname + currentUrlPlayer.search + currentUrlPlayer.hash);
+
+            if (effectiveRaceId && joinRaceModal && joinRaceModalTitle) {
+                raceToJoinId = effectiveRaceId; // Set global raceToJoinId for the accept button
+
+                if (source === 'server') {
+                    let displayTitle = effectiveRaceTitle || `Carrera ID: ${effectiveRaceId}`;
+                    if (effectiveRaceTitle === 'null' || effectiveRaceTitle === 'None') { // Handle 'None' if it might come as string
+                        displayTitle = `Carrera ID: ${effectiveRaceId}`;
+                    }
+                    joinRaceModalTitle.textContent = displayTitle;
+                    if (joinRaceError) joinRaceError.style.display = 'none';
+                    joinRaceModal.style.display = 'flex';
+                } else if (source === 'query') {
+                    fetch(`/api/races/${effectiveRaceId}/basic_details`)
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => { // Assumes error responses are JSON
+                                    throw new Error(err.message || `Error ${response.status}`);
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            let displayTitle = data.title;
+                            if (!data.title || data.title.toLowerCase() === 'none' || data.title.toLowerCase() === 'null') {
+                                displayTitle = `Carrera ID: ${effectiveRaceId}`;
+                            }
+                            joinRaceModalTitle.textContent = displayTitle;
+                            joinRaceModal.style.display = 'flex';
+                            if (joinRaceError) joinRaceError.style.display = 'none';
+                        })
+                        .catch(error => {
+                            console.error('Error fetching race details for join modal (query source):', error);
+                            if (joinRaceError) {
+                                joinRaceError.textContent = `Error al cargar detalles de la carrera (ID: ${effectiveRaceId}): ${error.message}.`;
+                                joinRaceError.style.display = 'block';
+                            }
+                            joinRaceModal.style.display = 'none';
+                        });
+                }
+            } else if (raceNotFoundError && originalRaceIdAttempt && joinRaceError) {
+                // This part handles the ?error=race_not_found&original_race_id=... scenario
+                joinRaceError.textContent = `La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`;
+                joinRaceError.style.display = 'block';
+                alert(`La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`); // Keep alert for visibility
             }
 
+            // Clean URL parameters after processing
+            const currentUrlPlayer = new URL(window.location.href);
+            let paramsToRemove = ['join_race_id', 'error', 'original_race_id'];
+            let needsHistoryReplace = false;
+
+            paramsToRemove.forEach(param => {
+                if (currentUrlPlayer.searchParams.has(param)) {
+                    currentUrlPlayer.searchParams.delete(param);
+                    needsHistoryReplace = true;
+                }
+            });
+
+            if (needsHistoryReplace && window.history.replaceState) {
+                window.history.replaceState({}, document.title, currentUrlPlayer.pathname + currentUrlPlayer.search + currentUrlPlayer.hash);
+            }
 
             setupViewMoreButton('viewMoreFavoriteBtn', 'initially-hidden-favorite');
             // If other sections like "Mis Carreras Inscritas" or "Carreras Destacadas"
