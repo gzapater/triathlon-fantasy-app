@@ -1,3 +1,52 @@
+// Global Loading Bar Elements
+const loadingOverlay = document.getElementById('loading-overlay');
+const loadingProgress = document.getElementById('loading-progress');
+let _loadingInterval = null;
+
+function showLoadingBar() {
+    if (!loadingOverlay || !loadingProgress) {
+        console.error('Loading bar elements not found!');
+        return;
+    }
+    let width = 0;
+    loadingProgress.style.width = '0%';
+    loadingProgress.textContent = '0%';
+    loadingOverlay.style.display = 'flex'; // Use flex to center content
+
+    // Clear any existing interval
+    if (_loadingInterval) {
+        clearInterval(_loadingInterval);
+    }
+
+    _loadingInterval = setInterval(() => {
+        if (width >= 100) {
+            width = 0; // Reset and loop for visual effect if loading takes longer
+        }
+        width += 5; // Increment width
+        loadingProgress.style.width = width + '%';
+        loadingProgress.textContent = width + '%';
+    }, 100); // Adjust timing for smoother or faster animation
+}
+
+function hideLoadingBar() {
+    if (!loadingOverlay || !loadingProgress) {
+        console.error('Loading bar elements not found!');
+        return;
+    }
+    clearInterval(_loadingInterval);
+    _loadingInterval = null;
+    loadingProgress.style.width = '100%'; // Complete the bar
+    loadingProgress.textContent = '100%';
+
+    // Give a brief moment to see the bar complete before hiding
+    setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+        loadingProgress.style.width = '0%'; // Reset for next time
+        loadingProgress.textContent = '0%';
+    }, 150); // Short delay
+}
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const helloButton = document.getElementById('helloButton');
     const messageArea = document.getElementById('messageArea');
@@ -16,9 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (helloButton) { // Ensure helloButton exists
         helloButton.addEventListener('click', () => {
-            // The existing fetch to /api/hello will be updated later
-            // to ensure it sends credentials if needed (e.g. for @login_required)
-            // For now, assuming it might work or will be fixed in Step 5
+            showLoadingBar();
             fetch('/api/hello') // Assuming this is the correct endpoint for the hello message
                 .then(response => {
                     if (response.status === 401) { // Unauthorized
@@ -38,12 +85,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(error => {
                     console.error('Fetch error:', error);
                     messageArea.textContent = 'Error fetching message from backend. You might need to login.';
+                })
+                .finally(() => {
+                    hideLoadingBar();
                 });
         });
     }
 
     if (logoutButton) {
         logoutButton.addEventListener('click', async () => {
+            showLoadingBar();
             try {
                 // Clear remembered user credentials on logout
                 localStorage.removeItem('rememberedUser');
@@ -62,100 +113,104 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Logout request error:', error);
                 messageArea.textContent = 'An error occurred during logout.';
+            } finally {
+                hideLoadingBar();
             }
         });
 
         // Event Listener for Save Button
-        saveOfficialAnswersBtn.addEventListener('click', async function() {
-            const selectedRaceId = officialAnswersRaceSelect.value;
-            if (!selectedRaceId) {
-                alert('Please select a race first.');
-                return;
-            }
-
-            const officialAnswersPayload = {};
-            const questionDivs = officialAnswersQuestionsContainer.querySelectorAll('div[data-question-id]');
-
-            questionDivs.forEach(qDiv => {
-                const questionId = qDiv.dataset.questionId;
-                const questionType = qDiv.dataset.questionType;
-                const isMcMultipleCorrect = qDiv.dataset.isMcMultipleCorrect === 'true';
-                let answerData = {};
-
-                switch (questionType) {
-                    case 'FREE_TEXT':
-                        const textarea = qDiv.querySelector('textarea');
-                        answerData.answer_text = textarea ? textarea.value.trim() : null;
-                        break;
-                    case 'MULTIPLE_CHOICE':
-                        if (isMcMultipleCorrect) {
-                            const checkedBoxes = qDiv.querySelectorAll('input[type="checkbox"]:checked');
-                            answerData.selected_option_ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
-                        } else {
-                            const selectedRadio = qDiv.querySelector('input[type="radio"]:checked');
-                            answerData.selected_option_id = selectedRadio ? parseInt(selectedRadio.value) : null;
-                        }
-                        break;
-                    case 'ORDERING':
-                        const orderingTextarea = qDiv.querySelector('textarea');
-                        answerData.ordered_options_text = orderingTextarea ? orderingTextarea.value.trim() : null;
-                        break;
-                    default:
-                        console.warn(`Unsupported question type ${questionType} for question ID ${questionId}. Skipping.`);
-                        return; // Skip this question
+        // Assuming saveOfficialAnswersBtn, officialAnswersRaceSelect, and officialAnswersQuestionsContainer are defined elsewhere or this code is conditional
+        if (
+            typeof saveOfficialAnswersBtn !== 'undefined' && saveOfficialAnswersBtn &&
+            typeof officialAnswersRaceSelect !== 'undefined' && officialAnswersRaceSelect &&
+            typeof officialAnswersQuestionsContainer !== 'undefined' && officialAnswersQuestionsContainer
+        ) {
+            saveOfficialAnswersBtn.addEventListener('click', async function() {
+                const selectedRaceId = officialAnswersRaceSelect.value;
+                if (!selectedRaceId) {
+                    alert('Please select a race first.');
+                    return;
                 }
-                officialAnswersPayload[questionId] = answerData;
-            });
 
-            // console.log('Payload to send:', JSON.stringify(officialAnswersPayload, null, 2)); // For debugging
+                const officialAnswersPayload = {};
+                const questionDivs = officialAnswersQuestionsContainer.querySelectorAll('div[data-question-id]');
 
-            saveOfficialAnswersBtn.disabled = true;
-            saveOfficialAnswersBtn.textContent = 'Saving...';
-            let messageElement = officialAnswersQuestionsContainer.querySelector('.save-message');
-            if (messageElement) messageElement.remove(); // Remove old message
+                questionDivs.forEach(qDiv => {
+                    const questionId = qDiv.dataset.questionId;
+                    const questionType = qDiv.dataset.questionType;
+                    const isMcMultipleCorrect = qDiv.dataset.isMcMultipleCorrect === 'true';
+                    let answerData = {};
 
-            messageElement = document.createElement('p');
-            messageElement.classList.add('mt-4', 'text-center', 'save-message');
-            officialAnswersQuestionsContainer.appendChild(messageElement);
-
-
-            try {
-                const response = await fetch(`/api/races/${selectedRaceId}/official_answers`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        // Include CSRF token if needed by your Flask setup
-                    },
-                    body: JSON.stringify(officialAnswersPayload)
+                    switch (questionType) {
+                        case 'FREE_TEXT':
+                            const textarea = qDiv.querySelector('textarea');
+                            answerData.answer_text = textarea ? textarea.value.trim() : null;
+                            break;
+                        case 'MULTIPLE_CHOICE':
+                            if (isMcMultipleCorrect) {
+                                const checkedBoxes = qDiv.querySelectorAll('input[type="checkbox"]:checked');
+                                answerData.selected_option_ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+                            } else {
+                                const selectedRadio = qDiv.querySelector('input[type="radio"]:checked');
+                                answerData.selected_option_id = selectedRadio ? parseInt(selectedRadio.value) : null;
+                            }
+                            break;
+                        case 'ORDERING':
+                            const orderingTextarea = qDiv.querySelector('textarea');
+                            answerData.ordered_options_text = orderingTextarea ? orderingTextarea.value.trim() : null;
+                            break;
+                        default:
+                            console.warn(`Unsupported question type ${questionType} for question ID ${questionId}. Skipping.`);
+                            return; // Skip this question
+                    }
+                    officialAnswersPayload[questionId] = answerData;
                 });
 
-                const responseData = await response.json();
+                saveOfficialAnswersBtn.disabled = true;
+                saveOfficialAnswersBtn.textContent = 'Saving...';
+                let messageElement = officialAnswersQuestionsContainer.querySelector('.save-message');
+                if (messageElement) messageElement.remove();
 
-                if (response.ok) {
-                    messageElement.textContent = `Official answers saved successfully for race ${selectedRaceId}!`;
-                    messageElement.classList.remove('text-red-500');
-                    messageElement.classList.add('text-green-600', 'font-semibold');
-                     // Optionally, reload answers to reflect any backend processing or new IDs
-                    // officialAnswersRaceSelect.dispatchEvent(new Event('change'));
-                } else {
-                    messageElement.textContent = `Error: ${responseData.message || response.statusText}`;
+                messageElement = document.createElement('p');
+                messageElement.classList.add('mt-4', 'text-center', 'save-message');
+                officialAnswersQuestionsContainer.appendChild(messageElement);
+
+                showLoadingBar();
+                try {
+                    const response = await fetch(`/api/races/${selectedRaceId}/official_answers`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(officialAnswersPayload)
+                    });
+
+                    const responseData = await response.json();
+
+                    if (response.ok) {
+                        messageElement.textContent = `Official answers saved successfully for race ${selectedRaceId}!`;
+                        messageElement.classList.remove('text-red-500');
+                        messageElement.classList.add('text-green-600', 'font-semibold');
+                    } else {
+                        messageElement.textContent = `Error: ${responseData.message || response.statusText}`;
+                        messageElement.classList.remove('text-green-600');
+                        messageElement.classList.add('text-red-500', 'font-semibold');
+                    }
+                } catch (error) {
+                    console.error('Error saving official answers:', error);
+                    messageElement.textContent = 'An unexpected error occurred while saving. Please check console and try again.';
                     messageElement.classList.remove('text-green-600');
                     messageElement.classList.add('text-red-500', 'font-semibold');
+                } finally {
+                    hideLoadingBar();
+                    saveOfficialAnswersBtn.disabled = false;
+                    saveOfficialAnswersBtn.textContent = 'Guardar Respuestas Oficiales';
+                    setTimeout(() => {
+                        if (messageElement) messageElement.remove();
+                    }, 7000);
                 }
-            } catch (error) {
-                console.error('Error saving official answers:', error);
-                messageElement.textContent = 'An unexpected error occurred while saving. Please check console and try again.';
-                messageElement.classList.remove('text-green-600');
-                messageElement.classList.add('text-red-500', 'font-semibold');
-            } finally {
-                saveOfficialAnswersBtn.disabled = false;
-                saveOfficialAnswersBtn.textContent = 'Guardar Respuestas Oficiales';
-                // Auto-remove message after a few seconds
-                setTimeout(() => {
-                    if (messageElement) messageElement.remove();
-                }, 7000);
-            }
-        });
+            });
+        }
     }
 
     async function fetchAndDisplayUserDetails() {
@@ -163,18 +218,17 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("User role display element not found.");
             return;
         }
-        // Hide all buttons initially before fetching details
         if(generalAdminDataButton) generalAdminDataButton.style.display = 'none';
         if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'none';
         if(userDataButton) userDataButton.style.display = 'none';
 
+        showLoadingBar();
         try {
             const response = await fetch('/api/user/me');
             if (response.ok) {
                 const data = await response.json();
                 userRoleDisplay.textContent = `Welcome, ${data.username}! You are logged in as a ${data.role}.`;
 
-                // Show buttons based on role
                 if (data.role === 'general_admin') {
                     if(generalAdminDataButton) generalAdminDataButton.style.display = 'inline-block';
                     if(leagueAdminDataButton) leagueAdminDataButton.style.display = 'inline-block';
@@ -192,12 +246,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error fetching user details:', error);
             if(userRoleDisplay) userRoleDisplay.textContent = 'An error occurred while fetching user details.';
+        } finally {
+            hideLoadingBar();
         }
     }
 
     async function fetchDataForButton(endpoint, buttonElement) {
         if (!buttonElement) return;
         messageArea.textContent = 'Fetching data...';
+        showLoadingBar();
         try {
             const response = await fetch(endpoint);
             const result = await response.json();
@@ -209,6 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(`Error fetching from ${endpoint}:`, error);
             messageArea.textContent = `Failed to fetch data from ${endpoint}.`;
+        } finally {
+            hideLoadingBar();
         }
     }
 

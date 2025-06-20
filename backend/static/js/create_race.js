@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
         "Acuatlón": ["Natación", "Transición 1 (T1)", "Carrera a pie"]
         // Add other formats as needed
     };
-
+    showLoadingBar();
     // Fetch Race Formats on page load
     fetch('/api/race-formats')
         .then(response => {
@@ -43,6 +43,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error fetching race formats:', error);
             errorMessagesDiv.textContent = 'Error al cargar formatos de carrera. Intente recargar la página.';
+        })
+        .finally(() => {
+            hideLoadingBar();
         });
 
     // Handle Race Format change to display segments
@@ -146,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
             gender_category: genderCategory,
             segments: segmentsPayload
         };
-
+        showLoadingBar();
         fetch('/api/races', {
             method: 'POST',
             headers: {
@@ -170,6 +173,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error submitting race:', error);
             errorMessagesDiv.textContent = 'Error de red o el servidor no responde. Intente más tarde.';
+        })
+        .finally(() => {
+            hideLoadingBar();
         });
     });
 });

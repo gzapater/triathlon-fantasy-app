@@ -45,7 +45,7 @@ function openOfficialAnswersModal(buttonElement) {
     const formContainer = document.getElementById('official-answers-form-container');
     formContainer.innerHTML = '<p class="text-gray-500 text-center">Cargando preguntas...</p>'; // Loading state
     document.getElementById('official-answers-modal').classList.remove('hidden');
-
+    showLoadingBar();
     // Fetch questions and existing official answers
     Promise.all([
         fetch(`/api/races/${raceId}/questions`).then(res => res.ok ? res.json() : Promise.reject(res)),
@@ -58,6 +58,9 @@ function openOfficialAnswersModal(buttonElement) {
     .catch(error => {
         console.error('Error fetching data for official answers:', error);
         formContainer.innerHTML = '<p class="text-red-500 text-center">Error al cargar los datos. Por favor, inténtelo de nuevo.</p>';
+    })
+    .finally(() => {
+        hideLoadingBar();
     });
 }
 
@@ -406,7 +409,7 @@ document.getElementById('save-official-answers-btn').addEventListener('click', f
     });
 
     // console.log("Submitting official answers:", submittedAnswers);
-
+    showLoadingBar();
     fetch(`/api/races/${currentRaceIdForOfficialAnswers}/official_answers`, {
         method: 'POST',
         headers: {
@@ -437,6 +440,9 @@ document.getElementById('save-official-answers-btn').addEventListener('click', f
         } else {
             alert('Error al guardar los resultados: ' + (error.message || 'Error desconocido. Revise la consola.')); // Fallback
         }
+    })
+    .finally(() => {
+        hideLoadingBar();
     });
 });
 

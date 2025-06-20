@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (body) {
             config.body = JSON.stringify(body);
         }
-
+        showLoadingBar();
         try {
             const response = await fetch(endpoint, config);
             if (!response.ok) {
@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(`Error: ${error.message}`); // Fallback
             }
             throw error;
+        } finally {
+            hideLoadingBar();
         }
     }
 

@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageArea.className = 'message';
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
+        showLoadingBar();
         try {
             const response = await fetch('/api/login', {
                 method: 'POST',
@@ -70,6 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Login error:', error);
             messageArea.textContent = 'An error occurred during login. Please try again.';
             messageArea.classList.add('error');
+        } finally {
+            hideLoadingBar();
         }
     });
 });

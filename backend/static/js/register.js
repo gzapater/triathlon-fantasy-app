@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         const role = document.getElementById('role').value; // Get role value
-
+        showLoadingBar();
         try {
             const response = await fetch('/api/register', {
                 method: 'POST',
@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Registration error:', error);
             messageArea.textContent = 'An error occurred during registration. Please try again.';
             messageArea.classList.add('error');
+        } finally {
+            hideLoadingBar();
         }
     });
 });
