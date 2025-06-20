@@ -487,9 +487,14 @@
 
             if (acceptJoinRaceBtn) {
                 acceptJoinRaceBtn.addEventListener('click', () => {
-                    if (!raceToJoinId) {
-                        joinRaceError.textContent = 'Error: Race ID not found. Please try again.';
+                    const currentRaceIdToJoin = raceToJoinId; // Capture a la variable global raceToJoinId
+
+                    if (typeof currentRaceIdToJoin !== 'number' || currentRaceIdToJoin <= 0) {
+                        console.error('Error: Invalid Race ID for join operation:', currentRaceIdToJoin);
+                        joinRaceError.textContent = 'Error: ID de carrera inválido. No se puede unir a la carrera.';
                         joinRaceError.style.display = 'block';
+                        // Opcionalmente, cerrar el modal o deshabilitar más acciones
+                        acceptJoinRaceBtn.disabled = true; // Deshabilitar para evitar más clics
                         return;
                     }
 
@@ -610,49 +615,56 @@
             const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('null') }}";
             const raceToJoinTitleFromServer = "{{ race_to_join_title | default('null') | e }}";
 
-            const urlParamsClean = new URLSearchParams(window.location.search); // Use a new name to avoid conflict if needed later
+            const urlParamsClean = new URLSearchParams(window.location.search);
             const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
             const raceNotFoundError = urlParamsClean.get('error') === 'race_not_found';
             const originalRaceIdAttempt = urlParamsClean.get('original_race_id');
 
-            let effectiveRaceId = null;
+            let effectiveRaceId = null; // Will store the valid numeric ID as a string or number
             let effectiveRaceTitle = null;
             let source = null;
 
-            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer !== 'null') {
-                effectiveRaceId = autoJoinRaceIdFromServer;
-                effectiveRaceTitle = (raceToJoinTitleFromServer && raceToJoinTitleFromServer !== 'null' && raceToJoinTitleFromServer.toLowerCase() !== 'none') ? raceToJoinTitleFromServer : null;
-                source = 'server';
-            } else if (joinRaceIdFromQuery) {
-                const parsedId = parseInt(joinRaceIdFromQuery, 10);
-                if (!isNaN(parsedId) && parsedId > 0) {
-                    effectiveRaceId = parsedId.toString();
+            // 1. Try to get ID from server-injected data
+            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer.toLowerCase() !== 'null' && autoJoinRaceIdFromServer.toLowerCase() !== 'none') {
+                const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
+                if (!isNaN(parsedServerId) && parsedServerId > 0) {
+                    effectiveRaceId = parsedServerId; // Store as number
+                    effectiveRaceTitle = (raceToJoinTitleFromServer && raceToJoinTitleFromServer.toLowerCase() !== 'null' && raceToJoinTitleFromServer.toLowerCase() !== 'none') ? raceToJoinTitleFromServer : null;
+                    source = 'server';
+                }
+            }
+
+            // 2. If not found from server, try from URL query parameter
+            if (!effectiveRaceId && joinRaceIdFromQuery) {
+                const parsedQueryId = parseInt(joinRaceIdFromQuery, 10);
+                if (!isNaN(parsedQueryId) && parsedQueryId > 0) {
+                    effectiveRaceId = parsedQueryId; // Store as number
                     source = 'query';
                 } else {
                     console.error(`Invalid join_race_id from query parameter: ${joinRaceIdFromQuery}`);
                     if (joinRaceError) {
-                        joinRaceError.textContent = `El ID de carrera proporcionado (${joinRaceIdFromQuery}) no es válido.`;
+                        joinRaceError.textContent = `El ID de carrera proporcionado en la URL (${joinRaceIdFromQuery}) no es válido.`;
                         joinRaceError.style.display = 'block';
                     }
                 }
             }
 
+            // 3. If a valid numeric ID was found, proceed to show modal
             if (effectiveRaceId && joinRaceModal && joinRaceModalTitle) {
-                raceToJoinId = effectiveRaceId; // Set global raceToJoinId for the accept button
+                raceToJoinId = effectiveRaceId; // Set global raceToJoinId (numeric) for the accept button
 
                 if (source === 'server') {
                     let displayTitle = effectiveRaceTitle || `Carrera ID: ${effectiveRaceId}`;
-                    if (effectiveRaceTitle === 'null' || effectiveRaceTitle === 'None') { // Handle 'None' if it might come as string
-                        displayTitle = `Carrera ID: ${effectiveRaceId}`;
-                    }
+                    // effectiveRaceTitle is already filtered for 'null'/'none' strings from server
                     joinRaceModalTitle.textContent = displayTitle;
                     if (joinRaceError) joinRaceError.style.display = 'none';
                     joinRaceModal.style.display = 'flex';
                 } else if (source === 'query') {
+                    // Fetch title only if source is 'query' and ID is numeric
                     fetch(`/api/races/${effectiveRaceId}/basic_details`)
                         .then(response => {
                             if (!response.ok) {
-                                return response.json().then(err => { // Assumes error responses are JSON
+                                return response.json().then(err => {
                                     throw new Error(err.message || `Error ${response.status}`);
                                 });
                             }
@@ -677,11 +689,13 @@
                         });
                 }
             } else if (raceNotFoundError && originalRaceIdAttempt && joinRaceError) {
-                // This part handles the ?error=race_not_found&original_race_id=... scenario
+                // This handles ?error=race_not_found (usually from backend redirect if race doesn't exist initially)
                 joinRaceError.textContent = `La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`;
                 joinRaceError.style.display = 'block';
-                alert(`La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`); // Keep alert for visibility
+                // Consider if an alert is still needed or if the message in joinRaceError is sufficient.
+                // alert(`La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`);
             }
+
 
             // Clean URL parameters after processing
             const currentUrlPlayer = new URL(window.location.href);
