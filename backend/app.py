@@ -2606,9 +2606,7 @@ def serve_hello_world_page():
                                current_year=current_year,
                                auto_join_race_id=auto_join_race_id_to_template,
                                race_to_join_title=race_to_join_title)
-                               current_year=current_year,
-                               auto_join_race_id=auto_join_race_id_to_template,
-                               race_to_join_title=race_to_join_title)
+
     else:
         # Fallback for any other authenticated role, or if roles are added in the future
         # Defaulting to player view (general races) - This part remains unchanged
