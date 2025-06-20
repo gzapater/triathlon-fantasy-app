@@ -650,8 +650,8 @@
             }
 
             // Check for auto_join_race_id passed from server
-            const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('null') }}";
-            const raceToJoinTitleFromServer = "{{ race_to_join_title | default('null') | e }}"; // Already escaped
+            const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
+            const raceToJoinTitleFromServer = "{{ race_to_join_title | default('') | e }}";
 
             const urlParamsClean = new URLSearchParams(window.location.search);
             const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
@@ -663,16 +663,18 @@
             let source = null;
 
             // 1. Try to get ID from server-injected data
-            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer.toLowerCase() !== 'null' && autoJoinRaceIdFromServer.toLowerCase() !== 'none') {
+            if (autoJoinRaceIdFromServer) {
                 const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
                 if (!isNaN(parsedServerId) && parsedServerId > 0) {
                     effectiveRaceId = parsedServerId;
-                    if (raceToJoinTitleFromServer && raceToJoinTitleFromServer.toLowerCase() !== 'null' && raceToJoinTitleFromServer.toLowerCase() !== 'none') {
+                    if (raceToJoinTitleFromServer && raceToJoinTitleFromServer.toLowerCase() !== 'none' && raceToJoinTitleFromServer.toLowerCase() !== 'null') {
                         effectiveRaceTitle = raceToJoinTitleFromServer;
                     } else {
                         effectiveRaceTitle = null;
                     }
                     source = 'server';
+                } else {
+                    console.warn(`autoJoinRaceIdFromServer ('${autoJoinRaceIdFromServer}') no es un ID numérico válido.`);
                 }
             }
 
