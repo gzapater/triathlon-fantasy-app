@@ -557,5 +557,144 @@
     </script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Join Race Modal Logic ---
+            const joinRaceModal = document.getElementById('joinRaceModal');
+            const closeJoinRaceModalBtn = document.getElementById('closeJoinRaceModalBtn');
+            const cancelJoinRaceBtn = document.getElementById('cancelJoinRaceBtn');
+            const acceptJoinRaceBtn = document.getElementById('acceptJoinRaceBtn');
+            const joinRaceModalTitleElem = document.getElementById('joinRaceModalTitle'); // Renamed to avoid conflict
+            const joinRaceError = document.getElementById('joinRaceError');
+
+            let raceIdToJoinAttempt = null; // Variable to store the race ID for the current attempt
+
+            // Function to open the modal
+            function openSharedRaceModal(raceId, raceTitle) {
+                if (!joinRaceModal || !joinRaceModalTitleElem || !joinRaceError) {
+                    console.error("Join race modal elements not found.");
+                    return;
+                }
+                raceIdToJoinAttempt = raceId;
+                joinRaceModalTitleElem.textContent = raceTitle;
+                joinRaceError.style.display = 'none'; // Clear previous errors
+                joinRaceModal.style.display = 'flex';
+            }
+
+            // Function to close the modal
+            function closeSharedRaceModal() {
+                if (joinRaceModal) joinRaceModal.style.display = 'none';
+                if (joinRaceError) joinRaceError.style.display = 'none';
+                raceIdToJoinAttempt = null; // Clear the stored race ID
+            }
+
+            if (closeJoinRaceModalBtn) {
+                closeJoinRaceModalBtn.addEventListener('click', closeSharedRaceModal);
+            }
+            if (cancelJoinRaceBtn) {
+                cancelJoinRaceBtn.addEventListener('click', closeSharedRaceModal);
+            }
+
+            if (acceptJoinRaceBtn) {
+                acceptJoinRaceBtn.addEventListener('click', () => {
+                    if (!raceIdToJoinAttempt) {
+                        if(joinRaceError) {
+                            joinRaceError.textContent = 'Error: ID de carrera no encontrado. Inténtalo de nuevo.';
+                            joinRaceError.style.display = 'block';
+                        }
+                        return;
+                    }
+
+                    acceptJoinRaceBtn.disabled = true;
+                    if(cancelJoinRaceBtn) cancelJoinRaceBtn.disabled = true;
+                    acceptJoinRaceBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Registrando...';
+                    if(joinRaceError) joinRaceError.style.display = 'none';
+
+                    fetch(`/api/races/${raceIdToJoinAttempt}/join`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // 'X-CSRFToken': '{{ csrf_token() }}' // Add if CSRF is used
+                        }
+                    })
+                    .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                    .then(result => {
+                        if (result.status === 201 || result.status === 200) { // 200 if already registered but API handles it gracefully
+                            closeSharedRaceModal();
+                            // Flash messages are handled by Python, redirect will show them.
+                            // Redirect to race detail page with action to start quiniela
+                            window.location.href = `/race/${raceIdToJoinAttempt}?action=start_quiniela`;
+                        } else {
+                            if(joinRaceError) {
+                                joinRaceError.textContent = result.body.message || `Error ${result.status}. Inténtalo de nuevo.`;
+                                joinRaceError.style.display = 'block';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error joining race:', error);
+                        if(joinRaceError) {
+                            joinRaceError.textContent = 'Error de conexión al intentar unirse. Inténtalo más tarde.';
+                            joinRaceError.style.display = 'block';
+                        }
+                    })
+                    .finally(() => {
+                        if (joinRaceModal && joinRaceModal.style.display !== 'none') { // Only re-enable if modal is still shown
+                            acceptJoinRaceBtn.disabled = false;
+                             if(cancelJoinRaceBtn) cancelJoinRaceBtn.disabled = false;
+                            acceptJoinRaceBtn.innerHTML = 'Aceptar';
+                        }
+                    });
+                });
+            }
+
+            // Check for auto_join_race_id passed from server
+            const autoJoinRaceId = "{{ auto_join_race_id | default('null') }}";
+            const raceToJoinTitle = "{{ race_to_join_title | default('null') | e }}";
+
+            if (autoJoinRaceId && autoJoinRaceId !== 'null' && raceToJoinTitle && raceToJoinTitle !== 'null') {
+                openSharedRaceModal(autoJoinRaceId, raceToJoinTitle);
+            }
+
+            // Clean URL parameters after processing
+            const currentUrl = new URL(window.location.href);
+            let needsRedirect = false;
+            if (currentUrl.searchParams.has('join_race_id')) {
+                currentUrl.searchParams.delete('join_race_id');
+                needsRedirect = true;
+            }
+            if (currentUrl.searchParams.has('error')) {
+                currentUrl.searchParams.delete('error');
+                needsRedirect = true;
+            }
+            if (currentUrl.searchParams.has('original_race_id')) {
+                currentUrl.searchParams.delete('original_race_id');
+                needsRedirect = true;
+            }
+
+            if (needsRedirect && window.history.replaceState) {
+                window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search + currentUrl.hash);
+            }
+        });
+    </script>
+
+    <!-- Join Race Confirmation Modal (Copied from player.html for consistency) -->
+    <div id="joinRaceModal" class="fixed inset-0 modal-backdrop overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Confirmar Participación</h2>
+                <button id="closeJoinRaceModalBtn" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times fa-lg"></i>
+                </button>
+            </div>
+            <p class="mb-6 text-gray-700">¿Te gustaría unirte a la carrera: <strong id="joinRaceModalTitle"></strong>?</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button" id="cancelJoinRaceBtn" class="btn btn-secondary bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg">Cancelar</button>
+                <button type="button" id="acceptJoinRaceBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Aceptar</button>
+            </div>
+            <p id="joinRaceError" class="text-sm text-red-600 mt-3" style="display:none;"></p>
+        </div>
+    </div>
 </body>
 </html>

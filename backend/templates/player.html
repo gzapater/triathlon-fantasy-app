@@ -606,6 +606,47 @@
             }
             // --- End Join Race Modal Logic ---
 
+            // Check for auto_join_race_id passed from server (this part is added for player.html)
+            const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('null') }}";
+            const raceToJoinTitleFromServer = "{{ race_to_join_title | default('null') | e }}";
+
+            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer !== 'null' && raceToJoinTitleFromServer && raceToJoinTitleFromServer !== 'null') {
+                // The openSharedRaceModal function would be defined similarly to how it was for admin_dashboard.html
+                // or reuse if script.js contains it. For this example, assuming it's locally defined or available.
+                // This implies the 'joinRaceModal' and its related elements are present in player.html
+                if (typeof openSharedRaceModal === 'function') { // Check if function is defined
+                    openSharedRaceModal(autoJoinRaceIdFromServer, raceToJoinTitleFromServer);
+                } else {
+                    // Fallback or specific implementation for player.html if openSharedRaceModal isn't global
+                    // This re-uses the existing modal logic in player.html
+                    if (joinRaceModal && joinRaceModalTitle && joinRaceError) {
+                        raceToJoinId = autoJoinRaceIdFromServer; // Use the global raceToJoinId for the modal
+                        joinRaceModalTitle.textContent = raceToJoinTitleFromServer;
+                        joinRaceError.style.display = 'none';
+                        joinRaceModal.style.display = 'flex';
+                    }
+                }
+            }
+             // Clean URL parameters (same logic as in admin_dashboard.html)
+            const currentUrlPlayer = new URL(window.location.href);
+            let needsRedirectPlayer = false;
+            if (currentUrlPlayer.searchParams.has('join_race_id')) {
+                currentUrlPlayer.searchParams.delete('join_race_id');
+                needsRedirectPlayer = true;
+            }
+            if (currentUrlPlayer.searchParams.has('error')) {
+                currentUrlPlayer.searchParams.delete('error');
+                needsRedirectPlayer = true;
+            }
+            if (currentUrlPlayer.searchParams.has('original_race_id')) {
+                currentUrlPlayer.searchParams.delete('original_race_id');
+                needsRedirectPlayer = true;
+            }
+            if (needsRedirectPlayer && window.history.replaceState) {
+                window.history.replaceState({}, document.title, currentUrlPlayer.pathname + currentUrlPlayer.search + currentUrlPlayer.hash);
+            }
+
+
             setupViewMoreButton('viewMoreFavoriteBtn', 'initially-hidden-favorite');
             // If other sections like "Mis Carreras Inscritas" or "Carreras Destacadas"
             // also implement this pattern, their setup calls would go here too.
