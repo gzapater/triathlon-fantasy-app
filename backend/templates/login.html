@@ -22,6 +22,12 @@
     </style>
 </head>
 <body class="bg-gray-100">
+    <!-- Loading Bar Overlay -->
+    <div id="loading-overlay" style="/* Styles managed by CSS now, except for initial display:none */ display: none;">
+        <div id="loading-bar-container">
+            <div id="loading-progress">0%</div>
+        </div>
+    </div>
 
     <div class="min-h-screen flex items-center justify-center">
         <div class="w-full lg:grid lg:grid-cols-2 lg:h-screen overflow-hidden">
@@ -97,6 +103,7 @@
 
         </div>
     </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script> <!-- Load script.js first -->
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
