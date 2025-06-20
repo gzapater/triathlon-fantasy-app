@@ -650,36 +650,108 @@
             }
 
             // Check for auto_join_race_id passed from server
-            const autoJoinRaceId = "{{ auto_join_race_id | default('null') }}";
-            const raceToJoinTitle = "{{ race_to_join_title | default('null') | e }}";
+            const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('null') }}";
+            const raceToJoinTitleFromServer = "{{ race_to_join_title | default('null') | e }}"; // Already escaped
 
-            if (autoJoinRaceId && autoJoinRaceId !== 'null' && raceToJoinTitle && raceToJoinTitle !== 'null') {
-                openSharedRaceModal(autoJoinRaceId, raceToJoinTitle);
+            const urlParamsClean = new URLSearchParams(window.location.search);
+            const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
+            const raceNotFoundError = urlParamsClean.get('error') === 'race_not_found';
+            const originalRaceIdAttempt = urlParamsClean.get('original_race_id');
+
+            let effectiveRaceId = null;
+            let effectiveRaceTitle = null;
+            let source = null;
+
+            // 1. Try to get ID from server-injected data
+            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer.toLowerCase() !== 'null' && autoJoinRaceIdFromServer.toLowerCase() !== 'none') {
+                const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
+                if (!isNaN(parsedServerId) && parsedServerId > 0) {
+                    effectiveRaceId = parsedServerId;
+                    if (raceToJoinTitleFromServer && raceToJoinTitleFromServer.toLowerCase() !== 'null' && raceToJoinTitleFromServer.toLowerCase() !== 'none') {
+                        effectiveRaceTitle = raceToJoinTitleFromServer;
+                    } else {
+                        effectiveRaceTitle = null;
+                    }
+                    source = 'server';
+                }
+            }
+
+            // 2. If not found from server, try from URL query parameter
+            // This part might be less relevant for admin_dashboard if it doesn't typically receive join_race_id via query string
+            // but kept for consistency if such a scenario exists.
+            if (!effectiveRaceId && joinRaceIdFromQuery) {
+                const parsedQueryId = parseInt(joinRaceIdFromQuery, 10);
+                if (!isNaN(parsedQueryId) && parsedQueryId > 0) {
+                    effectiveRaceId = parsedQueryId;
+                    source = 'query';
+                } else {
+                    console.warn(`Invalid join_race_id from query parameter in admin dashboard: ${joinRaceIdFromQuery}`);
+                }
+            }
+
+            // 3. If a valid numeric ID was found, proceed to call openSharedRaceModal
+            if (effectiveRaceId && typeof effectiveRaceId === 'number' && effectiveRaceId > 0) {
+                if (source === 'server') {
+                    const displayTitle = effectiveRaceTitle ? effectiveRaceTitle : `Carrera ID: ${effectiveRaceId}`;
+                    openSharedRaceModal(effectiveRaceId, displayTitle);
+                } else if (source === 'query') {
+                     fetch(`/api/races/${effectiveRaceId}/basic_details`)
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => {
+                                    throw new Error(err.message || `Error ${response.status} ${response.statusText}`);
+                                }).catch(() => {
+                                     throw new Error(`Error ${response.status} ${response.statusText}. Expected JSON.`);
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            let displayTitle = data.title;
+                            if (!data.title || data.title.toLowerCase() === 'none' || data.title.toLowerCase() === 'null') {
+                                displayTitle = `Carrera ID: ${effectiveRaceId}`;
+                            }
+                            openSharedRaceModal(effectiveRaceId, displayTitle);
+                        })
+                        .catch(error => {
+                            console.error('Error fetching race details for join modal (admin query source):', error);
+                            if (joinRaceError) { // Assuming joinRaceError element exists and is accessible
+                                joinRaceError.textContent = `No se pudo cargar la información de la carrera (ID: ${effectiveRaceId}). ${error.message}.`;
+                                joinRaceError.style.display = 'block';
+                            } else {
+                                alert(`No se pudo cargar la información de la carrera (ID: ${effectiveRaceId}). ${error.message}.`);
+                            }
+                        });
+                }
+            } else if (raceNotFoundError && originalRaceIdAttempt) {
+                console.warn(`Race with ID ${originalRaceIdAttempt} was not found (indicated by server for admin dashboard).`);
+                if(joinRaceError) { // Defined within the modal
+                    joinRaceError.textContent = `La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`;
+                    joinRaceError.style.display = 'block';
+                } else {
+                     alert(`La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`);
+                }
             }
 
             // Clean URL parameters after processing
-            const currentUrl = new URL(window.location.href);
-            let needsRedirect = false;
-            if (currentUrl.searchParams.has('join_race_id')) {
-                currentUrl.searchParams.delete('join_race_id');
-                needsRedirect = true;
-            }
-            if (currentUrl.searchParams.has('error')) {
-                currentUrl.searchParams.delete('error');
-                needsRedirect = true;
-            }
-            if (currentUrl.searchParams.has('original_race_id')) {
-                currentUrl.searchParams.delete('original_race_id');
-                needsRedirect = true;
-            }
+            const currentUrlAdmin = new URL(window.location.href);
+            let paramsToRemoveAdmin = ['join_race_id', 'error', 'original_race_id'];
+            let needsHistoryReplaceAdmin = false;
 
-            if (needsRedirect && window.history.replaceState) {
-                window.history.replaceState({}, document.title, currentUrl.pathname + currentUrl.search + currentUrl.hash);
+            paramsToRemoveAdmin.forEach(param => {
+                if (currentUrlAdmin.searchParams.has(param)) {
+                    currentUrlAdmin.searchParams.delete(param);
+                    needsHistoryReplaceAdmin = true;
+                }
+            });
+
+            if (needsHistoryReplaceAdmin && window.history.replaceState) {
+                window.history.replaceState({}, document.title, currentUrlAdmin.pathname + currentUrlAdmin.search + currentUrlAdmin.hash);
             }
         });
     </script>
 
-    <!-- Join Race Confirmation Modal (Copied from player.html for consistency) -->
+    <!-- Join Race Confirmation Modal -->
     <div id="joinRaceModal" class="fixed inset-0 modal-backdrop overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
         <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg mx-auto">
             <div class="flex justify-between items-center mb-4">
@@ -688,7 +760,7 @@
                     <i class="fas fa-times fa-lg"></i>
                 </button>
             </div>
-            <p class="mb-6 text-gray-700">¿Te gustaría unirte a la carrera: <strong id="joinRaceModalTitle"></strong>?</p>
+            <p class="mb-6 text-gray-700">¿Te gustaría unirte a la carrera: <strong id="joinRaceModalTitleElem"></strong>?</p> <!-- ID Renamed -->
             <div class="flex justify-end space-x-3">
                 <button type="button" id="cancelJoinRaceBtn" class="btn btn-secondary bg-gray-200 hover:bg-gray-300 text-gray-700 border border-gray-300 px-4 py-2 rounded-lg">Cancelar</button>
                 <button type="button" id="acceptJoinRaceBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Aceptar</button>
