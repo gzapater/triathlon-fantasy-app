@@ -615,7 +615,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            // 'X-CSRFToken': '{{ csrf_token() }}' // Add if CSRF is used
+                            // 'X-CSRFToken': '' // Placeholder: Add if CSRF is used, e.g., by uncommenting and ensuring csrf_token() is available
                         }
                     })
                     .then(response => response.json().then(data => ({ status: response.status, body: data })))
