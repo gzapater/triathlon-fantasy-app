@@ -14,8 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+        // Hide message area initially on new submit, then clear content and classes
+        messageArea.style.display = 'none';
         messageArea.textContent = '';
-        messageArea.className = 'message';
+        messageArea.className = 'message'; // Base class, specific (e.g., error, success) added below
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         showLoadingBar();
@@ -43,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 messageArea.textContent = result.message || 'Login successful! Redirecting...';
                 messageArea.classList.add('success');
+                messageArea.style.display = 'block'; // Show success message
 
                 // Handle "Remember me" functionality
                 if (rememberMeCheckbox.checked) {
@@ -66,11 +69,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     messageArea.textContent = result.message || 'Login failed. Please check your input or try again later.';
                 }
                 messageArea.classList.add('error');
+                messageArea.style.display = 'block'; // Show error message
             }
         } catch (error) {
             console.error('Login error:', error);
             messageArea.textContent = 'An error occurred during login. Please try again.';
             messageArea.classList.add('error');
+            messageArea.style.display = 'block'; // Show catch block error message
         } finally {
             hideLoadingBar();
         }

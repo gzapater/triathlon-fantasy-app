@@ -176,24 +176,32 @@ ul li, ol li {
 }
 
 /* Message Area Styles */
-.message {
-    display: block; /* Make the message area visible */
-    padding: 10px;
-    margin-top: 15px;
-    border-radius: 5px;
-    text-align: center;
+/* Styles for the message area, targeted by ID for specificity. JS controls display property. */
+#messageArea {
+    /* Default padding, margin, etc. Tailwind classes on the element might also apply these. */
+    /* We ensure key visual properties are defined here. */
+    padding: 1rem; /* Equivalent to p-4 in Tailwind */
+    margin-top: 1rem; /* Equivalent to mt-4 in Tailwind */
+    border-radius: 0.375rem; /* Equivalent to rounded-md in Tailwind */
+    text-align: center; /* Matches text-center */
+    font-size: 0.875rem; /* Equivalent to text-sm in Tailwind */
+    font-weight: 500; /* Medium font weight for emphasis */
+    /* display: none; is set by JS initially and on new submit */
 }
 
-.message.success {
-    background-color: #d4edda; /* Light green */
-    color: #155724; /* Dark green */
-    border: 1px solid #c3e6cb;
+#messageArea.success {
+    background-color: #dcfce7; /* Tailwind green-100 like */
+    color: #166534; /* Tailwind green-800 like */
+    border: 1px solid #86efac; /* Tailwind green-300 like */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Tailwind shadow-md */
 }
 
-.message.error {
-    background-color: #f8d7da; /* Light red */
-    color: #721c24; /* Dark red */
-    border: 1px solid #f5c6cb;
+#messageArea.error {
+    background-color: #fee2e2; /* Tailwind red-100 like */
+    color: #991b1b; /* Tailwind red-800 like */
+    border: 1px solid #fca5a5; /* Tailwind red-300 like */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Tailwind shadow-md */
+    /* This provides a more prominent, "pop-up" like appearance within the form flow. */
 }
 
 /* Loading Bar Styles */
