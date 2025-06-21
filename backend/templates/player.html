@@ -430,6 +430,7 @@
     // ====================================================================
     const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
     const raceToJoinTitleFromServer = {{ race_to_join_title | tojson }};
+    console.log('Datos del servidor para unirse a carrera:', { autoJoinRaceIdFromServer, raceToJoinTitleFromServer });
     let allRaceQuestions = [];
     let isFetchingQuestions = false;
     let raceIdToJoinAttempt = null;
@@ -598,14 +599,18 @@
             effectiveRaceId = parseInt(autoJoinRaceIdFromServer, 10);
             effectiveRaceTitle = (raceToJoinTitleFromServer && raceToJoinTitleFromServer !== 'None') ? raceToJoinTitleFromServer : `Carrera ID: ${effectiveRaceId}`;
         } else if (joinRaceIdFromQuery && !isNaN(parseInt(joinRaceIdFromQuery, 10))) {
+            console.log('Usando fallback de query param para join_race_id:', joinRaceIdFromQuery);
             effectiveRaceId = parseInt(joinRaceIdFromQuery, 10);
             // Title will be fetched if needed
         }
+        console.log('Valores efectivos para mostrar modal:', { effectiveRaceId, effectiveRaceTitle });
 
-        if (effectiveRaceId > 0 && joinRaceModal && joinRaceModalTitleElem) { // <-- CORRECCIÓN APLICADA AQUÍ
+        if (effectiveRaceId > 0 && joinRaceModal && joinRaceModalTitleElem) {
+            console.log('Condición para mostrar modal CUMPLIDA. Llamando a openSharedRaceModal...');
             if (effectiveRaceTitle) {
                 openSharedRaceModal(effectiveRaceId, effectiveRaceTitle);
             } else {
+                console.log('Título no disponible directamente, intentando fetch para:', effectiveRaceId);
                 fetch(`/api/races/${effectiveRaceId}/basic_details`)
                     .then(response => {
                         if (!response.ok) throw new Error('No se pudo cargar el título de la carrera.');
