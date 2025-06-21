@@ -1,6 +1,7 @@
 import os
 import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
+import logging # Importación añadida
 # Updated model imports
 from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore # Added UserScore
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -12,6 +13,15 @@ from flask import render_template
 from datetime import datetime # For event_date processing
 
 app = Flask(__name__)
+
+# Configuración de logging para que funcione bien con Gunicorn
+if __name__ != '__main__':
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers.extend(gunicorn_logger.handlers)
+    app.logger.setLevel(gunicorn_logger.level if gunicorn_logger.level != 0 else logging.INFO) # Usar INFO si el nivel de gunicorn es 0 (NOTSET)
+else:
+    # Configuración para desarrollo local (ej. python app.py)
+    app.logger.setLevel(logging.DEBUG)
 
 def get_ssm_parameter(name, default=None):
     """Función para obtener un parámetro de AWS SSM Parameter Store."""
