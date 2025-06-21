@@ -1406,16 +1406,14 @@
             //      toggleQuestionsBtn.addEventListener('click', toggleQuestions);
             // }
 
-            const participateInPoolBtn = document.getElementById('participateInPoolBtn');
-            if (participateInPoolBtn) {
-                participateInPoolBtn.addEventListener('click', function(event) {
-                    if (typeof openWizard === 'function') {
-                        openWizard();
-                    }
-                    // El else que contenía el console.error y el alert ha sido eliminado,
-                    // ya que la funcionalidad principal de openWizard es correcta al momento del click.
-                });
-            }
+            // const participateInPoolBtn = document.getElementById('participateInPoolBtn'); // Comentada la primera asignación
+            // if (participateInPoolBtn) {
+            //     participateInPoolBtn.addEventListener('click', function(event) {
+            //         if (typeof openWizard === 'function') {
+            //             openWizard();
+            //         }
+            //     });
+            // }
 
             const reviewUserAnswersBtn = document.getElementById('reviewUserAnswersBtn');
             const reviewUserAnswersModal = document.getElementById('reviewUserAnswersModal');
@@ -3519,11 +3517,13 @@
             const wizardPrevBtn = document.getElementById('wizardPrevBtn');
             const wizardNextBtn = document.getElementById('wizardNextBtn');
             const wizardFinishBtn = document.getElementById('wizardFinishBtn');
-            const answerQuestionsBtn = document.getElementById('answerQuestionsBtn'); // This is the hero button
+            // const answerQuestionsBtn = document.getElementById('answerQuestionsBtn'); // This ID is not used, participateInPoolBtn is.
 
             function openWizard() {
+                console.log("[openWizard] Función llamada. Quiniela cerrada?:", (quinielaCloseDate && new Date(quinielaCloseDate) < new Date()), "Preguntas cargadas?:", allRaceQuestions.length > 0); // LOG INICIAL
                 if (quinielaCloseDate && new Date(quinielaCloseDate) < new Date()) {
                     showNotificationModal("Quiniela Cerrada", "La quiniela ya está cerrada y no se puede participar.", "info");
+                    console.log("[openWizard] Quiniela cerrada, retornando."); // LOG
                     return;
                 }
                 // If questions haven't been loaded yet (e.g. for a player who hasn't answered)
@@ -4197,7 +4197,13 @@
 
             const participateInPoolBtn = document.getElementById('participateInPoolBtn');
             if (participateInPoolBtn) {
-                participateInPoolBtn.addEventListener('click', openWizard);
+                console.log("[DOM] Botón 'participateInPoolBtn' encontrado. Asignando listener."); // LOG
+                participateInPoolBtn.addEventListener('click', function() {
+                    console.log("[participateInPoolBtn] Click detectado. Llamando a openWizard..."); // LOG
+                    openWizard();
+                });
+            } else {
+                console.log("[DOM] Botón 'participateInPoolBtn' NO encontrado. ¿Usuario ya participó o quiniela no aplica?"); // LOG
             }
             // ... (rest of existing DOMContentLoaded listeners) ...
 
