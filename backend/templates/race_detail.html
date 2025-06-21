@@ -4113,29 +4113,22 @@
                     .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
                     .then(result => {
                         if (result.ok) {
-                            console.log("[wizardFinishBtn] Success response from server:", result.body); // Log
                             closeWizard();
                             showNotificationModal("Éxito", result.body.message || '¡Respuestas guardadas con éxito!', "success");
-
-                            setTimeout(() => {
-                                console.log("[wizardFinishBtn] Reloading page now after 1.5s delay."); // Log
-                                window.location.reload();
-                            }, 1500);
+                            // SIN RECARGA AUTOMÁTICA
                         } else {
-                            console.error(`[wizardFinishBtn] Error response from server: ${result.status}`, result.body); // Log
                             closeWizard();
                             showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
                         }
                     })
                     .catch(error => {
-                        console.error('[wizardFinishBtn] Fetch error:', error); // Log
+                        console.error('Error saving answers:', error);
                         closeWizard();
                         showNotificationModal("Error de Conexión", "Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.", "error");
                     })
                     .finally(() => {
                         wizardFinishBtn.disabled = false;
                         wizardFinishBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Finalizar y Guardar';
-                        console.log("[wizardFinishBtn] Operation finished, button re-enabled."); // Log
                     });
                 });
             }
