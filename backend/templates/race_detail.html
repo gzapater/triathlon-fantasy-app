@@ -4116,7 +4116,12 @@
                             showNotificationModal("Éxito", result.body.message || '¡Respuestas guardadas con éxito!', "success");
                             closeWizard();
                             // Reload to update UI (e.g., show "Ya has participado")
-                            setTimeout(() => window.location.reload(), 1500); // Delay for user to see modal
+                                // The reload will now be handled by the accept button of the notification modal or after a timeout
+                                // if the modal is closed by other means.
+                                // For now, let's keep the timeout for simplicity, but ideally, redirection happens after modal confirmation.
+                                setTimeout(() => {
+                                    window.location.href = `/races/${raceId}`; // Redirect to the race detail page
+                                }, 1500); // Delay for user to see modal
                         } else {
                             showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
                         }
