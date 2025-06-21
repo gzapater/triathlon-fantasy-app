@@ -74,9 +74,12 @@ login_manager.session_protection = "strong"
 @login_manager.unauthorized_handler
 def unauthorized():
     original_url = request.url
-    # Usamos request.full_path para asegurar que si hay query parameters en la URL original,
-    # se consideren parte del 'next' (aunque para /join_race/X no hay, es buena práctica).
-    next_url = request.full_path
+
+    # Construir next_url a partir de path y query_string para evitar '?' innecesarios
+    next_url = request.path
+    if request.query_string:
+        # request.query_string es bytes, necesita ser decodificado
+        next_url += '?' + request.query_string.decode('utf-8')
 
     app.logger.info(f"[Flask-Login Unauthorized] Acceso no autorizado a: {original_url}")
     app.logger.info(f"[Flask-Login Unauthorized] 'next' URL para login será: {next_url}")
@@ -1578,8 +1581,15 @@ def register_user():
 
 @app.route('/api/login', methods=['POST'])
 def login_api():
+    app.logger.info(f"[login_api] Iniciando login. Request args: {request.args}")
+    next_url_in_login_api = request.args.get('next')
+    app.logger.info(f"[login_api] 'next' URL recibida en query args: {next_url_in_login_api}")
+
     data = request.get_json()
-    if not data: return jsonify(message="Invalid input: No data provided"), 400
+    if not data:
+        app.logger.warning("[login_api] No data provided in JSON body.")
+        return jsonify(message="Invalid input: No data provided"), 400
+
     username = data.get('username')
     password = data.get('password')
     if not username or not password: return jsonify(message="Username and password are required"), 400
