@@ -465,7 +465,7 @@
             // Combined and refactored logic for Join Race Modal
             // The older block of "--- Join Race Modal Logic ---" that was here has been removed to prevent variable redeclaration.
             const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
-            const raceToJoinTitleFromServer = "{{ race_to_join_title | default('') | e }}";
+            const raceToJoinTitleFromServer = {{ race_to_join_title | tojson }};
 
             const urlParamsClean = new URLSearchParams(window.location.search);
             const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
