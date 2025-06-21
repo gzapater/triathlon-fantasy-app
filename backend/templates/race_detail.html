@@ -1315,14 +1315,20 @@
             const notificationModalMessage = document.getElementById('notificationModalMessage');
             const closeNotificationModalBtn = document.getElementById('closeNotificationModalBtn');
             const acceptNotificationModalBtn = document.getElementById('acceptNotificationModalBtn');
-            let currentNotificationCallback = null; // Variable to store the callback
+            let currentNotificationOnCloseCallback = null; // Renamed for clarity
 
             function showNotificationModal(title, message, type = 'info', onCloseCallback = null) {
-                if (!notificationModal || !notificationModalTitle || !notificationModalMessage) return;
+                if (!notificationModal || !notificationModalTitle || !notificationModalMessage) {
+                    console.error("Notification modal elements not found!");
+                    if (typeof onCloseCallback === 'function') { // Still try to call callback if modal elements missing
+                        onCloseCallback();
+                    }
+                    return;
+                }
 
                 notificationModalTitle.textContent = title;
                 notificationModalMessage.textContent = message;
-                currentNotificationCallback = onCloseCallback; // Store the callback
+                currentNotificationOnCloseCallback = onCloseCallback; // Store the callback
 
                 // Reset title color
                 notificationModalTitle.classList.remove('text-green-600', 'text-red-600', 'text-orange-600', 'text-blue-600', 'text-gray-800');
@@ -1346,15 +1352,21 @@
             }
 
             function closeNotificationModal() {
-                if (notificationModal) notificationModal.style.display = 'none';
-                if (typeof currentNotificationCallback === 'function') {
-                    currentNotificationCallback(); // Execute the callback
+                if (notificationModal) {
+                    notificationModal.style.display = 'none';
                 }
-                currentNotificationCallback = null; // Reset callback after execution
+                if (typeof currentNotificationOnCloseCallback === 'function') {
+                    currentNotificationOnCloseCallback(); // Execute the callback
+                }
+                currentNotificationOnCloseCallback = null; // Reset callback after execution
             }
 
-            if (closeNotificationModalBtn) closeNotificationModalBtn.addEventListener('click', closeNotificationModal);
-            if (acceptNotificationModalBtn) acceptNotificationModalBtn.addEventListener('click', closeNotificationModal);
+            if (closeNotificationModalBtn) {
+                closeNotificationModalBtn.addEventListener('click', closeNotificationModal);
+            }
+            if (acceptNotificationModalBtn) {
+                acceptNotificationModalBtn.addEventListener('click', closeNotificationModal);
+            }
 
 
             // --- Confirm Delete Race Modal Elements & Functions ---
@@ -4135,51 +4147,50 @@
                     })
                     .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
                     .then(result => {
+                        // Siempre cerrar el wizard primero, independientemente del resultado del fetch
+                        try {
+                            closeWizard();
+                            console.log("[wizardFinishBtn] Modal del wizard cerrado.");
+                        } catch (e) {
+                            console.error("[wizardFinishBtn] Error al llamar a closeWizard():", e);
+                        }
+
                         if (result.ok) {
-                        .then(result => {
-                            if (result.ok) {
-                                console.log("[wizardFinishBtn] Respuesta OK del guardado.");
-                                try {
-                                    closeWizard();
-                                    console.log("[wizardFinishBtn] Modal del wizard cerrado.");
-                                } catch (e) {
-                                    console.error("[wizardFinishBtn] Error al llamar a closeWizard():", e);
+                            console.log("[wizardFinishBtn] Respuesta OK del guardado.");
+                            // Mostrar notificación y pasar el reload como callback
+                            showNotificationModal(
+                                "Éxito",
+                                result.body.message || '¡Respuestas guardadas con éxito!',
+                                "success",
+                                () => { // Este es el onCloseCallback
+                                    console.log("[wizardFinishBtn] Modal de notificación cerrado. Ejecutando window.location.reload().");
+                                    window.location.reload();
                                 }
-
-                                // Mostrar notificación y pasar el reload como callback
-                                showNotificationModal(
-                                    "Éxito",
-                                    result.body.message || '¡Respuestas guardadas con éxito!',
-                                    "success",
-                                    () => {
-                                        console.log("[wizardFinishBtn] Modal de notificación cerrado. Ejecutando window.location.reload().");
-                                        window.location.reload();
-                                    }
-                                );
-
+                            );
                         } else {
-                                // Si el guardado no fue ok, cerrar el wizard de todas formas pero mostrar error.
-                                // No se refrescará la página en este caso.
-                                try {
-                                    closeWizard();
-                                    console.log("[wizardFinishBtn] Modal del wizard cerrado después de error en guardado.");
-                                } catch (e) {
-                                    console.error("[wizardFinishBtn] Error al llamar a closeWizard() tras error de guardado:", e);
-                                }
-                            showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
-                                console.error(`[wizardFinishBtn] Error al guardar respuestas (rama else): ${result.body.message || `Error ${result.status}`}`, result);
+                            console.error(`[wizardFinishBtn] Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, result);
+                            showNotificationModal(
+                                "Error",
+                                `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`,
+                                "error"
+                                // No pasamos callback de reload en caso de error
+                            );
                         }
                     })
                     .catch(error => {
-                             // En caso de error de fetch, también intentar cerrar el wizard si está abierto.
-                            try {
-                                closeWizard();
-                                console.log("[wizardFinishBtn] Modal del wizard cerrado después de catch de fetch.");
-                            } catch (e) {
-                                console.error("[wizardFinishBtn] Error al llamar a closeWizard() en catch de fetch:", e);
-                            }
-                            console.error('[wizardFinishBtn] Catch general del fetch: Error guardando respuestas:', error);
-                        showNotificationModal("Error de Conexión", "Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.", "error");
+                        // En caso de error de fetch, también intentar cerrar el wizard si está abierto.
+                        try {
+                            closeWizard();
+                            console.log("[wizardFinishBtn] Modal del wizard cerrado después de catch de fetch.");
+                        } catch (e) {
+                            console.error("[wizardFinishBtn] Error al llamar a closeWizard() en catch de fetch:", e);
+                        }
+                        console.error('[wizardFinishBtn] Catch general del fetch: Error guardando respuestas:', error);
+                        showNotificationModal(
+                            "Error de Conexión",
+                            "Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.",
+                            "error"
+                        );
                     })
                     .finally(() => {
                         wizardFinishBtn.disabled = false;
