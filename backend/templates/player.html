@@ -562,7 +562,13 @@
                 .then(result => {
                     if (result.status === 201 || result.status === 200) {
                         closeSharedRaceModal();
-                        window.location.href = `/race/${raceIdToJoinAttempt}?action=start_quiniela`;
+                        console.log('[Player.html Modal] raceIdToJoinAttempt ANTES de redirigir:', raceIdToJoinAttempt);
+                        if (raceIdToJoinAttempt && !isNaN(parseInt(raceIdToJoinAttempt))) {
+                            window.location.href = `/race/${parseInt(raceIdToJoinAttempt)}?action=start_quiniela`;
+                        } else {
+                            console.error('[Player.html Modal] raceIdToJoinAttempt es inválido ANTES de redirigir:', raceIdToJoinAttempt, 'Redirigiendo a /Hello-world como fallback.');
+                            window.location.href = '/Hello-world'; // Fallback más seguro
+                        }
                     } else {
                         if(joinRaceError) {
                             joinRaceError.textContent = result.body.message || `Error ${result.status}. Inténtalo de nuevo.`;
