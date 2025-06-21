@@ -139,6 +139,10 @@
             <i class="fas fa-user w-5"></i>
             <span>Profile</span>
         </a>
+        <a href="#" id="mobileLogoutLink" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-sign-out-alt w-5"></i>
+            <span>Logout</span>
+        </a>
     </div>
 </div>
 
@@ -155,30 +159,39 @@
     // It's generally better to have JS in static files, but for this exercise,
     // it's included as requested.
 
+    // Logout functionality
+    function handleLogout(event) {
+        event.preventDefault();
+        // Ensure url_for('logout_api') is available in the including template's context
+        fetch("{{ url_for('logout_api') }}", { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    // Ensure url_for('serve_login_page') is available
+                    window.location.href = "{{ url_for('serve_login_page') }}";
+                } else {
+                    response.json().then(data => {
+                        alert('Logout failed: ' + (data.message || 'Unknown error'));
+                    }).catch(() => {
+                        alert('Logout failed and could not parse error response.');
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                alert('Error during logout. Please check console.');
+            });
+    }
+
     // Logout functionality for the header
     const logoutLink = document.getElementById('logoutLink');
     if (logoutLink) {
-        logoutLink.addEventListener('click', function(event) {
-            event.preventDefault();
-            // Ensure url_for('logout_api') is available in the including template's context
-            fetch("{{ url_for('logout_api') }}", { method: 'POST' })
-                .then(response => {
-                    if (response.ok) {
-                        // Ensure url_for('serve_login_page') is available
-                        window.location.href = "{{ url_for('serve_login_page') }}";
-                    } else {
-                        response.json().then(data => {
-                            alert('Logout failed: ' + (data.message || 'Unknown error'));
-                        }).catch(() => {
-                            alert('Logout failed and could not parse error response.');
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Logout error:', error);
-                    alert('Error during logout. Please check console.');
-                });
-        });
+        logoutLink.addEventListener('click', handleLogout);
+    }
+
+    // Logout functionality for the mobile menu
+    const mobileLogoutLink = document.getElementById('mobileLogoutLink');
+    if (mobileLogoutLink) {
+        mobileLogoutLink.addEventListener('click', handleLogout);
     }
 
     // Profile Dropdown Toggle for the header
