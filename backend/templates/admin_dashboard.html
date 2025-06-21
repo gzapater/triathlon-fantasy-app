@@ -662,18 +662,23 @@
             let source = null;
 
             // 1. Try to get ID from server-injected data
-            if (autoJoinRaceIdFromServer) {
+            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer.toLowerCase() !== 'none') {
                 const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
                 if (!isNaN(parsedServerId) && parsedServerId > 0) {
                     effectiveRaceId = parsedServerId;
-                    if (raceToJoinTitleFromServer && raceToJoinTitleFromServer.toLowerCase() !== 'none' && raceToJoinTitleFromServer.toLowerCase() !== 'null') {
+                    if (raceToJoinTitleFromServer &&
+                        raceToJoinTitleFromServer.toLowerCase() !== 'none' &&
+                        raceToJoinTitleFromServer.toLowerCase() !== 'null') {
                         effectiveRaceTitle = raceToJoinTitleFromServer;
                     } else {
                         effectiveRaceTitle = null;
                     }
                     source = 'server';
                 } else {
-                    console.warn(`autoJoinRaceIdFromServer ('${autoJoinRaceIdFromServer}') no es un ID numérico válido.`);
+                    console.warn(`autoJoinRaceIdFromServer ('${autoJoinRaceIdFromServer}') no es un ID numérico válido o es una cadena vacía.`);
+                }
+            } else if (autoJoinRaceIdFromServer.toLowerCase() === 'none') {
+                console.warn(`autoJoinRaceIdFromServer era la cadena 'None', tratado como ID inválido.`);
                 }
             }
 
