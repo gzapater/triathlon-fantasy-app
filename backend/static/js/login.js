@@ -2,6 +2,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
     const messageArea = document.getElementById('messageArea');
     const usernameInput = document.getElementById('username');
+
+    // Leer el parámetro 'next' de la URL al cargar la página
+    const queryParams = new URLSearchParams(window.location.search);
+    const nextUrlFromQuery = queryParams.get('next');
+    if (nextUrlFromQuery) {
+        console.log('Login page loaded with next URL from query:', nextUrlFromQuery);
+    }
     const passwordInput = document.getElementById('password');
     const rememberMeCheckbox = document.getElementById('remember-me');
 
@@ -60,8 +67,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Esperar un poco más para asegurar que las cookies se establecen
                 setTimeout(() => {
                     console.log('Cookies antes de redirect:', document.cookie);
-                    window.location.href = '/Hello-world';
-                }, 2000); // Aumentado a 2 segundos
+                    if (nextUrlFromQuery && nextUrlFromQuery.startsWith('/')) {
+                        console.log('Redirecting to nextUrlFromQuery:', nextUrlFromQuery);
+                        window.location.href = nextUrlFromQuery;
+                    } else {
+                        if (nextUrlFromQuery) {
+                            console.warn('nextUrlFromQuery is present but invalid (not starting with /):', nextUrlFromQuery, 'Defaulting to /Hello-world.');
+                        } else {
+                            console.log('No valid nextUrlFromQuery found. Redirecting to default /Hello-world.');
+                        }
+                        window.location.href = '/Hello-world';
+                    }
+                }, 2000); // Mantener el timeout si es necesario por las cookies
             } else {
                 if (response.status === 401) {
                     messageArea.textContent = "Las crdenciales son incorrectas, por favor prueba de nuevo.";
