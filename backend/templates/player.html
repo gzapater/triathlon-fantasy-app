@@ -424,180 +424,214 @@
         </div>
     </footer>
 
-    <script>
-        function setupViewMoreButton(buttonId, cardClassToShow) {
-            const viewMoreBtn = document.getElementById(buttonId);
-            if (viewMoreBtn) {
-                viewMoreBtn.addEventListener('click', function() {
-                    const hiddenCards = document.querySelectorAll('.' + cardClassToShow);
-                    hiddenCards.forEach(card => {
-                        card.classList.remove('hidden');
-                    });
-                    viewMoreBtn.style.display = 'none'; // Hide the button after showing all
+ <script>
+    // ====================================================================
+    // 1. VARIABLES GLOBALES
+    // ====================================================================
+    const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
+    const raceToJoinTitleFromServer = {{ race_to_join_title | tojson }};
+    let allRaceQuestions = [];
+    let isFetchingQuestions = false;
+    let raceIdToJoinAttempt = null;
+
+    // ====================================================================
+    // 2. DEFINICIÓN DE FUNCIONES
+    // ====================================================================
+
+    function setupViewMoreButton(buttonId, cardClassToShow) {
+        const viewMoreBtn = document.getElementById(buttonId);
+        if (viewMoreBtn) {
+            viewMoreBtn.addEventListener('click', function() {
+                const hiddenCards = document.querySelectorAll('.' + cardClassToShow);
+                hiddenCards.forEach(card => {
+                    card.classList.remove('hidden');
                 });
-            }
+                viewMoreBtn.style.display = 'none';
+            });
+        }
+    }
+
+    function openSharedRaceModal(raceId, raceTitle) {
+        const joinRaceModal = document.getElementById('joinRaceModal');
+        const joinRaceModalTitleElem = document.getElementById('joinRaceModalTitle');
+        const joinRaceError = document.getElementById('joinRaceError');
+
+        if (!joinRaceModal || !joinRaceModalTitleElem) {
+            console.error("Join race modal elements not found.");
+            return;
+        }
+        raceIdToJoinAttempt = raceId;
+        joinRaceModalTitleElem.textContent = raceTitle;
+        if (joinRaceError) joinRaceError.style.display = 'none';
+        joinRaceModal.style.display = 'flex';
+    }
+
+    function closeSharedRaceModal() {
+        const joinRaceModal = document.getElementById('joinRaceModal');
+        const joinRaceError = document.getElementById('joinRaceError');
+        if (joinRaceModal) joinRaceModal.style.display = 'none';
+        if (joinRaceError) joinRaceError.style.display = 'none';
+        raceIdToJoinAttempt = null;
+    }
+
+    // Refactored: Wizard now assumes questions are loaded or being loaded.
+    function openWizard() {
+        if (isFetchingQuestions) {
+             alert("Cargando preguntas, por favor espera un momento...");
+             return;
+        }
+        if (!allRaceQuestions || allRaceQuestions.length === 0) {
+            alert("No hay preguntas disponibles para esta carrera en este momento.");
+            return;
         }
 
-        // Add some interactive effects on load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Animate cards on scroll (simple effect)
-            const cards = document.querySelectorAll('.card-hover');
+        const questionWizardModal = document.getElementById('questionWizardModal');
+        currentQuestionIndex = 0;
+        userWizardAnswers = {}; // Reset answers
+        displayWizardQuestion(currentQuestionIndex);
+        if(questionWizardModal) questionWizardModal.style.display = 'flex';
+    }
+    
+    // (Aquí irían el resto de tus funciones: closeWizard, displayWizardQuestion, etc.
+    //  Su contenido interno no necesita cambios, solo su ubicación en el script).
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
+
+    // ====================================================================
+    // 3. PUNTO DE ENTRADA (EVENT LISTENERS E INICIALIZACIÓN)
+    // ====================================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        // --- Declaración de Elementos del DOM ---
+        const cards = document.querySelectorAll('.card-hover');
+        const joinRaceModal = document.getElementById('joinRaceModal');
+        const closeJoinRaceModalBtn = document.getElementById('closeJoinRaceModalBtn');
+        const cancelJoinRaceBtn = document.getElementById('cancelJoinRaceBtn');
+        const acceptJoinRaceBtn = document.getElementById('acceptJoinRaceBtn');
+        const joinRaceModalTitleElem = document.getElementById('joinRaceModalTitle');
+        const joinRaceError = document.getElementById('joinRaceError');
+
+        // --- Lógica de Animación (Observer) ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        });
+        cards.forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(card);
+        });
+        
+        // --- Asignación de Event Listeners ---
+        setupViewMoreButton('viewMoreOrganizedBtn', 'initially-hidden-organized');
+        setupViewMoreButton('viewMoreParticipatingBtn', 'initially-hidden-participating');
+        setupViewMoreButton('viewMoreFavoriteBtn', 'initially-hidden-favorite');
+
+        if (closeJoinRaceModalBtn) {
+            closeJoinRaceModalBtn.addEventListener('click', closeSharedRaceModal);
+        }
+        if (cancelJoinRaceBtn) {
+            cancelJoinRaceBtn.addEventListener('click', closeSharedRaceModal);
+        }
+
+        if (acceptJoinRaceBtn) {
+            acceptJoinRaceBtn.addEventListener('click', () => {
+                if (!raceIdToJoinAttempt) {
+                    if(joinRaceError) {
+                        joinRaceError.textContent = 'Error: ID de carrera no encontrado. Inténtalo de nuevo.';
+                        joinRaceError.style.display = 'block';
+                    }
+                    return;
+                }
+
+                acceptJoinRaceBtn.disabled = true;
+                if(cancelJoinRaceBtn) cancelJoinRaceBtn.disabled = true;
+                acceptJoinRaceBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Registrando...';
+                if(joinRaceError) joinRaceError.style.display = 'none';
+
+                fetch(`/api/races/${raceIdToJoinAttempt}/join`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(result => {
+                    if (result.status === 201 || result.status === 200) {
+                        closeSharedRaceModal();
+                        window.location.href = `/race/${raceIdToJoinAttempt}?action=start_quiniela`;
+                    } else {
+                        if(joinRaceError) {
+                            joinRaceError.textContent = result.body.message || `Error ${result.status}. Inténtalo de nuevo.`;
+                            joinRaceError.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error joining race:', error);
+                    if(joinRaceError) {
+                        joinRaceError.textContent = 'Error de conexión al intentar unirse. Inténtalo más tarde.';
+                        joinRaceError.style.display = 'block';
+                    }
+                })
+                .finally(() => {
+                    if (joinRaceModal && joinRaceModal.style.display !== 'none') {
+                        acceptJoinRaceBtn.disabled = false;
+                        if(cancelJoinRaceBtn) cancelJoinRaceBtn.disabled = false;
+                        acceptJoinRaceBtn.innerHTML = 'Aceptar';
                     }
                 });
             });
+        }
 
-            cards.forEach(card => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-                observer.observe(card);
-            });
+        // --- Lógica de Deep Link Post-Login ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinRaceIdFromQuery = urlParams.get('join_race_id');
+        const raceNotFoundError = urlParams.get('error') === 'race_not_found';
+        const originalRaceIdAttempt = urlParams.get('original_race_id');
+        let effectiveRaceId = null;
+        let effectiveRaceTitle = null;
 
-            // Header-related JavaScript (logout, dropdown, mobile menu) is in _header.html
-            // The specific logoutLinkPlayer and profileDropdownTogglePlayer JS has been removed.
+        if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer !== 'None' && !isNaN(parseInt(autoJoinRaceIdFromServer, 10))) {
+            effectiveRaceId = parseInt(autoJoinRaceIdFromServer, 10);
+            effectiveRaceTitle = (raceToJoinTitleFromServer && raceToJoinTitleFromServer !== 'None') ? raceToJoinTitleFromServer : `Carrera ID: ${effectiveRaceId}`;
+        } else if (joinRaceIdFromQuery && !isNaN(parseInt(joinRaceIdFromQuery, 10))) {
+            effectiveRaceId = parseInt(joinRaceIdFromQuery, 10);
+            // Title will be fetched if needed
+        }
 
-            // Combined and refactored logic for Join Race Modal
-            // The older block of "--- Join Race Modal Logic ---" that was here has been removed to prevent variable redeclaration.
-            const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
-            const raceToJoinTitleFromServer = {{ race_to_join_title | tojson }};
-
-            const urlParamsClean = new URLSearchParams(window.location.search);
-            const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
-            const raceNotFoundError = urlParamsClean.get('error') === 'race_not_found';
-            const originalRaceIdAttempt = urlParamsClean.get('original_race_id');
-
-            let effectiveRaceId = null;
-            let effectiveRaceTitle = null;
-            let source = null;
-
-            // 1. Try to get ID from server-injected data
-            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer.toLowerCase() !== 'none') {
-                const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
-                if (!isNaN(parsedServerId) && parsedServerId > 0) {
-                    effectiveRaceId = parsedServerId;
-
-                    let useServerTitle = false;
-                    if (typeof raceToJoinTitleFromServer === 'string' && raceToJoinTitleFromServer.trim() !== '') {
-                        const titleLower = raceToJoinTitleFromServer.toLowerCase();
-                        if (titleLower !== 'none' && titleLower !== 'null') {
-                            useServerTitle = true;
-                        }
-                    }
-
-                    if (useServerTitle) {
-                        effectiveRaceTitle = raceToJoinTitleFromServer;
-                    } else {
-                        effectiveRaceTitle = null;
-                    }
-                    source = 'server';
-                } else {
-                    console.warn(`autoJoinRaceIdFromServer ('${autoJoinRaceIdFromServer}') no es un ID numérico válido o es una cadena vacía.`);
-                }
-            } else if (autoJoinRaceIdFromServer.toLowerCase() === 'none') {
-                console.warn(`autoJoinRaceIdFromServer era la cadena 'None', tratado como ID inválido.`);
-                }
+        if (effectiveRaceId > 0 && joinRaceModal && joinRaceModalTitleElem) { // <-- CORRECCIÓN APLICADA AQUÍ
+            if (effectiveRaceTitle) {
+                openSharedRaceModal(effectiveRaceId, effectiveRaceTitle);
+            } else {
+                fetch(`/api/races/${effectiveRaceId}/basic_details`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('No se pudo cargar el título de la carrera.');
+                        return response.json();
+                    })
+                    .then(data => {
+                        openSharedRaceModal(effectiveRaceId, data.title || `Carrera ID: ${effectiveRaceId}`);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching race details for modal:', error);
+                        alert(`Error: No se pudo cargar la información de la carrera con ID ${effectiveRaceId}.`);
+                    });
             }
+        } else if (raceNotFoundError) {
+            alert(`La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`);
+        }
 
-            // 2. If not found from server, try from URL query parameter
-            if (!effectiveRaceId && joinRaceIdFromQuery) {
-                const parsedQueryId = parseInt(joinRaceIdFromQuery, 10);
-                if (!isNaN(parsedQueryId) && parsedQueryId > 0) {
-                    effectiveRaceId = parsedQueryId;
-                    source = 'query';
-                } else {
-                    console.warn(`Invalid join_race_id from query parameter: ${joinRaceIdFromQuery}`);
-                    // Optionally show a user-facing error here if this scenario is critical
-                    // For now, it will just not trigger the modal.
-                }
-            }
-
-            // 3. If a valid numeric ID was found, proceed to show modal
-            if (effectiveRaceId && typeof effectiveRaceId === 'number' && effectiveRaceId > 0 && joinRaceModal && joinRaceModalTitle) {
-                raceToJoinId = effectiveRaceId; // Set global raceToJoinId (numeric) for the accept button
-
-                if (source === 'server') {
-                    const displayTitle = effectiveRaceTitle ? effectiveRaceTitle : `Carrera ID: ${effectiveRaceId}`;
-                    joinRaceModalTitle.textContent = displayTitle;
-                    if (joinRaceError) joinRaceError.style.display = 'none';
-                    joinRaceModal.style.display = 'flex';
-                } else if (source === 'query') {
-                    // Fetch title only if source is 'query'
-                    fetch(`/api/races/${effectiveRaceId}/basic_details`)
-                        .then(response => {
-                            if (!response.ok) {
-                                // Try to parse error message from JSON, otherwise use status text
-                                return response.json().then(err => {
-                                    throw new Error(err.message || `Error ${response.status} ${response.statusText}`);
-                                }).catch(() => { // Fallback if response.json() itself fails (e.g. HTML response)
-                                     throw new Error(`Error ${response.status} ${response.statusText}. Expected JSON.`);
-                                });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            let displayTitle = data.title;
-                            // Check if data.title is null, undefined, or the string "None" / "null"
-                            if (!data.title || data.title.toLowerCase() === 'none' || data.title.toLowerCase() === 'null') {
-                                displayTitle = `Carrera ID: ${effectiveRaceId}`;
-                            }
-                            joinRaceModalTitle.textContent = displayTitle;
-                            if (joinRaceError) joinRaceError.style.display = 'none';
-                            joinRaceModal.style.display = 'flex';
-                        })
-                        .catch(error => {
-                            console.error('Error fetching race details for join modal (query source):', error);
-                            if (joinRaceError) {
-                                joinRaceError.textContent = `No se pudo cargar la información de la carrera (ID: ${effectiveRaceId}). ${error.message}.`;
-                                joinRaceError.style.display = 'block';
-                            }
-                            // Do not display the modal if fetching details failed
-                            joinRaceModal.style.display = 'none';
-                        });
-                }
-            } else if (raceNotFoundError && originalRaceIdAttempt) {
-                // This handles ?error=race_not_found (usually from backend redirect if race doesn't exist initially)
-                // Display a general, non-modal error message or use a flash message system if available
-                console.warn(`Race with ID ${originalRaceIdAttempt} was not found (indicated by server).`);
-                // Example: Show error in a dedicated page area if one exists
-                // Or, for now, use an alert or keep it in joinRaceError if that's the designated spot
-                if(joinRaceError) {
-                    joinRaceError.textContent = `La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`;
-                    joinRaceError.style.display = 'block'; // This error is inside the modal, might not be visible.
-                                                           // Consider a more global notification.
-                } else {
-                    alert(`La carrera con ID ${originalRaceIdAttempt} no fue encontrada o no está disponible.`);
-                }
-            }
-
-            // Clean URL parameters after processing
-            const currentUrlPlayer = new URL(window.location.href);
-            let paramsToRemove = ['join_race_id', 'error', 'original_race_id'];
-            let needsHistoryReplace = false;
-
-            paramsToRemove.forEach(param => {
-                if (currentUrlPlayer.searchParams.has(param)) {
-                    currentUrlPlayer.searchParams.delete(param);
-                    needsHistoryReplace = true;
-                }
-            });
-
-            if (needsHistoryReplace && window.history.replaceState) {
-                window.history.replaceState({}, document.title, currentUrlPlayer.pathname + currentUrlPlayer.search + currentUrlPlayer.hash);
-            }
-
-            setupViewMoreButton('viewMoreFavoriteBtn', 'initially-hidden-favorite');
-            // If other sections like "Mis Carreras Inscritas" or "Carreras Destacadas"
-            // also implement this pattern, their setup calls would go here too.
-            // For example:
-            // setupViewMoreButton('viewMoreRegisteredBtn', 'initially-hidden-registered');
-            // setupViewMoreButton('viewMoreDestacadasBtn', 'initially-hidden-destacadas');
-        });
-    </script>
+        // --- Limpieza de URL ---
+        if (urlParams.has('join_race_id') || urlParams.has('error')) {
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('join_race_id');
+            cleanUrl.searchParams.delete('error');
+            cleanUrl.searchParams.delete('original_race_id');
+            window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        }
+    });
+</script>
 </body>
 </html>
