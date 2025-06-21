@@ -650,8 +650,8 @@
 
             // Check for auto_join_race_id passed from server
             const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
-            const raceToJoinTitleFromServer = "{{ race_to_join_title | default('') | e }}";
-
+            const raceToJoinTitleFromServer = {{ race_to_join_title | tojson }};
+        
             const urlParamsClean = new URLSearchParams(window.location.search);
             const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
             const raceNotFoundError = urlParamsClean.get('error') === 'race_not_found';
