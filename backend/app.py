@@ -2230,6 +2230,11 @@ def user_personal_data():
     else:
         return jsonify(message="Forbidden: You do not have the required permissions for this data."), 403
 # --- HTML Serving Routes ---
+
+@app.route('/Tripredict')
+def tripredict_promo_page():
+    return render_template('tripredict_promo.html')
+
 @app.route('/')
 def root():
     return redirect(url_for('serve_login_page'))
