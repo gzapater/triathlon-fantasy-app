@@ -4132,19 +4132,29 @@
                         if (result.ok) {
                             showNotificationModal("Éxito", result.body.message || '¡Respuestas guardadas con éxito!', "success");
                             closeWizard();
-                            // Reload to update UI (e.g., show "Ya has participado")
-                                // The reload will now be handled by the accept button of the notification modal or after a timeout
-                                // if the modal is closed by other means.
-                                // For now, let's keep the timeout for simplicity, but ideally, redirection happens after modal confirmation.
+                                console.log(`[wizardFinishBtn] Guardado exitoso. raceId: ${raceId}. Programando redirección en 1.5s.`); // LOGGING
+                                if (!raceId || raceId === 'undefined' || raceId.trim() === '') {
+                                    console.error("[wizardFinishBtn] raceId es inválido ANTES de setTimeout. No se puede redirigir.", raceId); // LOGGING DE ERROR
+                                    // Opcionalmente, mostrar un error al usuario aquí también si raceId es inválido.
+                                    // showNotificationModal("Error Crítico", "No se pudo determinar la carrera para redirigir. Contacte a soporte.", "error");
+                                    return; // Detener para evitar redirección incorrecta
+                                }
                                 setTimeout(() => {
-                                    window.location.href = `/races/${raceId}`; // Redirect to the race detail page
-                                }, 1500); // Delay for user to see modal
+                                    console.log(`[wizardFinishBtn] Ejecutando redirección AHORA a: /races/${raceId}`); // LOGGING
+                                    if (!raceId || raceId === 'undefined' || raceId.trim() === '') {
+                                         console.error("[wizardFinishBtn] raceId es inválido DENTRO de setTimeout. No se puede redirigir.", raceId); // LOGGING DE ERROR
+                                        // showNotificationModal("Error Crítico", "No se pudo determinar la carrera para redirigir (timeout). Contacte a soporte.", "error");
+                                    } else {
+                                        window.location.href = `/races/${raceId}`;
+                                    }
+                                }, 1500);
                         } else {
                             showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
+                                console.error(`[wizardFinishBtn] Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, result); // LOGGING
                         }
                     })
                     .catch(error => {
-                        console.error('Error saving answers:', error);
+                            console.error('[wizardFinishBtn] Catch: Error saving answers:', error); // LOGGING
                         showNotificationModal("Error de Conexión", "Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.", "error");
                     })
                     .finally(() => {
