@@ -1,6 +1,6 @@
 import os
 import boto3
-from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash
+from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 # Updated model imports
 from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore # Added UserScore
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -2204,81 +2204,44 @@ def register_page():
 
 
 @app.route('/join_race/<int:race_id>')
-def handle_join_race_link(race_id):
+@login_required
+def join_race_deep_link(race_id):
+    """
+    Gestiona el deep link para unirse a una carrera.
+    Gracias al decorador @login_required, este código solo se ejecuta
+    si el usuario ya está autenticado. Flask-Login maneja la redirección
+    a la página de login si es necesario.
+    """
     race = Race.query.get(race_id)
     if not race:
-        # If race not found, redirect appropriately
-        if current_user.is_authenticated:
-            # Redirect to dashboard with an error hint (frontend can show a message)
-            return redirect(url_for('serve_hello_world_page', error='race_not_found', original_race_id=race_id))
-        else:
-            # Redirect to login page with an error hint
-            return redirect(url_for('serve_login_page', error='race_not_found', original_race_id=race_id))
+        flash(f'La carrera con ID {race_id} a la que intentas unirte no existe.', 'error')
+        return redirect(url_for('serve_hello_world_page'))
 
-    if current_user.is_authenticated:
-        # User is logged in, redirect to their dashboard with race_id for modal
-        app.logger.info(f"User {current_user.username} authenticated, joining race {race.id}. Redirecting to dashboard.")
-        return redirect(url_for('serve_hello_world_page', join_race_id=race.id))
-    else:
-        # User is not logged in, redirect to login page.
-        # After login, they should be redirected back to this /join_race/<race_id> URL.
-        # url_for generates a relative path by default. _external=True can make it absolute if needed elsewhere.
-        # For the 'next' param, a relative path is usually fine and preferred.
-        login_url_with_next = url_for('serve_login_page', next=url_for('handle_join_race_link', race_id=race.id))
-        app.logger.info(f"User not authenticated for join_race {race.id}. Redirecting to login: {login_url_with_next}")
-        return redirect(login_url_with_next)
+    # Criterio de Aceptación: Usuario ya es participante
+    is_already_registered = UserRaceRegistration.query.filter_by(
+        user_id=current_user.id,
+        race_id=race_id
+    ).first()
+
+    if is_already_registered:
+        flash(f'Ya estás inscrito en la carrera "{race.title}".', 'info')
+        return redirect(url_for('serve_race_detail_page', race_id=race.id))
+
+    # Criterio de Aceptación: Nuevo participante. Se guarda la intención en la sesión.
+    # Esto es más robusto que pasar parámetros por la URL.
+    session['auto_join_race_id'] = race.id
+    session['race_to_join_title'] = race.title
+
+    # Redirigimos al dashboard, que se encargará de leer la sesión y mostrar el pop-up.
+    return redirect(url_for('serve_hello_world_page'))
 
 
 @app.route('/Hello-world') # This is the main dashboard route after login
 @login_required
 def serve_hello_world_page():
-    join_race_id_str = request.args.get('join_race_id')
-    error_message = request.args.get('error') # For race_not_found from handle_join_race_link
-    original_race_id_str = request.args.get('original_race_id') # For race_not_found from handle_join_race_link
-
-    auto_join_race_id_to_template = None
-    race_to_join_title = None
-
-    if error_message == 'race_not_found' and original_race_id_str:
-        flash(f"La carrera con ID {original_race_id_str} a la que intentaste unirte no existe o no está disponible.", "error")
-        # Clear them so they don't persist on subsequent dashboard loads without a new join attempt
-        return redirect(url_for('serve_hello_world_page'))
-
-
-    if join_race_id_str:
-        try:
-            join_race_id = int(join_race_id_str)
-            race_to_join = Race.query.get(join_race_id)
-
-            if not race_to_join:
-                flash(f"La carrera con ID {join_race_id} a la que intentaste unirte no existe o no está disponible.", "error")
-                # Clear join_race_id from args by redirecting to the dashboard without it
-                return redirect(url_for('serve_hello_world_page'))
-            else:
-                # Check if user is already registered
-                existing_registration = UserRaceRegistration.query.filter_by(
-                    user_id=current_user.id,
-                    race_id=join_race_id
-                ).first()
-
-                if existing_registration:
-                    # User is already a member, redirect to race detail page
-                    flash(f"Ya eres miembro de la carrera '{race_to_join.title}'.", "info")
-                    return redirect(url_for('serve_race_detail_page', race_id=join_race_id))
-                else:
-                    # User is not a member, pass flag to template to trigger join modal/wizard
-                    auto_join_race_id_to_template = join_race_id
-                    race_to_join_title = race_to_join.title
-                    # flash(f"Preparando para unirte a la carrera '{race_to_join.title}'...", "info") # Optional: for debugging or immediate feedback
-
-        except ValueError:
-            flash("ID de carrera para unirse inválido.", "error")
-            return redirect(url_for('serve_hello_world_page'))
-        except Exception as e:
-            app.logger.error(f"Error processing join_race_id '{join_race_id_str}': {e}", exc_info=True)
-            flash("Ocurrió un error al procesar la solicitud para unirse a la carrera.", "error")
-            return redirect(url_for('serve_hello_world_page'))
-
+    # Lee la "intención" de la sesión y la elimina para que no se repita.
+    auto_join_race_id_to_template = session.pop('auto_join_race_id', None)
+    race_to_join_title_to_template = session.pop('race_to_join_title', None)
 
     # Keep existing filter and data fetching logic
     filter_date_from_str = request.args.get('filter_date_from')
@@ -2372,8 +2335,8 @@ def serve_hello_world_page():
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year,
-                               auto_join_race_id=auto_join_race_id_to_template,
-                               race_to_join_title=race_to_join_title)
+                               auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
+                               race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
     elif current_user.role.code == 'LEAGUE_ADMIN':
         # --- Active Players KPI Calculation ---
         active_players_count = 0
@@ -2489,8 +2452,8 @@ def serve_hello_world_page():
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year,
                                active_players_count=active_players_count, # Pass the count to the template
-                               auto_join_race_id=auto_join_race_id_to_template,
-                               race_to_join_title=race_to_join_title)
+                                auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
+                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
     elif current_user.role.code == 'PLAYER':
         # Query UserRaceRegistration for all race_ids for the current_user
         user_registrations = UserRaceRegistration.query.filter_by(user_id=current_user.id).all()
@@ -2604,8 +2567,8 @@ def serve_hello_world_page():
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
                                current_year=current_year,
-                               auto_join_race_id=auto_join_race_id_to_template,
-                               race_to_join_title=race_to_join_title)
+                                auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
+                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
 
     else:
         # Fallback for any other authenticated role, or if roles are added in the future
@@ -2649,7 +2612,9 @@ def serve_hello_world_page():
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
-                               current_year=current_year)
+                                current_year=current_year,
+                                auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
+                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
 
 
 @app.route('/races', methods=['GET'])
