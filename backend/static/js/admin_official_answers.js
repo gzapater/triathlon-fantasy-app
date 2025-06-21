@@ -174,6 +174,7 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
                         li.className = 'p-2 border mb-1 bg-gray-100 cursor-grab flex justify-between items-center';
 
                         const textSpan = document.createElement('span');
+                        // option.option_text already contains the name, as optionsToRender is derived from question.options
                         textSpan.textContent = option.option_text;
                         li.appendChild(textSpan);
 
