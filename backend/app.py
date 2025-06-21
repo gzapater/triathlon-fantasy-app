@@ -71,6 +71,48 @@ login_manager.init_app(app)
 login_manager.login_view = 'serve_login_page' # Crucial for @login_required redirection
 login_manager.session_protection = "strong"
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    # Loguear la URL original y hacia dónde se redirige con 'next'
+    original_url = request.url
+    login_url_with_next = url_for('serve_login_page', next=request.path) # Usamos request.path para el 'next'
+
+    # Podríamos usar request.full_path si los query params de la URL original son importantes para 'next'
+    # login_url_with_next = url_for('serve_login_page', next=request.full_path)
+    # Sin embargo, para @login_required, Flask-Login usualmente solo se preocupa por el path.
+
+    app.logger.info(f"[Flask-Login Unauthorized] Acceso no autorizado a: {original_url}")
+    app.logger.info(f"[Flask-Login Unauthorized] Redirigiendo a login. URL de login generada con next: {login_url_with_next}")
+
+    # Comportamiento estándar de Flask-Login:
+    if request.blueprint:
+        login_view = login_manager.login_view
+        if not login_view.startswith(request.blueprint + '.'):
+            login_view = f"{request.blueprint}.{login_view}"
+    else:
+        login_view = login_manager.login_view
+
+    if login_manager.login_message:
+        flash(login_manager.login_message, category=login_manager.login_message_category)
+
+    # Redirigir a la página de login, Flask-Login usualmente construye el 'next' por sí mismo
+    # basándose en request.url. Aquí estamos logueando nuestra construcción para verla.
+    # La redirección final la hará Flask-Login si no devolvemos una respuesta aquí.
+    # Para asegurar que nuestro 'next' logueado es el que se usa, podríamos devolverlo:
+    # return redirect(login_url_with_next)
+    # Pero es mejor dejar que Flask-Login haga su trabajo y solo loguear lo que *debería* ser.
+    # Flask-Login internamente usará algo como:
+    # flask_login.utils._create_identifier() para la cookie
+    # y luego redirect(url_for(login_view, next=request.url)) o similar.
+    # El punto es que request.url (o request.path) en este contexto es la URL que se intentó acceder.
+
+    # Dejamos que Flask-Login maneje la redirección real para mantener la consistencia
+    # con su comportamiento interno (incluyendo manejo de mensajes flash, etc.)
+    # El propósito de este handler personalizado es solo para LOGGING.
+    # Si no devolvemos una respuesta, Flask-Login procederá con su redirección estándar.
+    return login_manager.login_callback()
+
+
 app.config['LOGIN_DISABLED'] = False # Asegúrate de que no esté deshabilitado accidentalmente
 app.config['DEBUG_LOGIN'] = True      # <--- AÑADE ESTA LÍNEA TEMPORALMENTE para depuración
 
