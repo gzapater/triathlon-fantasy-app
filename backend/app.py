@@ -2212,16 +2212,21 @@ def join_race_deep_link(race_id):
     si el usuario ya está autenticado. Flask-Login maneja la redirección
     a la página de login si es necesario.
     """
+    app.logger.info(f"[join_race_deep_link] Iniciando para race_id: {race_id}, user: {current_user.username}")
     race = Race.query.get(race_id)
+
     if not race:
+        app.logger.warning(f"[join_race_deep_link] Carrera con ID {race_id} no encontrada.")
         flash(f'La carrera con ID {race_id} a la que intentas unirte no existe.', 'error')
         return redirect(url_for('serve_hello_world_page'))
+    app.logger.info(f"[join_race_deep_link] Carrera encontrada: {race.title}")
 
     # Criterio de Aceptación: Usuario ya es participante
     is_already_registered = UserRaceRegistration.query.filter_by(
         user_id=current_user.id,
         race_id=race_id
     ).first()
+    app.logger.info(f"[join_race_deep_link] Usuario ya registrado: {'Sí' if is_already_registered else 'No'}")
 
     if is_already_registered:
         flash(f'Ya estás inscrito en la carrera "{race.title}".', 'info')
@@ -2229,19 +2234,27 @@ def join_race_deep_link(race_id):
 
     # Criterio de Aceptación: Nuevo participante. Se guarda la intención en la sesión.
     # Esto es más robusto que pasar parámetros por la URL.
+    app.logger.info(f"[join_race_deep_link] Intentando guardar en sesión: race_id={race.id}, race_title={race.title}")
     session['auto_join_race_id'] = race.id
     session['race_to_join_title'] = race.title
+    # Para verificar si se guardó (esto es más para depuración local, en producción puede ser ruidoso)
+    app.logger.info(f"[join_race_deep_link] Valores en sesión después de guardar: auto_join_race_id={session.get('auto_join_race_id')}, race_to_join_title={session.get('race_to_join_title')}")
 
     # Redirigimos al dashboard, que se encargará de leer la sesión y mostrar el pop-up.
+    app.logger.info(f"[join_race_deep_link] Redirigiendo a serve_hello_world_page")
     return redirect(url_for('serve_hello_world_page'))
 
 
 @app.route('/Hello-world') # This is the main dashboard route after login
 @login_required
 def serve_hello_world_page():
+    app.logger.info(f"[serve_hello_world_page] Iniciando para user: {current_user.username}")
+    app.logger.info(f"[serve_hello_world_page] Sesión ANTES de pop: {dict(session)}")
     # Lee la "intención" de la sesión y la elimina para que no se repita.
     auto_join_race_id_to_template = session.pop('auto_join_race_id', None)
     race_to_join_title_to_template = session.pop('race_to_join_title', None)
+    app.logger.info(f"[serve_hello_world_page] Valores obtenidos de sesión (después de pop): auto_join_race_id={auto_join_race_id_to_template}, race_to_join_title={race_to_join_title_to_template}")
+    app.logger.info(f"[serve_hello_world_page] Sesión DESPUÉS de pop: {dict(session)}")
 
     # Keep existing filter and data fetching logic
     filter_date_from_str = request.args.get('filter_date_from')
