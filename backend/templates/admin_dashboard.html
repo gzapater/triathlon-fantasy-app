@@ -666,9 +666,16 @@
                 const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
                 if (!isNaN(parsedServerId) && parsedServerId > 0) {
                     effectiveRaceId = parsedServerId;
-                    if (raceToJoinTitleFromServer &&
-                        raceToJoinTitleFromServer.toLowerCase() !== 'none' &&
-                        raceToJoinTitleFromServer.toLowerCase() !== 'null') {
+
+                    let useServerTitle = false;
+                    if (typeof raceToJoinTitleFromServer === 'string' && raceToJoinTitleFromServer.trim() !== '') {
+                        const titleLower = raceToJoinTitleFromServer.toLowerCase();
+                        if (titleLower !== 'none' && titleLower !== 'null') {
+                            useServerTitle = true;
+                        }
+                    }
+
+                    if (useServerTitle) {
                         effectiveRaceTitle = raceToJoinTitleFromServer;
                     } else {
                         effectiveRaceTitle = null;
