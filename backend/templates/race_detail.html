@@ -749,20 +749,27 @@
                     }
                     break;
                 case 'ORDERING':
-                    scoringText = `Ordenamiento. ${question.points_per_correct_order || 'N/A'} pts/item, ${question.bonus_for_full_order || '0'} pts bonus.`;
-                    break;
-                case 'SLIDER':
-                    scoringText = `Slider. Rango: [${question.slider_min_value !== null ? question.slider_min_value : 'N/A'} - ${question.slider_max_value !== null ? question.slider_max_value : 'N/A'}]${question.slider_unit ? ' ' + question.slider_unit : ''}.`;
-                    scoringText += ` Paso: ${question.slider_step !== null ? question.slider_step : 'N/A'}.`;
-                    scoringText += ` Pts exactos: ${question.slider_points_exact !== null ? question.slider_points_exact : 'N/A'}.`;
-                    if (question.slider_threshold_partial !== null && question.slider_points_partial !== null) {
-                        scoringText += ` Pts parciales: ${question.slider_points_partial} (umbral +/- ${question.slider_threshold_partial}).`;
+                    scoringText = `Ordenamiento. ${question.points_per_correct_order || 'N/A'} pts/ítem correcto. `;
+                    if (question.bonus_for_full_order && question.bonus_for_full_order > 0) {
+                        scoringText += `Bonus por orden completo: ${question.bonus_for_full_order} pts.`;
                     }
                     break;
+                case 'SLIDER':
+                    scoringText = `Slider. Pts exactos: ${question.slider_points_exact !== null ? question.slider_points_exact : 'N/A'}. `;
+                    if (question.slider_threshold_partial !== null && question.slider_points_partial !== null && question.slider_points_partial > 0) {
+                        scoringText += `Pts parciales (${question.slider_points_partial}) dentro de +/-${question.slider_threshold_partial}${question.slider_unit ? ' ' + question.slider_unit : ''}. `;
+                    }
+                    // Optionally, add range and step if deemed necessary for user context, though it's more about scoring here.
+                    // scoringText += `Rango: [${question.slider_min_value !== null ? question.slider_min_value : 'N/A'} - ${question.slider_max_value !== null ? question.slider_max_value : 'N/A'}]${question.slider_unit ? ' ' + question.slider_unit : ''}.`;
+                    // scoringText += ` Paso: ${question.slider_step !== null ? question.slider_step : 'N/A'}.`;
+                    break;
                 default:
-                    scoringText = 'Puntuación no especificada.';
+                    scoringText = 'Puntuación no especificada para este tipo.';
             }
-            return `<span class="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${scoringText}</span>`;
+            if (scoringText === 'Puntuación no especificada para este tipo.' || !scoringText.trim()) {
+                return '<span class="bg-gray-100 text-gray-500 px-2 py-1 rounded text-xs italic">Puntuación no detallada.</span>';
+            }
+            return `<span class="block mt-1 bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">${scoringText}</span>`;
         }
 
         function renderQuestions(questions) {
@@ -1637,10 +1644,12 @@
                     // This is a new question for the user, not yet answered.
                     formattedAnswerHtml = '<p class="text-gray-500 italic">Aún no has respondido esta pregunta.</p>';
                 }
+                const scoringInfoReviewHtml = formatScoringInfoForDisplay(question);
 
                 questionItemDiv.innerHTML = `
-                    <p class="font-semibold text-gray-800 mb-1">${question.text}</p>
-                    <div class="text-xs text-gray-500 mb-2">${userAnswer ? 'Tu respuesta:' : 'Respuesta pendiente:'}</div>
+                    <div class="font-semibold text-gray-800 mb-1">${question.text}</div>
+                    ${scoringInfoReviewHtml}
+                    <div class="text-xs text-gray-500 mt-2 mb-1">${userAnswer ? 'Tu respuesta:' : 'Respuesta pendiente:'}</div>
                     <div class="p-3 bg-gray-50 border border-gray-300 rounded-md min-h-[40px]">
                         ${formattedAnswerHtml}
                     </div>
@@ -3621,7 +3630,15 @@
                 const existingAnswer = userWizardAnswers[question.id];
 
                 if(wizardQuestionProgress) wizardQuestionProgress.textContent = `Pregunta ${index + 1} de ${allRaceQuestions.length}`;
-                if(wizardQuestionText) wizardQuestionText.textContent = question.text;
+                if(wizardQuestionText) {
+                    wizardQuestionText.innerHTML = ''; // Clear previous text/scoring
+                    const questionTextSpan = document.createElement('span');
+                    questionTextSpan.textContent = question.text;
+                    wizardQuestionText.appendChild(questionTextSpan);
+                    // Add scoring info
+                    const scoringInfoHtml = formatScoringInfoForDisplay(question);
+                    wizardQuestionText.insertAdjacentHTML('beforeend', scoringInfoHtml);
+                }
                 // Clear previous options, will be repopulated in try or error caught in catch
                 if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = '';
 
