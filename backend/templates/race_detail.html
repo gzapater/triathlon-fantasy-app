@@ -4130,31 +4130,31 @@
                     .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
                     .then(result => {
                         if (result.ok) {
-                            showNotificationModal("Éxito", result.body.message || '¡Respuestas guardadas con éxito!', "success");
-                            closeWizard();
-                                console.log(`[wizardFinishBtn] Guardado exitoso. raceId: ${raceId}. Programando redirección en 1.5s.`); // LOGGING
-                                if (!raceId || raceId === 'undefined' || raceId.trim() === '') {
-                                    console.error("[wizardFinishBtn] raceId es inválido ANTES de setTimeout. No se puede redirigir.", raceId); // LOGGING DE ERROR
-                                    // Opcionalmente, mostrar un error al usuario aquí también si raceId es inválido.
-                                    // showNotificationModal("Error Crítico", "No se pudo determinar la carrera para redirigir. Contacte a soporte.", "error");
-                                    return; // Detener para evitar redirección incorrecta
+                                console.log("[wizardFinishBtn] Respuesta OK del guardado. Intentando cerrar wizard y refrescar.");
+                                try {
+                                    closeWizard();
+                                    console.log("[wizardFinishBtn] closeWizard() llamado exitosamente.");
+                                } catch (e) {
+                                    console.error("[wizardFinishBtn] Error al llamar a closeWizard():", e);
                                 }
+
+                                // Se mantiene showNotificationModal aquí, ya que el problema principal es el cierre/refresco.
+                                // Si esto sigue fallando, entonces showNotificationModal sería el próximo a comentar/investigar.
+                                showNotificationModal("Éxito", result.body.message || '¡Respuestas guardadas con éxito!', "success");
+
+                                console.log("[wizardFinishBtn] Programando refresco de página (reload) en 500ms.");
                                 setTimeout(() => {
-                                    console.log(`[wizardFinishBtn] Ejecutando redirección AHORA a: /races/${raceId}`); // LOGGING
-                                    if (!raceId || raceId === 'undefined' || raceId.trim() === '') {
-                                         console.error("[wizardFinishBtn] raceId es inválido DENTRO de setTimeout. No se puede redirigir.", raceId); // LOGGING DE ERROR
-                                        // showNotificationModal("Error Crítico", "No se pudo determinar la carrera para redirigir (timeout). Contacte a soporte.", "error");
-                                    } else {
-                                        window.location.href = `/races/${raceId}`;
-                                    }
-                                }, 1500);
+                                    console.log("[wizardFinishBtn] Ejecutando window.location.reload().");
+                                    window.location.reload();
+                                }, 500); // Delay corto para permitir que la notificación se muestre brevemente
+
                         } else {
                             showNotificationModal("Error", `Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, "error");
-                                console.error(`[wizardFinishBtn] Error al guardar respuestas: ${result.body.message || `Error ${result.status}`}`, result); // LOGGING
+                                console.error(`[wizardFinishBtn] Error al guardar respuestas (rama else): ${result.body.message || `Error ${result.status}`}`, result);
                         }
                     })
                     .catch(error => {
-                            console.error('[wizardFinishBtn] Catch: Error saving answers:', error); // LOGGING
+                            console.error('[wizardFinishBtn] Catch general del fetch: Error guardando respuestas:', error);
                         showNotificationModal("Error de Conexión", "Error de conexión al guardar respuestas. Por favor, inténtalo de nuevo.", "error");
                     })
                     .finally(() => {
