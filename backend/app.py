@@ -2235,6 +2235,10 @@ def user_personal_data():
 def tripredict_promo_page():
     return render_template('tripredict_promo.html')
 
+@app.route('/Faq')
+def faq_page():
+    return render_template('faq.html')
+
 @app.route('/')
 def root():
     return redirect(url_for('serve_login_page'))

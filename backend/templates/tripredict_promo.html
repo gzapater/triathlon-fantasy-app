@@ -32,8 +32,8 @@
             <div class="max-w-7xl mx-auto flex justify-between items-center">
                 <a href="#"><svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg"><g><path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text></svg></a>
                 <div class="hidden md:flex items-center space-x-6">
-                    <a href="#como-funciona" class="text-white hover:text-orange-400 transition">¿Cómo Funciona?</a>
-                    <a href="#" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">Iniciar Sesión</a>
+                    <a href="{{ url_for('faq_page') }}" class="text-white hover:text-orange-400 transition">¿Cómo Funciona?</a>
+                    <a href="{{ url_for('serve_login_page') }}" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">Iniciar Sesión</a>
                 </div>
             </div>
         </nav>
@@ -48,11 +48,11 @@
                     Demuestra quién sabe más del deporte, compite en ligas privadas con tu club o únete a retos públicos.
                 </p>
                 <div class="mt-8">
-                    <a href="#cierre" class="inline-block bg-orange-500 text-white font-bold py-3 px-8 text-lg rounded-lg shadow-lg hover:bg-orange-600 transform hover:scale-105 transition">
-                        Crea tu Liga Gratis
+                    <a href="{{ url_for('register_page') }}" class="inline-block bg-orange-500 text-white font-bold py-3 px-8 text-lg rounded-lg shadow-lg hover:bg-orange-600 transform hover:scale-105 transition">
+                        Crea tu competición
                     </a>
                     <p class="mt-4 text-sm text-gray-200">
-                        ¿Ya tienes una invitación? <a href="#" class="font-semibold text-white underline hover:text-orange-300">Únete a una liga con tu código.</a>
+                        ¿Ya tienes una invitación? <a href="{{ url_for('serve_login_page') }}" class="font-semibold text-white underline hover:text-orange-300">Únete a una liga con tu código.</a>
                     </p>
                 </div>
             </div>
@@ -139,7 +139,7 @@
             <h2 class="text-3xl md:text-4xl font-bold text-gray-800 leading-tight">
                 ¿Listo para demostrar quién manda?
             </h2>
-            <a href="#" class="mt-8 inline-block bg-orange-500 text-white font-bold py-3 px-8 text-lg rounded-lg shadow-lg hover:bg-orange-600 transform hover:scale-105 transition">
+            <a href="{{ url_for('serve_login_page') }}" class="mt-8 inline-block bg-orange-500 text-white font-bold py-3 px-8 text-lg rounded-lg shadow-lg hover:bg-orange-600 transform hover:scale-105 transition">
                 Crea tu Liga o Únete a una
             </a>
         </div>
