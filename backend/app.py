@@ -504,7 +504,7 @@ def update_race_details(race_id):
 @app.route('/api/races/<int:race_id>', methods=['DELETE'])
 @login_required
 def delete_race(race_id):
-    app.logger.info(f"delete_race called for race_id: {race_id}")
+    app.logger.info(f"Logically deleting race_id: {race_id}")
     # 1. Check user role
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         app.logger.warning(f"User {current_user.username} forbidden to delete race {race_id}")
@@ -513,52 +513,34 @@ def delete_race(race_id):
     # 2. Fetch the Race object
     race = Race.query.get(race_id)
     if not race:
-        app.logger.warning(f"Race with id {race_id} not found for deletion.")
+        app.logger.warning(f"Race with id {race_id} not found for logical deletion.")
         return jsonify(message="Race not found"), 404
-    app.logger.info(f"Fetched race object for deletion: {race.to_dict() if hasattr(race, 'to_dict') else race}")
+
+    if race.is_deleted:
+        app.logger.info(f"Race with id {race_id} is already logically deleted.")
+        return jsonify(message="Race already deleted"), 200 # Or 404 if preferred for already deleted items
+
+    app.logger.info(f"Fetched race object for logical deletion: {race.to_dict() if hasattr(race, 'to_dict') else race}")
 
     try:
-        # 3. Explicitly delete associated RaceSegmentDetail objects
-        #    SQLAlchemy ORM will handle this through cascades if configured,
-        #    but explicit deletion is safer if cascades are not perfectly set for all related items.
-        #    Given RaceSegmentDetail.race relationship has backref 'segment_details' with lazy=True (default),
-        #    and no explicit cascade="all, delete-orphan" on that backref in Race model for segment_details.
-        RaceSegmentDetail.query.filter_by(race_id=race.id).delete(synchronize_session='fetch')
-
-        # 4. Explicitly delete associated Question objects
-        #    Question.race relationship has backref 'questions' with lazy='dynamic'.
-        #    QuestionOption.question relationship has cascade="all, delete-orphan".
-        #    So deleting Questions should cascade to QuestionOptions.
-        Question.query.filter_by(race_id=race.id).delete(synchronize_session='fetch')
-
-        # Flush the session to execute the delete operations for related objects in the DB
-        db.session.flush()
-        # Note: Using synchronize_session='fetch' or 'evaluate' can be important
-        # if the session is to be used further before commit. 'fetch' is generally safer.
-
-        # 5. Delete the Race object itself
-        app.logger.info(f"Attempting to delete race object: {race.id}")
-        db.session.delete(race)
-
-        # 6. Commit the database session
+        # 3. Perform logical delete
+        race.is_deleted = True
         db.session.commit()
-        app.logger.info(f"Race {race_id} deleted and session committed successfully.")
-        # HTTP 204 No Content is also appropriate for DELETE success if no message body is needed.
-        # Returning 200 with a message is also common and acceptable.
+        app.logger.info(f"Race {race_id} logically deleted and session committed successfully.")
         return jsonify(message="Race deleted successfully"), 200
     except Exception as e:
-        # 7. Handle potential errors
+        # 4. Handle potential errors
         db.session.rollback()
-        app.logger.error(f"Exception deleting race {race_id}: {e}", exc_info=True)
+        app.logger.error(f"Exception logically deleting race {race_id}: {e}", exc_info=True)
         return jsonify(message="Error deleting race"), 500
 
 
 @app.route('/api/races/<int:race_id>/questions', methods=['GET'])
 @login_required
 def get_race_questions(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     # Assuming race.questions is the backref from Question model
     # and it's set to lazy='dynamic' or similar to allow ordering.
@@ -624,10 +606,10 @@ def get_race_share_link(race_id):
     if not current_user.is_authenticated or current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: You do not have permission to generate share links."), 403
 
-    # 2. Fetch the Race object
-    race = Race.query.get(race_id)
+    # 2. Fetch the Race object, ensuring it's not deleted
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     # 3. Construct the shareable link
     try:
@@ -645,9 +627,9 @@ def get_race_share_link(race_id):
 @app.route('/api/races/<int:race_id>/basic_details', methods=['GET'])
 @login_required
 def get_race_basic_details(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     return jsonify(id=race.id, title=race.title), 200
 
@@ -655,9 +637,9 @@ def get_race_basic_details(race_id):
 @app.route('/api/races/<int:race_id>/join', methods=['POST']) # POST request to create a resource
 @login_required
 def join_race_api(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     # Check if already registered
     existing_registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race.id).first()
@@ -687,10 +669,10 @@ def get_race_participants(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: You do not have permission to view participants."), 403
 
-    # Check if race exists
-    race = Race.query.get(race_id)
+    # Check if race exists and is not deleted
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     total_questions_in_race = Question.query.filter_by(race_id=race_id).count()
 
@@ -859,10 +841,10 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
 def get_participant_answers(race_id, user_id):
     app.logger.info(f"Request for participant answers: race_id={race_id}, user_id={user_id} by current_user={current_user.username} (Role: {current_user.role.code})")
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        app.logger.warning(f"Race not found: {race_id}")
-        return jsonify(message="Race not found"), 404
+        app.logger.warning(f"Race not found or deleted: {race_id}")
+        return jsonify(message="Race not found or has been deleted"), 404
 
     participant = User.query.get(user_id)
     if not participant:
@@ -1010,9 +992,9 @@ def get_participant_answers(race_id, user_id):
 @app.route('/api/races/<int:race_id>/statistics', methods=['GET'])
 @login_required
 def get_race_statistics(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     participant_count = UserRaceRegistration.query.filter_by(race_id=race.id).count()
 
@@ -1032,9 +1014,9 @@ def get_race_statistics(race_id):
 @app.route('/api/races/<int:race_id>/favorite', methods=['POST'])
 @login_required
 def favorite_race(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     existing_favorite = UserFavoriteRace.query.filter_by(user_id=current_user.id, race_id=race.id).first()
     if existing_favorite:
@@ -1058,9 +1040,14 @@ def favorite_race(race_id):
 @app.route('/api/races/<int:race_id>/favorite', methods=['DELETE'])
 @login_required
 def unfavorite_race(race_id):
-    race = Race.query.get(race_id)
+    # For unfavoriting, we might allow it even if the race is "deleted"
+    # as the favorite entry still exists. Or, we can restrict it.
+    # For now, let's assume we only care if the favorite entry itself exists.
+    # Race existence check (is_deleted=False) is not strictly necessary here,
+    # but could be added if desired to prevent unfavoriting an already deleted race.
+    race = Race.query.get(race_id) # Keep this to ensure race_id is valid at least
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found"), 404 # Or specific message if it was deleted
 
     favorite_entry = UserFavoriteRace.query.filter_by(user_id=current_user.id, race_id=race.id).first()
     if not favorite_entry:
@@ -1085,10 +1072,10 @@ def create_favorite_link(race_id):
         app.logger.warning(f"User {current_user.id} with role {current_user.role.code} forbidden to create favorite link for race {race_id}")
         return jsonify(message="Forbidden: You do not have permission to create favorite links."), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        app.logger.warning(f"Race with id {race_id} not found when creating favorite link.")
-        return jsonify(message="Race not found"), 404
+        app.logger.warning(f"Race with id {race_id} not found or deleted when creating favorite link.")
+        return jsonify(message="Race not found or has been deleted"), 404
 
     # LEAGUE_ADMIN can only add links to their own races
     if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
@@ -1143,10 +1130,10 @@ def create_favorite_link(race_id):
 
 @app.route('/api/races/<int:race_id>/favorite_links', methods=['GET'])
 def get_favorite_links_for_race(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        app.logger.info(f"Attempt to get favorite links for non-existent race {race_id}")
-        return jsonify(message="Race not found"), 404
+        app.logger.info(f"Attempt to get favorite links for non-existent or deleted race {race_id}")
+        return jsonify(message="Race not found or has been deleted"), 404
 
     links = FavoriteLink.query.filter_by(race_id=race_id).order_by(FavoriteLink.order, FavoriteLink.id).all()
     return jsonify([link.to_dict() for link in links]), 200
@@ -1257,10 +1244,10 @@ def reorder_favorite_links(race_id):
         app.logger.warning(f"User {current_user.id} forbidden to reorder links for race {race_id}")
         return jsonify(message="Forbidden: You do not have permission to reorder links."), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        app.logger.warning(f"Race with id {race_id} not found when reordering links.")
-        return jsonify(message="Race not found"), 404
+        app.logger.warning(f"Race with id {race_id} not found or deleted when reordering links.")
+        return jsonify(message="Race not found or has been deleted"), 404
 
     if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
         app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to reorder links for race {race_id} they do not own.")
@@ -1429,9 +1416,9 @@ def create_free_text_question(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: Insufficient permissions"), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
         app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
@@ -1622,9 +1609,9 @@ def create_multiple_choice_question(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: Insufficient permissions"), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
         app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
@@ -1844,9 +1831,9 @@ def create_ordering_question(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: Insufficient permissions"), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
         app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
@@ -1984,9 +1971,9 @@ def create_slider_question(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: Insufficient permissions"), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
         app.logger.warning(f"Attempt to create question for closed quiniela race {race_id} by user {current_user.id}")
@@ -2264,11 +2251,11 @@ def join_race_deep_link(race_id):
     a la página de login si es necesario.
     """
     app.logger.info(f"[join_race_deep_link] Iniciando para race_id: {race_id}, user: {current_user.username}")
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
 
     if not race:
-        app.logger.warning(f"[join_race_deep_link] Carrera con ID {race_id} no encontrada.")
-        flash(f'La carrera con ID {race_id} a la que intentas unirte no existe.', 'error')
+        app.logger.warning(f"[join_race_deep_link] Carrera con ID {race_id} no encontrada o eliminada.")
+        flash(f'La carrera con ID {race_id} a la que intentas unirte no existe o ha sido eliminada.', 'error')
         return redirect(url_for('serve_hello_world_page'))
     app.logger.info(f"[join_race_deep_link] Carrera encontrada: {race.title}")
 
@@ -2348,8 +2335,8 @@ def serve_hello_world_page():
 
     # Role-based rendering
     if current_user.role.code == 'ADMIN':
-        # Query for general races (for cards)
-        query_general_races = Race.query.filter_by(is_general=True)
+        # Query for general races (for cards), ensuring they are not deleted
+        query_general_races = Race.query.filter_by(is_general=True, is_deleted=False)
         if date_from_obj:
             query_general_races = query_general_races.filter(Race.event_date >= date_from_obj)
         if date_to_obj:
@@ -2383,12 +2370,12 @@ def serve_hello_world_page():
             race_dict['is_quiniela_actionable'] = is_quiniela_actionable
             general_races_for_cards_dicts.append(race_dict)
 
-        # Query for all races (for official answers dropdown)
+        # Query for all non-deleted races (for official answers dropdown)
         all_races_for_official_answers_query_result = []
         try:
-            all_races_for_official_answers_query_result = Race.query.order_by(Race.event_date.desc()).all()
+            all_races_for_official_answers_query_result = Race.query.filter_by(is_deleted=False).order_by(Race.event_date.desc()).all()
         except Exception as e:
-            app.logger.error(f"Error fetching all races for admin official answers: {e}")
+            app.logger.error(f"Error fetching all non-deleted races for admin official answers: {e}")
         all_races_for_official_answers = [race.to_dict() for race in all_races_for_official_answers_query_result] # These are just for display, no need for actionable logic here
 
         return render_template('admin_dashboard.html',
@@ -2404,8 +2391,8 @@ def serve_hello_world_page():
     elif current_user.role.code == 'LEAGUE_ADMIN':
         # --- Active Players KPI Calculation ---
         active_players_count = 0
-        # Get all races created by this league admin, ordered by event date descending
-        admin_races = Race.query.filter_by(user_id=current_user.id).order_by(Race.event_date.desc()).all()
+        # Get all non-deleted races created by this league admin, ordered by event date descending
+        admin_races = Race.query.filter_by(user_id=current_user.id, is_deleted=False).order_by(Race.event_date.desc()).all()
 
         # Determine the races to consider for active players
         if admin_races:
@@ -2424,7 +2411,7 @@ def serve_hello_world_page():
         # For simplicity, we'll use the admin_races already fetched if no filters are applied,
         # otherwise, we need to re-apply filters.
         # The original code re-queries with filters, so we stick to that for organized_races_dicts.
-        organized_races_query_for_display = Race.query.filter_by(user_id=current_user.id, is_general=False)
+        organized_races_query_for_display = Race.query.filter_by(user_id=current_user.id, is_general=False, is_deleted=False)
         if date_from_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date >= date_from_obj)
         if date_to_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None: organized_races_query_for_display = organized_races_query_for_display.filter(Race.race_format_id == race_format_id_int)
@@ -2454,7 +2441,7 @@ def serve_hello_world_page():
         participating_race_ids = [reg.race_id for reg in registrations]
         participating_races_result = []
         if participating_race_ids:
-            participating_races_query = Race.query.filter(Race.id.in_(participating_race_ids))
+            participating_races_query = Race.query.filter(Race.id.in_(participating_race_ids), Race.is_deleted==False)
             if date_from_obj: participating_races_query = participating_races_query.filter(Race.event_date >= date_from_obj)
             if date_to_obj: participating_races_query = participating_races_query.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: participating_races_query = participating_races_query.filter(Race.race_format_id == race_format_id_int)
@@ -2482,7 +2469,7 @@ def serve_hello_world_page():
         favorite_race_ids = [fav.race_id for fav in favorites]
         favorite_races_result = []
         if favorite_race_ids:
-            favorite_races_query = Race.query.filter(Race.id.in_(favorite_race_ids))
+            favorite_races_query = Race.query.filter(Race.id.in_(favorite_race_ids), Race.is_deleted==False)
             if date_from_obj: favorite_races_query = favorite_races_query.filter(Race.event_date >= date_from_obj)
             if date_to_obj: favorite_races_query = favorite_races_query.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: favorite_races_query = favorite_races_query.filter(Race.race_format_id == race_format_id_int)
@@ -2523,8 +2510,8 @@ def serve_hello_world_page():
         user_registrations = UserRaceRegistration.query.filter_by(user_id=current_user.id).all()
         registered_race_ids = [reg.race_id for reg in user_registrations]
 
-        # Query Race model for these race_ids
-        query = Race.query.filter(Race.id.in_(registered_race_ids))
+        # Query Race model for these race_ids, ensuring they are not deleted
+        query = Race.query.filter(Race.id.in_(registered_race_ids), Race.is_deleted==False)
 
         # Apply existing filters
         if date_from_obj:
@@ -2564,7 +2551,7 @@ def serve_hello_world_page():
         favorite_race_ids = [fav.race_id for fav in favorites]
         favorite_races_query_result = []
         if favorite_race_ids:
-            query_fav_races = Race.query.filter(Race.id.in_(favorite_race_ids))
+            query_fav_races = Race.query.filter(Race.id.in_(favorite_race_ids), Race.is_deleted==False)
             # Apply same filters to favorite races if needed, or decide to show all favorites regardless of filters
             if date_from_obj: query_fav_races = query_fav_races.filter(Race.event_date >= date_from_obj)
             if date_to_obj: query_fav_races = query_fav_races.filter(Race.event_date <= date_to_obj)
@@ -2592,9 +2579,9 @@ def serve_hello_world_page():
             race_dict['is_quiniela_actionable'] = is_quiniela_actionable
             favorite_races_dicts.append(race_dict)
 
-        # Fetch "Carreras Destacadas" - these are general races not necessarily linked to the user
+        # Fetch "Carreras Destacadas" - these are general, non-deleted races not necessarily linked to the user
         # This logic is similar to the 'else' block's fallback, but specifically for the PLAYER role
-        query_destacadas = Race.query.filter_by(is_general=True)
+        query_destacadas = Race.query.filter_by(is_general=True, is_deleted=False)
         if date_from_obj: query_destacadas = query_destacadas.filter(Race.event_date >= date_from_obj)
         if date_to_obj: query_destacadas = query_destacadas.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None: query_destacadas = query_destacadas.filter(Race.race_format_id == race_format_id_int)
@@ -2636,9 +2623,9 @@ def serve_hello_world_page():
 
     else:
         # Fallback for any other authenticated role, or if roles are added in the future
-        # Defaulting to player view (general races) - This part remains unchanged
+        # Defaulting to player view (general, non-deleted races) - This part remains unchanged
         app.logger.warning(f"User {current_user.username} with unhandled role {current_user.role.code} accessing dashboard. Defaulting to player view (general races).")
-        query = Race.query.filter_by(is_general=True)
+        query = Race.query.filter_by(is_general=True, is_deleted=False)
         if date_from_obj:
             query = query.filter(Race.event_date >= date_from_obj)
         if date_to_obj:
@@ -2716,8 +2703,8 @@ def serve_races_list_page():
             app.logger.warning(f"Invalid 'race_format_id' format received for /races: {filter_race_format_id_str}")
             pass
 
-    # Query all public races
-    query = Race.query.filter_by(is_general=True)
+    # Query all public, non-deleted races
+    query = Race.query.filter_by(is_general=True, is_deleted=False)
 
     if date_from_obj:
         query = query.filter(Race.event_date >= date_from_obj)
@@ -2793,7 +2780,7 @@ def serve_create_race_page():
 @app.route('/race/<int:race_id>')
 @login_required
 def serve_race_detail_page(race_id):
-    race = Race.query.get_or_404(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first_or_404()
     current_year = datetime.utcnow().year
     current_time_utc = datetime.utcnow() # Get current UTC time
 
@@ -2856,11 +2843,11 @@ def serve_race_detail_page(race_id):
 def save_user_answers(race_id):
     app.logger.info(f"User {current_user.id} attempting to save answers for race {race_id}")
 
-    # 1. Permissions Check: Fetch Race
-    race = Race.query.get(race_id)
+    # 1. Permissions Check: Fetch Race, ensuring it's not deleted
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        app.logger.warning(f"Attempt to save answers for non-existent race {race_id} by user {current_user.id}")
-        return jsonify(message="Race not found"), 404
+        app.logger.warning(f"Attempt to save answers for non-existent or deleted race {race_id} by user {current_user.id}")
+        return jsonify(message="Race not found or has been deleted"), 404
 
     # Check quiniela close date
     if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
@@ -3023,9 +3010,9 @@ def save_user_answers(race_id):
 @app.route('/api/races/<int:race_id>/user_answers', methods=['GET'])
 @login_required
 def get_user_answers(race_id):
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     user_answers = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).all()
     num_total_questions_pool = Question.query.filter_by(race_id=race_id, is_active=True).count()
@@ -3108,10 +3095,10 @@ def update_user_answer(user_answer_id):
             # For now, only the user who owns the answer can modify it.
             return jsonify(message="Forbidden: You cannot modify this answer"), 403
 
-        race = Race.query.get(user_answer.race_id)
+        race = Race.query.filter_by(id=user_answer.race_id, is_deleted=False).first()
         if not race:
-            app.logger.error(f"Race not found for UserAnswer {user_answer_id}. This should not happen.")
-            return jsonify(message="Internal server error: Race context not found for the answer."), 500
+            app.logger.error(f"Race not found or deleted for UserAnswer {user_answer_id}.")
+            return jsonify(message="Internal server error: Race context not found or deleted for the answer."), 500
 
         if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
             app.logger.warning(f"Attempt to update answer for closed quiniela race {race.id} by user {current_user.id}")
@@ -3233,11 +3220,11 @@ if __name__ == '__main__':
 def get_quiniela_leaderboard(race_id):
     app.logger.info(f"Fetching quiniela leaderboard for race_id: {race_id} by user {current_user.username}")
 
-    # 1. Check if the race exists
-    race = Race.query.get(race_id)
+    # 1. Check if the race exists and is not deleted
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        app.logger.warning(f"Quiniela leaderboard request for non-existent race {race_id}")
-        return jsonify(message="Race not found"), 404
+        app.logger.warning(f"Quiniela leaderboard request for non-existent or deleted race {race_id}")
+        return jsonify(message="Race not found or has been deleted"), 404
 
     # 2. Query UserScore, join with User, filter by race_id, and order by score
     try:
@@ -3268,10 +3255,10 @@ def get_quiniela_leaderboard(race_id):
 def calculate_and_store_scores(race_id):
     app.logger.info(f"Starting score calculation for race_id: {race_id}")
     try:
-        race = Race.query.get(race_id)
+        race = Race.query.filter_by(id=race_id, is_deleted=False).first()
         if not race:
-            app.logger.error(f"Scoring calculation: Race with id {race_id} not found.")
-            return {"success": False, "message": "Race not found"}
+            app.logger.error(f"Scoring calculation: Race with id {race_id} not found or has been deleted.")
+            return {"success": False, "message": "Race not found or has been deleted"}
 
         questions = Question.query.filter_by(race_id=race.id).all()
         if not questions:
@@ -3442,9 +3429,9 @@ def get_official_answers(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: You do not have permission to view official answers."), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     official_answers_query = OfficialAnswer.query.filter_by(race_id=race_id).all()
 
@@ -3502,9 +3489,9 @@ def save_official_answers(race_id):
     if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
         return jsonify(message="Forbidden: You do not have permission to save official answers."), 403
 
-    race = Race.query.get(race_id)
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
     if not race:
-        return jsonify(message="Race not found"), 404
+        return jsonify(message="Race not found or has been deleted"), 404
 
     answers_payload = request.get_json()
     if not answers_payload:
