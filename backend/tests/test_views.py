@@ -130,4 +130,3 @@ class TestDashboardView:
 
         # Check if the non-general race title is present (likely in the official answers dropdown)
         assert "Admin Local Race" in response_data_text
-```

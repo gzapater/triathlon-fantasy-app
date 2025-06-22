@@ -498,5 +498,3 @@ def test_get_answers_missing_official_answer(authenticated_client, db_session, s
     assert no_oa_answer_detail["is_correct"] is False # Cannot be correct if no official answer
     assert no_oa_answer_detail["points_obtained"] == 0
     assert no_oa_answer_detail["max_points_possible"] == q_no_oa.max_score_free_text
-
-```

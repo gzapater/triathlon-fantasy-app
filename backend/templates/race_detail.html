@@ -692,28 +692,64 @@
             scoringInfoElem.innerHTML = formatScoringInfoForDisplay(q); // Existing function
             questionCard.appendChild(scoringInfoElem);
 
-            // Options
+            // Options (if any)
             if (q.options && q.options.length > 0) {
                 const optionsContainer = document.createElement('div');
-                optionsContainer.className = 'mt-2'; // Margin for options section
+                optionsContainer.className = 'mt-3 border-t border-gray-200 pt-3';
 
                 const optionsHeading = document.createElement('h5');
                 optionsHeading.className = 'text-sm font-medium text-gray-700 mb-1';
-                optionsHeading.textContent = 'Opciones:';
+                optionsHeading.textContent = 'Opciones Definidas:';
                 optionsContainer.appendChild(optionsHeading);
 
                 const optionsList = document.createElement('ul');
-                optionsList.className = 'list-disc pl-5 space-y-1'; // Tailwind for basic list
+                optionsList.className = 'list-disc pl-5 space-y-1 text-xs text-gray-600';
 
                 q.options.forEach(opt => {
                     const optionItem = document.createElement('li');
-                    optionItem.className = 'text-gray-600 text-sm'; // Styling for option text
                     optionItem.textContent = opt.option_text;
                     optionsList.appendChild(optionItem);
                 });
                 optionsContainer.appendChild(optionsList);
                 questionCard.appendChild(optionsContainer);
             }
+
+            // Display Official Answer and Max Points
+            const officialAnswerSection = document.createElement('div');
+            officialAnswerSection.className = 'mt-3 border-t border-gray-200 pt-3';
+
+            const officialAnswerTitle = document.createElement('h5');
+            officialAnswerTitle.className = 'text-sm font-medium text-gray-700 mb-1';
+            officialAnswerTitle.textContent = 'Respuesta Oficial:';
+            officialAnswerSection.appendChild(officialAnswerTitle);
+
+            const officialAnswerContent = document.createElement('div');
+            officialAnswerContent.className = 'text-sm p-2 bg-blue-50 border border-blue-200 rounded';
+            // Use the formatAnswerForDisplay function, ensuring it handles the structure of q.official_answer
+            // The q.official_answer structure matches `detail.official_answer` from the player modal
+            // q.official_answer_question_type and q.official_answer_is_mc_multiple_correct are now available
+            officialAnswerContent.innerHTML = formatAnswerForDisplay(
+                q.official_answer,
+                q.official_answer_question_type, // Use the specific type provided for the official answer
+                q.official_answer_is_mc_multiple_correct // Use the specific flag for the official answer
+            );
+            if (q.official_answer_question_type === 'SLIDER' && q.slider_unit && typeof q.official_answer === 'number') {
+                if (formattedOfficialAns.includes('</p>')) {
+                    formattedOfficialAns = formattedOfficialAns.replace(/<\/p>$/, ` ${q.slider_unit}</p>`);
+                } else { // Fallback if the <p> tag isn't there for some reason (e.g. "No respondida")
+                    formattedOfficialAns += ` ${q.slider_unit}`;
+                }
+            }
+            officialAnswerContent.innerHTML = formattedOfficialAns;
+            officialAnswerSection.appendChild(officialAnswerContent);
+            questionCard.appendChild(officialAnswerSection);
+
+            const maxPointsSection = document.createElement('div');
+            maxPointsSection.className = 'mt-2 text-xs text-right text-gray-600';
+            maxPointsSection.innerHTML = `Puntos Máximos: <span class="font-semibold text-orange-600">${q.max_points_possible !== undefined ? q.max_points_possible : 'N/A'}</span>`;
+            questionCard.appendChild(maxPointsSection);
+
+
             adminQuestionsListDiv.appendChild(questionCard);
             });
         }
@@ -2904,16 +2940,38 @@
                     if (isMultipleCorrect) { // Array of {id, text} objects
                         if (Array.isArray(answerData) && answerData.length > 0) {
                             let html = '<ul class="list-disc list-inside text-gray-700 space-y-1">';
-                            answerData.forEach(opt => { html += `<li>${opt.text} (ID: ${opt.id})</li>`; });
+                            answerData.forEach(opt => {
+                                // Ensure opt and opt.text are defined
+                                const text = opt && opt.text !== undefined && opt.text !== null ? opt.text : 'Opción inválida';
+                                const idText = opt && opt.id !== undefined && opt.id !== null ? ` (ID: ${opt.id})` : '';
+                                html += `<li>${text}${idText}</li>`;
+                            });
                             html += '</ul>';
                             return html;
                         }
                         return '<span class="italic text-gray-500">Ninguna opción seleccionada.</span>';
                     } else { // Single object {id, text}
-                        return answerData.text ? `<p class="text-gray-700">${answerData.text} (ID: ${answerData.id})</p>` : '<span class="italic text-gray-500">Ninguna opción seleccionada.</span>';
+                        // Ensure answerData and answerData.text are defined
+                        const text = answerData && answerData.text !== undefined && answerData.text !== null ? answerData.text : 'Opción inválida';
+                        const idText = answerData && answerData.id !== undefined && answerData.id !== null ? ` (ID: ${answerData.id})` : '';
+                        return answerData && answerData.text ? `<p class="text-gray-700">${text}${idText}</p>` : '<span class="italic text-gray-500">Ninguna opción seleccionada.</span>';
                     }
+                case 'SLIDER':
+                    // For SLIDER, answerData is expected to be the numeric value.
+                    // The unit needs to be fetched from the question object itself, which is not directly passed here.
+                    // This function is generic. If it's used for official answers, the calling context (renderAdminQuestionsView)
+                    // will need to pass the question's slider_unit or append it.
+                    // For now, just display the value.
+                    if (typeof answerData === 'number') {
+                        // The backend now provides q.official_answer_question_type, q.official_answer_is_mc_multiple_correct
+                        // and q.slider_unit (on the question object itself, not part of official_answer object).
+                        // The renderAdminQuestionsView will need to handle adding the unit if necessary.
+                        // Here, we just format the value.
+                        return `<p class="text-gray-700">${answerData}</p>`;
+                    }
+                    return '<span class="italic text-gray-500">Valor no especificado.</span>';
                 default:
-                    return '<span class="text-red-500">Tipo de respuesta no reconocido.</span>';
+                    return '<span class="text-red-500">Tipo de respuesta no reconocido o dato inválido.</span>';
             }
         }
 

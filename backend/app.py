@@ -542,33 +542,59 @@ def get_race_questions(race_id):
     if not race:
         return jsonify(message="Race not found or has been deleted"), 404
 
-    # Assuming race.questions is the backref from Question model
-    # and it's set to lazy='dynamic' or similar to allow ordering.
-    # If not dynamic, race.questions would be a list already.
-    # For lazy='dynamic', it's a query object.
-    # Let's order by question ID for consistent output.
-    questions_query = race.questions.order_by(Question.id) # Use Question.id for ordering
+    questions_query = race.questions.order_by(Question.id)
+
+    # Fetch all official answers for the race once
+    official_answers_list = OfficialAnswer.query.filter_by(race_id=race_id).all()
+    official_answers_map = {oa.question_id: oa for oa in official_answers_list}
+
+    # Pre-process official MC-multiple answers for efficiency
+    official_mc_multiple_options_map = {}
+    for oa_obj in official_answers_list:
+        q_obj_for_oa = Question.query.get(oa_obj.question_id) # Get question to check type
+        if q_obj_for_oa and q_obj_for_oa.question_type.name == 'MULTIPLE_CHOICE' and q_obj_for_oa.is_mc_multiple_correct:
+            official_mc_multiple_options_map[q_obj_for_oa.id] = {
+                sel_opt.question_option_id for sel_opt in oa_obj.official_selected_mc_options
+            }
+
+    # official_ordering_map is removed as OfficialAnswer.answer_text for ORDERING stores texts directly.
 
     output = []
     for question in questions_query:
         question_data = {
             "id": question.id,
             "text": question.text,
-            "question_type": question.question_type.name, # Accessing name from relationship
-            "is_active": question.is_active
+            "question_type": question.question_type.name,
+            "is_active": question.is_active,
+            "official_answer": None, # Initialize official answer field
+            "max_points_possible": 0 # Initialize max points
         }
 
         # Add type-specific scoring fields
         if question.question_type.name == 'FREE_TEXT':
             question_data["max_score_free_text"] = question.max_score_free_text
+            question_data["max_points_possible"] = question.max_score_free_text or 0
         elif question.question_type.name == 'MULTIPLE_CHOICE':
             question_data["is_mc_multiple_correct"] = question.is_mc_multiple_correct
             question_data["points_per_correct_mc"] = question.points_per_correct_mc
             question_data["points_per_incorrect_mc"] = question.points_per_incorrect_mc
             question_data["total_score_mc_single"] = question.total_score_mc_single
+            if question.is_mc_multiple_correct:
+                # Max points is sum of points_per_correct_mc for all *actually correct* options.
+                # This requires knowing which options are officially correct.
+                correct_option_ids_for_this_q = official_mc_multiple_options_map.get(question.id, set())
+                question_data["max_points_possible"] = len(correct_option_ids_for_this_q) * (question.points_per_correct_mc or 0)
+            else:
+                question_data["max_points_possible"] = question.total_score_mc_single or 0
         elif question.question_type.name == 'ORDERING':
             question_data["points_per_correct_order"] = question.points_per_correct_order
             question_data["bonus_for_full_order"] = question.bonus_for_full_order
+            # Max points = (points_per_correct_order * num_items) + bonus_for_full_order
+            num_items_to_order = len(official_ordering_map.get(question.id, [])) # Number of items in the official correct order
+            max_pts_ordering = (question.points_per_correct_order or 0) * num_items_to_order
+            if num_items_to_order > 0: # Only add bonus if there are items to order
+                 max_pts_ordering += (question.bonus_for_full_order or 0)
+            question_data["max_points_possible"] = max_pts_ordering
         elif question.question_type.name == 'SLIDER':
             question_data["slider_unit"] = question.slider_unit
             question_data["slider_min_value"] = question.slider_min_value
@@ -577,23 +603,55 @@ def get_race_questions(race_id):
             question_data["slider_points_exact"] = question.slider_points_exact
             question_data["slider_threshold_partial"] = question.slider_threshold_partial
             question_data["slider_points_partial"] = question.slider_points_partial
+            question_data["max_points_possible"] = question.slider_points_exact or 0 # Max is typically for exact match
 
         options_output = []
-        # Assuming question.options is the backref from QuestionOption model
-        # and it's also lazy='dynamic' or similar.
-        options_query = question.options.order_by(QuestionOption.id) # Order options by ID
-
-        for opt in options_query:
+        options_query_for_q = question.options.order_by(QuestionOption.id)
+        for opt in options_query_for_q:
             option_data = {
                 "id": opt.id,
                 "option_text": opt.option_text,
+                # These fields might not be directly relevant if official answer is provided separately
+                # but keeping them for now as they are part of the QuestionOption model structure.
                 "is_correct_mc_single": opt.is_correct_mc_single,
                 "is_correct_mc_multiple": opt.is_correct_mc_multiple,
                 "correct_order_index": opt.correct_order_index
             }
             options_output.append(option_data)
-
         question_data["options"] = options_output
+
+        # Fetch and format official answer for this question
+        official_answer_obj = official_answers_map.get(question.id)
+        if official_answer_obj:
+            official_answer_formatted = None
+            if question.question_type.name == 'FREE_TEXT':
+                official_answer_formatted = official_answer_obj.answer_text
+            elif question.question_type.name == 'ORDERING':
+                # OfficialAnswer.answer_text for ORDERING questions stores comma-separated texts directly.
+                official_answer_formatted = official_answer_obj.answer_text
+            elif question.question_type.name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    # Get set of correct option IDs from pre-processed map
+                    correct_option_ids = official_mc_multiple_options_map.get(question.id, set())
+                    # Map these IDs back to text for display (similar to get_participant_answers)
+                    formatted_mc_multiple = []
+                    for opt_id in correct_option_ids:
+                        opt_obj = QuestionOption.query.get(opt_id) # Fetch option object
+                        if opt_obj:
+                            formatted_mc_multiple.append({"id": opt_id, "text": opt_obj.option_text})
+                    official_answer_formatted = formatted_mc_multiple
+                elif official_answer_obj.selected_option_id:
+                    opt = QuestionOption.query.get(official_answer_obj.selected_option_id)
+                    if opt:
+                        official_answer_formatted = {"id": opt.id, "text": opt.option_text}
+            elif question.question_type.name == 'SLIDER':
+                official_answer_formatted = official_answer_obj.correct_slider_value # This is a numeric value
+
+            question_data["official_answer"] = official_answer_formatted
+            # Ensure question_type is also passed along with official_answer for formatAnswerForDisplay
+            question_data["official_answer_question_type"] = question.question_type.name
+            question_data["official_answer_is_mc_multiple_correct"] = question.is_mc_multiple_correct
+
         output.append(question_data)
 
     return jsonify(output), 200

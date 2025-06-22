@@ -1,6 +1,6 @@
 import pytest
 from backend.app import app as flask_app # Use your actual Flask app import
-from backend.models import db as _db, User, Role, RaceFormat, Segment
+from backend.models import db as _db, User, Role, RaceFormat, Segment, Race # Added Race
 from datetime import datetime
 
 @pytest.fixture(scope='session')

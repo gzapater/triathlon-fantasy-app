@@ -144,5 +144,3 @@ def test_get_quiniela_leaderboard_multiple_users_same_score(authenticated_client
 # it might return 401. If it's a direct browser-like GET, it might redirect. Test client acts more like direct.
 # To ensure 401 for APIs, often a custom handler for `login_manager.unauthorized` is set up.
 # For now, the test assumes that a non-200 status indicates access denial.
-
-```
