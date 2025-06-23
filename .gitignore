@@ -1,0 +1,14 @@
+# Entornos Virtuales de Python
+venv/
+.venv/
+env/
+.env
+
+# Ficheros de caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ficheros de sistema operativo
+.DS_Store
