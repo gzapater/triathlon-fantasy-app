@@ -994,6 +994,8 @@ def get_participant_answers(race_id, user_id):
                     opt = QuestionOption.query.get(user_answer_obj.selected_option_id)
                     if opt:
                         participant_answer_formatted = {"id": opt.id, "text": opt.option_text}
+            elif question.question_type.name == 'SLIDER':
+                participant_answer_formatted = user_answer_obj.slider_answer_value
 
         # Format official answer
         official_answer_formatted = None
