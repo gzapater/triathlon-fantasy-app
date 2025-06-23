@@ -1,21 +1,28 @@
 import pytest
-from backend.app import app as flask_app # Use your actual Flask app import
+# Removed top-level: from backend.app import app as flask_app
 from backend.models import db as _db, User, Role, RaceFormat, Segment, Race # Added Race
 from datetime import datetime
+import os # Ensure os is imported
 
 @pytest.fixture(scope='session')
 def app():
     """Session-wide test Flask application."""
-    flask_app.config.update({
+    # Set environment variables before importing flask_app to prevent AWS SSM calls during import
+    os.environ['FLASK_SECRET_KEY'] = 'test_secret_key_for_conftest_env_v2' # V2 to ensure it's this version
+    os.environ['DATABASE_URL'] = 'sqlite:///:memory:' # Test with in-memory SQLite
+
+    from backend.app import app as flask_app_instance # Import app here, use a distinct name
+
+    flask_app_instance.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", # Use in-memory SQLite for tests
-        "LOGIN_DISABLED": False, # Ensure login is enabled for auth tests
-        "WTF_CSRF_ENABLED": False, # Disable CSRF for simpler testing of API endpoints
-        "FLASK_SECRET_KEY": "test_secret_key_for_conftest" # Ensure a secret key is set
+        # SQLALCHEMY_DATABASE_URI is now set via DATABASE_URL env var by app's own logic
+        # FLASK_SECRET_KEY is now set via FLASK_SECRET_KEY env var by app's own logic
+        "LOGIN_DISABLED": False,
+        "WTF_CSRF_ENABLED": False,
     })
 
     # Establish an application context before running the tests.
-    with flask_app.app_context():
+    with flask_app_instance.app_context():
         _db.create_all() # Create all tables
 
         # Seed initial roles if not present
@@ -42,7 +49,7 @@ def app():
 
         _db.session.commit()
 
-        yield flask_app # Teardown is handled by pytest-flask or can be added here
+        yield flask_app_instance
 
         _db.session.remove()
         _db.drop_all()
@@ -53,7 +60,7 @@ def client(app):
     """A test client for the app."""
     return app.test_client()
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def db_session(app):
     """
     Provides a database session for tests, ensuring data is clean.
@@ -67,7 +74,7 @@ def db_session(app):
         # For in-memory, the DB is fresh per session with the app fixture.
         # If using a persistent DB for tests, more aggressive cleanup would be needed here or per test.
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def new_user_factory(db_session):
     """Factory to create new users with specific roles."""
     def create_user(username, email, password, role_code):
@@ -82,15 +89,15 @@ def new_user_factory(db_session):
         return user
     return create_user
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def admin_user(new_user_factory):
     return new_user_factory("admin_user", "admin@test.com", "admin_password", "ADMIN")
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def league_admin_user(new_user_factory):
     return new_user_factory("league_admin_user", "league_admin@test.com", "league_password", "LEAGUE_ADMIN")
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def player_user(new_user_factory):
     return new_user_factory("player_user", "player@test.com", "player_password", "PLAYER")
 

@@ -676,14 +676,14 @@
                 return;
             }
 
-        questions.forEach(q => {
+        questions.forEach((q, index) => {
             const questionCard = document.createElement('div');
             questionCard.className = 'bg-white shadow-md rounded-lg p-4 mb-4'; // Main card styling
 
             // Question Text
             const questionTextElem = document.createElement('p');
             questionTextElem.className = 'font-semibold text-gray-800 mb-2'; // Adjusted margin
-            questionTextElem.textContent = q.text;
+            questionTextElem.textContent = `${index + 1}-${q.text}`;
             questionCard.appendChild(questionTextElem);
 
             // Scoring Info (using existing function)
@@ -725,19 +725,23 @@
 
             const officialAnswerContent = document.createElement('div');
             officialAnswerContent.className = 'text-sm p-2 bg-blue-50 border border-blue-200 rounded';
-            // Use the formatAnswerForDisplay function, ensuring it handles the structure of q.official_answer
-            // The q.official_answer structure matches `detail.official_answer` from the player modal
-            // q.official_answer_question_type and q.official_answer_is_mc_multiple_correct are now available
-            officialAnswerContent.innerHTML = formatAnswerForDisplay(
-                q.official_answer,
-                q.official_answer_question_type, // Use the specific type provided for the official answer
-                q.official_answer_is_mc_multiple_correct // Use the specific flag for the official answer
+            let formattedOfficialAns = formatAnswerForDisplay(
+                q.official_answer, // This is the value/data of the official answer
+                q.official_answer_question_type, // The type of the question for which this is an official answer
+                q.official_answer_is_mc_multiple_correct // Flag for MC multiple correct
             );
-            if (q.official_answer_question_type === 'SLIDER' && q.slider_unit && typeof q.official_answer === 'number') {
-                if (formattedOfficialAns.includes('</p>')) {
-                    formattedOfficialAns = formattedOfficialAns.replace(/<\/p>$/, ` ${q.slider_unit}</p>`);
-                } else { // Fallback if the <p> tag isn't there for some reason (e.g. "No respondida")
-                    formattedOfficialAns += ` ${q.slider_unit}`;
+
+            // Append slider unit if applicable
+            if (q.official_answer_question_type === 'SLIDER' && q.slider_unit && q.official_answer !== null && q.official_answer !== undefined) {
+                // Check if formattedOfficialAns is not the "No respondida" span
+                if (!formattedOfficialAns.includes('<span class="italic text-gray-500">')) {
+                     if (formattedOfficialAns.includes('</p>')) {
+                        formattedOfficialAns = formattedOfficialAns.replace(/<\/p>$/, ` ${q.slider_unit}</p>`);
+                    } else {
+                        // If it's just the number (no <p>), append the unit directly.
+                        // This might happen if formatAnswerForDisplay returns just the number for sliders.
+                        formattedOfficialAns += ` ${q.slider_unit}`;
+                    }
                 }
             }
             officialAnswerContent.innerHTML = formattedOfficialAns;
@@ -749,9 +753,54 @@
             maxPointsSection.innerHTML = `Puntos Máximos: <span class="font-semibold text-orange-600">${q.max_points_possible !== undefined ? q.max_points_possible : 'N/A'}</span>`;
             questionCard.appendChild(maxPointsSection);
 
+            // Display User's Answer and Points if available
+            if (q.user_answer_details) {
+                const userAnswerSection = document.createElement('div');
+                userAnswerSection.className = 'mt-3 border-t border-gray-200 pt-3';
+
+                const userAnswerTitle = document.createElement('h5');
+                userAnswerTitle.className = 'text-sm font-medium text-gray-700 mb-1';
+                userAnswerTitle.textContent = 'Tu Respuesta:';
+                userAnswerSection.appendChild(userAnswerTitle);
+
+                const userAnswerContent = document.createElement('div');
+                userAnswerContent.className = 'text-sm p-2 bg-green-50 border border-green-200 rounded'; // Light green background for user answer
+
+                let formattedUserAns = formatAnswerForDisplay(
+                    q.user_answer_details.answer,
+                    q.question_type, // Use the main question_type for formatting user's answer
+                    q.is_mc_multiple_correct // Use the main flag for MC multiple correct
+                );
+
+                if (q.question_type === 'SLIDER' && q.slider_unit && q.user_answer_details.answer !== null && q.user_answer_details.answer !== undefined) {
+                    if (!formattedUserAns.includes('<span class="italic text-gray-500">')) {
+                        if (formattedUserAns.includes('</p>')) {
+                            formattedUserAns = formattedUserAns.replace(/<\/p>$/, ` ${q.slider_unit}</p>`);
+                        } else {
+                            formattedUserAns += ` ${q.slider_unit}`;
+                        }
+                    }
+                }
+                userAnswerContent.innerHTML = formattedUserAns;
+                userAnswerSection.appendChild(userAnswerContent);
+
+                // Display points obtained by user for this question
+                const userPointsSection = document.createElement('div');
+                userPointsSection.className = 'mt-2 text-xs text-right';
+                let pointsDisplay = 'Puntos Obtenidos: ';
+                if (q.user_answer_details.points_obtained !== null && q.user_answer_details.points_obtained !== undefined) {
+                    pointsDisplay += `<span class="font-semibold ${q.user_answer_details.points_obtained > 0 ? 'text-green-600' : (q.user_answer_details.points_obtained < 0 ? 'text-red-600' : 'text-gray-600')}">${q.user_answer_details.points_obtained}</span>`;
+                } else {
+                    pointsDisplay += '<span class="italic text-gray-500">No evaluado aún</span>';
+                }
+                userPointsSection.innerHTML = pointsDisplay;
+                userAnswerSection.appendChild(userPointsSection);
+
+                questionCard.appendChild(userAnswerSection);
+            }
 
             adminQuestionsListDiv.appendChild(questionCard);
-            });
+        });
         }
 
         // Global Helper Functions
@@ -825,7 +874,7 @@
 
             if(noQuestionsMessageDivElem) noQuestionsMessageDivElem.style.display = 'none';
 
-            questions.forEach(q => {
+            questions.forEach((q, index) => {
                 const questionCard = document.createElement('div');
                 questionCard.className = 'question-card p-5';
                 let optionsHtml = '';
@@ -865,7 +914,7 @@
 
                 questionCard.innerHTML = `
                     <div class="flex justify-between items-start mb-3">
-                        <h3 class="font-semibold text-gray-800 flex-1 pr-2">${q.text} ${q.is_active ? '' : '<span class="text-red-500 text-xs font-normal">(Inactiva)</span>'}</h3>
+                        <h3 class="font-semibold text-gray-800 flex-1 pr-2">${index + 1}-${q.text} ${q.is_active ? '' : '<span class="text-red-500 text-xs font-normal">(Inactiva)</span>'}</h3>
                         ${formatScoringInfoForDisplay(q)}
                     </div>
                     ${optionsHtml}
@@ -1500,12 +1549,12 @@
                     reviewAnswersLoading.style.display = 'none';
 
                     if (allRaceQuestions && allRaceQuestions.length > 0) {
-                        allRaceQuestions.forEach(question => {
+                        allRaceQuestions.forEach((question, index) => {
                             const userAnswer = currentUserAnswersData.find(ua => ua.question_id === question.id);
                             // Pass the full question object and the specific user answer (if it exists)
                             // to renderQuestionForReview or a new function that handles this combined display.
                             // For now, renderQuestionForReview will be modified to accept the question and optional answer.
-                            reviewUserAnswersDisplayArea.appendChild(renderQuestionForReview(question, userAnswer));
+                            reviewUserAnswersDisplayArea.appendChild(renderQuestionForReview(question, userAnswer, index));
                         });
                     } else {
                         reviewUserAnswersDisplayArea.innerHTML = '<p class="text-gray-600 text-center py-4">No hay preguntas definidas para esta carrera.</p>';
@@ -1614,8 +1663,8 @@
             }
 
             // Renamed from renderSingleUserAnswer to renderQuestionForReview
-            // Now accepts a full `question` object and an optional `userAnswer` object.
-            function renderQuestionForReview(question, userAnswer) {
+            // Now accepts a full `question` object, an optional `userAnswer` object, and an index.
+            function renderQuestionForReview(question, userAnswer, index) {
                 const questionItemDiv = document.createElement('div');
                 questionItemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow mb-3';
 
@@ -1675,7 +1724,7 @@
                 }
 
                 questionItemDiv.innerHTML = `
-                    <p class="font-semibold text-gray-800 mb-1">${question.text}</p>
+                    <p class="font-semibold text-gray-800 mb-1">${index + 1}-${question.text}</p>
                     <div class="text-xs text-gray-500 mb-2">${userAnswer ? 'Tu respuesta:' : 'Respuesta pendiente:'}</div>
                     <div class="p-3 bg-gray-50 border border-gray-300 rounded-md min-h-[40px]">
                         ${formattedAnswerHtml}
@@ -1715,7 +1764,9 @@
                             const existingUserAnswerData = userAnswerId ? currentUserAnswersData.find(ans => ans.user_answer_id == userAnswerId) : null;
 
                             if (fullQuestionData) {
-                                editAnswerQuestionText.textContent = fullQuestionData.text;
+                                // Find the index of the current question to display number
+                                const questionIndex = allRaceQuestions.findIndex(q => q.id == questionId);
+                                editAnswerQuestionText.textContent = `${questionIndex + 1}-${fullQuestionData.text}`;
                                 populateEditAnswerForm(fullQuestionData, existingUserAnswerData); // Pass both
                                 editAnswerLoading.style.display = 'none';
                             } else {
@@ -2090,7 +2141,9 @@
                     if (questionDivToUpdate && displayArea) {
                          // Find the question div in reviewUserAnswersDisplayArea and replace it
                         const parent = questionDivToUpdate.parentNode;
-                        const newRenderedItem = renderQuestionForReview(questionData, tempUserAnswerForDisplay);
+                            // Find the index of the current question to pass to renderQuestionForReview
+                            const questionIndex = allRaceQuestions.findIndex(q => q.id == questionId);
+                            const newRenderedItem = renderQuestionForReview(questionData, tempUserAnswerForDisplay, questionIndex);
                         // Add the question ID to the new rendered item for future lookups
                         newRenderedItem.dataset.questionId = questionData.id;
                         parent.replaceChild(newRenderedItem, questionDivToUpdate);
@@ -2265,6 +2318,15 @@
 
                     const editingId = editingQuestionIdInput.value;
                     const type = questionTypeSelect.value;
+                    // NOTE: The question text from the form (questionTextInput.value) already includes the number if editing.
+                    // We need to strip it if it's there, or ensure it's not saved with the number.
+                    // For simplicity, we'll assume the backend or a later step handles stripping it if necessary,
+                    // or that it's fine for question.text in the DB to not have the number.
+                    // The numeration is primarily for display.
+                    // For ADDING a new question, the number is not present in the input.
+                    // For EDITING an existing question, the modal is populated WITHOUT the number in the input field.
+                    // The 'openEditQuestionModal' function populates 'qTextInput.value = question.text;' which is the raw text.
+                    // So, questionTextInput.value.trim() should be the raw text without numbering.
                     let questionData = {
                         text: questionTextInput.value.trim(),
                         is_active: true,
@@ -2739,13 +2801,13 @@
                                 if (participantAnswersModalBody) {
                                     participantAnswersModalBody.innerHTML = ''; // Clear loading message
                                     if (answersDetails && answersDetails.length > 0) {
-                                        answersDetails.forEach(detail => {
+                                        answersDetails.forEach((detail, index) => {
                                             const itemDiv = document.createElement('div');
                                             itemDiv.className = 'py-3 border-b last:border-b-0 border-gray-200';
 
                                             const questionTextP = document.createElement('p');
                                             questionTextP.className = 'font-semibold text-gray-700 mb-1';
-                                            questionTextP.textContent = detail.question_text;
+                                            questionTextP.textContent = `${index + 1}-${detail.question_text}`;
                                             itemDiv.appendChild(questionTextP);
 
                                             const answerDiv = document.createElement('div');
@@ -2772,6 +2834,11 @@
                                                             if (detail.participant_answer && detail.participant_answer.text) {
                                                                 answerDisplay = detail.participant_answer.text;
                                                             }
+                                                        }
+                                                        break;
+                                                    case 'SLIDER':
+                                                        if (detail.participant_answer !== null && detail.participant_answer !== undefined) {
+                                                            answerDisplay = `${detail.participant_answer} ${detail.question_slider_unit || ''}`;
                                                         }
                                                         break;
                                                 }
@@ -2934,8 +3001,18 @@
             }
             switch (questionType) {
                 case 'FREE_TEXT':
-                case 'ORDERING': // For ordering, the answer_text is a comma-separated string
                     return `<p class="text-gray-700">${answerData || '<span class="italic text-gray-500">No respondida</span>'}</p>`;
+                case 'ORDERING':
+                    if (answerData && typeof answerData === 'string' && answerData.trim() !== '') {
+                        const orderedItems = answerData.split(',').map(item => item.trim());
+                        let html = '<ol class="list-decimal list-inside text-gray-700 space-y-1">';
+                        orderedItems.forEach(itemText => {
+                            html += `<li>${itemText.startsWith("[ID de opción inválido:") ? `<span class="text-red-500 italic">${itemText}</span>` : itemText}</li>`;
+                        });
+                        html += '</ol>';
+                        return html;
+                    }
+                    return '<span class="italic text-gray-500">No respondida o formato incorrecto.</span>';
                 case 'MULTIPLE_CHOICE':
                     if (isMultipleCorrect) { // Array of {id, text} objects
                         if (Array.isArray(answerData) && answerData.length > 0) {
@@ -3105,8 +3182,18 @@
                     console.log('Fetching answers for User ID:', userId, 'Race ID:', raceId);
                     const response = await fetch(`/api/races/${raceId}/participants/${userId}/answers`);
                     if (!response.ok) {
-                        const errData = await response.json().catch(() => null);
-                        throw new Error(errData?.message || `Error ${response.status}`);
+                        // Check content type before trying to parse as JSON
+                        const contentType = response.headers.get("content-type");
+                        let errorJson = null;
+                        if (contentType && contentType.indexOf("application/json") !== -1) {
+                            errorJson = await response.json().catch(() => null);
+                        } else {
+                            // If not JSON, try to get text, but don't fail if that also errors.
+                            // The main point is to avoid the "Unexpected token '<'" from response.json() on HTML.
+                            const errorText = await response.text().catch(() => "Server returned non-JSON response.");
+                            console.warn("Server returned non-JSON error response:", errorText.substring(0, 200)); // Log first 200 chars
+                        }
+                        throw new Error(errorJson?.message || `Error ${response.status}`);
                     }
                     const answerDetails = await response.json();
                     console.log('Fetched answer details:', answerDetails); // LOG ADDED
@@ -3118,7 +3205,7 @@
                         return;
                     }
 
-                    answerDetails.forEach(detail => {
+                    answerDetails.forEach((detail, index) => {
                         console.log('Processing answer detail for question:', detail.question_text, detail); // LOG ADDED
                         const itemDiv = document.createElement('div');
                         itemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-white shadow mb-3';
@@ -3135,7 +3222,7 @@
 
                         itemDiv.innerHTML = `
                             <div class="flex justify-between items-start mb-2">
-                                <h4 class="font-semibold text-gray-800 flex-1 pr-2">${detail.question_text}</h4>
+                                <h4 class="font-semibold text-gray-800 flex-1 pr-2">${index + 1}-${detail.question_text}</h4>
                                 <span class="${correctnessClass} text-sm font-medium whitespace-nowrap">
                                     <i class="fas ${correctnessIcon} mr-1"></i> ${correctnessText}
                                 </span>
@@ -3218,7 +3305,7 @@
 
                 officialResultsFormContent.innerHTML = ''; // Clear loading message
 
-                questions.forEach(q => {
+                questions.forEach((q, index) => {
                     const questionDiv = document.createElement('div');
                     questionDiv.className = 'mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50';
                     questionDiv.dataset.questionId = q.id;
@@ -3226,7 +3313,7 @@
                     questionDiv.dataset.isMcMultipleCorrect = q.is_mc_multiple_correct || false;
 
 
-                    let inputHtml = `<h4 class="font-semibold text-gray-700 mb-2">${q.text}</h4>`;
+                    let inputHtml = `<h4 class="font-semibold text-gray-700 mb-2">${index + 1}-${q.text}</h4>`;
                     const currentAnswer = existingOfficialAnswers[q.id.toString()] || {};
 
                     switch (q.question_type) {
@@ -3424,6 +3511,7 @@
                 }
 
                 loadingMsg.style.display = 'none'; // Hide loading message
+                let questionCounter = 0; // Initialize a counter for question numbering
 
                 for (const qIdStr in officialAnswersData) {
                     const answerInfo = officialAnswersData[qIdStr];
@@ -3433,6 +3521,7 @@
                         console.warn(`Question with ID ${qIdStr} not found in allRaceQuestions. Skipping display for this official answer.`);
                         continue;
                     }
+                    questionCounter++; // Increment for each question processed
 
                     const resultItemDiv = document.createElement('div');
                     resultItemDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 shadow-sm';
@@ -3468,7 +3557,7 @@
                     }
 
                     resultItemDiv.innerHTML = `
-                        <h4 class="font-semibold text-gray-700 mb-1">${question.text}</h4>
+                        <h4 class="font-semibold text-gray-700 mb-1">${questionCounter}-${question.text}</h4>
                         <div class="text-sm text-gray-500 mb-2">Respuesta Oficial:</div>
                         <div class="p-2 rounded-md bg-white border border-gray-300 min-h-[30px]">${answerHtml}</div>
                     `;
@@ -3679,7 +3768,7 @@
                 const existingAnswer = userWizardAnswers[question.id];
 
                 if(wizardQuestionProgress) wizardQuestionProgress.textContent = `Pregunta ${index + 1} de ${allRaceQuestions.length}`;
-                if(wizardQuestionText) wizardQuestionText.textContent = question.text;
+                if(wizardQuestionText) wizardQuestionText.textContent = `${index + 1}-${question.text}`;
                 // Clear previous options, will be repopulated in try or error caught in catch
                 if(wizardAnswerOptions) wizardAnswerOptions.innerHTML = '';
 

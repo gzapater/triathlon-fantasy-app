@@ -147,23 +147,66 @@ function renderOfficialAnswersForm(questions, officialAnswers, container) {
                 ul.className = 'list-none p-0 m-0'; // Basic styling for ul
 
                 if (question.options && question.options.length > 0) {
-                    let optionsToRender = [...question.options]; // Default to original order, clone to avoid modifying original
+                    let optionsToRender;
+                    const originalOptionsById = new Map(question.options.map(opt => [opt.id, opt]));
 
                     if (officialAnswer && officialAnswer.answer_text && officialAnswer.answer_text.trim() !== '') {
-                        const orderedIds = officialAnswer.answer_text.split(',').map(idStr => parseInt(idStr.trim(), 10));
-                        const optionsMap = new Map(question.options.map(opt => [opt.id, opt]));
+                        const orderedIds = officialAnswer.answer_text.split(',').map(idStr => parseInt(idStr.trim(), 10)).filter(id => !isNaN(id)); // Ensure IDs are numbers
 
-                        const sortedOptionsFromAnswer = orderedIds.map(id => optionsMap.get(id)).filter(opt => opt !== undefined);
+                        let sortedLiveOptions = [];
+                        let usedOriginalOptionIds = new Set();
 
-                        if (sortedOptionsFromAnswer.length === question.options.length) {
-                            optionsToRender = sortedOptionsFromAnswer;
-                            console.debug(`Options for QID ${question.id} sorted based on official answer: ${officialAnswer.answer_text}`);
-                        } else {
-                            // This handles cases where some IDs in answer_text might not be in current question.options
-                            // or if the number of options has changed since the answer was saved.
-                            console.warn(`Could not fully sort options for question ${question.id} based on official answer IDs. Some IDs may be invalid or options may have changed. Displaying in default order.`);
-                            // Fallback to original/default order already set in optionsToRender
+                        // Add options that are in the official answer string and still exist
+                        orderedIds.forEach(id => {
+                            if (originalOptionsById.has(id)) {
+                                sortedLiveOptions.push(originalOptionsById.get(id));
+                                usedOriginalOptionIds.add(id);
+                            } else {
+                                console.warn(`Official answer for QID ${question.id} references non-existent or stale option ID ${id}. It will be ignored.`);
+                            }
+                        });
+
+                        // Add any remaining original options that were not in the official answer string
+                        // (e.g., newly added options). These will be appended.
+                        // They are sorted by their correct_order_index or ID as a fallback.
+                        let newOptions = [];
+                        question.options.forEach(opt => {
+                            if (!usedOriginalOptionIds.has(opt.id)) {
+                                newOptions.push(opt);
+                            }
+                        });
+                        // Sort new options by correct_order_index, then by ID for stability
+                        newOptions.sort((a, b) => {
+                            const orderA = a.correct_order_index !== null && a.correct_order_index !== undefined ? a.correct_order_index : Infinity;
+                            const orderB = b.correct_order_index !== null && b.correct_order_index !== undefined ? b.correct_order_index : Infinity;
+                            if (orderA === orderB) {
+                                return a.id - b.id; // Fallback to ID for consistent ordering
+                            }
+                            return orderA - orderB;
+                        });
+
+                        optionsToRender = sortedLiveOptions.concat(newOptions);
+
+                        if (orderedIds.length > 0 && sortedLiveOptions.length === 0 && newOptions.length === question.options.length) {
+                             console.warn(`Official answer for QID ${question.id} contained only stale option IDs. Displaying all current options by their defined order.`);
+                        } else if (sortedLiveOptions.length < orderedIds.length && orderedIds.length > 0) {
+                            console.warn(`Some option IDs from saved official answer for QID ${question.id} were not found in current question options. Displaying based on available matches with new options appended.`);
+                        } else if (newOptions.length > 0) {
+                            console.debug(`New options detected for QID ${question.id} and appended to the official answer order.`);
                         }
+
+                    } else {
+                        // No official answer saved, or answer_text is empty.
+                        // Display options based on their `correct_order_index`.
+                        optionsToRender = [...question.options].sort((a, b) => {
+                            const orderA = a.correct_order_index !== null && a.correct_order_index !== undefined ? a.correct_order_index : Infinity;
+                            const orderB = b.correct_order_index !== null && b.correct_order_index !== undefined ? b.correct_order_index : Infinity;
+                            if (orderA === orderB) {
+                                return a.id - b.id; // Fallback to ID for stable sort if indices are same/null
+                            }
+                            return orderA - orderB;
+                        });
+                        console.debug(`No official answer text for QID ${question.id}, displaying options sorted by correct_order_index.`);
                     }
 
                     optionsToRender.forEach(option => {

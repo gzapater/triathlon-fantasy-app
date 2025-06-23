@@ -93,7 +93,14 @@ def unauthorized():
     # login_manager.login_view es el nombre del endpoint, ej 'serve_login_page'
     login_url_redirect = url_for(login_manager.login_view, next=next_url)
     app.logger.info(f"[Flask-Login Unauthorized] Redirigiendo a: {login_url_redirect}")
-    return redirect(login_url_redirect)
+    # If the request is an API request, return JSON instead of redirecting
+    # Check if request.blueprint is 'api' or path starts with /api/
+    # Using request.path.startswith('/api/') for simplicity as blueprint might not be set for all API routes
+    if request.path.startswith('/api/'):
+        app.logger.info("[Flask-Login Unauthorized] API request detected. Returning JSON 401.")
+        return jsonify(message="Authentication required. Please log in."), 401
+    else:
+        return redirect(login_url_redirect)
 
 
 app.config['LOGIN_DISABLED'] = False # Asegúrate de que no esté deshabilitado accidentalmente
@@ -550,14 +557,28 @@ def get_race_questions(race_id):
 
     # Pre-process official MC-multiple answers for efficiency
     official_mc_multiple_options_map = {}
-    for oa_obj in official_answers_list:
-        q_obj_for_oa = Question.query.get(oa_obj.question_id) # Get question to check type
+    for oa_obj_loop in official_answers_list: # Renamed loop variable
+        q_obj_for_oa = Question.query.get(oa_obj_loop.question_id)
         if q_obj_for_oa and q_obj_for_oa.question_type.name == 'MULTIPLE_CHOICE' and q_obj_for_oa.is_mc_multiple_correct:
             official_mc_multiple_options_map[q_obj_for_oa.id] = {
-                sel_opt.question_option_id for sel_opt in oa_obj.official_selected_mc_options
+                sel_opt.question_option_id for sel_opt in oa_obj_loop.official_selected_mc_options
             }
 
-    # official_ordering_map is removed as OfficialAnswer.answer_text for ORDERING stores texts directly.
+    # Pre-process official ORDERING answers text map
+    official_ordering_text_map = {}
+    for q_id_loop, oa_obj_loop in official_answers_map.items(): # Renamed loop variables
+        question_for_oa = Question.query.get(q_id_loop)
+        if question_for_oa and question_for_oa.question_type.name == 'ORDERING':
+            if oa_obj_loop and oa_obj_loop.answer_text:
+                official_texts = [text.strip().lower() for text in oa_obj_loop.answer_text.split(',') if text.strip()]
+                official_ordering_text_map[q_id_loop] = official_texts
+            else:
+                official_ordering_text_map[q_id_loop] = []
+
+
+    # Fetch current user's answers for this race
+    user_answers_for_race_list = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).all()
+    user_answers_map = {ua.question_id: ua for ua in user_answers_for_race_list}
 
     output = []
     for question in questions_query:
@@ -566,11 +587,12 @@ def get_race_questions(race_id):
             "text": question.text,
             "question_type": question.question_type.name,
             "is_active": question.is_active,
-            "official_answer": None, # Initialize official answer field
-            "max_points_possible": 0 # Initialize max points
+            "official_answer": None,
+            "max_points_possible": 0,
+            "user_answer_details": None # Initialize user answer details
         }
 
-        # Add type-specific scoring fields
+        # Add type-specific scoring fields and calculate max_points_possible
         if question.question_type.name == 'FREE_TEXT':
             question_data["max_score_free_text"] = question.max_score_free_text
             question_data["max_points_possible"] = question.max_score_free_text or 0
@@ -590,7 +612,14 @@ def get_race_questions(race_id):
             question_data["points_per_correct_order"] = question.points_per_correct_order
             question_data["bonus_for_full_order"] = question.bonus_for_full_order
             # Max points = (points_per_correct_order * num_items) + bonus_for_full_order
-            num_items_to_order = len(official_ordering_map.get(question.id, [])) # Number of items in the official correct order
+
+            official_answer_obj_for_ordering = official_answers_map.get(question.id)
+            if official_answer_obj_for_ordering and official_answer_obj_for_ordering.answer_text:
+                # Assuming answer_text is a comma-separated string of option IDs or texts
+                num_items_to_order = len(official_answer_obj_for_ordering.answer_text.split(','))
+            else:
+                num_items_to_order = len(question.options.all()) # Get all options for this question
+
             max_pts_ordering = (question.points_per_correct_order or 0) * num_items_to_order
             if num_items_to_order > 0: # Only add bonus if there are items to order
                  max_pts_ordering += (question.bonus_for_full_order or 0)
@@ -627,8 +656,24 @@ def get_race_questions(race_id):
             if question.question_type.name == 'FREE_TEXT':
                 official_answer_formatted = official_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                # OfficialAnswer.answer_text for ORDERING questions stores comma-separated texts directly.
-                official_answer_formatted = official_answer_obj.answer_text
+                # OfficialAnswer.answer_text for ORDERING questions stores comma-separated option IDs.
+                # We need to convert these IDs to their corresponding texts.
+                if official_answer_obj and official_answer_obj.answer_text:
+                    ordered_option_ids_str = official_answer_obj.answer_text.split(',')
+                    ordered_option_texts = []
+                    for opt_id_str in ordered_option_ids_str:
+                        try:
+                            opt_id = int(opt_id_str.strip())
+                            option_obj = QuestionOption.query.get(opt_id)
+                            if option_obj and option_obj.question_id == question.id: # Ensure option belongs to the question
+                                ordered_option_texts.append(option_obj.option_text)
+                            else:
+                                ordered_option_texts.append(f"[ID de opción inválido: {opt_id_str}]")
+                        except ValueError:
+                            ordered_option_texts.append(f"[ID de opción malformado: {opt_id_str}]")
+                    official_answer_formatted = ", ".join(ordered_option_texts) # Join texts with comma and space for display
+                else:
+                    official_answer_formatted = None # No official answer or empty answer_text
             elif question.question_type.name == 'MULTIPLE_CHOICE':
                 if question.is_mc_multiple_correct:
                     # Get set of correct option IDs from pre-processed map
@@ -645,12 +690,61 @@ def get_race_questions(race_id):
                     if opt:
                         official_answer_formatted = {"id": opt.id, "text": opt.option_text}
             elif question.question_type.name == 'SLIDER':
-                official_answer_formatted = official_answer_obj.correct_slider_value # This is a numeric value
+                if official_answer_obj: # Added check for official_answer_obj
+                     official_answer_formatted = official_answer_obj.correct_slider_value
+                else:
+                     official_answer_formatted = None
 
-            question_data["official_answer"] = official_answer_formatted
-            # Ensure question_type is also passed along with official_answer for formatAnswerForDisplay
-            question_data["official_answer_question_type"] = question.question_type.name
-            question_data["official_answer_is_mc_multiple_correct"] = question.is_mc_multiple_correct
+
+        question_data["official_answer"] = official_answer_formatted
+        question_data["official_answer_question_type"] = question.question_type.name
+        question_data["official_answer_is_mc_multiple_correct"] = question.is_mc_multiple_correct
+
+        # Fetch and format user's answer and points for this question
+        current_user_answer_obj = user_answers_map.get(question.id)
+        if current_user_answer_obj:
+            user_answer_formatted = None
+            # Determine if quiniela is closed for players to see their scores
+            can_see_score = False
+            if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+                can_see_score = True
+            elif current_user.role.code in ['ADMIN', 'LEAGUE_ADMIN']: # Admins can always see scores
+                can_see_score = True
+
+            points_obtained_for_q = 0
+            is_correct_for_q = False
+
+            if can_see_score and official_answer_obj: # Need official answer to calculate score
+                # Pass the correct map for ordering questions
+                current_official_ordering_texts_for_calc = official_ordering_text_map if question.question_type.name == 'ORDERING' else None
+                points_obtained_for_q, is_correct_for_q = _calculate_score_for_answer(
+                    current_user_answer_obj,
+                    official_answer_obj,
+                    question,
+                    official_mc_multiple_options_map,
+                    current_official_ordering_texts_for_calc
+                )
+
+            # Format user's answer for display (similar to get_participant_answers)
+            if question.question_type.name == 'FREE_TEXT':
+                user_answer_formatted = current_user_answer_obj.answer_text
+            elif question.question_type.name == 'ORDERING':
+                user_answer_formatted = current_user_answer_obj.answer_text # This is already comma-separated texts
+            elif question.question_type.name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    user_answer_formatted = [{"id": opt.question_option_id, "text": opt.question_option.option_text} for opt in current_user_answer_obj.selected_mc_options]
+                elif current_user_answer_obj.selected_option_id:
+                    opt_ua = QuestionOption.query.get(current_user_answer_obj.selected_option_id)
+                    if opt_ua:
+                        user_answer_formatted = {"id": opt_ua.id, "text": opt_ua.option_text}
+            elif question.question_type.name == 'SLIDER':
+                user_answer_formatted = current_user_answer_obj.slider_answer_value
+
+            question_data["user_answer_details"] = {
+                "answer": user_answer_formatted,
+                "points_obtained": points_obtained_for_q if can_see_score else None, # Only show points if allowed
+                "is_correct": is_correct_for_q if can_see_score else None # Only show correctness if allowed
+            }
 
         output.append(question_data)
 
@@ -758,37 +852,40 @@ def get_race_participants(race_id):
 
 
 # Helper function to calculate score for a single answer
-def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_obj, official_mc_multiple_options_map=None, official_ordering_map=None):
+def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_obj, official_mc_multiple_options_map=None, official_ordering_data_for_q_type=None):
     """
     Calculates the score for a single user answer against an official answer.
 
     Args:
         user_answer_obj (UserAnswer): The user's answer object.
-        official_answer_obj (OfficialAnswer): The official answer object.
+        official_answer_obj (OfficialAnswer): The official answer object. (Still needed for non-ORDERING types)
         question_obj (Question): The question object.
         official_mc_multiple_options_map (dict, optional): Pre-processed official MC-multiple answers.
                                                             Map of {question_id: {set of correct_option_ids}}.
-        official_ordering_map (dict, optional): Pre-processed official Ordering answers.
-                                                Map of {question_id: [list of ordered_option_texts]}.
-
+        official_ordering_data_for_q_type (dict, optional): For ORDERING questions, this is official_ordering_text_map.
+                                                            Map of {question_id: [list of lowercased_ordered_option_texts]}.
+                                                            For other question types, this argument can be None or ignored.
     Returns:
         tuple: (points_obtained, is_correct)
     """
-    if not user_answer_obj or not official_answer_obj or not question_obj:
+    if not user_answer_obj or not question_obj: # official_answer_obj might be None if not found, but q_obj and user_ans are essential
         return 0, False
+
+    # official_answer_obj is still needed for Free Text, MC-Single, Slider where official answer is directly on it.
+    # For MC-Multiple, official_mc_multiple_options_map is used.
+    # For Ordering, official_ordering_data_for_q_type (the text map) is used.
 
     points_obtained = 0
     is_correct = False
     question_type_name = question_obj.question_type.name
 
-    if official_mc_multiple_options_map is None:
+    if official_mc_multiple_options_map is None: # Defaulting for safety, though get_participant_answers should provide it.
         official_mc_multiple_options_map = {}
-    if official_ordering_map is None:
-        official_ordering_map = {}
+    # No need to default official_ordering_data_for_q_type to {} if it's specifically for ordering and passed when needed.
 
     try:
         if question_type_name == 'FREE_TEXT':
-            if official_answer_obj.answer_text and user_answer_obj.answer_text:
+            if official_answer_obj and official_answer_obj.answer_text and user_answer_obj.answer_text:
                 if user_answer_obj.answer_text.strip().lower() == official_answer_obj.answer_text.strip().lower():
                     points_obtained = question_obj.max_score_free_text or 0
                     is_correct = True
@@ -806,7 +903,9 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
                         current_question_mc_multiple_score += (question_obj.points_per_correct_mc or 0)
                         correct_user_selections +=1
                     else: # User selected an incorrect option
-                        current_question_mc_multiple_score -= (question_obj.points_per_incorrect_mc or 0)
+                        # If points_per_incorrect_mc is stored as a negative number (e.g., -5 for a penalty),
+                        # we should ADD it to the score.
+                        current_question_mc_multiple_score += (question_obj.points_per_incorrect_mc or 0)
 
                 points_obtained = current_question_mc_multiple_score
                 # Consider is_correct to be true if all selected options are correct AND all correct options are selected.
@@ -825,35 +924,45 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
             if user_answer_obj.answer_text:
                 user_ordered_texts = [text.strip().lower() for text in user_answer_obj.answer_text.split(',')]
 
-            official_ordered_texts_for_q = official_ordering_map.get(question_obj.id, [])
-            # Ensure official_ordered_texts are also lowercased for comparison consistency
-            official_ordered_texts_for_q = [text.lower() for text in official_ordered_texts_for_q]
+            # official_ordering_data_for_q_type is now official_ordering_text_map passed from get_participant_answers
+            # It should already contain a list of lowercased texts for the specific question_obj.id
+            official_ordered_texts_for_q = official_ordering_data_for_q_type.get(question_obj.id, []) if official_ordering_data_for_q_type else []
+            # No further lowercasing needed here if map provides already lowercased texts.
+            # For safety, if the map isn't structured as expected or not passed for ordering, this defaults to [].
 
-
-            if user_ordered_texts and official_ordered_texts_for_q:
+            if user_ordered_texts and official_ordered_texts_for_q: # Both must be non-empty
                 current_question_ordering_score = 0
-                is_full_match = True
+                is_full_match = True # Assume full match until proven otherwise
 
-                # Points for each correctly placed item
-                for i in range(len(official_ordered_texts_for_q)):
-                    if i < len(user_ordered_texts):
-                        if user_ordered_texts[i] == official_ordered_texts_for_q[i]:
-                            current_question_ordering_score += (question_obj.points_per_correct_order or 0)
-                        else:
-                            is_full_match = False
-                    else: # User answer is shorter
-                        is_full_match = False
-
-                if len(user_ordered_texts) != len(official_ordered_texts_for_q): # Length mismatch
+                # Check if lengths are different first, if so, not a full match.
+                if len(user_ordered_texts) != len(official_ordered_texts_for_q):
                     is_full_match = False
 
-                if is_full_match:
-                    current_question_ordering_score += (question_obj.bonus_for_full_order or 0)
+                # Iterate based on the length of the official correct order
+                for i in range(len(official_ordered_texts_for_q)):
+                    if i < len(user_ordered_texts): # Check if user provided an answer for this position
+                        if user_ordered_texts[i] == official_ordered_texts_for_q[i]: # Already lowercased
+                            current_question_ordering_score += (question_obj.points_per_correct_order or 0)
+                        else:
+                            is_full_match = False # Mismatch at this position
+                    else: # User answer is shorter than official answer, so not a full match
+                        is_full_match = False
+
+                # Apply bonus with refined logic (consistent with calculate_and_store_scores)
+                if is_full_match and len(user_ordered_texts) == len(official_ordered_texts_for_q):
+                    # Ensure bonus is only added if there were items to order and points_per_correct_order was positive
+                    # or if there are zero items but a bonus is defined (edge case)
+                    if ((question_obj.points_per_correct_order or 0) > 0 and len(official_ordered_texts_for_q) > 0) or \
+                       (len(official_ordered_texts_for_q) == 0 and (question_obj.bonus_for_full_order or 0) > 0):
+                        current_question_ordering_score += (question_obj.bonus_for_full_order or 0)
 
                 points_obtained = current_question_ordering_score
+                # A response is "correct" if it's a full match and there was something to match
                 is_correct = is_full_match and bool(official_ordered_texts_for_q)
 
         elif question_type_name == 'SLIDER':
+            if not official_answer_obj: # Guard against missing official_answer_obj for SLIDER type
+                return 0, False
             epsilon = 1e-9  # For floating point comparisons
             points_obtained = 0 # Initialize points for this question
             is_correct = False  # Initialize correctness for this question
@@ -863,29 +972,50 @@ def _calculate_score_for_answer(user_answer_obj, official_answer_obj, question_o
                 # points_obtained and is_correct remain 0 and False
             else:
                 user_val = user_answer_obj.slider_answer_value
+                user_val = user_answer_obj.slider_answer_value
                 official_val = official_answer_obj.correct_slider_value
 
                 points_exact = question_obj.slider_points_exact
                 threshold_partial = question_obj.slider_threshold_partial
                 points_partial = question_obj.slider_points_partial
 
+                app.logger.debug(
+                    f"Scoring SLIDER QID {question_obj.id} - Initial values: "
+                    f"UserVal={user_val}, OfficialVal={official_val}, "
+                    f"Q.slider_points_exact={points_exact}, "
+                    f"Q.slider_threshold_partial={threshold_partial}, "
+                    f"Q.slider_points_partial={points_partial}"
+                )
+
                 diff = abs(user_val - official_val)
                 rule_met = "None"
 
                 if diff < epsilon:  # Exact match
+                    app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: Checking Exact Match. Diff={diff}, Epsilon={epsilon}")
                     if points_exact is not None:
                         points_obtained = points_exact
-                        is_correct = (points_exact > 0)
+                        is_correct = (points_exact > 0) # Correct if points are positive
                         rule_met = "Exact"
+                        app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: Exact Match met. PointsAwarded={points_obtained}, IsCorrect={is_correct}")
+                    else:
+                        app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: Exact Match condition met, but points_exact is None.")
                 elif threshold_partial is not None and threshold_partial >= 0 and \
                      points_partial is not None and points_partial >= 0 and \
                      diff <= (threshold_partial + epsilon):  # Partial match
+                    app.logger.debug(
+                        f"Scoring SLIDER QID {question_obj.id}: Checking Partial Match. "
+                        f"Diff={diff}, ThresholdPartial={threshold_partial}, Epsilon={epsilon}, "
+                        f"PointsPartial={points_partial}"
+                    )
                     points_obtained = points_partial
-                    is_correct = (points_partial > 0)
+                    is_correct = (points_partial > 0) # Correct if points are positive
                     rule_met = "Partial"
+                    app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: Partial Match met. PointsAwarded={points_obtained}, IsCorrect={is_correct}")
+                else:
+                    app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: No match (Exact or Partial). Diff={diff}")
                 # Else, no match, points_obtained remains 0, is_correct remains False
 
-                app.logger.debug(f"Scoring SLIDER QID {question_obj.id}: UserVal={user_val}, OfficialVal={official_val}, Diff={diff}, RuleMet='{rule_met}', PointsAwarded={points_obtained}, IsCorrect={is_correct}")
+                app.logger.debug(f"Scoring SLIDER QID {question_obj.id} - Final: UserVal={user_val}, OfficialVal={official_val}, Diff={diff}, RuleMet='{rule_met}', PointsAwarded={points_obtained}, IsCorrect={is_correct}")
 
     except Exception as e:
         app.logger.error(f"Error calculating score for QID {question_obj.id}, UserAnswerID {user_answer_obj.id}: {e}", exc_info=True)
@@ -953,30 +1083,40 @@ def get_participant_answers(race_id, user_id):
         if q_obj and q_obj.question_type.name == 'MULTIPLE_CHOICE' and q_obj.is_mc_multiple_correct:
             official_mc_multiple_options_map[q_obj.id] = {sel_opt.question_option_id for sel_opt in oa_obj.official_selected_mc_options}
 
-    # Pre-process official ORDERING answers (list of option texts in correct order)
-    official_ordering_map = {}
-    for q_obj in race_questions:
-        if q_obj.question_type.name == 'ORDERING':
-            correctly_ordered_options = QuestionOption.query.filter_by(question_id=q_obj.id)\
-                                                          .order_by(QuestionOption.correct_order_index.asc())\
-                                                          .all()
-            if correctly_ordered_options:
-                official_ordering_map[q_obj.id] = [opt.option_text for opt in correctly_ordered_options]
+    # Pre-process official ORDERING answers:
+    # Now, instead of building from QuestionOption.correct_order_index,
+    # we will prepare the data source that _calculate_score_for_answer expects,
+    # which is a map of question_id to a list of lowercased official ordered texts
+    # derived from OfficialAnswer.answer_text.
+    official_ordering_text_map = {}
+    for q_id, oa_obj in official_answers_map.items():
+        question_for_oa = Question.query.get(q_id) # Get the question object
+        if question_for_oa and question_for_oa.question_type.name == 'ORDERING':
+            if oa_obj and oa_obj.answer_text:
+                # Parse comma-separated texts from OfficialAnswer.answer_text
+                official_texts = [text.strip().lower() for text in oa_obj.answer_text.split(',') if text.strip()]
+                official_ordering_text_map[q_id] = official_texts
+            else:
+                official_ordering_text_map[q_id] = [] # No official answer text or empty
 
     results = []
 
     for question in race_questions:
         user_answer_obj = user_answers_map.get(question.id)
-        official_answer_obj = official_answers_map.get(question.id)
+        official_answer_obj = official_answers_map.get(question.id) # Used for non-ordering types and general info
 
         points, correct = 0, False
-        if user_answer_obj and official_answer_obj:
+        if user_answer_obj and official_answer_obj: # official_answer_obj ensures there's an official entry
+            # For ordering questions, _calculate_score_for_answer will now use official_ordering_text_map
+            # For other types, it will use official_answer_obj directly or official_mc_multiple_options_map
+            current_official_ordering_texts = official_ordering_text_map if question.question_type.name == 'ORDERING' else None
+
             points, correct = _calculate_score_for_answer(
                 user_answer_obj,
-                official_answer_obj,
+                official_answer_obj, # Still needed for other types and accessing fields like correct_slider_value
                 question,
                 official_mc_multiple_options_map,
-                official_ordering_map
+                current_official_ordering_texts # Pass the map of texts for ordering
             )
 
         # Format participant's answer
@@ -985,7 +1125,8 @@ def get_participant_answers(race_id, user_id):
             if question.question_type.name == 'FREE_TEXT':
                 participant_answer_formatted = user_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                # User's answer is comma-separated string of texts
+                # For ordering questions, UserAnswer.answer_text stores the comma-separated string of option texts.
+                # So, we can use it directly.
                 participant_answer_formatted = user_answer_obj.answer_text
             elif question.question_type.name == 'MULTIPLE_CHOICE':
                 if question.is_mc_multiple_correct:
@@ -1003,8 +1144,11 @@ def get_participant_answers(race_id, user_id):
             if question.question_type.name == 'FREE_TEXT':
                 official_answer_formatted = official_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                # Official answer is derived from ordered QuestionOption.option_text
-                official_answer_formatted = ",".join(official_ordering_map.get(question.id, []))
+                # For ordering questions, OfficialAnswer.answer_text should store the comma-separated string of correct option texts.
+                if official_answer_obj and official_answer_obj.answer_text:
+                    official_answer_formatted = official_answer_obj.answer_text
+                else:
+                    official_answer_formatted = None # No official answer set or answer_text is empty/None
             elif question.question_type.name == 'MULTIPLE_CHOICE':
                 if question.is_mc_multiple_correct:
                     official_answer_formatted = [{"id": opt_id, "text": QuestionOption.query.get(opt_id).option_text} for opt_id in official_mc_multiple_options_map.get(question.id, set())]
@@ -1031,11 +1175,19 @@ def get_participant_answers(race_id, user_id):
                 max_points = question.total_score_mc_single or 0
         elif question.question_type.name == 'ORDERING':
             # Max points = (points_per_correct_order * num_items) + bonus_for_full_order
-            num_items_to_order = len(official_ordering_map.get(question.id, []))
-            max_points = (question.points_per_correct_order or 0) * num_items_to_order
-            if num_items_to_order > 0 : # Only add bonus if there are items to order
-                 max_points += (question.bonus_for_full_order or 0)
+            # Use official_ordering_text_map (derived from OfficialAnswer.answer_text) for num_items_to_order
+            official_ordered_texts_for_max_points = official_ordering_text_map.get(question.id, [])
+            num_items_to_order = len(official_ordered_texts_for_max_points)
 
+            max_points = (question.points_per_correct_order or 0) * num_items_to_order
+            # Consistent bonus logic for max points:
+            # Add bonus if there are items and they would score points, or if it's the zero-item bonus case
+            if num_items_to_order > 0 and (question.points_per_correct_order or 0) > 0:
+                 max_points += (question.bonus_for_full_order or 0)
+            elif num_items_to_order == 0 and (question.bonus_for_full_order or 0) > 0: # Bonus for ordering zero items
+                 max_points += (question.bonus_for_full_order or 0)
+        elif question.question_type.name == 'SLIDER':
+            max_points = question.slider_points_exact or 0
 
         results.append({
             "question_id": question.id,
@@ -3409,52 +3561,91 @@ def calculate_and_store_scores(race_id):
                         # User answers for ordering questions are comma-separated texts
                         user_ordered_texts = [text.strip().lower() for text in user_answer.answer_text.split(',')]
 
-                    # Derive official_ordered_texts from official_answer.answer_text (comma-separated IDs)
+                    # Official answers for ordering questions are stored as comma-separated texts.
                     official_ordered_texts = []
                     if official_answer and official_answer.answer_text:
-                        try:
-                            # Parse comma-separated IDs string into a list of integer IDs
-                            official_ordered_option_ids = [int(id_str) for id_str in official_answer.answer_text.split(',') if id_str.strip()]
-
-                            # Convert these IDs to their corresponding option_text
-                            temp_official_texts = []
-                            for opt_id in official_ordered_option_ids:
-                                option_obj = QuestionOption.query.get(opt_id)
-                                if option_obj:
-                                    temp_official_texts.append(option_obj.option_text.lower()) # Compare with lowercased user text
-                                else:
-                                    # Log if an option ID in the official answer doesn't exist
-                                    app.logger.warning(f"Official answer for ORDERING question {q.id} (race {race_id}) references non-existent option ID {opt_id}. This option will be skipped in scoring.")
-                            official_ordered_texts = temp_official_texts
-                        except ValueError as ve:
-                            # Log if there's an error parsing the IDs (e.g., not an integer)
-                            app.logger.error(f"Error parsing official_answer.answer_text for ORDERING question {q.id} (race {race_id}): {ve}. Official answer text: '{official_answer.answer_text}'. Treating as no official order.")
-                            official_ordered_texts = [] # Fallback to empty if parsing fails
+                        official_ordered_texts = [text.strip().lower() for text in official_answer.answer_text.split(',')]
 
                     if user_ordered_texts and official_ordered_texts: # Both must be non-empty to score
                         current_question_ordering_score = 0
-                        is_full_match = True
-                        min_len = min(len(user_ordered_texts), len(official_ordered_texts))
+                        is_full_match = True # Assume full match until proven otherwise
 
-                        for i in range(len(official_ordered_texts)): # Iterate up to length of official answer
-                            if i < len(user_ordered_texts):
+                        # Check if lengths are different first, if so, not a full match.
+                        if len(user_ordered_texts) != len(official_ordered_texts):
+                            is_full_match = False
+
+                        # Iterate based on the length of the official correct order
+                        for i in range(len(official_ordered_texts)):
+                            if i < len(user_ordered_texts): # Check if user provided an answer for this position
                                 if user_ordered_texts[i].lower() == official_ordered_texts[i].lower():
                                     current_question_ordering_score += (q.points_per_correct_order or 0)
                                 else:
                                     is_full_match = False # Mismatch at this position
-                            else: # User answer is shorter than official
+                            else: # User answer is shorter than official answer, so not a full match
                                 is_full_match = False
 
-                        if len(user_ordered_texts) != len(official_ordered_texts): # Also a mismatch if lengths differ
-                            is_full_match = False
+                        # If after checking all items, it's still considered a full match and lengths were initially same
+                        if is_full_match and len(user_ordered_texts) == len(official_ordered_texts):
+                             # Ensure bonus is only added if there were items to order and points_per_correct_order was positive
+                            if (q.points_per_correct_order or 0) > 0 and len(official_ordered_texts) > 0:
+                                current_question_ordering_score += (q.bonus_for_full_order or 0)
+                            elif len(official_ordered_texts) == 0 and (q.bonus_for_full_order or 0) > 0: # Edge case: bonus for ordering zero items?
+                                current_question_ordering_score += (q.bonus_for_full_order or 0)
 
-                        if is_full_match:
-                            current_question_ordering_score += (q.bonus_for_full_order or 0)
 
                         question_score = current_question_ordering_score
 
+                elif question_type_name == 'SLIDER':
+                    app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Processing. Initial total_user_score_for_race for this question: {total_user_score_for_race}")
+                    app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: User answer: {user_answer.slider_answer_value}, Official answer: {official_answer.correct_slider_value if official_answer else 'N/A'}")
+                    app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Question config - points_exact: {q.slider_points_exact}, threshold_partial: {q.slider_threshold_partial}, points_partial: {q.slider_points_partial}")
+
+                    if user_answer.slider_answer_value is not None and official_answer and official_answer.correct_slider_value is not None:
+                        user_val = user_answer.slider_answer_value
+                        official_val = official_answer.correct_slider_value
+                        epsilon = 1e-9
+
+                        points_exact = q.slider_points_exact
+                        threshold_partial = q.slider_threshold_partial
+                        points_partial = q.slider_points_partial
+
+                        # This existing log is good
+                        app.logger.debug(
+                            f"calculate_and_store_scores - SLIDER QID {q.id} for User {user_id}: "
+                            f"UserVal={user_val}, OfficialVal={official_val}, "
+                            f"Q.slider_points_exact={points_exact}, "
+                            f"Q.slider_threshold_partial={threshold_partial}, "
+                            f"Q.slider_points_partial={points_partial}"
+                        )
+
+                        diff = abs(user_val - official_val)
+
+                        if diff < epsilon:  # Exact match
+                            if points_exact is not None:
+                                app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Exact match condition met. Configured points_exact: {points_exact}")
+                                question_score = points_exact
+                                app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Exact Match. Assigned question_score = {question_score}")
+                        elif threshold_partial is not None and threshold_partial >= 0 and \
+                             points_partial is not None and points_partial >= 0 and \
+                             diff <= (threshold_partial + epsilon):  # Partial match
+                            app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Partial match condition met. Configured points_partial: {points_partial}")
+                            question_score = points_partial
+                            app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Partial Match. Assigned question_score = {question_score}")
+                        else:
+                            app.logger.debug(f"calculate_and_store_scores - SLIDER QID {q.id} User {user_id}: No Match. Diff={diff}. Assigned question_score = 0 (implicitly)")
+                    else:
+                        app.logger.debug(
+                            f"calculate_and_store_scores - SLIDER QID {q.id} for User {user_id}: "
+                            f"User or official slider value is None or official_answer missing. UserVal: {user_answer.slider_answer_value}, OfficialVal: {official_answer.correct_slider_value if official_answer else 'N/A'}. Assigned question_score = 0 (implicitly)"
+                        )
+
+                app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: Final question_score for this question (type {question_type_name}) before adding to total: {question_score}")
+                app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: total_user_score_for_race BEFORE '{question_type_name}' Q_Score addition: {total_user_score_for_race}")
+                app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: question_score ('{question_type_name}') to be added: {question_score}")
                 total_user_score_for_race += question_score
-                app.logger.debug(f"User {user_id}, Q {q.id}, Type {question_type_name}, Q_Score {question_score}, Total_Score {total_user_score_for_race}")
+                app.logger.debug(f"SLIDER DIAGNOSTIC - QID {q.id}, User {user_id}: total_user_score_for_race AFTER '{question_type_name}' Q_Score addition: {total_user_score_for_race}")
+                # Existing general log line after processing all question types.
+                # app.logger.debug(f"User {user_id}, Q {q.id}, Type {question_type_name}, Q_Score {question_score}, Total_Score {total_user_score_for_race}") # This is a bit redundant now but harmless
 
 
             # Store or update UserScore

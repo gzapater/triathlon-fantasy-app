@@ -182,6 +182,18 @@ class QuestionType(db.Model):
     __tablename__ = 'question_types'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
+    # description = db.Column(db.String(255), nullable=True) # Reverted: Removed description
+
+    @classmethod
+    def get_or_create(cls, name): # Reverted: Removed description from params
+        instance = cls.query.filter_by(name=name).first()
+        if instance:
+            return instance, False
+        else:
+            instance = cls(name=name) # Reverted: Removed description from instantiation
+            db.session.add(instance)
+            db.session.commit()
+            return instance, True
 
     def __repr__(self):
         return f'<QuestionType {self.name}>'

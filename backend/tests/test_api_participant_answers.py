@@ -59,7 +59,15 @@ def create_test_question(db_session, race_id, q_type_id, text, **kwargs):
         points_per_incorrect_mc=kwargs.get('points_per_incorrect_mc', 0),
         total_score_mc_single=kwargs.get('total_score_mc_single'),
         points_per_correct_order=kwargs.get('points_per_correct_order'),
-        bonus_for_full_order=kwargs.get('bonus_for_full_order', 0)
+        bonus_for_full_order=kwargs.get('bonus_for_full_order', 0),
+        # Slider fields
+        slider_unit=kwargs.get('slider_unit'),
+        slider_min_value=kwargs.get('slider_min_value'),
+        slider_max_value=kwargs.get('slider_max_value'),
+        slider_step=kwargs.get('slider_step'),
+        slider_points_exact=kwargs.get('slider_points_exact'),
+        slider_threshold_partial=kwargs.get('slider_threshold_partial'),
+        slider_points_partial=kwargs.get('slider_points_partial')
     )
     db_session.add(question)
     db_session.commit()
@@ -126,8 +134,16 @@ def create_official_answer_mc_multiple(db_session, race_id, question_id, correct
 # The _calculate_score_for_answer helper uses the QuestionOption.correct_order_index.
 # For simplicity, we'll create an OfficialAnswer object for ordering questions too,
 # even if its fields aren't directly used by the scoring logic for ordering (which refers to QuestionOptions).
-def create_official_answer_ordering(db_session, race_id, question_id):
-    oa = OfficialAnswer(race_id=race_id, question_id=question_id) # answer_text could be the joined correct texts
+def create_official_answer_ordering(db_session, race_id, question_id, ordered_option_texts_list=None):
+    answer_text_value = None
+    if ordered_option_texts_list:
+        answer_text_value = ",".join(ordered_option_texts_list)
+
+    oa = OfficialAnswer(
+        race_id=race_id,
+        question_id=question_id,
+        answer_text=answer_text_value
+    )
     db_session.add(oa)
     db_session.commit()
     return oa
@@ -166,7 +182,10 @@ def setup_data_for_answers_test(db_session, new_user_factory, admin_user, league
     opt_ord_a = create_question_option(db_session, q_ord.id, "A", correct_order_index=0)
     opt_ord_b = create_question_option(db_session, q_ord.id, "B", correct_order_index=1)
     opt_ord_c = create_question_option(db_session, q_ord.id, "C", correct_order_index=2)
-    oa_ord = create_official_answer_ordering(db_session, race_closed.id, q_ord.id) # Official answer derived from options
+    # Construct the official answer text for ordering from the options
+    official_ordered_texts = [opt_ord_a.option_text, opt_ord_b.option_text, opt_ord_c.option_text]
+    oa_ord = create_official_answer_ordering(db_session, race_closed.id, q_ord.id, ordered_option_texts_list=official_ordered_texts)
+
 
     # User Registrations
     UserRaceRegistration.query.delete() # Clear any from other tests if db is not fully reset
@@ -323,6 +342,35 @@ def test_league_admin_access_owned_race_any_time(authenticated_client, setup_dat
     # If the quiniela is closed for race_closed:
     response_closed_other_owner = temp_client.get(f"/api/races/{data['race_closed'].id}/participants/{player.id}/answers")
     assert response_closed_other_owner.status_code == 200 # Current API logic would allow this as LA is an admin type role.
+
+
+def test_league_admin_access_owned_race_any_time(app, db_session, setup_data_for_answers_test): # Added app, db_session
+    """LEAGUE_ADMIN role accessing answers for a race they own, anytime -> 200."""
+    data = setup_data_for_answers_test
+    league_admin = data["league_admin_user"]
+    player = data["player_user"]
+
+    temp_client = app.test_client()
+    # Log in the specific league_admin user
+    with temp_client.session_transaction() as sess:
+        # Simulate login if your login mechanism relies on session
+        # This might need adjustment based on your actual login_user implementation details
+        # For a simple token/header based auth, this might not be needed if client sets headers
+        # Assuming Flask-Login:
+        user_obj = User.query.filter_by(username=league_admin.username).first()
+        # Can't call login_user directly here without request context.
+        # A common pattern is to post to login endpoint.
+    login_resp = temp_client.post('/api/login', json={'username': league_admin.username, 'password': 'league_password'})
+    assert login_resp.status_code == 200
+
+
+    # Scenario 1: Race Open (owned by this league_admin)
+    race_open = data["race_open"]
+    response_open = temp_client.get(f"/api/races/{race_open.id}/participants/{player.id}/answers")
+    assert response_open.status_code == 200
+
+    response_closed_other_owner = temp_client.get(f"/api/races/{data['race_closed'].id}/participants/{player.id}/answers")
+    assert response_closed_other_owner.status_code == 200
 
 
 # --- Data Structure and Content Tests ---
@@ -509,7 +557,7 @@ def test_get_answers_content_slider(authenticated_client, setup_data_for_answers
     assert slider_answer_detail["max_points_possible"] == q_slider.slider_points_exact # Max points is for exact
 
 
-def test_get_answers_unanswered_question(authenticated_client, db_session, setup_data_for_answers_test):
+def test_get_answers_unanswered_question(authenticated_client, db_session, setup_data_for_answers_test, new_user_factory):
     client, _ = authenticated_client("ADMIN")
     data = setup_data_for_answers_test
     race = data["race_closed"]
@@ -556,3 +604,53 @@ def test_get_answers_missing_official_answer(authenticated_client, db_session, s
     assert no_oa_answer_detail["is_correct"] is False # Cannot be correct if no official answer
     assert no_oa_answer_detail["points_obtained"] == 0
     assert no_oa_answer_detail["max_points_possible"] == q_no_oa.max_score_free_text
+
+
+def test_get_participant_answers_slider_question_max_points(
+    client, db_session, setup_data_for_answers_test, authenticated_client
+):
+    """
+    Test that max_points_possible is correctly reported for slider questions.
+    Uses the existing slider question from setup_data_for_answers_test.
+    """
+    admin_client, _ = authenticated_client("ADMIN") # Use admin client for full access
+    data = setup_data_for_answers_test
+    race = data["race_closed"]
+    player = data["player_user"]
+    q_slider = data["q_slider"] # This is the slider question from the fixture
+
+    # Ensure player is registered, though fixture should handle this
+    reg = UserRaceRegistration.query.filter_by(user_id=player.id, race_id=race.id).first()
+    if not reg:
+        db_session.add(UserRaceRegistration(user_id=player.id, race_id=race.id))
+        db_session.commit()
+
+    # Player's answer to slider is already created by setup_data_for_answers_test
+    # Official answer for slider is also created by setup_data_for_answers_test
+
+    response = admin_client.get(
+        f'/api/races/{race.id}/participants/{player.id}/answers'
+    )
+
+    assert response.status_code == 200
+    answers_data = response.json
+    assert isinstance(answers_data, list), "Response data should be a list"
+
+    slider_q_response_data = None
+    for item in answers_data:
+        if item['question_id'] == q_slider.id:
+            slider_q_response_data = item
+            break
+
+    assert slider_q_response_data is not None, f"Slider question (ID: {q_slider.id}) not found in response."
+    assert slider_q_response_data['question_type'] == 'SLIDER'
+
+    # This is the main assertion for the fix
+    assert slider_q_response_data['max_points_possible'] == q_slider.slider_points_exact, \
+        f"Expected max_points_possible to be {q_slider.slider_points_exact}, but got {slider_q_response_data['max_points_possible']}"
+
+    # Also verify other fields for completeness, using data from fixture
+    assert slider_q_response_data['participant_answer'] == 3.75 # Player answered 3.75 in fixture
+    assert slider_q_response_data['official_answer'] == data["oa_slider"].correct_slider_value # Official is 3.75
+    assert slider_q_response_data['points_obtained'] == q_slider.slider_points_exact # Exact match points
+    assert slider_q_response_data['is_correct'] is True # Exact match is correct
