@@ -1012,6 +1012,8 @@ def get_participant_answers(race_id, user_id):
                     opt = QuestionOption.query.get(official_answer_obj.selected_option_id)
                     if opt:
                         official_answer_formatted = {"id": opt.id, "text": opt.option_text}
+            elif question.question_type.name == 'SLIDER':
+                official_answer_formatted = official_answer_obj.correct_slider_value
 
         # Calculate max_points_possible
         max_points = 0
