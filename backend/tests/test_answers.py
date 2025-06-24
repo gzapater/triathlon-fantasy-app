@@ -110,7 +110,7 @@ def test_create_user_answer_mc_single_choice(db_session, registered_user_for_rac
     assert retrieved_answer.selected_option_id == option1.id
     assert retrieved_answer.answer_text is None
     assert retrieved_answer.selected_option == option1
-    assert option1.user_answers.count() == 1 # Check backref
+    assert len(option1.user_answers) == 1 # Check backref
 
 def test_create_user_answer_mc_multiple_choice(db_session, registered_user_for_race, question_factory, option_factory):
     user, race = registered_user_for_race
@@ -154,7 +154,7 @@ def test_create_user_answer_mc_multiple_choice(db_session, registered_user_for_r
     # Test relationships back from UAMCO
     assert uamco1.user_answer == retrieved_answer
     assert uamco1.question_option == option1
-    assert option1.user_selections.count() >= 1 # Check backref from QuestionOption to UAMCO
+    assert len(option1.user_selections) >= 1 # Check backref
 
 def test_user_answer_unique_constraint(db_session, registered_user_for_race, question_factory):
     user, race = registered_user_for_race
@@ -585,8 +585,8 @@ ordering_test_scenarios = [
 )
 def test_calculate_scores_for_ordering_questions(
     db_session,
-    sample_race_factory, # Use the existing factory from test_answers
-    user_factory,        # Use existing factory from conftest
+    sample_race_factory, # Use the existing factory
+    new_user_factory,    # Changed from user_factory to new_user_factory
     question_factory,    # Use existing factory, will set ordering specific fields manually
     option_factory,      # Use existing factory (named option_factory in this file)
     scenario_name,
@@ -597,7 +597,7 @@ def test_calculate_scores_for_ordering_questions(
 ):
     # 1. Setup
     # Use a unique username for each parametrized test run to avoid conflicts if user objects aren't fully isolated or cleaned up.
-    user = user_factory(username=f"user_{scenario_name.replace(' ', '_').lower()}_{datetime.utcnow().timestamp()}")
+    user = new_user_factory(username=f"user_{scenario_name.replace(' ', '_').lower()}_{datetime.utcnow().timestamp()}", email=f"user_{scenario_name.replace(' ', '_').lower()}_{datetime.utcnow().timestamp()}@test.com", password="testpassword", role_code="PLAYER") # Added missing args
     race = sample_race_factory(title=f"Race for {scenario_name}") # Ensure this factory creates a new race each time
 
     registration = UserRaceRegistration(user_id=user.id, race_id=race.id)

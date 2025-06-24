@@ -3,7 +3,7 @@ import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore # Added UserScore
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus # Added UserScore and RaceStatus
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -582,6 +582,7 @@ def get_race_questions(race_id):
 
     output = []
     for question in questions_query:
+        official_answer_formatted = None # Corrected indentation for the final time hopefully
         question_data = {
             "id": question.id,
             "text": question.text,
@@ -775,6 +776,40 @@ def get_race_share_link(race_id):
 
     return jsonify(share_link=share_link_path), 200
 
+@app.route('/api/races/<int:race_id>/archive', methods=['POST'])
+@login_required
+def archive_race(race_id):
+    app.logger.info(f"Archiving race_id: {race_id}")
+    # 1. Check user role
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        app.logger.warning(f"User {current_user.username} forbidden to archive race {race_id}")
+        return jsonify(message="Forbidden: You do not have permission to archive this race."), 403
+
+    # 2. Fetch the Race object
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Race with id {race_id} not found for archiving.")
+        return jsonify(message="Race not found"), 404
+
+    if race.is_deleted:
+        app.logger.info(f"Race with id {race_id} is logically deleted, cannot archive.")
+        return jsonify(message="Cannot archive a deleted race"), 400
+
+    if race.status == RaceStatus.ARCHIVED:
+        app.logger.info(f"Race with id {race_id} is already archived.")
+        return jsonify(message="Race already archived"), 200
+
+    try:
+        # 3. Perform archive
+        race.status = RaceStatus.ARCHIVED
+        db.session.commit()
+        app.logger.info(f"Race {race_id} archived and session committed successfully.")
+        return jsonify(message="Race archived successfully", race=race.to_dict()), 200
+    except Exception as e:
+        # 4. Handle potential errors
+        db.session.rollback()
+        app.logger.error(f"Exception archiving race {race_id}: {e}", exc_info=True)
+        return jsonify(message="Error archiving race"), 500
 
 @app.route('/api/races/<int:race_id>/basic_details', methods=['GET'])
 @login_required
@@ -2508,6 +2543,35 @@ def serve_hello_world_page():
     app.logger.info(f"[serve_hello_world_page] Valores obtenidos de sesión (después de pop): auto_join_race_id={auto_join_race_id_to_template}, race_to_join_title={race_to_join_title_to_template}")
     app.logger.info(f"[serve_hello_world_page] Sesión DESPUÉS de pop: {dict(session)}")
 
+    status_conditions = [] # Initialize status_conditions here
+    # Status filter
+    status_filters_str = request.args.getlist('status') # Get list of status strings
+    status_filters = []
+    if status_filters_str:
+        for s_str in status_filters_str:
+            try:
+                status_filters.append(RaceStatus[s_str.upper()])
+            except KeyError:
+                app.logger.warning(f"Invalid status filter value received: {s_str}")
+
+    if not status_filters: # Default filters if none provided or all invalid
+        status_filters = [RaceStatus.PLANNED, RaceStatus.ACTIVE]
+
+    # Build status_conditions based on valid status_filters
+    if RaceStatus.PLANNED in status_filters:
+        status_conditions.append(
+            (Race.status == RaceStatus.PLANNED) & \
+            ((Race.quiniela_close_date == None) | (Race.quiniela_close_date > datetime.utcnow()))
+        )
+    if RaceStatus.ACTIVE in status_filters:
+        status_conditions.append(
+            ((Race.status == RaceStatus.PLANNED) & \
+             (Race.quiniela_close_date != None) & (Race.quiniela_close_date <= datetime.utcnow())) | \
+            (Race.status == RaceStatus.ACTIVE)
+        )
+    if RaceStatus.ARCHIVED in status_filters:
+        status_conditions.append(Race.status == RaceStatus.ARCHIVED)
+
     # Keep existing filter and data fetching logic
     filter_date_from_str = request.args.get('filter_date_from')
     filter_date_to_str = request.args.get('filter_date_to')
@@ -2558,6 +2622,26 @@ def serve_hello_world_page():
         if race_format_id_int is not None:
             query_general_races = query_general_races.filter(Race.race_format_id == race_format_id_int)
 
+        # Apply status filters
+        # This logic needs to be adapted for each race list if they have different base queries
+        status_conditions = []
+        if RaceStatus.PLANNED in status_filters:
+            status_conditions.append(
+                (Race.status == RaceStatus.PLANNED) & \
+                ((Race.quiniela_close_date == None) | (Race.quiniela_close_date > datetime.utcnow()))
+            )
+        if RaceStatus.ACTIVE in status_filters:
+            status_conditions.append(
+                (Race.status == RaceStatus.PLANNED) & \
+                (Race.quiniela_close_date != None) & (Race.quiniela_close_date <= datetime.utcnow())
+            )
+        if RaceStatus.ARCHIVED in status_filters:
+            status_conditions.append(Race.status == RaceStatus.ARCHIVED)
+
+        if status_conditions:
+            query_general_races = query_general_races.filter(db.or_(*status_conditions))
+
+
         general_races_for_cards_query_result = []
         try:
             general_races_for_cards_query_result = query_general_races.order_by(Race.event_date.desc()).all()
@@ -2565,8 +2649,19 @@ def serve_hello_world_page():
             app.logger.error(f"Error fetching general races for admin dashboard cards: {e}")
 
         general_races_for_cards_dicts = []
-        for race in general_races_for_cards_query_result:
-            race_dict = race.to_dict()
+        for race_obj in general_races_for_cards_query_result: # Renamed race to race_obj to avoid conflict
+            # Dynamically determine status for display if not archived
+            if race_obj.status != RaceStatus.ARCHIVED:
+                if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow():
+                    current_status_val = RaceStatus.ACTIVE.value
+                else:
+                    current_status_val = RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val # Update status in dict for template
+
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
@@ -2575,11 +2670,14 @@ def serve_hello_world_page():
                         close_date_obj = datetime.fromisoformat(qcd_str.replace('Z', '+00:00'))
                     else:
                         close_date_obj = datetime.fromisoformat(qcd_str)
-                    # Assuming quiniela_close_date is stored as naive UTC
-                    if close_date_obj > datetime.utcnow():
-                        is_quiniela_actionable = False
+                    if close_date_obj.tzinfo is None: # Assuming naive UTC from DB
+                        if close_date_obj > datetime.utcnow():
+                            is_quiniela_actionable = False
+                    else: # If it's offset-aware, compare with offset-aware now
+                        if close_date_obj > datetime.now(close_date_obj.tzinfo):
+                             is_quiniela_actionable = False
                 except ValueError as ve:
-                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race.id}: {ve}")
+                    app.logger.error(f"Error parsing quiniela_close_date '{race_dict['quiniela_close_date']}' for race {race_obj.id}: {ve}")
                     is_quiniela_actionable = True # Defaulting to true if parsing fails
             race_dict['is_quiniela_actionable'] = is_quiniela_actionable
             general_races_for_cards_dicts.append(race_dict)
@@ -2629,11 +2727,21 @@ def serve_hello_world_page():
         if date_from_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date >= date_from_obj)
         if date_to_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None: organized_races_query_for_display = organized_races_query_for_display.filter(Race.race_format_id == race_format_id_int)
+
+        # Apply status filters for organized_races
+        if status_conditions:
+            organized_races_query_for_display = organized_races_query_for_display.filter(db.or_(*status_conditions))
+
         organized_races_result_for_display = organized_races_query_for_display.order_by(Race.event_date.desc()).all()
 
         organized_races_dicts = []
-        for race in organized_races_result_for_display: # Use the filtered list for display
-            race_dict = race.to_dict()
+        for race_obj in organized_races_result_for_display: # Use the filtered list for display, Renamed race to race_obj
+            if race_obj.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
@@ -2659,11 +2767,21 @@ def serve_hello_world_page():
             if date_from_obj: participating_races_query = participating_races_query.filter(Race.event_date >= date_from_obj)
             if date_to_obj: participating_races_query = participating_races_query.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: participating_races_query = participating_races_query.filter(Race.race_format_id == race_format_id_int)
+
+            # Apply status filters for participating_races
+            if status_conditions:
+                participating_races_query = participating_races_query.filter(db.or_(*status_conditions))
+
             participating_races_result = participating_races_query.order_by(Race.event_date.desc()).all()
 
         participating_races_dicts = []
-        for race in participating_races_result:
-            race_dict = race.to_dict()
+        for race_obj in participating_races_result: # Renamed race to race_obj
+            if race_obj.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
@@ -2687,11 +2805,21 @@ def serve_hello_world_page():
             if date_from_obj: favorite_races_query = favorite_races_query.filter(Race.event_date >= date_from_obj)
             if date_to_obj: favorite_races_query = favorite_races_query.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: favorite_races_query = favorite_races_query.filter(Race.race_format_id == race_format_id_int)
+
+            # Apply status filters for favorite_races
+            if status_conditions:
+                favorite_races_query = favorite_races_query.filter(db.or_(*status_conditions))
+
             favorite_races_result = favorite_races_query.order_by(Race.event_date.desc()).all()
 
         favorite_races_dicts = []
-        for race in favorite_races_result:
-            race_dict = race.to_dict()
+        for race_obj in favorite_races_result: # Renamed race to race_obj
+            if race_obj.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
@@ -2735,6 +2863,10 @@ def serve_hello_world_page():
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
 
+        # Apply status filters for registered_races (PLAYER)
+        if status_conditions:
+            query = query.filter(db.or_(*status_conditions))
+
         registered_races_query_result = []
         try:
             registered_races_query_result = query.order_by(Race.event_date.desc()).all()
@@ -2742,8 +2874,13 @@ def serve_hello_world_page():
             app.logger.error(f"Error fetching registered races for player {current_user.id}: {e}")
 
         registered_races_dicts = []
-        for race in registered_races_query_result:
-            race_dict = race.to_dict()
+        for race_obj in registered_races_query_result: # Renamed race to race_obj
+            if race_obj.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
@@ -2771,14 +2908,23 @@ def serve_hello_world_page():
             if date_to_obj: query_fav_races = query_fav_races.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: query_fav_races = query_fav_races.filter(Race.race_format_id == race_format_id_int)
 
+            # Apply status filters for favorite_races (PLAYER)
+            if status_conditions:
+                query_fav_races = query_fav_races.filter(db.or_(*status_conditions))
+
             try:
                 favorite_races_query_result = query_fav_races.order_by(Race.event_date.desc()).all()
             except Exception as e:
                 app.logger.error(f"Error fetching favorite races for player {current_user.id}: {e}")
 
         favorite_races_dicts = []
-        for race in favorite_races_query_result:
-            race_dict = race.to_dict()
+        for race_obj in favorite_races_query_result: # Renamed race to race_obj
+            if race_obj.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val
             # is_quiniela_actionable logic can be copied if needed for favorite cards too
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
@@ -2800,6 +2946,10 @@ def serve_hello_world_page():
         if date_to_obj: query_destacadas = query_destacadas.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None: query_destacadas = query_destacadas.filter(Race.race_format_id == race_format_id_int)
 
+        # Apply status filters for destacadas_races (PLAYER)
+        if status_conditions:
+            query_destacadas = query_destacadas.filter(db.or_(*status_conditions))
+
         destacadas_races_query_result = []
         try:
             destacadas_races_query_result = query_destacadas.order_by(Race.event_date.desc()).limit(6).all() # Example: Limit to 6
@@ -2807,8 +2957,13 @@ def serve_hello_world_page():
             app.logger.error(f"Error fetching destacadas races for player {current_user.id}: {e}")
 
         destacadas_races_dicts = []
-        for race in destacadas_races_query_result:
-            race_dict = race.to_dict()
+        for race_obj in destacadas_races_query_result: # Renamed race to race_obj
+            if race_obj.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj.quiniela_close_date and race_obj.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj.to_dict()
+            race_dict['status'] = current_status_val
             # is_quiniela_actionable logic can be copied if needed
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
@@ -2846,6 +3001,11 @@ def serve_hello_world_page():
             query = query.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
+
+        # Apply status filters for fallback case
+        if status_conditions:
+            query = query.filter(db.or_(*status_conditions))
+
         all_races_query_result = []
         try:
             all_races_query_result = query.order_by(Race.event_date.desc()).all() # Keep variable name all_races for consistency in this block
@@ -2853,8 +3013,13 @@ def serve_hello_world_page():
             app.logger.error(f"Error fetching general races for fallback/unhandled role: {e}")
 
         all_races_dicts_fallback = []
-        for race_obj in all_races_query_result: # Renamed to avoid conflict with outer all_races
-            race_dict = race_obj.to_dict()
+        for race_obj_fallback in all_races_query_result: # Renamed to avoid conflict with outer all_races and inner loops
+            if race_obj_fallback.status != RaceStatus.ARCHIVED: # Dynamic status determination
+                current_status_val = RaceStatus.ACTIVE.value if race_obj_fallback.quiniela_close_date and race_obj_fallback.quiniela_close_date <= datetime.utcnow() else RaceStatus.PLANNED.value
+            else:
+                current_status_val = RaceStatus.ARCHIVED.value
+            race_dict = race_obj_fallback.to_dict()
+            race_dict['status'] = current_status_val
             is_quiniela_actionable = True
             if race_dict.get('quiniela_close_date'):
                 try:
@@ -3033,23 +3198,34 @@ def serve_race_detail_page(race_id):
     # Determine quiniela actionability for the single race object
     is_quiniela_actionable_detail = True # Default to True
     if race.quiniela_close_date:
-        # race.quiniela_close_date is a datetime object (naive UTC assumed as per model setup)
-        # datetime.utcnow() is also naive UTC
         if race.quiniela_close_date > datetime.utcnow():
             is_quiniela_actionable_detail = False
-    # No else needed, default is True if quiniela_close_date is None or in the past
+
+    # Dynamically determine status for display if not archived for the race detail page
+    race_display_status = race.status.value
+    if race.status != RaceStatus.ARCHIVED:
+        if race.quiniela_close_date and race.quiniela_close_date <= datetime.utcnow():
+            race_display_status = RaceStatus.ACTIVE.value
+        else:
+            race_display_status = RaceStatus.PLANNED.value
+
+    # The race object passed to the template will have its original status from DB.
+    # We pass race_display_status separately for the template to use.
+    # Alternatively, we could modify a copy of the race object or its dict representation.
+    # For simplicity here, passing it as a separate variable.
 
     return render_template('race_detail.html',
-                           race=race,
+                           race=race, # This still carries the original DB status
+                           race_display_status=race_display_status, # Pass the dynamically determined status
                            current_year=current_year,
                            currentUserRole=user_role_code,
                            is_user_registered_for_race=is_user_registered_for_race,
                            has_user_answered_pool=has_user_answered_pool,
-                           num_total_questions_pool=num_total_questions_pool, # Add this
-                           num_answered_questions_pool=num_answered_questions_pool, # Add this
+                           num_total_questions_pool=num_total_questions_pool,
+                           num_answered_questions_pool=num_answered_questions_pool,
                            is_quiniela_actionable=is_quiniela_actionable_detail,
-                           is_favorite=is_favorite, # Add this new variable
-                           current_time_utc=current_time_utc) # Pass current_time_utc to template
+                           is_favorite=is_favorite,
+                           current_time_utc=current_time_utc)
 
 # --- API Endpoint for Saving User Answers ---
 @app.route('/api/races/<int:race_id>/answers', methods=['POST'])

@@ -1,5 +1,5 @@
 import pytest
-from backend.models import db, Race, FavoriteLink, User # Assuming User model is needed for race creation context
+from backend.models import db, Race, FavoriteLink, User, RaceFormat # Assuming User model is needed for race creation context
 from datetime import datetime
 
 def test_favorite_link_creation(db_session, sample_race):

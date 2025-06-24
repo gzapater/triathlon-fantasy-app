@@ -1,6 +1,6 @@
 import pytest
 # Removed top-level: from backend.app import app as flask_app
-from backend.models import db as _db, User, Role, RaceFormat, Segment, Race # Added Race
+from backend.models import db as _db, User, Role, RaceFormat, Segment, Race, QuestionType, UserRaceRegistration, Question # Added Race, QuestionType, UserRaceRegistration, Question
 from datetime import datetime
 import os # Ensure os is imported
 
@@ -12,6 +12,7 @@ def app():
     os.environ['DATABASE_URL'] = 'sqlite:///:memory:' # Test with in-memory SQLite
 
     from backend.app import app as flask_app_instance # Import app here, use a distinct name
+    # from backend.models import QuestionType # Import QuestionType here for the factory # No longer needed here, imported globally
 
     flask_app_instance.config.update({
         "TESTING": True,
@@ -47,9 +48,21 @@ def app():
             if not Segment.query.filter_by(name=name).first():
                 _db.session.add(Segment(name=name))
 
+        # Seed initial question types
+        question_types_data = ["FREE_TEXT", "MULTIPLE_CHOICE", "ORDERING", "SLIDER"]
+        for qt_name in question_types_data:
+            if not QuestionType.query.filter_by(name=qt_name).first():
+                _db.session.add(QuestionType(name=qt_name))
+
+
         _db.session.commit()
 
         yield flask_app_instance
+
+        # Removed upgrade() call as it was causing issues with table recreation.
+        # _db.create_all() should handle schema based on models.
+        # from flask_migrate import upgrade
+        # upgrade()
 
         _db.session.remove()
         _db.drop_all()
@@ -60,22 +73,54 @@ def client(app):
     """A test client for the app."""
     return app.test_client()
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def db_session(app):
     """
-    Provides a database session for tests, ensuring data is clean.
-    This version assumes the app context and initial seeding handle setup.
-    For test isolation, you might wrap tests in transactions and roll back,
-    or ensure clean_db is called more granularly if needed.
+    Provides a database session for each test, with per-test transaction rollback.
+    Ensures test isolation.
     """
     with app.app_context():
-        yield _db.session # Provide the session for use in tests
-        # Clean up after test, if necessary, though test isolation is key
-        # For in-memory, the DB is fresh per session with the app fixture.
-        # If using a persistent DB for tests, more aggressive cleanup would be needed here or per test.
+        # Clean and recreate database for each test function
+        _db.session.remove()
+        _db.drop_all()
+        _db.create_all()
 
-@pytest.fixture(scope="session")
-def new_user_factory(db_session):
+        # Seed initial roles
+        roles_data = [
+            {'code': 'ADMIN', 'description': 'Administrador'},
+            {'code': 'LEAGUE_ADMIN', 'description': 'Admin de Liga'},
+            {'code': 'PLAYER', 'description': 'Jugador'}
+        ]
+        for role_info in roles_data:
+            if not Role.query.filter_by(code=role_info['code']).first():
+                _db.session.add(Role(code=role_info['code'], description=role_info['description']))
+
+        # Seed initial race formats and segments
+        race_formats_data = ["Triatlón", "Duatlón", "Acuatlón", "Standard"] # Ensure "Standard" is here
+        segments_data = ["Natación", "Ciclismo", "Carrera a pie", "Transición 1 (T1)", "Transición 2 (T2)"]
+
+        for name in race_formats_data:
+            if not RaceFormat.query.filter_by(name=name).first():
+                _db.session.add(RaceFormat(name=name))
+
+        for name in segments_data:
+            if not Segment.query.filter_by(name=name).first():
+                _db.session.add(Segment(name=name))
+
+        # Seed initial question types
+        question_types_data = ["FREE_TEXT", "MULTIPLE_CHOICE", "ORDERING", "SLIDER"]
+        for qt_name in question_types_data:
+            if not QuestionType.query.filter_by(name=qt_name).first():
+                _db.session.add(QuestionType(name=qt_name))
+
+        _db.session.commit()
+
+        yield _db.session
+
+        _db.session.remove() # Ensure session is removed after test
+
+@pytest.fixture(scope="function") # Uses function-scoped db_session
+def new_user_factory(db_session): # db_session here will be the function-scoped one
     """Factory to create new users with specific roles."""
     def create_user(username, email, password, role_code):
         role = Role.query.filter_by(code=role_code).first()
@@ -89,19 +134,19 @@ def new_user_factory(db_session):
         return user
     return create_user
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function") # Changed from session to function
 def admin_user(new_user_factory):
     return new_user_factory("admin_user", "admin@test.com", "admin_password", "ADMIN")
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function") # Changed from session to function
 def league_admin_user(new_user_factory):
     return new_user_factory("league_admin_user", "league_admin@test.com", "league_password", "LEAGUE_ADMIN")
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function") # Changed from session to function
 def player_user(new_user_factory):
     return new_user_factory("player_user", "player@test.com", "player_password", "PLAYER")
 
-@pytest.fixture
+@pytest.fixture # Already function-scoped, depends on new_user_factory which is now function-scoped
 def authenticated_client(client, new_user_factory):
     """Factory for creating an authenticated client with a specific role."""
     def _authenticated_client(role_code):
@@ -162,23 +207,44 @@ def race_creation_payload_factory(db_session):
 def sample_race(db_session, admin_user):
     """A sample race created in the DB for tests that need an existing race."""
     tri_format = RaceFormat.query.filter_by(name="Triatlón").first()
+    # The db_session fixture now handles seeding, so tri_format should exist.
+    # If it might not (e.g. if a test deletes it), add it back:
     if not tri_format:
-        tri_format = RaceFormat(name="Triatlón"); db_session.add(tri_format); db_session.commit()
+        tri_format = RaceFormat(name="Triatlón")
+        db_session.add(tri_format)
+        # We might not want to commit here if other fixtures also commit;
+        # rely on the main commit at the end of this fixture or test.
+
+    from backend.models import RaceStatus # Import RaceStatus enum
 
     race = Race(
         title="Default Test Race",
         description="A default race for testing purposes.",
         race_format_id=tri_format.id,
-        event_date=datetime.strptime("2024-12-01", "%Y-%m-%d"),
+        event_date=datetime(2024, 12, 1), # Use datetime object
         location="Default Test City",
-        user_id=admin_user.id, # Owned by admin_user by default
-        is_general=False, # Default to local, tests can override if needed or create specific ones
+        user_id=admin_user.id,
+        is_general=False,
         gender_category="Ambos",
-        category="Elite"
+        category="Elite",
+        quiniela_close_date=datetime(2024, 11, 15, 23, 59, 59), # Use datetime object
+        is_deleted=False,
+        status=RaceStatus.PLANNED # Use Enum member
     )
     db_session.add(race)
     db_session.commit()
     return race
+
+@pytest.fixture
+def question_type_factory(db_session): # Moved from test_answers.py
+    def _factory(name):
+        qt = QuestionType.query.filter_by(name=name).first()
+        if not qt:
+            qt = QuestionType(name=name) # Ensure QuestionType is imported in conftest or models
+            db_session.add(qt)
+            db_session.commit()
+        return qt
+    return _factory
 
 @pytest.fixture(scope='function')
 def new_admin_user(admin_user): # Alias admin_user to new_admin_user
@@ -204,7 +270,7 @@ def sample_slider_question(db_session, sample_race, admin_user):
 
     slider_type = QuestionType.query.filter_by(name="SLIDER").first()
     if not slider_type:
-        slider_type = QuestionType(name="SLIDER", description="Slider question type")
+        slider_type = QuestionType(name="SLIDER") # Removed description
         db_session.add(slider_type)
         db_session.commit()
 
@@ -224,3 +290,28 @@ def sample_slider_question(db_session, sample_race, admin_user):
     db_session.add(question)
     db_session.commit()
     return question
+
+@pytest.fixture
+def sample_free_text_question(db_session, sample_race, question_type_factory): # Added question_type_factory
+    """A sample free text question."""
+    ft_type = question_type_factory("FREE_TEXT")
+    question = Question(
+        race_id=sample_race.id,
+        question_type_id=ft_type.id,
+        text="Sample Free Text Question",
+        is_active=True,
+        max_score_free_text=10
+    )
+    db_session.add(question)
+    db_session.commit()
+    return question
+
+@pytest.fixture
+def sample_race_registration(db_session, player_user, sample_race): # Moved from test_answers.py
+    """Registers player_user for sample_race."""
+    registration = UserRaceRegistration.query.filter_by(user_id=player_user.id, race_id=sample_race.id).first()
+    if not registration:
+        registration = UserRaceRegistration(user_id=player_user.id, race_id=sample_race.id)
+        db_session.add(registration)
+        db_session.commit()
+    return registration

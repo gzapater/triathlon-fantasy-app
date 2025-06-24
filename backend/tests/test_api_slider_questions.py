@@ -1,10 +1,10 @@
 import pytest
 from flask import jsonify
-from backend.models import db, Race, Question, QuestionType, User, Role
+from backend.models import db, Race, Question, QuestionType, User, Role # Assuming User and Role are used by authenticated_user_admin
 
-def test_create_slider_question_success(client, authenticated_user_admin, sample_race):
+def test_create_slider_question_success(authenticated_client, sample_race): # Changed fixture
     """Test creating a slider question successfully."""
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, admin_user = authenticated_client("ADMIN") # Use the factory
 
     race_id = sample_race.id
     payload = {
@@ -19,7 +19,7 @@ def test_create_slider_question_success(client, authenticated_user_admin, sample
         "slider_points_partial": 50
     }
 
-    response = client.post(f'/api/races/{race_id}/questions/slider', json=payload, headers=headers)
+    response = client.post(f'/api/races/{race_id}/questions/slider', json=payload) # Removed headers, client handles auth
 
     assert response.status_code == 201
     data = response.get_json()
@@ -37,14 +37,14 @@ def test_create_slider_question_success(client, authenticated_user_admin, sample
     assert question_in_db is not None
     assert question_in_db.question_type.name == 'SLIDER'
 
-def test_create_slider_question_invalid_data(client, authenticated_user_admin, sample_race):
+def test_create_slider_question_invalid_data(authenticated_client, sample_race): # Changed fixture
     """Test creating a slider question with invalid data."""
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, _ = authenticated_client("ADMIN") # Use the factory
     race_id = sample_race.id
 
     # Missing required fields
     payload_missing = {"text": "Test"}
-    response_missing = client.post(f'/api/races/{race_id}/questions/slider', json=payload_missing, headers=headers)
+    response_missing = client.post(f'/api/races/{race_id}/questions/slider', json=payload_missing) # Removed headers
     assert response_missing.status_code == 400
 
     # Min value >= Max value
@@ -52,7 +52,7 @@ def test_create_slider_question_invalid_data(client, authenticated_user_admin, s
         "text": "Min Max Test", "slider_min_value": 50.0, "slider_max_value": 10.0,
         "slider_step": 1.0, "slider_points_exact": 10
     }
-    response_min_max = client.post(f'/api/races/{race_id}/questions/slider', json=payload_min_max, headers=headers)
+    response_min_max = client.post(f'/api/races/{race_id}/questions/slider', json=payload_min_max) # Removed headers
     assert response_min_max.status_code == 400
     assert "slider_min_value must be less than slider_max_value" in response_min_max.get_json()['message']
 
@@ -61,7 +61,7 @@ def test_create_slider_question_invalid_data(client, authenticated_user_admin, s
         "text": "Step Test", "slider_min_value": 10.0, "slider_max_value": 50.0,
         "slider_step": 0, "slider_points_exact": 10
     }
-    response_step = client.post(f'/api/races/{race_id}/questions/slider', json=payload_step, headers=headers)
+    response_step = client.post(f'/api/races/{race_id}/questions/slider', json=payload_step) # Removed headers
     assert response_step.status_code == 400
     assert "slider_step must be a positive number" in response_step.get_json()['message']
 
@@ -70,12 +70,12 @@ def test_create_slider_question_invalid_data(client, authenticated_user_admin, s
         "text": "Points Test", "slider_min_value": 10.0, "slider_max_value": 50.0,
         "slider_step": 1.0, "slider_points_exact": "not-a-number"
     }
-    response_points = client.post(f'/api/races/{race_id}/questions/slider', json=payload_points, headers=headers)
+    response_points = client.post(f'/api/races/{race_id}/questions/slider', json=payload_points) # Removed headers
     assert response_points.status_code == 400 # Expecting validation for integer type
 
-def test_update_slider_question_success(client, authenticated_user_admin, sample_slider_question):
+def test_update_slider_question_success(authenticated_client, sample_slider_question): # Changed fixture
     """Test updating a slider question successfully."""
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, _ = authenticated_client("ADMIN") # Use the factory
     question_id = sample_slider_question.id
 
     payload = {
@@ -90,7 +90,7 @@ def test_update_slider_question_success(client, authenticated_user_admin, sample
         "slider_points_partial": 75
     }
 
-    response = client.put(f'/api/questions/slider/{question_id}', json=payload, headers=headers)
+    response = client.put(f'/api/questions/slider/{question_id}', json=payload) # Removed headers
 
     assert response.status_code == 200
     data = response.get_json()
@@ -108,13 +108,13 @@ def test_update_slider_question_success(client, authenticated_user_admin, sample
     assert question_in_db.text == payload['text']
     assert question_in_db.slider_unit == payload['slider_unit']
 
-def test_update_slider_question_partial_update(client, authenticated_user_admin, sample_slider_question):
+def test_update_slider_question_partial_update(authenticated_client, sample_slider_question): # Changed fixture
     """Test partially updating a slider question."""
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, _ = authenticated_client("ADMIN") # Use the factory
     question_id = sample_slider_question.id
 
     payload = {"slider_points_exact": 200}
-    response = client.put(f'/api/questions/slider/{question_id}', json=payload, headers=headers)
+    response = client.put(f'/api/questions/slider/{question_id}', json=payload) # Removed headers
 
     assert response.status_code == 200
     data = response.get_json()
@@ -123,49 +123,49 @@ def test_update_slider_question_partial_update(client, authenticated_user_admin,
     assert data['text'] == sample_slider_question.text
     assert data['slider_min_value'] == sample_slider_question.slider_min_value
 
-def test_update_slider_question_invalid_data(client, authenticated_user_admin, sample_slider_question):
+def test_update_slider_question_invalid_data(authenticated_client, sample_slider_question): # Changed fixture
     """Test updating a slider question with invalid data."""
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, _ = authenticated_client("ADMIN") # Use the factory
     question_id = sample_slider_question.id
 
     payload_min_max = {"slider_min_value": 60.0, "slider_max_value": 10.0}
-    response_min_max = client.put(f'/api/questions/slider/{question_id}', json=payload_min_max, headers=headers)
+    response_min_max = client.put(f'/api/questions/slider/{question_id}', json=payload_min_max) # Removed headers
     assert response_min_max.status_code == 400
     assert "slider_min_value must be less than slider_max_value" in response_min_max.get_json()['message']
 
-def test_update_non_slider_question_via_slider_endpoint(client, authenticated_user_admin, sample_free_text_question):
+def test_update_non_slider_question_via_slider_endpoint(authenticated_client, sample_free_text_question): # Changed fixture
     """Test updating a non-slider question via slider endpoint."""
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, _ = authenticated_client("ADMIN") # Use the factory
     question_id = sample_free_text_question.id # This is a FREE_TEXT question
 
     payload = {"slider_points_exact": 100}
-    response = client.put(f'/api/questions/slider/{question_id}', json=payload, headers=headers)
+    response = client.put(f'/api/questions/slider/{question_id}', json=payload) # Removed headers
     assert response.status_code == 400 # Expecting error as it's not a slider question
     assert "Cannot update non-SLIDER question via this endpoint" in response.get_json()['message']
 
-def test_update_slider_question_not_found(client, authenticated_user_admin):
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
-    response = client.put('/api/questions/slider/99999', json={"text": "test"}, headers=headers)
+def test_update_slider_question_not_found(authenticated_client): # Changed fixture
+    client, _ = authenticated_client("ADMIN") # Use the factory
+    response = client.put('/api/questions/slider/99999', json={"text": "test"}) # Removed headers
     assert response.status_code == 404
 
-def test_create_slider_question_unauthorized(client, sample_race):
+def test_create_slider_question_unauthorized(client, sample_race): # client fixture is unauthenticated
     race_id = sample_race.id
     payload = {"text": "Test"}
     response = client.post(f'/api/races/{race_id}/questions/slider', json=payload) # No auth header
-    assert response.status_code == 401 # Or 302 if redirecting to login
+    assert response.status_code == 401
 
-def test_update_slider_question_unauthorized(client, sample_slider_question):
+def test_update_slider_question_unauthorized(client, sample_slider_question): # client fixture is unauthenticated
     question_id = sample_slider_question.id
     payload = {"text": "Test"}
     response = client.put(f'/api/questions/slider/{question_id}', json=payload) # No auth header
-    assert response.status_code == 401 # Or 302
+    assert response.status_code == 401
 
-def test_get_race_questions_includes_slider_attributes(client, authenticated_user_admin, sample_race, sample_slider_question, db_session):
+def test_get_race_questions_includes_slider_attributes(authenticated_client, sample_race, sample_slider_question, db_session): # Changed fixture
     """
     Test that GET /api/races/<race_id>/questions includes all slider-specific attributes
     for slider questions.
     """
-    headers = {'Authorization': f'Bearer {authenticated_user_admin["access_token"]}'}
+    client, _ = authenticated_client("ADMIN") # Use the factory
     race_id = sample_race.id # The race associated with sample_slider_question
 
     # Ensure sample_slider_question is associated with sample_race
@@ -174,7 +174,7 @@ def test_get_race_questions_includes_slider_attributes(client, authenticated_use
     # db_session.add(sample_slider_question)
     # db_session.commit()
 
-    response = client.get(f'/api/races/{race_id}/questions', headers=headers)
+    response = client.get(f'/api/races/{race_id}/questions') # Removed headers
     assert response.status_code == 200
 
     data = response.get_json()

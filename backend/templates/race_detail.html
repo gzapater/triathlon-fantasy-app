@@ -220,8 +220,9 @@
                     <div class="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.race_format.name | default('Formato no especificado') }}</span>
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.gender_category | default('N/A') }}</span>
-                        <!-- Example status badge - make dynamic later if needed -->
-                        <span class="bg-green-500 px-3 py-1 rounded-full text-xs sm:text-sm">Activa</span>
+                        <span id="raceStatusBadge" class="px-3 py-1 rounded-full text-xs sm:text-sm">
+                            {# Status will be set by JS based on race_display_status #}
+                        </span>
                     </div>
                     <div class="flex items-center justify-center lg:justify-start mb-3"> <!-- Added a wrapper for icon and title -->
                         <span id="favoriteRaceIcon"
@@ -257,6 +258,9 @@
                         </button>
                         <button id="deleteRaceBtn" class="btn bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-trash-alt mr-2"></i>Eliminar Carrera
+                        </button>
+                        <button id="archiveRaceBtn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-archive mr-2"></i>Archivar Carrera
                         </button>
                         <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
@@ -573,6 +577,7 @@
         const raceId = "{{ race.id | default('') }}";
         const raceEventDateString = "{{ race.event_date.isoformat() if race.event_date else '' }}";
         const raceTitle = {{ race.title | tojson }};
+        const raceDisplayStatus = "{{ race_display_status | default('PLANNED') }}"; // Added for dynamic status display
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
         const isUserRegisteredForRace = {{ is_user_registered_for_race | tojson }};
         const hasUserAnsweredPool = {{ has_user_answered_pool | tojson }}; // Added this line
@@ -2884,6 +2889,32 @@
             const shareableLinkInput = document.getElementById('shareableLinkInput');
             const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
             const copyShareLinkFeedback = document.getElementById('copyShareLinkFeedback');
+            const archiveRaceBtn = document.getElementById('archiveRaceBtn');
+
+            function updateRaceStatusBadge() {
+                const badge = document.getElementById('raceStatusBadge');
+                if (!badge) return;
+
+                let statusText = 'Desconocido';
+                let bgColor = 'bg-gray-500'; // Default
+                let textColor = 'text-white';
+
+                if (raceDisplayStatus === 'PLANNED') {
+                    statusText = 'Planeada';
+                    bgColor = 'bg-blue-500';
+                } else if (raceDisplayStatus === 'ACTIVE') {
+                    statusText = 'Activa';
+                    bgColor = 'bg-green-500';
+                } else if (raceDisplayStatus === 'ARCHIVED') {
+                    statusText = 'Archivada';
+                    bgColor = 'bg-gray-700';
+                     if(archiveRaceBtn) archiveRaceBtn.style.display = 'none'; // Hide archive button if already archived
+                }
+                badge.textContent = statusText;
+                badge.className = `px-3 py-1 rounded-full text-xs sm:text-sm ${bgColor} ${textColor}`;
+            }
+            updateRaceStatusBadge(); // Call on load
+
 
             // Event listener for the unanswered questions warning
             const unansweredWarningDiv = document.getElementById('unansweredQuestionsWarning');
@@ -2910,6 +2941,59 @@
                     // for loading answers is triggered.
                     // Given the current structure, clicking `reviewUserAnswersBtn` seems more robust
                     // as it's already set up to open the modal and load answers.
+                });
+            }
+
+            if (archiveRaceBtn) {
+                archiveRaceBtn.addEventListener('click', function() {
+                    if (!raceId) {
+                        showNotificationModal('Error', 'ID de la carrera no disponible para archivar.', 'error');
+                        return;
+                    }
+                    if (raceDisplayStatus === 'ARCHIVED') {
+                        showNotificationModal('Información', 'Esta carrera ya está archivada.', 'info');
+                        return;
+                    }
+
+                    showConfirmDeleteRaceModal( // Re-using delete confirmation modal structure for now
+                        'Confirmar Archivar Carrera',
+                        '¿Estás seguro de que quieres archivar esta carrera? Una vez archivada, no se podrá modificar su estado fácilmente desde la UI estándar.', // Customize message
+                        () => { // Callback function for confirmation
+                            archiveRaceBtn.disabled = true;
+                            archiveRaceBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Archivando...';
+
+                            fetch(`/api/races/${raceId}/archive`, { method: 'POST' })
+                                .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                                .then(result => {
+                                    if (result.ok) {
+                                        showNotificationModal('Éxito', result.body.message || 'Carrera archivada con éxito.', 'success');
+                                        // Update UI to reflect archived status
+                                        // Assuming raceDisplayStatus is a global or accessible variable updated by this action
+                                        // raceDisplayStatus = 'ARCHIVED'; // This won't work as it's a const from template
+                                        // Instead, directly update the badge and hide button
+                                        const badge = document.getElementById('raceStatusBadge');
+                                        if (badge) {
+                                            badge.textContent = 'Archivada';
+                                            badge.className = 'px-3 py-1 rounded-full text-xs sm:text-sm bg-gray-700 text-white';
+                                        }
+                                        archiveRaceBtn.style.display = 'none'; // Hide button
+                                        // Potentially disable other actions like "Edit Details", "Add Question" etc.
+                                        // For a full UI update, a page reload or more complex state management would be needed.
+                                        // For now, just updating badge and hiding button.
+                                    } else {
+                                        showNotificationModal('Error', `Error al archivar: ${result.body.message || `Error ${result.status}`}`, 'error');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error archiving race:', error);
+                                    showNotificationModal('Error de Conexión', 'Error de conexión al archivar la carrera.', 'error');
+                                })
+                                .finally(() => {
+                                    archiveRaceBtn.disabled = false;
+                                    archiveRaceBtn.innerHTML = '<i class="fas fa-archive mr-2"></i>Archivar Carrera';
+                                });
+                        }
+                    );
                 });
             }
 

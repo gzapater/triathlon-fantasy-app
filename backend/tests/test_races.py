@@ -1405,3 +1405,108 @@ def test_delete_non_existent_question(authenticated_client):
     response = admin_client.delete(f'/api/questions/{non_existent_q_id}')
     assert response.status_code == 404
     assert "Question not found" in response.get_json()["message"]
+
+
+# --- Race Status and Archiving Tests ---
+
+def test_archive_race_success_admin(authenticated_client, sample_race, db_session):
+    admin_client, _ = authenticated_client("ADMIN")
+    race_id = sample_race.id
+
+    # Ensure race is not archived initially
+    assert sample_race.status != RaceStatus.ARCHIVED
+
+    response = admin_client.post(f'/api/races/{race_id}/archive')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert "Race archived successfully" in data["message"]
+    assert data["race"]["status"] == "ARCHIVED"
+
+    db_session.refresh(sample_race)
+    assert sample_race.status == RaceStatus.ARCHIVED
+
+def test_archive_race_success_league_admin(authenticated_client, sample_race, db_session):
+    # For this test, let's assume the league admin created the sample_race or has rights
+    # If sample_race is always by admin_user, this test might need its own race created by LA
+    la_client, league_admin_user = authenticated_client("LEAGUE_ADMIN")
+
+    # Create a new race for this LA to archive
+    tri_format = RaceFormat.query.filter_by(name="Triatlón").first()
+    la_race = Race(title="LA Race to Archive", race_format_id=tri_format.id, event_date=datetime.now(), user_id=league_admin_user.id, gender_category="Ambos")
+    db_session.add(la_race)
+    db_session.commit()
+    race_id = la_race.id
+
+    assert la_race.status != RaceStatus.ARCHIVED
+
+    response = la_client.post(f'/api/races/{race_id}/archive')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["race"]["status"] == "ARCHIVED"
+
+    db_session.refresh(la_race)
+    assert la_race.status == RaceStatus.ARCHIVED
+
+
+def test_archive_race_forbidden_player(authenticated_client, sample_race):
+    player_client, _ = authenticated_client("PLAYER")
+    response = player_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 403
+
+def test_archive_race_not_found(authenticated_client):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.post('/api/races/99999/archive')
+    assert response.status_code == 404
+
+def test_archive_already_archived_race(authenticated_client, sample_race, db_session):
+    admin_client, _ = authenticated_client("ADMIN")
+    sample_race.status = RaceStatus.ARCHIVED
+    db_session.commit()
+
+    response = admin_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 200 # Should be idempotent or indicate already archived
+    assert "Race already archived" in response.get_json()["message"]
+
+def test_archive_deleted_race(authenticated_client, sample_race, db_session):
+    admin_client, _ = authenticated_client("ADMIN")
+    sample_race.is_deleted = True
+    db_session.commit()
+
+    response = admin_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 400 # Cannot archive a deleted race
+    assert "Cannot archive a deleted race" in response.get_json()["message"]
+
+# --- Test dynamic status in dashboard view (serve_hello_world_page) ---
+# These tests are more complex as they involve mocking request args and checking HTML or context.
+# For now, focusing on API tests. If time permits, can add these.
+# Example structure for such a test:
+# def test_dashboard_shows_planned_race(authenticated_client, db_session, new_user_factory):
+#     admin_client, admin_user = authenticated_client("ADMIN")
+#     # Create a race with quiniela_close_date in the future
+#     # ...
+#     response = admin_client.get('/Hello-world?status=PLANNED')
+#     assert "Planned Race Title" in response.get_data(as_text=True)
+
+# def test_dashboard_shows_active_race(authenticated_client, db_session, new_user_factory):
+#     admin_client, admin_user = authenticated_client("ADMIN")
+#     # Create a race with quiniela_close_date in the past
+#     # ...
+#     response = admin_client.get('/Hello-world?status=ACTIVE')
+#     assert "Active Race Title" in response.get_data(as_text=True)
+
+# def test_dashboard_shows_archived_race(authenticated_client, db_session, new_user_factory):
+#     admin_client, admin_user = authenticated_client("ADMIN")
+#     # Create a race and set its status to ARCHIVED
+#     # ...
+#     response = admin_client.get('/Hello-world?status=ARCHIVED')
+#     assert "Archived Race Title" in response.get_data(as_text=True)
+
+# def test_dashboard_default_filters_planned_active(authenticated_client, db_session, new_user_factory):
+#     admin_client, admin_user = authenticated_client("ADMIN")
+#     # Create one PLANNED, one ACTIVE, one ARCHIVED race
+#     # ...
+#     response = admin_client.get('/Hello-world') # No status filter
+#     html_content = response.get_data(as_text=True)
+#     assert "Planned Race Title" in html_content
+#     assert "Active Race Title" in html_content
+#     assert "Archived Race Title" not in html_content
