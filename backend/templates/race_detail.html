@@ -215,7 +215,7 @@
     <!-- Hero Section -->
     <div class="hero-bg text-white py-6 md:py-8 lg:py-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col lg:flex-row items-center justify-between">
+            <div class="flex flex-col lg:flex-row items-start justify-between relative">
                 <div class="flex-1 text-center lg:text-left mb-6 lg:mb-0">
                     <div class="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.race_format.name | default('Formato no especificado') }}</span>
@@ -252,21 +252,27 @@
                     </div>
                     <div class="flex flex-wrap justify-center lg:justify-start gap-3">
                         {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
-                        <button id="openEditRaceModalBtn" class="btn btn-secondary px-5 py-2.5 sm:px-6 sm:py-3">
-                            <i class="fas fa-edit mr-2"></i>Editar Detalles Carrera
+                        <button id="openEditRaceModalBtn" class="btn px-5 py-2.5 sm:px-6 sm:py-3 text-orange-600 bg-white border border-orange-600 hover:bg-gray-100 hover:text-orange-700 hover:border-orange-700">
+                            <i class="fas fa-edit mr-2"></i>Editar detalles
                         </button>
-                        <button id="deleteRaceBtn" class="btn bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 sm:px-6 sm:py-3">
-                            <i class="fas fa-trash-alt mr-2"></i>Eliminar Carrera
-                        </button>
-                        <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
+                        <button id="shareRaceBtn" class="btn text-white border border-white bg-transparent hover:bg-white hover:bg-opacity-10 px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
                         {% endif %}
                     </div>
                 </div>
+
+                {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
+                <div class="absolute top-0 right-0 mt-0 mr-0 lg:relative lg:mt-0 lg:mr-0">
+                    <button id="deleteRaceBtn" class="text-xs text-white opacity-70 hover:opacity-100 hover:underline py-1 px-2 rounded-md">
+                        <i class="fas fa-trash-alt mr-1"></i>Eliminar Carrera
+                    </button>
+                </div>
+                {% endif %}
+
                 {% if race.promo_image_url %}
-                <div class="flex-shrink-0 lg:ml-12 mt-6 lg:mt-0">
-                    <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}" class="rounded-lg shadow-xl w-full max-w-md lg:max-w-sm object-cover h-64 lg:h-auto">
+                <div class="flex-shrink-0 lg:ml-12 mt-6 lg:mt-0 w-full lg:w-auto flex justify-center">
+                    <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}" class="rounded-lg shadow-xl max-w-md lg:max-w-sm object-cover h-64 lg:h-auto">
                 </div>
                 {% endif %}
             </div>
