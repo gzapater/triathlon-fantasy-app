@@ -3,7 +3,7 @@ import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore # Added UserScore
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus # Added UserScore and RaceStatus
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -2512,6 +2512,11 @@ def serve_hello_world_page():
     filter_date_from_str = request.args.get('filter_date_from')
     filter_date_to_str = request.args.get('filter_date_to')
     filter_race_format_id_str = request.args.get('filter_race_format_id')
+    # For multi-select, use getlist
+    filter_status_list_from_req = request.args.getlist('filter_status')
+
+    app.logger.info(f"[serve_hello_world_page] filter_status_list_from_req: {filter_status_list_from_req}")
+
 
     all_race_formats = RaceFormat.query.order_by(RaceFormat.name).all()
 
@@ -2558,6 +2563,15 @@ def serve_hello_world_page():
         if race_format_id_int is not None:
             query_general_races = query_general_races.filter(Race.race_format_id == race_format_id_int)
 
+        # Status filter logic for ADMIN
+        if filter_status_list_from_req:
+            valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+            if valid_statuses:
+                query_general_races = query_general_races.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+        else: # Default to PLANNED and ACTIVE if no specific statuses are requested
+            query_general_races = query_general_races.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
+
+
         general_races_for_cards_query_result = []
         try:
             general_races_for_cards_query_result = query_general_races.order_by(Race.event_date.desc()).all()
@@ -2599,6 +2613,7 @@ def serve_hello_world_page():
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
+                               filter_status_list=filter_status_list_from_req, # Pass to template
                                current_year=current_year,
                                auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
@@ -2629,6 +2644,15 @@ def serve_hello_world_page():
         if date_from_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date >= date_from_obj)
         if date_to_obj: organized_races_query_for_display = organized_races_query_for_display.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None: organized_races_query_for_display = organized_races_query_for_display.filter(Race.race_format_id == race_format_id_int)
+
+        # Status filter logic for LEAGUE_ADMIN - Organized Races
+        if filter_status_list_from_req:
+            valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+            if valid_statuses:
+                organized_races_query_for_display = organized_races_query_for_display.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+        else: # Default to PLANNED and ACTIVE
+            organized_races_query_for_display = organized_races_query_for_display.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
+
         organized_races_result_for_display = organized_races_query_for_display.order_by(Race.event_date.desc()).all()
 
         organized_races_dicts = []
@@ -2659,6 +2683,15 @@ def serve_hello_world_page():
             if date_from_obj: participating_races_query = participating_races_query.filter(Race.event_date >= date_from_obj)
             if date_to_obj: participating_races_query = participating_races_query.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: participating_races_query = participating_races_query.filter(Race.race_format_id == race_format_id_int)
+
+            # Status filter logic for LEAGUE_ADMIN - Participating Races
+            if filter_status_list_from_req:
+                valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+                if valid_statuses:
+                    participating_races_query = participating_races_query.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+            else: # Default to PLANNED and ACTIVE
+                participating_races_query = participating_races_query.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
+
             participating_races_result = participating_races_query.order_by(Race.event_date.desc()).all()
 
         participating_races_dicts = []
@@ -2687,6 +2720,15 @@ def serve_hello_world_page():
             if date_from_obj: favorite_races_query = favorite_races_query.filter(Race.event_date >= date_from_obj)
             if date_to_obj: favorite_races_query = favorite_races_query.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: favorite_races_query = favorite_races_query.filter(Race.race_format_id == race_format_id_int)
+
+            # Status filter logic for LEAGUE_ADMIN - Favorite Races
+            if filter_status_list_from_req:
+                valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+                if valid_statuses:
+                    favorite_races_query = favorite_races_query.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+            else: # Default to PLANNED and ACTIVE
+                favorite_races_query = favorite_races_query.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
+
             favorite_races_result = favorite_races_query.order_by(Race.event_date.desc()).all()
 
         favorite_races_dicts = []
@@ -2715,6 +2757,7 @@ def serve_hello_world_page():
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
+                               filter_status_list=filter_status_list_from_req, # Pass to template
                                current_year=current_year,
                                active_players_count=active_players_count, # Pass the count to the template
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
@@ -2734,6 +2777,14 @@ def serve_hello_world_page():
             query = query.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
+
+        # Status filter logic for PLAYER - Registered Races
+        if filter_status_list_from_req:
+            valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+            if valid_statuses:
+                query = query.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+        else: # Default to PLANNED and ACTIVE
+            query = query.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
 
         registered_races_query_result = []
         try:
@@ -2771,6 +2822,14 @@ def serve_hello_world_page():
             if date_to_obj: query_fav_races = query_fav_races.filter(Race.event_date <= date_to_obj)
             if race_format_id_int is not None: query_fav_races = query_fav_races.filter(Race.race_format_id == race_format_id_int)
 
+            # Status filter logic for PLAYER - Favorite Races
+            if filter_status_list_from_req:
+                valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+                if valid_statuses:
+                    query_fav_races = query_fav_races.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+            else: # Default to PLANNED and ACTIVE
+                query_fav_races = query_fav_races.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
+
             try:
                 favorite_races_query_result = query_fav_races.order_by(Race.event_date.desc()).all()
             except Exception as e:
@@ -2799,6 +2858,14 @@ def serve_hello_world_page():
         if date_from_obj: query_destacadas = query_destacadas.filter(Race.event_date >= date_from_obj)
         if date_to_obj: query_destacadas = query_destacadas.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None: query_destacadas = query_destacadas.filter(Race.race_format_id == race_format_id_int)
+
+        # Status filter logic for PLAYER - Destacadas Races
+        if filter_status_list_from_req:
+            valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+            if valid_statuses:
+                query_destacadas = query_destacadas.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+        else: # Default to PLANNED and ACTIVE
+            query_destacadas = query_destacadas.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
 
         destacadas_races_query_result = []
         try:
@@ -2831,6 +2898,7 @@ def serve_hello_world_page():
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
+                               filter_status_list=filter_status_list_from_req, # Pass to template
                                current_year=current_year,
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
                                 race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
@@ -2846,6 +2914,15 @@ def serve_hello_world_page():
             query = query.filter(Race.event_date <= date_to_obj)
         if race_format_id_int is not None:
             query = query.filter(Race.race_format_id == race_format_id_int)
+
+        # Status filter logic for FALLBACK role
+        if filter_status_list_from_req:
+            valid_statuses = [status for status in filter_status_list_from_req if hasattr(RaceStatus, status)]
+            if valid_statuses:
+                query = query.filter(Race.status.in_([RaceStatus[s] for s in valid_statuses]))
+        else: # Default to PLANNED and ACTIVE
+            query = query.filter(Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE]))
+
         all_races_query_result = []
         try:
             all_races_query_result = query.order_by(Race.event_date.desc()).all() # Keep variable name all_races for consistency in this block
@@ -2877,6 +2954,7 @@ def serve_hello_world_page():
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,
                                filter_race_format_id_str=filter_race_format_id_str,
+                               filter_status_list=filter_status_list_from_req, # Pass to template
                                 current_year=current_year,
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
                                 race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
@@ -3862,3 +3940,43 @@ def save_official_answers(race_id):
         db.session.rollback()
         app.logger.error(f"Exception saving official answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while saving official answers."), 500
+
+@app.route('/api/races/<int:race_id>/archive', methods=['POST'])
+@login_required
+def archive_race_endpoint(race_id):
+    app.logger.info(f"User {current_user.id} attempting to archive race {race_id}")
+
+    race = Race.query.get(race_id)
+    if not race:
+        app.logger.warning(f"Race with id {race_id} not found for archiving by user {current_user.id}")
+        return jsonify(message="Race not found"), 404
+
+    if race.is_deleted:
+        app.logger.info(f"Race {race_id} is already logically deleted, cannot archive.")
+        return jsonify(message="Cannot archive a deleted race."), 400
+
+    # Permission check: ADMIN can archive any race. LEAGUE_ADMIN can only archive their own races.
+    if current_user.role.code == 'ADMIN':
+        pass # Admin has permission
+    elif current_user.role.code == 'LEAGUE_ADMIN':
+        if race.user_id != current_user.id:
+            app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to archive race {race_id} they do not own.")
+            return jsonify(message="Forbidden: You can only archive races you created."), 403
+    else: # Other roles (e.g., PLAYER) cannot archive
+        app.logger.warning(f"User {current_user.id} with role {current_user.role.code} forbidden to archive race {race_id}")
+        return jsonify(message="Forbidden: You do not have permission to archive races."), 403
+
+    if race.status == RaceStatus.ARCHIVED:
+        app.logger.info(f"Race {race_id} is already archived.")
+        return jsonify(message="Race is already archived."), 200 # Or 400 if considered an error
+
+    try:
+        race.status = RaceStatus.ARCHIVED
+        race.updated_at = datetime.utcnow() # Explicitly update timestamp
+        db.session.commit()
+        app.logger.info(f"Race {race_id} successfully archived by user {current_user.id}")
+        return jsonify(message="Race archived successfully", race_id=race.id, new_status=race.status.value), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception archiving race {race_id} by user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="Error archiving race"), 500

@@ -1,6 +1,6 @@
 import pytest
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail
-from datetime import datetime
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, Question, QuestionOption, RaceStatus
+from datetime import datetime, timedelta
 
 # --- Model Tests ---
 
@@ -55,6 +55,49 @@ def test_create_race_and_segment_details(db_session, admin_user):
     assert rsd2 in race.segment_details
     assert rsd1.segment == natacion_segment
     assert rsd1.distance_km == 1.5
+
+def test_race_status_logic(db_session, admin_user, sample_race_format):
+    # 1. Default status is PLANNED
+    race1 = Race(title="Planned Race", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=10), user_id=admin_user.id, gender_category="Ambos", category="Elite")
+    db_session.add(race1)
+    db_session.commit()
+    assert race1.status == RaceStatus.PLANNED
+    race1.update_status() # Should remain PLANNED
+    assert race1.status == RaceStatus.PLANNED
+
+    # 2. Status becomes ACTIVE after quiniela_close_date
+    race2 = Race(title="Active Race", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=10), user_id=admin_user.id, gender_category="Ambos", category="Elite", quiniela_close_date=datetime.utcnow() - timedelta(hours=1))
+    db_session.add(race2)
+    db_session.commit()
+    assert race2.status == RaceStatus.PLANNED # Initial default
+    race2.update_status() # Call to update
+    assert race2.status == RaceStatus.ACTIVE
+
+    # 3. ARCHIVED status is sticky
+    race3 = Race(title="Archived Race", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=10), user_id=admin_user.id, gender_category="Ambos", category="Elite", quiniela_close_date=datetime.utcnow() - timedelta(hours=1))
+    race3.status = RaceStatus.ARCHIVED
+    db_session.add(race3)
+    db_session.commit()
+    assert race3.status == RaceStatus.ARCHIVED
+    race3.update_status() # Should not change from ARCHIVED
+    assert race3.status == RaceStatus.ARCHIVED
+
+    # 4. Status remains PLANNED if quiniela_close_date is in the future
+    race4 = Race(title="Future Quiniela Race", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=10), user_id=admin_user.id, gender_category="Ambos", category="Elite", quiniela_close_date=datetime.utcnow() + timedelta(hours=24))
+    db_session.add(race4)
+    db_session.commit()
+    assert race4.status == RaceStatus.PLANNED
+    race4.update_status()
+    assert race4.status == RaceStatus.PLANNED
+
+    # 5. update_status() is called in to_dict()
+    race5 = Race(title="To Dict Race", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=10), user_id=admin_user.id, gender_category="Ambos", category="Elite", quiniela_close_date=datetime.utcnow() - timedelta(minutes=5))
+    db_session.add(race5)
+    db_session.commit()
+    assert race5.status == RaceStatus.PLANNED # Initial
+    race_dict = race5.to_dict()
+    assert race_dict['status'] == RaceStatus.ACTIVE.value
+    assert race5.status == RaceStatus.ACTIVE # Status on object itself should also be updated
 
 # --- API Endpoint Tests ---
 
@@ -1405,3 +1448,194 @@ def test_delete_non_existent_question(authenticated_client):
     response = admin_client.delete(f'/api/questions/{non_existent_q_id}')
     assert response.status_code == 404
     assert "Question not found" in response.get_json()["message"]
+
+# --- Race Archiving API Tests ---
+def test_archive_race_success_admin(authenticated_client, sample_race, db_session):
+    admin_client, _ = authenticated_client("ADMIN")
+    assert sample_race.status != RaceStatus.ARCHIVED
+
+    response = admin_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["message"] == "Race archived successfully"
+    assert data["new_status"] == RaceStatus.ARCHIVED.value
+
+    db_session.refresh(sample_race)
+    assert sample_race.status == RaceStatus.ARCHIVED
+
+def test_archive_race_success_league_admin_own_race(authenticated_client, new_user_factory, sample_race_format, db_session):
+    league_admin_user = new_user_factory("la_archiver", "la_archiver@test.com", "password", "LEAGUE_ADMIN")
+    la_client, _ = authenticated_client(user_override=league_admin_user) # Login as this specific LA
+
+    # Create a race owned by this league admin
+    owned_race = Race(title="LA Owned Race for Archive", race_format_id=sample_race_format.id,
+                      event_date=datetime.utcnow() + timedelta(days=5), user_id=league_admin_user.id,
+                      gender_category="Mixta", category="Elite")
+    db_session.add(owned_race)
+    db_session.commit()
+    assert owned_race.status != RaceStatus.ARCHIVED
+
+    response = la_client.post(f'/api/races/{owned_race.id}/archive')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["message"] == "Race archived successfully"
+    assert data["new_status"] == RaceStatus.ARCHIVED.value
+
+    db_session.refresh(owned_race)
+    assert owned_race.status == RaceStatus.ARCHIVED
+
+def test_archive_race_forbidden_league_admin_not_owned(authenticated_client, sample_race, db_session):
+    # sample_race is created by admin_user fixture
+    league_admin_client, _ = authenticated_client("LEAGUE_ADMIN") # A generic LA
+
+    response = league_admin_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 403
+    assert "Forbidden: You can only archive races you created" in response.get_json()["message"]
+    db_session.refresh(sample_race)
+    assert sample_race.status != RaceStatus.ARCHIVED
+
+def test_archive_race_forbidden_player(authenticated_client, sample_race, db_session):
+    player_client, _ = authenticated_client("PLAYER")
+    response = player_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 403
+    assert "Forbidden: You do not have permission to archive races" in response.get_json()["message"]
+    db_session.refresh(sample_race)
+    assert sample_race.status != RaceStatus.ARCHIVED
+
+def test_archive_non_existent_race(authenticated_client):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.post('/api/races/99999/archive')
+    assert response.status_code == 404
+    assert "Race not found" in response.get_json()["message"]
+
+def test_archive_deleted_race(authenticated_client, sample_race, db_session):
+    admin_client, _ = authenticated_client("ADMIN")
+    sample_race.is_deleted = True
+    db_session.commit()
+
+    response = admin_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 400
+    assert "Cannot archive a deleted race" in response.get_json()["message"]
+    db_session.refresh(sample_race)
+    assert sample_race.status != RaceStatus.ARCHIVED # Status should not have changed
+
+def test_archive_already_archived_race(authenticated_client, sample_race, db_session):
+    admin_client, _ = authenticated_client("ADMIN")
+    sample_race.status = RaceStatus.ARCHIVED
+    db_session.commit()
+
+    response = admin_client.post(f'/api/races/{sample_race.id}/archive')
+    assert response.status_code == 200 # Or 400, current backend returns 200
+    assert "Race is already archived" in response.get_json()["message"]
+    db_session.refresh(sample_race)
+    assert sample_race.status == RaceStatus.ARCHIVED
+
+# --- Dashboard Filtering Tests ---
+# These tests will check if the /Hello-world route correctly filters races by status.
+# We'll need to create races with different statuses.
+
+@pytest.fixture
+def races_for_status_filter(db_session, admin_user, sample_race_format):
+    races = []
+    # Planned (default, quiniela_close_date in future or None)
+    races.append(Race(title="Filter Planned Race 1", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=30), user_id=admin_user.id, is_general=True, gender_category="M", category="E", quiniela_close_date=datetime.utcnow() + timedelta(days=5)))
+    # Active (quiniela_close_date in past)
+    races.append(Race(title="Filter Active Race 1", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=20), user_id=admin_user.id, is_general=True, gender_category="F", category="E", quiniela_close_date=datetime.utcnow() - timedelta(days=1)))
+    # Archived
+    races.append(Race(title="Filter Archived Race 1", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=10), user_id=admin_user.id, is_general=True, gender_category="M", category="E", status=RaceStatus.ARCHIVED))
+    # Another Planned
+    races.append(Race(title="Filter Planned Race 2", race_format_id=sample_race_format.id, event_date=datetime.utcnow() + timedelta(days=40), user_id=admin_user.id, is_general=True, gender_category="F", category="E"))
+
+    for race in races:
+        db_session.add(race)
+    db_session.commit()
+    # Update status for races that might change based on dates
+    for race in races:
+        if race.status != RaceStatus.ARCHIVED: # Don't update archived ones
+            race.update_status()
+    db_session.commit()
+    return races
+
+def test_dashboard_default_status_filter_admin(authenticated_client, races_for_status_filter):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/Hello-world')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+
+    assert "Filter Planned Race 1" in html_content
+    assert "Filter Active Race 1" in html_content
+    assert "Filter Planned Race 2" in html_content
+    assert "Filter Archived Race 1" not in html_content
+    # Check which statuses are selected in the form (should be none explicitly, implying default)
+    assert 'id="filter_status"' in html_content
+    assert '<option value="PLANNED" selected>' not in html_content # Default means no explicit selection in HTML for initial load
+    assert '<option value="ACTIVE" selected>' not in html_content
+    assert '<option value="ARCHIVED" selected>' not in html_content
+
+
+def test_dashboard_filter_by_planned_admin(authenticated_client, races_for_status_filter):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/Hello-world?filter_status=PLANNED')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+
+    assert "Filter Planned Race 1" in html_content
+    assert "Filter Planned Race 2" in html_content
+    assert "Filter Active Race 1" not in html_content
+    assert "Filter Archived Race 1" not in html_content
+    assert '<option value="PLANNED" selected' in html_content
+
+def test_dashboard_filter_by_active_admin(authenticated_client, races_for_status_filter):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/Hello-world?filter_status=ACTIVE')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+
+    assert "Filter Active Race 1" in html_content
+    assert "Filter Planned Race 1" not in html_content
+    assert "Filter Archived Race 1" not in html_content
+    assert '<option value="ACTIVE" selected' in html_content
+
+def test_dashboard_filter_by_archived_admin(authenticated_client, races_for_status_filter):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/Hello-world?filter_status=ARCHIVED')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+
+    assert "Filter Archived Race 1" in html_content
+    assert "Filter Planned Race 1" not in html_content
+    assert "Filter Active Race 1" not in html_content
+    assert '<option value="ARCHIVED" selected' in html_content
+
+def test_dashboard_filter_by_multiple_statuses_admin(authenticated_client, races_for_status_filter):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/Hello-world?filter_status=PLANNED&filter_status=ARCHIVED')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+
+    assert "Filter Planned Race 1" in html_content
+    assert "Filter Planned Race 2" in html_content
+    assert "Filter Archived Race 1" in html_content
+    assert "Filter Active Race 1" not in html_content
+    assert '<option value="PLANNED" selected' in html_content
+    assert '<option value="ARCHIVED" selected' in html_content
+    assert '<option value="ACTIVE" selected' not in html_content # Ensure active is not selected
+
+def test_dashboard_filter_by_all_statuses_admin(authenticated_client, races_for_status_filter):
+    admin_client, _ = authenticated_client("ADMIN")
+    response = admin_client.get('/Hello-world?filter_status=PLANNED&filter_status=ACTIVE&filter_status=ARCHIVED')
+    assert response.status_code == 200
+    html_content = response.get_data(as_text=True)
+
+    assert "Filter Planned Race 1" in html_content
+    assert "Filter Active Race 1" in html_content
+    assert "Filter Archived Race 1" in html_content
+    assert "Filter Planned Race 2" in html_content
+    assert '<option value="PLANNED" selected' in html_content
+    assert '<option value="ACTIVE" selected' in html_content
+    assert '<option value="ARCHIVED" selected' in html_content
+
+# Similar tests should be adapted for LEAGUE_ADMIN and PLAYER roles,
+# considering which races they see (e.g., owned, registered, favorite, general).
+# For brevity, only ADMIN role is fully tested here for dashboard filtering.
+# The core filtering logic in app.py is similar across roles.

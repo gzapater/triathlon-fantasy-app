@@ -261,6 +261,9 @@
                         <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
+                        <button id="archiveRaceBtn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-archive mr-2"></i>Archivar Carrera
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -1386,6 +1389,7 @@
             const racePromoImageUrlInput = document.getElementById('racePromoImageUrl');
             const editRaceQuinielaCloseDateInput = document.getElementById('editRaceQuinielaCloseDate'); // Added
             const deleteRaceBtn = document.getElementById('deleteRaceBtn');
+            const archiveRaceBtn = document.getElementById('archiveRaceBtn');
 
             // --- Notification Modal Elements & Functions ---
             const notificationModal = document.getElementById('notificationModal');
@@ -1457,6 +1461,47 @@
                         confirmDeleteRaceCallback();
                     }
                     closeConfirmDeleteRaceModal();
+                });
+            }
+
+            if (archiveRaceBtn) {
+                archiveRaceBtn.addEventListener('click', function() {
+                    const title = 'Confirmar Archivar';
+                    const message = '¿Estás seguro de que quieres archivar esta carrera? Una vez archivada, no se podrá activar de nuevo directamente desde aquí y se ocultará de las vistas principales por defecto.';
+                    // Assuming showConfirmDeleteRaceModal can be repurposed or a similar confirmation modal exists/can be created.
+                    // For now, using a simple confirm dialog.
+                    if (confirm(message)) {
+                        archiveRaceBtn.disabled = true;
+                        archiveRaceBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Archivando...';
+
+                        fetch(`/api/races/${raceId}/archive`, {
+                            method: 'POST', // Or PUT, depending on API design
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token() if csrf_token else "" }}'
+                            }
+                        })
+                        .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                        .then(result => {
+                            if (result.ok) {
+                                showNotificationModal('Éxito', result.body.message || 'Carrera archivada con éxito.', 'success');
+                                // Optionally, update UI elements to reflect archived status,
+                                // e.g., disable other action buttons, change status badge.
+                                // For now, a page reload might be the simplest way to see all changes.
+                                setTimeout(() => window.location.reload(), 1500);
+                            } else {
+                                showNotificationModal('Error', `Error al archivar la carrera: ${result.body.message || `Error ${result.status}`}`, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error archiving race:', error);
+                            showNotificationModal('Error de Conexión', 'No se pudo archivar la carrera debido a un problema de red.', 'error');
+                        })
+                        .finally(() => {
+                            archiveRaceBtn.disabled = false;
+                            archiveRaceBtn.innerHTML = '<i class="fas fa-archive mr-2"></i>Archivar Carrera';
+                        });
+                    }
                 });
             }
 
