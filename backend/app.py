@@ -3,7 +3,7 @@ import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore # Added UserScore
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus # Added UserScore and RaceStatus
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -2546,6 +2546,29 @@ def serve_hello_world_page():
     app.logger.info(f"Serving dashboard for user {current_user.username} with role {current_user.role.code}")
 
     all_races = [] # Initialize all_races
+
+    # --- Race Status Update Logic ---
+    # Fetch all PLANNED races that are not deleted
+    races_to_check_status = Race.query.filter(
+        Race.status == RaceStatus.PLANNED,
+        Race.is_deleted == False
+    ).all()
+
+    updated_races_count = 0
+    for race_to_update in races_to_check_status:
+        if race_to_update.quiniela_close_date and race_to_update.quiniela_close_date < datetime.utcnow():
+            race_to_update.status = RaceStatus.ACTIVE
+            updated_races_count += 1
+            app.logger.info(f"Race ID {race_to_update.id} status updated from PLANNED to ACTIVE.")
+
+    if updated_races_count > 0:
+        try:
+            db.session.commit()
+            app.logger.info(f"Committed status updates for {updated_races_count} races.")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error committing race status updates: {e}", exc_info=True)
+    # --- End Race Status Update Logic ---
 
     # Role-based rendering
     if current_user.role.code == 'ADMIN':

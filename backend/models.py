@@ -1,10 +1,16 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Text, Float, ForeignKey # Added ForeignKey
+from sqlalchemy import Text, Float, ForeignKey, Enum as SQLAlchemyEnum # Added ForeignKey and Enum
+import enum # Added enum
 from datetime import datetime
 import bcrypt
 from flask_login import UserMixin
 
 db = SQLAlchemy()
+
+class RaceStatus(enum.Enum):
+    PLANNED = "planned"
+    ACTIVE = "active"
+    ARCHIVED = "archived"
 
 # New Role Model
 class Role(db.Model):
@@ -81,6 +87,7 @@ class Race(db.Model):
     is_general = db.Column(db.Boolean, nullable=False, default=False)
     quiniela_close_date = db.Column(db.DateTime, nullable=True) # New field for Quiniela close date
     is_deleted = db.Column(db.Boolean, default=False, nullable=False) # For logical deletion
+    status = db.Column(SQLAlchemyEnum(RaceStatus), default=RaceStatus.PLANNED, nullable=False) # New status field
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -111,6 +118,7 @@ class Race(db.Model):
             'is_general': self.is_general,
             'quiniela_close_date': self.quiniela_close_date.isoformat() if self.quiniela_close_date else None,
             'is_deleted': self.is_deleted, # Added for logical deletion
+            'status': self.status.value if self.status else None, # Added status field
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
