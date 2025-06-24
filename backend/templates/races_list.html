@@ -207,18 +207,32 @@
                             {% endif %}
 
                             {# Header: Icon, Title, Format Name - Left Aligned #}
-                            <div class="{{ card_gradient_class }} h-24 p-4 flex items-center space-x-4 text-white">
+                            <div class="{{ card_gradient_class }} h-24 p-4 flex items-center space-x-4 text-white relative">
                                 <i class="{{ race_icon }} text-3xl flex-shrink-0"></i>
                                 <div class="flex-grow overflow-hidden">
                                     <h3 class="font-bold text-xl leading-tight truncate" title="{{ race['title'] }}">{{ race['title'] }}</h3>
                                     <p class="text-sm font-semibold">{{ race_format_name }}</p>
                                 </div>
+                                {% if race.status %}
+                                    {% set status_bg_color = 'bg-gray-500' %} {# Default for unknown/other statuses #}
+                                    {% if race.status == 'PLANNED' %}
+                                        {% set status_bg_color = 'bg-blue-500' %}
+                                    {% elif race.status == 'ACTIVE' %}
+                                        {% set status_bg_color = 'bg-green-500' %}
+                                    {% elif race.status == 'ARCHIVED' %}
+                                        {% set status_bg_color = 'bg-gray-700' %}
+                                    {% endif %}
+                                    <span class="absolute top-2 right-2 text-xs {{ status_bg_color }} text-white px-2 py-1 rounded-full shadow">
+                                        {{ race.status|capitalize }}
+                                    </span>
+                                {% endif %}
                             </div>
 
                             {# Card Body #}
                             <div class="p-6 flex-grow flex flex-col">
-                                <div class="flex items-center justify-end mb-3"> {# Date aligned to the right, badge removed #}
+                                <div class="flex items-center justify-between mb-3"> {# Date and status #}
                                     <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
+                                    {# Status badge can also be placed here if preferred over header #}
                                 </div>
 
                                 {% if race['description'] %}

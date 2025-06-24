@@ -220,8 +220,20 @@
                     <div class="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.race_format.name | default('Formato no especificado') }}</span>
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.gender_category | default('N/A') }}</span>
-                        <!-- Example status badge - make dynamic later if needed -->
-                        <span class="bg-green-500 px-3 py-1 rounded-full text-xs sm:text-sm">Activa</span>
+                        {% if race.status %}
+                            {% set status_text = race.status.value|capitalize %}
+                            {% set status_bg_color = 'bg-gray-500' %} {# Default for unknown/other statuses #}
+                            {% if race.status.value == 'PLANNED' %}
+                                {% set status_bg_color = 'bg-blue-500' %}
+                            {% elif race.status.value == 'ACTIVE' %}
+                                {% set status_bg_color = 'bg-green-500' %}
+                            {% elif race.status.value == 'ARCHIVED' %}
+                                {% set status_bg_color = 'bg-gray-700' %}
+                            {% endif %}
+                            <span class="{{ status_bg_color }} px-3 py-1 rounded-full text-xs sm:text-sm text-white shadow">
+                                {{ status_text }}
+                            </span>
+                        {% endif %}
                     </div>
                     <div class="flex items-center justify-center lg:justify-start mb-3"> <!-- Added a wrapper for icon and title -->
                         <span id="favoriteRaceIcon"
@@ -261,6 +273,11 @@
                         <button id="shareRaceBtn" class="btn bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
                             <i class="fas fa-share-alt mr-2"></i>Compartir Carrera
                         </button>
+                        {% if race.status.value != 'ARCHIVED' and (currentUserRole == 'ADMIN' or (currentUserRole == 'LEAGUE_ADMIN' and race.user_id == current_user.id)) %}
+                        <button id="archiveRaceBtn" class="btn bg-yellow-500 hover:bg-yellow-600 text-white px-5 py-2.5 sm:px-6 sm:py-3">
+                            <i class="fas fa-archive mr-2"></i>Archivar Carrera
+                        </button>
+                        {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -2885,6 +2902,8 @@
             const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
             const copyShareLinkFeedback = document.getElementById('copyShareLinkFeedback');
 
+            const archiveRaceBtn = document.getElementById('archiveRaceBtn');
+
             // Event listener for the unanswered questions warning
             const unansweredWarningDiv = document.getElementById('unansweredQuestionsWarning');
             if (unansweredWarningDiv) {
@@ -2974,6 +2993,112 @@
                                 alert('No se pudo copiar el enlace. Por favor, cópielo manualmente.');
                             });
                     }
+                });
+            }
+
+            if (archiveRaceBtn) {
+                archiveRaceBtn.addEventListener('click', function() {
+                    const title = 'Confirmar Archivar';
+                    const message = '¿Estás seguro de que quieres archivar esta carrera? No podrás editar sus detalles ni la quiniela una vez archivada (aunque los datos se conservarán).';
+
+                    // Using the existing confirmDeleteRaceModal structure for simplicity, but changing texts
+                    const confirmModal = document.getElementById('confirmDeleteRaceModal');
+                    const modalTitle = document.getElementById('confirmDeleteRaceModalTitle');
+                    const modalMessage = document.getElementById('confirmDeleteRaceModalMessage');
+                    const confirmActionBtn = document.getElementById('confirmDeleteRaceActionBtn');
+                    const cancelBtn = document.getElementById('cancelDeleteRaceBtnModal'); // Assuming this is the cancel button for that modal
+
+                    if (!confirmModal || !modalTitle || !modalMessage || !confirmActionBtn || !cancelBtn) {
+                        alert('Error: Elementos del modal de confirmación no encontrados.');
+                        return;
+                    }
+
+                    modalTitle.textContent = title;
+                    modalMessage.textContent = message;
+                    confirmActionBtn.textContent = 'Archivar'; // Change button text
+                    confirmActionBtn.classList.remove('bg-red-600', 'hover:bg-red-700'); // Remove delete styling
+                    confirmActionBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); // Add archive styling
+
+                    const archiveRaceCallback = () => {
+                        confirmActionBtn.disabled = true;
+                        confirmActionBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Archivando...';
+
+                        fetch(`/api/races/${raceId}/archive`, { method: 'POST' })
+                        .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                        .then(result => {
+                            if (result.ok) {
+                                showNotificationModal('Éxito', result.body.message || 'Carrera archivada con éxito.', 'success');
+                                // Update UI: hide archive button, maybe show "Archived" badge
+                                if(archiveRaceBtn) archiveRaceBtn.style.display = 'none';
+                                // You might want to update a status display on the page here
+                                // For now, just hiding the button and showing a success message.
+                                // Potentially refresh page or parts of it.
+                                // Example: Update a status badge if it exists
+                                const statusBadge = document.querySelector('.hero-bg span.bg-green-500'); // Assuming this is the status badge
+                                if (statusBadge) {
+                                    statusBadge.textContent = 'Archivada';
+                                    statusBadge.classList.remove('bg-green-500');
+                                    statusBadge.classList.add('bg-gray-500'); // Or some other color for archived
+                                }
+
+                                // Hide other action buttons like edit, delete, share, add question, manage quiniela
+                                const editRaceBtn = document.getElementById('openEditRaceModalBtn');
+                                const deleteRaceBtnElem = document.getElementById('deleteRaceBtn'); // Renamed to avoid conflict with outer scope
+                                const shareRaceBtnElem = document.getElementById('shareRaceBtn'); // Renamed
+                                const addNewQuestionBtnElem = document.getElementById('addNewQuestionBtn');
+                                const manageQuinielaBtn = document.querySelector('button[onclick^="openOfficialAnswersModal"]');
+
+                                if(editRaceBtn) editRaceBtn.style.display = 'none';
+                                if(deleteRaceBtnElem) deleteRaceBtnElem.style.display = 'none';
+                                // Share button might still be useful for archived races, decide based on requirements.
+                                // if(shareRaceBtnElem) shareRaceBtnElem.style.display = 'none';
+                                if(addNewQuestionBtnElem) addNewQuestionBtnElem.style.display = 'none';
+                                if(manageQuinielaBtn) manageQuinielaBtn.style.display = 'none';
+
+
+                            } else {
+                                showNotificationModal('Error', `Error al archivar la carrera: ${result.body.message || `Error de servidor ${result.status}`}`, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error archiving race:', error);
+                            showNotificationModal('Error de Conexión', 'Error en la conexión o al procesar la solicitud de archivado.', 'error');
+                        })
+                        .finally(() => {
+                            confirmActionBtn.disabled = false;
+                            confirmActionBtn.innerHTML = 'Archivar';
+                            // Reset styles if modal is reused for delete
+                            // confirmActionBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                            // confirmActionBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                            closeConfirmDeleteRaceModal(); // Use the existing close function for this modal
+                        });
+                    };
+
+                    // Detach any existing listener from confirmActionBtn to avoid multiple calls or wrong actions
+                    const newConfirmActionBtn = confirmActionBtn.cloneNode(true);
+                    confirmActionBtn.parentNode.replaceChild(newConfirmActionBtn, confirmActionBtn);
+                    newConfirmActionBtn.addEventListener('click', archiveRaceCallback);
+                    newConfirmActionBtn.textContent = 'Archivar'; // Ensure text is correct
+                    newConfirmActionBtn.classList.remove('bg-red-600', 'hover:bg-red-700'); // Remove delete styling
+                    newConfirmActionBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); // Add archive styling
+
+
+                    // Also ensure cancel button works as expected
+                    const newCancelBtn = cancelBtn.cloneNode(true);
+                    cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+                    newCancelBtn.addEventListener('click', () => {
+                        closeConfirmDeleteRaceModal();
+                         // Reset confirm button style if modal is closed without archiving
+                        const confirmBtnToReset = document.getElementById('confirmDeleteRaceActionBtn');
+                        if (confirmBtnToReset){
+                            confirmBtnToReset.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                            confirmBtnToReset.classList.add('bg-red-600', 'hover:bg-red-700');
+                            confirmBtnToReset.textContent = 'Eliminar'; // Reset to original text for delete
+                        }
+                    });
+
+
+                    confirmModal.style.display = 'flex';
                 });
             }
         });
