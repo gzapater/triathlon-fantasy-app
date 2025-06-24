@@ -270,7 +270,7 @@
                 </div>
 
                 {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
-                <div class="hidden lg:block lg:relative ml-4 shrink-0"> {/* Desktop delete button: hidden on mobile, shown on lg. Added shrink-0 and ml-4 for spacing */}
+                <div class="hidden lg:block lg:relative ml-4 shrink-0"> 
                     <button id="deleteRaceBtn" class="text-xs text-white opacity-70 hover:opacity-100 hover:underline py-1 px-2 rounded-md">
                         <i class="fas fa-trash-alt mr-1"></i>Eliminar Carrera
                     </button>
@@ -278,7 +278,7 @@
                 {% endif %}
 
                 {% if race.promo_image_url %}
-                <div class="flex-shrink-0 lg:ml-12 mt-6 lg:mt-0 w-full lg:w-auto flex justify-center order-first lg:order-last"> {/* Ensure promo image is visually distinct from text block */}
+                <div class="flex-shrink-0 lg:ml-12 mt-6 lg:mt-0 w-full lg:w-auto flex justify-center order-first lg:order-last"> 
                     <img src="{{ race.promo_image_url }}" alt="Imagen de {{ race.title }}" class="rounded-lg shadow-xl max-w-md lg:max-w-sm object-cover h-64 lg:h-auto">
                 </div>
                 {% endif %}
