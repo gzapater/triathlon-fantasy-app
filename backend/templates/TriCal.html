@@ -37,39 +37,51 @@
     <!-- Original Nav: py-4 px-6 bg-gray-800 text-white -->
     <!-- New Header: bg-blue-600 text-white shadow-lg -->
     <!-- Mapping: bg-blue-600 -> bg-gray-800 (original nav color) -->
-    <header class="bg-gray-800 text-white shadow-lg no-print"> <!-- Using bg-gray-800 to keep consistency -->
-        <div class="container mx-auto px-4 py-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold flex items-center">
-                        <i class="fas fa-swimming-pool mr-3"></i> <!-- Icon from new structure -->
-                        Directorio Triatlón España 2025
-                    </h1>
-                    <!-- text-blue-100 -> text-gray-300 (adjusting from blue to gray theme) -->
-                    <p class="text-gray-300 mt-2">Encuentra tu próxima carrera de triatlón, duatlón o acuatlón</p>
-                </div>
-                <div class="text-right">
-                    <div class="text-2xl font-bold" id="totalEvents">0</div>
-                    <!-- text-blue-100 -> text-gray-300 -->
-                    <div class="text-gray-300">Eventos</div>
-                </div>
-            </div>
-             <!-- TriPredict Logo and Login Button from original nav, integrated into header -->
-            <div class="mt-4 flex justify-between items-center border-t border-gray-700 pt-4">
-                 <a href="{{ url_for('tripredict_promo_page') }}">
+   
+    <!-- 1. HEADER GLOBAL (Simplificado) -->
+    <header class="bg-gray-800 text-white shadow-lg no-print">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo de TriCal -->
+                <a href="#">
                     <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <g>
                             <path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             <path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             <path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </g>
-                        <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text>
+                        <!-- Texto del logo cambiado a TriCal -->
+                        <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Cal</tspan></text>
                     </svg>
                 </a>
-                <a href="{{ url_for('serve_login_page') }}" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">Iniciar Sesión</a>
+                <!-- Botón de acción principal -->
+                <a href="#" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">
+                    Conoce TriPredict
+                </a>
             </div>
-        </div>
+        </nav>
     </header>
+
+        <!-- 2. HERO SECTION (con el contenido extraído) -->
+        <div class="bg-orange-500 shadow-md">
+           <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-white">
+                <div class="flex items-center justify-between">
+                    <!-- Título y descripción -->
+                    <div>
+                        <h1 class="text-3xl font-bold flex items-center">
+                            <i class="fas fa-calendar-alt mr-3"></i>
+                            Directorio de Triatlón y Duatlón en España
+                        </h1>
+                        <p class="text-orange-100 mt-2">Encuentra tu próxima carrera de triatlón, duatlón o acuatlón.</p>
+                    </div>
+                    <!-- Contador de Eventos -->
+                    <div class="text-right flex-shrink-0 ml-6">
+                        <div class="text-4xl font-bold" id="totalEvents">1,280</div>
+                        <div class="text-orange-200">Eventos</div>
+                    </div>
+                </div>
+           </div>
+        </div>
 
     <!-- Filters Section -->
     <!-- New section: bg-white shadow-sm border-b -->
