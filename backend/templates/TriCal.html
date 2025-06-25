@@ -526,14 +526,19 @@
             });
 
             sortDateBtn.addEventListener('click', () => {
+                // 1. Invierte el estado del orden actual
                 currentSortAscending = !currentSortAscending;
-                sortDateBtn.innerHTML = `<i class="fas fa-sort mr-1"></i> Ordenar por Fecha ${currentSortAscending ? '' : '<i class="fas fa-arrow-down ml-1 text-xs"></i>' : '<i class="fas fa-arrow-up ml-1 text-xs"></i>'}`;
-                 // Simplified sort indicator, can be more specific with up/down arrows
+            
+                // 2. Actualiza el texto del botón según el nuevo estado
                 if (currentSortAscending) {
+                    // Si ahora es ascendente, muestra el texto y el icono correspondientes
                     sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
                 } else {
+                    // Si ahora es descendente, muestra el otro texto y el otro icono
                     sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Más nuevas primero)';
                 }
+            
+                // 3. Llama a la función que aplica el orden a los datos
                 filterAndSortEvents();
             });
             // Initial sort button text
