@@ -688,8 +688,9 @@ def get_race_questions(race_id):
 
         # Fetch and format official answer for this question
         official_answer_obj = official_answers_map.get(question.id)
+        official_answer_formatted = None  # Initialize here
         if official_answer_obj:
-            official_answer_formatted = None
+            # official_answer_formatted = None # No longer needed here
             if question.question_type.name == 'FREE_TEXT':
                 official_answer_formatted = official_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
