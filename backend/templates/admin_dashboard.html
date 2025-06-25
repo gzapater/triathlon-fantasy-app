@@ -695,7 +695,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // 'X-CSRFToken': '{{ csrf_token() }}'
+                    // 'X-CSRFToken': '...' // Placeholder if CSRF needed, do not use Jinja here directly
                 },
                 body: JSON.stringify({ access_code: accessCode })
             })
