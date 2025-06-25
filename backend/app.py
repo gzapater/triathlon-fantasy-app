@@ -63,7 +63,7 @@ app.config['CORS_SUPPORTS_CREDENTIALS'] = True
 # ==============================================================================
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-migrate = Migrate(app, db) # Initialize Flask-Migrate
+migrate = Migrate(app, db, directory='migrations') # Initialize Flask-Migrate
 
 # Flask-Login Configuration
 login_manager = LoginManager()
