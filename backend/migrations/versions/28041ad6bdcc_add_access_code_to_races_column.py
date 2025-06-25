@@ -11,7 +11,7 @@ import uuid # Import uuid for the default value if needed for population step (n
 
 # revision identifiers, used by Alembic.
 revision = '28041ad6bdcc'
-down_revision = 'b247e33d3196' # Previous head
+down_revision = '70d10090ed94' # Previous head
 branch_labels = None
 depends_on = None
 
