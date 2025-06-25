@@ -517,10 +517,16 @@
                 <label for="shareableLinkInput" class="block text-sm font-medium text-gray-700 mb-1">Enlace Compartible:</label>
                 <input type="text" id="shareableLinkInput" readonly class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm">
             </div>
+            <div class="mb-6"> <!-- Increased margin-bottom -->
+                <label for="raceAccessCodeInput" class="block text-sm font-medium text-gray-700 mb-1">Código de Acceso:</label>
+                <input type="text" id="raceAccessCodeInput" readonly class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-gray-100 rounded-md shadow-sm sm:text-sm">
+            </div>
             <div class="flex justify-end space-x-3">
                 <button type="button" id="copyShareLinkBtn" class="btn btn-primary">Copiar Enlace</button>
+                <button type="button" id="copyAccessCodeBtn" class="btn btn-secondary">Copiar Código</button> <!-- New Button -->
             </div>
             <p id="copyShareLinkFeedback" class="text-sm text-green-600 mt-2" style="display:none;">¡Enlace copiado!</p>
+            <p id="copyAccessCodeFeedback" class="text-sm text-green-600 mt-2" style="display:none;">¡Código copiado!</p> <!-- New Feedback P -->
         </div>
     </div>
 
@@ -588,6 +594,7 @@
 
     <script>
         const raceId = "{{ race.id | default('') }}";
+        const raceAccessCode = "{{ race.access_code | default('') }}"; // Added access code
         const raceEventDateString = "{{ race.event_date.isoformat() if race.event_date else '' }}";
         const raceTitle = {{ race.title | tojson }};
         const currentUserRole = "{{ current_user.role.code if current_user and current_user.is_authenticated and current_user.role else 'GUEST' }}";
@@ -2901,6 +2908,10 @@
             const shareableLinkInput = document.getElementById('shareableLinkInput');
             const copyShareLinkBtn = document.getElementById('copyShareLinkBtn');
             const copyShareLinkFeedback = document.getElementById('copyShareLinkFeedback');
+            // New elements for access code
+            const raceAccessCodeInput = document.getElementById('raceAccessCodeInput');
+            const copyAccessCodeBtn = document.getElementById('copyAccessCodeBtn');
+            const copyAccessCodeFeedback = document.getElementById('copyAccessCodeFeedback');
 
             const archiveRaceBtn = document.getElementById('archiveRaceBtn');
 
@@ -2953,8 +2964,9 @@
                         .then(data => {
                             if (data.share_link) {
                                 const fullShareLink = window.location.origin + data.share_link;
-                                shareableLinkInput.value = fullShareLink;
-                                shareRaceModal.style.display = 'flex';
+                                if(shareableLinkInput) shareableLinkInput.value = fullShareLink;
+                                if(raceAccessCodeInput && raceAccessCode) raceAccessCodeInput.value = raceAccessCode; // Populate access code
+                                if(shareRaceModal) shareRaceModal.style.display = 'flex';
                             } else {
                                 throw new Error('No se recibió el enlace para compartir.');
                             }
@@ -2974,27 +2986,52 @@
             if (closeShareRaceModalBtn) {
                 closeShareRaceModalBtn.addEventListener('click', function() {
                     shareRaceModal.style.display = 'none';
-                    copyShareLinkFeedback.style.display = 'none'; // Hide feedback on close
+                if(copyShareLinkFeedback) copyShareLinkFeedback.style.display = 'none'; // Hide feedback on close
+                if(copyAccessCodeFeedback) copyAccessCodeFeedback.style.display = 'none'; // Hide access code feedback too
                 });
             }
 
-            if (copyShareLinkBtn) {
+        if (copyShareLinkBtn && shareableLinkInput && copyShareLinkFeedback) {
                 copyShareLinkBtn.addEventListener('click', function() {
                     if (shareableLinkInput.value) {
                         navigator.clipboard.writeText(shareableLinkInput.value)
                             .then(() => {
+                            copyShareLinkFeedback.textContent = '¡Enlace copiado!';
                                 copyShareLinkFeedback.style.display = 'block';
+                            if(copyAccessCodeFeedback) copyAccessCodeFeedback.style.display = 'none'; // Hide other feedback
                                 setTimeout(() => {
                                     copyShareLinkFeedback.style.display = 'none';
-                                }, 2000); // Hide feedback after 2 seconds
+                            }, 2000);
                             })
                             .catch(err => {
-                                console.error('Error copying to clipboard:', err);
+                            console.error('Error copying share link to clipboard:', err);
                                 alert('No se pudo copiar el enlace. Por favor, cópielo manualmente.');
                             });
                     }
                 });
             }
+
+        // Event listener for the new "Copy Code" button
+        if (copyAccessCodeBtn && raceAccessCodeInput && copyAccessCodeFeedback) {
+            copyAccessCodeBtn.addEventListener('click', function() {
+                if (raceAccessCodeInput.value) {
+                    navigator.clipboard.writeText(raceAccessCodeInput.value)
+                        .then(() => {
+                            copyAccessCodeFeedback.textContent = '¡Código copiado!';
+                            copyAccessCodeFeedback.style.display = 'block';
+                            if(copyShareLinkFeedback) copyShareLinkFeedback.style.display = 'none'; // Hide other feedback
+                            setTimeout(() => {
+                                copyAccessCodeFeedback.style.display = 'none';
+                            }, 2000);
+                        })
+                        .catch(err => {
+                            console.error('Error copying access code to clipboard:', err);
+                            alert('No se pudo copiar el código. Por favor, cópielo manualmente.');
+                        });
+                }
+            });
+        }
+
 
             if (archiveRaceBtn) {
                 archiveRaceBtn.addEventListener('click', function() {

@@ -850,6 +850,41 @@ def join_race_api(race_id):
         app.logger.error(f"Error registering user {current_user.id} for race {race.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while trying to register for the race."), 500
 
+@app.route('/api/races/join_by_code', methods=['POST'])
+@login_required
+def join_race_by_code_api():
+    data = request.get_json()
+    if not data or 'access_code' not in data:
+        return jsonify(message="Access code is required."), 400
+
+    access_code = data['access_code'].strip()
+    if not access_code:
+        return jsonify(message="Access code cannot be empty."), 400
+
+    race = Race.query.filter_by(access_code=access_code, is_deleted=False).first()
+    if not race:
+        return jsonify(message="Invalid access code or race not found."), 404
+
+    # Check if already registered
+    existing_registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race.id).first()
+    if existing_registration:
+        # If already registered, still return success with race_id for redirection.
+        # The frontend can decide if it wants to notify "already registered" or just redirect.
+        return jsonify(message="You are already registered for this race.", race_id=race.id), 200
+
+    new_registration = UserRaceRegistration(user_id=current_user.id, race_id=race.id)
+    try:
+        db.session.add(new_registration)
+        db.session.commit()
+        return jsonify(message="Successfully registered for the race!", race_id=race.id), 201
+    except IntegrityError: # Should be caught by the explicit check above, but as a fallback
+        db.session.rollback()
+        app.logger.warning(f"IntegrityError on join_race_by_code: User {current_user.id}, Race {race.id} (Code: {access_code}). Pre-check failed or race condition.")
+        return jsonify(message="Database integrity error: You might already be registered or there was another issue."), 409
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error registering user {current_user.id} for race {race.id} (Code: {access_code}): {e}", exc_info=True)
+        return jsonify(message="An error occurred while trying to register for the race."), 500
 
 @app.route('/api/races/<int:race_id>/participants', methods=['GET'])
 @login_required
