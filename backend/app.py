@@ -4024,7 +4024,10 @@ def get_events():
                 "name": event.name,
                 "event_date": event.event_date.strftime('%Y-%m-%d') if event.event_date else None,
                 "city": event.city,
-                "province": event.province
+                "province": event.province,
+                "discipline": event.discipline,
+                "distance": event.distance,
+                "source_url": event.source_url
                 # Add other fields from Event model if needed in the future
             })
         return jsonify(output), 200

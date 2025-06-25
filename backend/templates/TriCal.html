@@ -3,145 +3,543 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TriCal - Calendario de Eventos de Triatlón</title>
+    <title>TriCal - Directorio Triatlón España 2025</title>
     <link rel="icon" href="{{ url_for('static', filename='img/favicon_promo.svg') }}" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         body {
             font-family: 'Inter', sans-serif;
             scroll-behavior: smooth;
-        }
-        .hero-bg { /* Using a simpler bg for this page, but keeping the class for potential reuse */
-            background-color: #f9fafb; /* gray-50 */
-        }
-        .tab-btn.active {
-            border-color: #F97316;
-            color: #F97316;
-            background-color: #FFF7ED;
+            /* Original body bg-white text-gray-800, new is bg-gray-50 */
         }
         .card-hover:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
+        /* Additional style for modal if needed */
+        .modal-backdrop {
+            /* backdrop-filter: blur(2px); */ /* Optional: for frosted glass effect */
+        }
+        .no-print {
+             /* Class to hide elements during print */
+            @media print {
+                display: none !important;
+            }
+        }
     </style>
 </head>
-<body class="bg-white text-gray-800">
+<body class="bg-gray-50 min-h-screen text-gray-800"> <!-- Changed bg-white to bg-gray-50 -->
 
-    <!-- Navegación Simplificada -->
-    <nav class="py-4 px-6 bg-gray-800 text-white">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <a href="{{ url_for('tripredict_promo_page') }}"> <!-- Link back to promo page -->
-                <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g>
-                        <path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </g>
-                    <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text>
-                </svg>
-            </a>
-            <div class="flex items-center space-x-6">
+    <!-- Header -->
+    <!-- Original Nav: py-4 px-6 bg-gray-800 text-white -->
+    <!-- New Header: bg-blue-600 text-white shadow-lg -->
+    <!-- Mapping: bg-blue-600 -> bg-gray-800 (original nav color) -->
+    <header class="bg-gray-800 text-white shadow-lg no-print"> <!-- Using bg-gray-800 to keep consistency -->
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold flex items-center">
+                        <i class="fas fa-swimming-pool mr-3"></i> <!-- Icon from new structure -->
+                        Directorio Triatlón España 2025
+                    </h1>
+                    <!-- text-blue-100 -> text-gray-300 (adjusting from blue to gray theme) -->
+                    <p class="text-gray-300 mt-2">Encuentra tu próxima carrera de triatlón, duatlón o acuatlón</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-2xl font-bold" id="totalEvents">0</div>
+                    <!-- text-blue-100 -> text-gray-300 -->
+                    <div class="text-gray-300">Eventos</div>
+                </div>
+            </div>
+             <!-- TriPredict Logo and Login Button from original nav, integrated into header -->
+            <div class="mt-4 flex justify-between items-center border-t border-gray-700 pt-4">
+                 <a href="{{ url_for('tripredict_promo_page') }}">
+                    <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g>
+                            <path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </g>
+                        <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text>
+                    </svg>
+                </a>
                 <a href="{{ url_for('serve_login_page') }}" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">Iniciar Sesión</a>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- Events List Section -->
-    <section id="events-list-section" class="py-12 md:py-20 bg-gray-50">
-        <div class="container mx-auto px-4">
-            <h1 class="text-4xl font-bold text-center text-gray-800 mb-6" style="font-family: 'Inter', sans-serif;">Calendario de Carreras TriCal</h1>
-            <p class="text-center text-gray-600 mb-12 text-lg">
-                Explora todos los eventos de triatlón disponibles. ¡Encuentra tu próximo desafío!
-            </p>
-            <div id="events-loading" class="text-center text-gray-500 py-10">
-                <svg class="animate-spin h-10 w-10 text-orange-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-3 text-lg">Cargando eventos...</p>
+    <!-- Filters Section -->
+    <!-- New section: bg-white shadow-sm border-b -->
+    <section class="bg-white shadow-sm border-b no-print">
+        <div class="container mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                <!-- Search -->
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-search mr-1"></i> Búsqueda
+                    </label>
+                    <input type="text" id="searchInput" placeholder="Buscar por nombre o localización..."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-blue-500 -> focus:ring-orange-500 -->
+                </div>
+
+                <!-- Discipline Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-bicycle mr-1"></i> Disciplina
+                    </label>
+                    <select id="disciplineFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todas</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Distance Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-ruler mr-1"></i> Distancia
+                    </label>
+                    <select id="distanceFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todas</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Province Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-map-marker-alt mr-1"></i> Provincia
+                    </label>
+                    <select id="provinceFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todas</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Month Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar mr-1"></i> Mes
+                    </label>
+                    <select id="monthFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todos</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
             </div>
-            <div id="events-error" class="hidden text-center text-red-600 py-10 bg-red-50 p-6 rounded-lg border border-red-300 shadow-md">
-                <svg class="mx-auto h-16 w-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <p class="mt-4 text-xl font-medium">Error al cargar los eventos.</p>
-                <p class="mt-2 text-md">Hubo un problema al contactar con el servidor. Por favor, inténtalo de nuevo más tarde.</p>
-            </div>
-            <div id="events-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
-                <!-- Event cards will be injected here by JavaScript -->
-            </div>
-             <div id="no-events" class="hidden text-center text-gray-500 py-12">
-                <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-                <h3 class="mt-4 text-xl font-medium text-gray-900">No hay eventos disponibles</h3>
-                <p class="mt-2 text-md text-gray-500">Parece que no hay carreras en nuestro calendario en este momento. Vuelve a consultar pronto.</p>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center justify-between mt-6 gap-4">
+                <div class="flex flex-wrap gap-2">
+                    <!-- bg-gray-500 -> bg-gray-600, hover:bg-gray-700 (darker gray for contrast with bg-white section) -->
+                    <button id="clearFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-times mr-1"></i> Limpiar Filtros
+                    </button>
+                    <!-- bg-blue-500 -> bg-orange-500 (main theme color) -->
+                    <button id="sortDate" class="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-sort mr-1"></i> Ordenar por Fecha
+                    </button>
+                </div>
+                <div class="text-sm text-gray-600">
+                    Mostrando <span id="visibleCount">0</span> de <span id="totalCount">0</span> eventos
+                </div>
             </div>
         </div>
     </section>
 
+    <!-- Results Section -->
+    <!-- Original section: py-12 md:py-20 bg-gray-50 -->
+    <!-- New main: container mx-auto px-4 py-8 (bg-gray-50 is now on body) -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Original Loading and Error indicators were inside a specific section, now adapting to new structure -->
+        <div id="events-loading" class="text-center text-gray-500 py-10">
+            <svg class="animate-spin h-10 w-10 text-orange-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-3 text-lg">Cargando eventos...</p>
+        </div>
+        <div id="events-error" class="hidden text-center text-red-600 py-10 bg-red-50 p-6 rounded-lg border border-red-300 shadow-md">
+            <svg class="mx-auto h-16 w-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p class="mt-4 text-xl font-medium">Error al cargar los eventos.</p>
+            <p class="mt-2 text-md">Hubo un problema al contactar con el servidor. Por favor, inténtalo de nuevo más tarde.</p>
+        </div>
+
+        <div id="eventsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Event cards will be populated here by JavaScript -->
+        </div>
+
+        <!-- No Results Message -->
+        <!-- Original no-events was similar, new one has different icon and text -->
+        <div id="noResults" class="text-center py-12 hidden"> <!-- Renamed from 'no-events' for clarity with new HTML -->
+            <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron eventos</h3>
+            <p class="text-gray-500">Intenta ajustar los filtros de búsqueda</p>
+        </div>
+    </main>
+
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white py-8 mt-10">
+    <!-- Original footer: bg-gray-800 text-white py-8 mt-10 -->
+    <!-- New structure doesn't specify a footer, so I'll reuse the original one -->
+    <footer class="bg-gray-800 text-white py-8 mt-10 no-print">
         <div class="max-w-7xl mx-auto px-6 text-center">
             <p>&copy; <span id="currentYear"></span> TriPredict. Todos los derechos reservados.</p>
             <p class="text-sm text-gray-400">Tu plataforma para la quiniela de triatlón.</p>
         </div>
     </footer>
 
+    <!-- Event Detail Modal -->
+    <div id="eventModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden z-50 no-print">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6" id="modalContent">
+                    <!-- Modal content will be populated here -->
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 id="modalEventName" class="text-3xl font-bold text-gray-800">Nombre del Evento</h2>
+                        <button id="closeModalBtnX" class="text-gray-400 hover:text-gray-600">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p class="text-sm text-gray-500 uppercase tracking-wider">Fecha</p>
+                            <p id="modalEventDate" class="text-lg text-gray-700 font-semibold">DD/MM/YYYY</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 uppercase tracking-wider">Localización</p>
+                            <p id="modalEventLocation" class="text-lg text-gray-700 font-semibold">Ciudad, Provincia</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 uppercase tracking-wider">Disciplina</p>
+                            <p id="modalEventDiscipline" class="text-lg text-gray-700 font-semibold">Triatlón</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 uppercase tracking-wider">Distancia</p>
+                            <p id="modalEventDistance" class="text-lg text-gray-700 font-semibold">Olímpica</p>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <p class="text-sm text-gray-500 uppercase tracking-wider">Más Información</p>
+                        <p id="modalEventDescription" class="text-gray-700 mt-1">
+                            Aquí iría una descripción más detallada del evento si estuviera disponible.
+                            Por ahora, este es un texto de ejemplo. (Este campo no está en la BBDD Event).
+                        </p>
+                    </div>
+                     <div class="mt-8 flex justify-end border-t pt-4">
+                        <button id="closeModalBtn" class="px-6 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors">Cerrar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <script>
+        // Helper function to format date as DD Mon YYYY (e.g., 01 Ene 2025)
+        function formatDate(dateString) {
+            if (!dateString) return 'Fecha no disponible';
+            try {
+                const date = new Date(dateString + 'T00:00:00'); // Ensure date is parsed as local
+                const day = String(date.getDate()).padStart(2, '0');
+                // Ensure month is in Spanish and capitalized correctly
+                let month = date.toLocaleString('es-ES', { month: 'short' });
+                month = month.charAt(0).toUpperCase() + month.slice(1).replace('.', '');
+                const year = date.getFullYear();
+                return `${day} ${month} ${year}`;
+            } catch (e) {
+                console.error("Error formatting date:", dateString, e);
+                return 'Fecha inválida';
+            }
+        }
+
+        let allEvents = []; // Store all fetched events
+        let currentSortAscending = true; // For date sorting
+
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
         document.addEventListener('DOMContentLoaded', function() {
-            const eventsContainer = document.getElementById('events-container');
+            const eventsContainer = document.getElementById('eventsContainer');
             const loadingIndicator = document.getElementById('events-loading');
             const errorIndicator = document.getElementById('events-error');
-            const noEventsIndicator = document.getElementById('no-events');
+            const noResultsIndicator = document.getElementById('noResults');
+
+            const totalEventsDisplay = document.getElementById('totalEvents');
+            const visibleCountDisplay = document.getElementById('visibleCount');
+            const totalCountDisplay = document.getElementById('totalCount');
+
+            const searchInput = document.getElementById('searchInput');
+            const disciplineFilter = document.getElementById('disciplineFilter');
+            const distanceFilter = document.getElementById('distanceFilter');
+            const provinceFilter = document.getElementById('provinceFilter');
+            const monthFilter = document.getElementById('monthFilter');
+            const clearFiltersBtn = document.getElementById('clearFilters');
+            const sortDateBtn = document.getElementById('sortDate');
+
+            // Modal elements
+            const eventModal = document.getElementById('eventModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const closeModalBtnX = document.getElementById('closeModalBtnX'); // X button in modal
+            const modalEventName = document.getElementById('modalEventName');
+            const modalEventDate = document.getElementById('modalEventDate');
+            const modalEventLocation = document.getElementById('modalEventLocation');
+            const modalEventDiscipline = document.getElementById('modalEventDiscipline');
+            const modalEventDistance = document.getElementById('modalEventDistance');
+            const modalEventDescription = document.getElementById('modalEventDescription');
+
+            function openModal(event) {
+                modalEventName.textContent = event.name || 'Detalles del Evento';
+                modalEventDate.textContent = formatDate(event.event_date);
+                modalEventLocation.textContent = `${event.city || 'N/A'}, ${event.province || 'N/A'}`;
+                modalEventDiscipline.textContent = event.discipline || 'N/A';
+                modalEventDistance.textContent = event.distance || 'N/A';
+                // Description is not in the Event model, so using a placeholder.
+                modalEventDescription.textContent = event.source_url ? `Más información en: <a href="${event.source_url}" target="_blank" class="text-orange-600 hover:underline">${event.source_url}</a>` : 'No hay descripción adicional o enlace disponible.';
+                eventModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            }
+
+            function closeModal() {
+                eventModal.classList.add('hidden');
+                document.body.style.overflow = ''; // Restore background scrolling
+            }
+
+            if(closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+            if(closeModalBtnX) closeModalBtnX.addEventListener('click', closeModal);
+
+            if(eventModal){
+                eventModal.addEventListener('click', (e) => {
+                    if (e.target === eventModal) { // Click on backdrop
+                        closeModal();
+                    }
+                });
+            }
+            // Close with Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === "Escape" && !eventModal.classList.contains('hidden')) {
+                    closeModal();
+                }
+            });
+
+
+            function populateFilterOptions(events) {
+                const disciplines = new Set();
+                const distances = new Set();
+                const provinces = new Set();
+
+                events.forEach(event => {
+                    if (event.discipline) disciplines.add(event.discipline);
+                    if (event.distance) distances.add(event.distance);
+                    if (event.province) provinces.add(event.province);
+                });
+
+                // Clear existing options except "Todas" / "Todos"
+                disciplineFilter.innerHTML = '<option value="">Todas</option>';
+                distanceFilter.innerHTML = '<option value="">Todas</option>';
+                provinceFilter.innerHTML = '<option value="">Todas</option>';
+
+                Array.from(disciplines).sort().forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d;
+                    option.textContent = d;
+                    disciplineFilter.appendChild(option);
+                });
+                Array.from(distances).sort().forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d;
+                    option.textContent = d;
+                    distanceFilter.appendChild(option);
+                });
+                Array.from(provinces).sort().forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p;
+                    option.textContent = p;
+                    provinceFilter.appendChild(option);
+                });
+            }
+
+            function renderEvents(eventsToRender) {
+                eventsContainer.innerHTML = '';
+                if (eventsToRender.length === 0) {
+                    noResultsIndicator.classList.remove('hidden');
+                } else {
+                    noResultsIndicator.classList.add('hidden');
+                }
+
+                eventsToRender.forEach(event => {
+                    const eventCard = document.createElement('div');
+                    eventCard.className = "bg-white rounded-lg shadow-md overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover cursor-pointer border border-gray-200 hover:shadow-xl";
+
+                    eventCard.innerHTML = `
+                        <div class="p-4 border-b border-gray-200">
+                            <h3 class="font-semibold text-lg text-gray-800 mb-1 truncate" title="${event.name}">${event.name}</h3>
+                            <p class="text-sm text-orange-600 font-medium">${event.discipline || 'N/A'}</p>
+                        </div>
+                        <div class="p-4 flex-grow space-y-2">
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-calendar-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${formatDate(event.event_date)}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-map-marker-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${event.city || 'N/A'}, ${event.province || 'N/A'}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-ruler-combined fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${event.distance || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
+                            <button class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
+                                Ver Detalles <i class="fas fa-arrow-right text-xs ml-1"></i>
+                            </button>
+                        </div>
+                    `;
+                    eventCard.querySelector('.view-details-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openModal(event);
+                    });
+                    eventCard.addEventListener('click', () => openModal(event));
+                    eventsContainer.appendChild(eventCard);
+                });
+                if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
+            }
+
+            function filterAndSortEvents() {
+                let filteredEvents = [...allEvents];
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const selectedDiscipline = disciplineFilter.value;
+                const selectedDistance = distanceFilter.value;
+                const selectedProvince = provinceFilter.value;
+                const selectedMonth = monthFilter.value;
+
+                if (searchTerm) {
+                    filteredEvents = filteredEvents.filter(event =>
+                        (event.name && event.name.toLowerCase().includes(searchTerm)) ||
+                        (event.city && event.city.toLowerCase().includes(searchTerm)) ||
+                        (event.province && event.province.toLowerCase().includes(searchTerm)) ||
+                        (event.discipline && event.discipline.toLowerCase().includes(searchTerm)) ||
+                        (event.distance && event.distance.toLowerCase().includes(searchTerm))
+                    );
+                }
+                if (selectedDiscipline) {
+                    filteredEvents = filteredEvents.filter(event => event.discipline === selectedDiscipline);
+                }
+                if (selectedDistance) {
+                    filteredEvents = filteredEvents.filter(event => event.distance === selectedDistance);
+                }
+                if (selectedProvince) {
+                    filteredEvents = filteredEvents.filter(event => event.province === selectedProvince);
+                }
+                if (selectedMonth) {
+                    filteredEvents = filteredEvents.filter(event => {
+                        if (!event.event_date) return false;
+                        // Ensure date is parsed as local before getting month
+                        const event_date_obj = new Date(event.event_date + 'T00:00:00');
+                        const event_month = event_date_obj.getMonth() + 1; // JS months are 0-indexed
+                        return event_month === parseInt(selectedMonth);
+                    });
+                }
+
+                filteredEvents.sort((a, b) => {
+                    // Handle null or invalid dates by pushing them to the end
+                    const dateA = a.event_date ? new Date(a.event_date + 'T00:00:00') : null;
+                    const dateB = b.event_date ? new Date(b.event_date + 'T00:00:00') : null;
+
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1; // Push nulls to end
+                    if (!dateB) return -1; // Keep non-nulls before nulls
+
+                    return currentSortAscending ? dateA - dateB : dateB - dateA;
+                });
+
+                renderEvents(filteredEvents);
+            }
+
+            loadingIndicator.style.display = 'block'; // Show loading indicator initially
+            errorIndicator.classList.add('hidden');
+            noResultsIndicator.classList.add('hidden');
 
             fetch('/api/events')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
                     }
                     return response.json();
                 })
-                .then(events => {
+                .then(events_data => {
+                    allEvents = events_data.map(event => ({
+                        ...event,
+                        // API returns date as YYYY-MM-DD, which JS Date constructor handles correctly as local date.
+                        event_date: event.event_date ? event.event_date : null
+                    }));
+
+                    if (totalEventsDisplay) totalEventsDisplay.textContent = allEvents.length;
+                    if (totalCountDisplay) totalCountDisplay.textContent = allEvents.length;
+
+                    populateFilterOptions(allEvents);
+                    filterAndSortEvents(); // Initial sort and render
                     loadingIndicator.style.display = 'none';
-                    if (events && events.length > 0) {
-                        events.forEach(event => {
-                            const eventCard = `
-                                <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover">
-                                    <div class="bg-gradient-to-br from-orange-500 to-red-600 h-28 p-5 flex items-center justify-center text-white">
-                                        <h3 class="font-bold text-2xl text-center leading-tight" title="${event.name}">${event.name}</h3>
-                                    </div>
-                                    <div class="p-6 flex-grow flex flex-col">
-                                        <div class="flex items-center text-md text-gray-700 mb-3">
-                                            <svg class="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                            <span>${event.event_date || 'Fecha no disponible'}</span>
-                                        </div>
-                                        <div class="flex items-center text-md text-gray-700 mb-6">
-                                            <svg class="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                            <span>${event.city || 'N/A'}, ${event.province || 'N/A'}</span>
-                                        </div>
-                                        <div class="mt-auto">
-                                            <a href="#" class="block w-full bg-orange-500 text-white text-center font-semibold py-3 px-5 rounded-lg hover:bg-orange-600 transition-colors duration-200 text-md">
-                                                Ver Detalles (Próximamente)
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            eventsContainer.innerHTML += eventCard;
-                        });
-                    } else {
-                        noEventsIndicator.classList.remove('hidden');
-                    }
+
                 })
                 .catch(error => {
                     console.error('Error fetching events:', error);
                     loadingIndicator.style.display = 'none';
                     errorIndicator.classList.remove('hidden');
+                    errorIndicator.querySelector('p.mt-2').textContent = `Detalles: ${error.message}. Por favor, inténtalo de nuevo más tarde.`;
+                    if(totalEventsDisplay) totalEventsDisplay.textContent = 0;
+                    if(visibleCountDisplay) visibleCountDisplay.textContent = 0;
+                    if(totalCountDisplay) totalCountDisplay.textContent = 0;
                 });
+
+            [searchInput, disciplineFilter, distanceFilter, provinceFilter, monthFilter].forEach(element => {
+                if (element.tagName === 'INPUT') {
+                    element.addEventListener('input', filterAndSortEvents);
+                } else {
+                    element.addEventListener('change', filterAndSortEvents);
+                }
+            });
+
+            clearFiltersBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                disciplineFilter.value = '';
+                distanceFilter.value = '';
+                provinceFilter.value = '';
+                monthFilter.value = '';
+                currentSortAscending = true;
+                sortDateBtn.innerHTML = '<i class="fas fa-sort mr-1"></i> Ordenar por Fecha';
+                filterAndSortEvents();
+            });
+
+            sortDateBtn.addEventListener('click', () => {
+                currentSortAscending = !currentSortAscending;
+                sortDateBtn.innerHTML = `<i class="fas fa-sort mr-1"></i> Ordenar por Fecha ${currentSortAscending ? '' : '<i class="fas fa-arrow-down ml-1 text-xs"></i>' : '<i class="fas fa-arrow-up ml-1 text-xs"></i>'}`;
+                 // Simplified sort indicator, can be more specific with up/down arrows
+                if (currentSortAscending) {
+                    sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
+                } else {
+                    sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Más nuevas primero)';
+                }
+                filterAndSortEvents();
+            });
+            // Initial sort button text
+            sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
+
+
         });
     </script>
 </body>
