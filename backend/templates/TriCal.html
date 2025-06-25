@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TriCal - Calendario de Eventos de Triatlón</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon_promo.svg') }}" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+        }
+        .hero-bg { /* Using a simpler bg for this page, but keeping the class for potential reuse */
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .tab-btn.active {
+            border-color: #F97316;
+            color: #F97316;
+            background-color: #FFF7ED;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+
+    <!-- Navegación Simplificada -->
+    <nav class="py-4 px-6 bg-gray-800 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="{{ url_for('tripredict_promo_page') }}"> <!-- Link back to promo page -->
+                <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <g>
+                        <path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </g>
+                    <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text>
+                </svg>
+            </a>
+            <div class="flex items-center space-x-6">
+                <a href="{{ url_for('serve_login_page') }}" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">Iniciar Sesión</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Events List Section -->
+    <section id="events-list-section" class="py-12 md:py-20 bg-gray-50">
+        <div class="container mx-auto px-4">
+            <h1 class="text-4xl font-bold text-center text-gray-800 mb-6" style="font-family: 'Inter', sans-serif;">Calendario de Carreras TriCal</h1>
+            <p class="text-center text-gray-600 mb-12 text-lg">
+                Explora todos los eventos de triatlón disponibles. ¡Encuentra tu próximo desafío!
+            </p>
+            <div id="events-loading" class="text-center text-gray-500 py-10">
+                <svg class="animate-spin h-10 w-10 text-orange-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-3 text-lg">Cargando eventos...</p>
+            </div>
+            <div id="events-error" class="hidden text-center text-red-600 py-10 bg-red-50 p-6 rounded-lg border border-red-300 shadow-md">
+                <svg class="mx-auto h-16 w-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p class="mt-4 text-xl font-medium">Error al cargar los eventos.</p>
+                <p class="mt-2 text-md">Hubo un problema al contactar con el servidor. Por favor, inténtalo de nuevo más tarde.</p>
+            </div>
+            <div id="events-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8">
+                <!-- Event cards will be injected here by JavaScript -->
+            </div>
+             <div id="no-events" class="hidden text-center text-gray-500 py-12">
+                <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                  <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+                <h3 class="mt-4 text-xl font-medium text-gray-900">No hay eventos disponibles</h3>
+                <p class="mt-2 text-md text-gray-500">Parece que no hay carreras en nuestro calendario en este momento. Vuelve a consultar pronto.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-10">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p>&copy; <span id="currentYear"></span> TriPredict. Todos los derechos reservados.</p>
+            <p class="text-sm text-gray-400">Tu plataforma para la quiniela de triatlón.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const eventsContainer = document.getElementById('events-container');
+            const loadingIndicator = document.getElementById('events-loading');
+            const errorIndicator = document.getElementById('events-error');
+            const noEventsIndicator = document.getElementById('no-events');
+
+            fetch('/api/events')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(events => {
+                    loadingIndicator.style.display = 'none';
+                    if (events && events.length > 0) {
+                        events.forEach(event => {
+                            const eventCard = `
+                                <div class="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover">
+                                    <div class="bg-gradient-to-br from-orange-500 to-red-600 h-28 p-5 flex items-center justify-center text-white">
+                                        <h3 class="font-bold text-2xl text-center leading-tight" title="${event.name}">${event.name}</h3>
+                                    </div>
+                                    <div class="p-6 flex-grow flex flex-col">
+                                        <div class="flex items-center text-md text-gray-700 mb-3">
+                                            <svg class="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            <span>${event.event_date || 'Fecha no disponible'}</span>
+                                        </div>
+                                        <div class="flex items-center text-md text-gray-700 mb-6">
+                                            <svg class="w-5 h-5 text-orange-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                            <span>${event.city || 'N/A'}, ${event.province || 'N/A'}</span>
+                                        </div>
+                                        <div class="mt-auto">
+                                            <a href="#" class="block w-full bg-orange-500 text-white text-center font-semibold py-3 px-5 rounded-lg hover:bg-orange-600 transition-colors duration-200 text-md">
+                                                Ver Detalles (Próximamente)
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            eventsContainer.innerHTML += eventCard;
+                        });
+                    } else {
+                        noEventsIndicator.classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    loadingIndicator.style.display = 'none';
+                    errorIndicator.classList.remove('hidden');
+                });
+        });
+    </script>
+</body>
+</html>

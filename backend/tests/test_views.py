@@ -130,3 +130,131 @@ class TestDashboardView:
 
         # Check if the non-general race title is present (likely in the official answers dropdown)
         assert "Admin Local Race" in response_data_text
+
+
+class TestEventsAPI:
+    def test_get_events_empty(self, client, db_session):
+        """Test GET /api/events when no events exist."""
+        response = client.get('/api/events')
+        assert response.status_code == 200
+        assert response.content_type == 'application/json'
+        data = json.loads(response.data)
+        assert data == []
+
+    def test_get_events_with_data(self, client, db_session):
+        """Test GET /api/events with some event data."""
+        from backend.models import Event # Local import to ensure app context is active
+
+        # Create sample events
+        event1 = Event(
+            name="Triatlón de la Ciudad",
+            event_date=datetime.strptime("2024-08-15", "%Y-%m-%d").date(),
+            city="Ciudad Ejemplo",
+            province="Provincia Ejemplo",
+            discipline="Triatlón",
+            distance="Olímpico"
+        )
+        event2 = Event(
+            name="Duatlón Montaña",
+            event_date=datetime.strptime("2024-09-01", "%Y-%m-%d").date(),
+            city="Pueblo Montaña",
+            province="Sierra Alta",
+            discipline="Duatlón",
+            distance="Sprint"
+        )
+        db_session.add_all([event1, event2])
+        db_session.commit()
+
+        response = client.get('/api/events')
+        assert response.status_code == 200
+        assert response.content_type == 'application/json'
+        data = json.loads(response.data)
+
+        assert len(data) == 2
+
+        # Events are ordered by event_date desc
+        assert data[0]['name'] == "Duatlón Montaña"
+        assert data[0]['event_date'] == "2024-09-01"
+        assert data[0]['city'] == "Pueblo Montaña"
+        assert data[0]['province'] == "Sierra Alta"
+        assert 'id' in data[0]
+
+        assert data[1]['name'] == "Triatlón de la Ciudad"
+        assert data[1]['event_date'] == "2024-08-15"
+        assert data[1]['city'] == "Ciudad Ejemplo"
+        assert data[1]['province'] == "Provincia Ejemplo"
+        assert 'id' in data[1]
+
+        # Clean up - specific to this test if we don't want to rely on full session rollback for this
+        # For in-memory SQLite, this is less critical as it's per-session.
+        # For persistent DBs, more careful cleanup is needed.
+        db_session.delete(event1)
+        db_session.delete(event2)
+        db_session.commit()
+
+    def test_get_events_date_formatting(self, client, db_session):
+        """Test that event_date is correctly formatted as YYYY-MM-DD."""
+        from backend.models import Event
+        event_with_date = Event(
+            name="Evento con Fecha",
+            event_date=datetime.strptime("2025-01-05", "%Y-%m-%d").date(),
+            city="FechaCity",
+            province="FechaProv"
+        )
+        db_session.add(event_with_date)
+        db_session.commit()
+
+        response = client.get('/api/events')
+        data = json.loads(response.data)
+
+        assert len(data) == 1
+        assert data[0]['event_date'] == "2025-01-05"
+
+        db_session.delete(event_with_date)
+        db_session.commit()
+
+    def test_get_events_with_null_fields(self, client, db_session):
+        """Test GET /api/events with events that have nullable fields as None."""
+        from backend.models import Event
+        event_nulls = Event(
+            name="Evento con Nulos",
+            event_date=datetime.strptime("2024-10-10", "%Y-%m-%d").date(),
+            city=None,  # City can be null
+            province="Provincia Sola" # Province can be null too, but let's test one
+        )
+        db_session.add(event_nulls)
+        db_session.commit()
+
+        response = client.get('/api/events')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert len(data) == 1
+        assert data[0]['name'] == "Evento con Nulos"
+        assert data[0]['city'] is None
+        assert data[0]['province'] == "Provincia Sola"
+
+        db_session.delete(event_nulls)
+        db_session.commit()
+
+    def test_get_trical_page(self, client):
+        """Test that the /TriCal page loads."""
+        response = client.get('/TriCal')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+        assert "Calendario de Carreras TriCal" in response_data_text # Unique title from TriCal.html
+        assert 'events-container' in response_data_text # Check for the div where events would be loaded
+        # Check that the promo page specific content is NOT there
+        assert "El pique no debería acabar en la línea de meta." not in response_data_text
+
+    def test_tripredict_promo_page_no_longer_shows_events(self, client):
+        """Test that the /Tripredict promo page no longer directly embeds the events list script."""
+        response = client.get('/Tripredict')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+        # Check for a known part of the promo page
+        assert "El pique no debería acabar en la línea de meta." in response_data_text
+        # Check that the events container or its specific loading/error indicators are NOT there
+        assert 'id="events-container"' not in response_data_text
+        assert 'id="events-loading"' not in response_data_text
+        assert "Cargando eventos..." not in response_data_text

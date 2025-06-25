@@ -84,6 +84,10 @@ class Race(db.Model):
     category = db.Column(db.String(255), default="Elite", nullable=False)
     gender_category = db.Column(db.String(255), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    # --- AÑADIR ESTAS DOS LÍNEAS  para trical---
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=True)
+    event = db.relationship("Event", back_populates="races")
+    # --------------------------------------------
     user = db.relationship('User', backref=db.backref('created_races', lazy=True)) # Changed backref to created_races
     is_general = db.Column(db.Boolean, nullable=False, default=False)
     quiniela_close_date = db.Column(db.DateTime, nullable=True) # New field for Quiniela close date
@@ -381,3 +385,39 @@ class FavoriteLink(db.Model):
 
     def __repr__(self):
         return f'<FavoriteLink {self.title}>'
+
+#--------------------------------------------#
+#--- AÑADIR ESTE MODELO NUEVO para trical ---#
+#--------------------------------------------#
+
+class Event(db.Model):
+    """
+    Tabla de Eventos (Plantillas de TriCal).
+    Contiene la información 'oficial' y curada de los eventos del mundo real.
+    """
+    __tablename__ = 'events'
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    name = db.Column(db.String(255), nullable=False, index=True)
+    event_date = db.Column(db.Date, nullable=False)
+    city = db.Column(db.String(100), nullable=True)
+    province = db.Column(db.String(100), nullable=True, index=True)
+    discipline = db.Column(db.String(50), nullable=True, index=True)
+    distance = db.Column(db.String(100), nullable=True, index=True)
+    source_url = db.Column(db.String(512), nullable=True)
+    
+    # Campos de Curación ("Puntuación TriCal")
+    is_good_for_debutants = db.Column(db.Boolean, default=False, server_default='f')
+    is_challenging = db.Column(db.Boolean, default=False, server_default='f')
+    has_great_views = db.Column(db.Boolean, default=False, server_default='f')
+    has_good_atmosphere = db.Column(db.Boolean, default=False, server_default='f')
+    is_world_qualifier = db.Column(db.Boolean, default=False, server_default='f')
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relación inversa: Un evento puede tener muchas 'Races' (quinielas) basadas en él
+    races = db.relationship("Race", back_populates="event")
+
+    def __repr__(self):
+        return f'<Event {self.name}>'
