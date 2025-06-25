@@ -3,7 +3,7 @@ import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus # Added UserScore and RaceStatus
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus, Event # Added UserScore and RaceStatus, AND Event
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -4002,3 +4002,27 @@ def save_official_answers(race_id):
         db.session.rollback()
         app.logger.error(f"Exception saving official answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while saving official answers."), 500
+
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    """
+    Provides a list of all available events (from TriCal definitions).
+    Does not require authentication.
+    """
+    try:
+        events = Event.query.order_by(Event.event_date.desc()).all()
+
+        output = []
+        for event in events:
+            output.append({
+                "id": event.id,
+                "name": event.name,
+                "event_date": event.event_date.strftime('%Y-%m-%d') if event.event_date else None,
+                "city": event.city,
+                "province": event.province
+                # Add other fields from Event model if needed in the future
+            })
+        return jsonify(output), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching events: {e}", exc_info=True)
+        return jsonify(message="Error fetching events"), 500
