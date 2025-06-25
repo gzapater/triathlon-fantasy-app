@@ -12,3 +12,6 @@ __pycache__/
 
 # Ficheros de sistema operativo
 .DS_Store
+
+seed_data.json
+
