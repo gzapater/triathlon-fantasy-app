@@ -234,6 +234,25 @@
                                 {{ status_text }}
                             </span>
                         {% endif %}
+
+                        {# Nuevas etiquetas de evento #}
+                        {% if race.event %}
+                            {% if race.event.is_good_for_debutants %}
+                                <span class="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">Ideal para debutantes</span>
+                            {% endif %}
+                            {% if race.event.is_challenging %}
+                                <span class="bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">Desafiante</span>
+                            {% endif %}
+                            {% if race.event.has_great_views %}
+                                <span class="bg-green-100 text-green-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">Excelentes vistas</span>
+                            {% endif %}
+                            {% if race.event.has_good_atmosphere %}
+                                <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">Buen ambiente</span>
+                            {% endif %}
+                            {% if race.event.is_world_qualifier %}
+                                <span class="bg-purple-100 text-purple-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">Clasificatorio mundial</span>
+                            {% endif %}
+                        {% endif %}
                     </div>
                     <div class="flex items-center justify-center lg:justify-start mb-3"> <!-- Added a wrapper for icon and title -->
                         <span id="favoriteRaceIcon"
