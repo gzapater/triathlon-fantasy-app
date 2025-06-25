@@ -236,3 +236,25 @@ class TestEventsAPI:
 
         db_session.delete(event_nulls)
         db_session.commit()
+
+    def test_get_trical_page(self, client):
+        """Test that the /TriCal page loads."""
+        response = client.get('/TriCal')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+        assert "Calendario de Carreras TriCal" in response_data_text # Unique title from TriCal.html
+        assert 'events-container' in response_data_text # Check for the div where events would be loaded
+        # Check that the promo page specific content is NOT there
+        assert "El pique no debería acabar en la línea de meta." not in response_data_text
+
+    def test_tripredict_promo_page_no_longer_shows_events(self, client):
+        """Test that the /Tripredict promo page no longer directly embeds the events list script."""
+        response = client.get('/Tripredict')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+        # Check for a known part of the promo page
+        assert "El pique no debería acabar en la línea de meta." in response_data_text
+        # Check that the events container or its specific loading/error indicators are NOT there
+        assert 'id="events-container"' not in response_data_text
+        assert 'id="events-loading"' not in response_data_text
+        assert "Cargando eventos..." not in response_data_text

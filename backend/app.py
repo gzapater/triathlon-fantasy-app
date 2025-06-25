@@ -2509,6 +2509,11 @@ def user_personal_data():
 def tripredict_promo_page():
     return render_template('tripredict_promo.html')
 
+@app.route('/TriCal')
+def trical_events_page():
+    """Serves the TriCal events calendar page."""
+    return render_template('TriCal.html')
+
 @app.route('/Faq')
 def faq_page():
     return render_template('faq.html')
