@@ -129,6 +129,13 @@
         <main class="flex-1 pb-6"> <!-- MODIFIED: Removed top and horizontal padding, kept bottom padding, removed md:ml-0 as sidebar is gone -->
             {% include '_hero_section.html' %}
 
+            <!-- Join Race by Code Button -->
+            <div class="my-6 text-center px-6"> <!-- Added margin, centering, and horizontal padding -->
+                <button id="joinRaceByCodeBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
+                    <i class="fas fa-key mr-2"></i>Unirse a Carrera por Código
+                </button>
+            </div>
+
             <div id="dashboard-content-wrapper">
                 <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
                     <!-- Filters Section -->
@@ -498,6 +505,8 @@
         </div>
     </footer>
 
+    {% include '_join_by_code_modal.html' %}
+
  <script>
     // ====================================================================
     // 1. VARIABLES GLOBALES
@@ -717,6 +726,92 @@
             window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
         }
     });
+
+    // --- Join Race By Code Modal Logic ---
+    const joinRaceByCodeBtn = document.getElementById('joinRaceByCodeBtn');
+    const joinByCodeModal = document.getElementById('joinByCodeModal');
+    const closeJoinByCodeModalBtn = document.getElementById('closeJoinByCodeModalBtn');
+    const cancelJoinByCodeBtn = document.getElementById('cancelJoinByCodeBtn');
+    const joinByCodeForm = document.getElementById('joinByCodeForm');
+    const raceAccessCodeToJoinInput = document.getElementById('raceAccessCodeToJoin');
+    const joinByCodeError = document.getElementById('joinByCodeError');
+    const submitJoinByCodeBtn = document.getElementById('submitJoinByCodeBtn');
+
+    if (joinRaceByCodeBtn) {
+        joinRaceByCodeBtn.addEventListener('click', () => {
+            if (joinByCodeModal) {
+                if(raceAccessCodeToJoinInput) raceAccessCodeToJoinInput.value = ''; // Clear previous input
+                if(joinByCodeError) joinByCodeError.style.display = 'none'; // Clear previous errors
+                joinByCodeModal.style.display = 'flex';
+            }
+        });
+    }
+
+    function closeJoinByCodeDialog() {
+        if (joinByCodeModal) {
+            joinByCodeModal.style.display = 'none';
+        }
+    }
+
+    if (closeJoinByCodeModalBtn) {
+        closeJoinByCodeModalBtn.addEventListener('click', closeJoinByCodeDialog);
+    }
+    if (cancelJoinByCodeBtn) {
+        cancelJoinByCodeBtn.addEventListener('click', closeJoinByCodeDialog);
+    }
+
+    if (joinByCodeForm && submitJoinByCodeBtn) {
+        joinByCodeForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const accessCode = raceAccessCodeToJoinInput.value.trim();
+            if (!accessCode) {
+                if(joinByCodeError) {
+                    joinByCodeError.textContent = 'Por favor, ingresa un código de acceso.';
+                    joinByCodeError.style.display = 'block';
+                }
+                return;
+            }
+
+            submitJoinByCodeBtn.disabled = true;
+            submitJoinByCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uniéndose...';
+            if(joinByCodeError) joinByCodeError.style.display = 'none';
+
+            fetch('/api/races/join_by_code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Add CSRF token if needed by your backend framework
+                    // 'X-CSRFToken': '...' // Placeholder if CSRF needed
+                },
+                body: JSON.stringify({ access_code: accessCode })
+            })
+            .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+            .then(result => {
+                if (result.ok) {
+                    closeJoinByCodeDialog();
+                    // Redirect to the race detail page
+                    window.location.href = `/race/${result.body.race_id}?action=start_quiniela`;
+                } else {
+                    if(joinByCodeError) {
+                        joinByCodeError.textContent = result.body.message || `Error: ${result.status}. No se pudo unir a la carrera.`;
+                        joinByCodeError.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error joining race by code:', error);
+                if(joinByCodeError) {
+                    joinByCodeError.textContent = 'Error de conexión o del servidor. Inténtalo de nuevo.';
+                    joinByCodeError.style.display = 'block';
+                }
+            })
+            .finally(() => {
+                submitJoinByCodeBtn.disabled = false;
+                submitJoinByCodeBtn.innerHTML = 'Unirse a Carrera';
+            });
+        });
+    }
+    // --- End Join Race By Code Modal Logic ---
 </script>
 </body>
 </html>

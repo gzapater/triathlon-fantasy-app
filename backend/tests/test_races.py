@@ -56,6 +56,42 @@ def test_create_race_and_segment_details(db_session, admin_user):
     assert rsd1.segment == natacion_segment
     assert rsd1.distance_km == 1.5
 
+def test_race_access_code_generation(db_session, admin_user):
+    """Test that a Race object gets an access_code automatically."""
+    triathlon_format = RaceFormat.query.filter_by(name="Triatlón").first()
+    assert triathlon_format is not None
+
+    race = Race(
+        title="Race With Auto Access Code",
+        race_format_id=triathlon_format.id,
+        event_date=datetime.strptime("2024-09-01", "%Y-%m-%d"),
+        gender_category="Ambos",
+        user_id=admin_user.id,
+        category="Elite"
+    )
+    db_session.add(race)
+    db_session.commit()
+
+    assert race.id is not None
+    assert race.access_code is not None
+    assert isinstance(race.access_code, str)
+    assert len(race.access_code) == 36 # UUID4 string length
+
+    # Test uniqueness implicitly by creating another race
+    race2 = Race(
+        title="Another Race With Auto Access Code",
+        race_format_id=triathlon_format.id,
+        event_date=datetime.strptime("2024-09-02", "%Y-%m-%d"),
+        gender_category="Mixta", # Corrected from "Ambos" if "Mixta" is more standard
+        user_id=admin_user.id,
+        category="General"
+    )
+    db_session.add(race2)
+    db_session.commit()
+    assert race2.access_code is not None
+    assert race.access_code != race2.access_code
+
+
 # --- API Endpoint Tests ---
 
 # GET /api/race-formats
@@ -1405,3 +1441,88 @@ def test_delete_non_existent_question(authenticated_client):
     response = admin_client.delete(f'/api/questions/{non_existent_q_id}')
     assert response.status_code == 404
     assert "Question not found" in response.get_json()["message"]
+
+
+# --- Tests for /api/races/join_by_code ---
+
+def test_join_race_by_code_unauthenticated(client, sample_race):
+    """Test joining a race by code without authentication."""
+    response = client.post('/api/races/join_by_code', json={"access_code": sample_race.access_code})
+    assert response.status_code in [401, 302] # Expect 401 for API, could be 302 if login_view redirects
+
+def test_join_race_by_code_success(authenticated_client, sample_race, db_session):
+    """Test successfully joining a race using a valid access code."""
+    test_client, user = authenticated_client("PLAYER")
+
+    # Ensure user is not already registered for this race
+    from backend.models import UserRaceRegistration
+    existing_reg = UserRaceRegistration.query.filter_by(user_id=user.id, race_id=sample_race.id).first()
+    if existing_reg:
+        db_session.delete(existing_reg)
+        db_session.commit()
+
+    response = test_client.post('/api/races/join_by_code', json={"access_code": sample_race.access_code})
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data["message"] == "Successfully registered for the race!"
+    assert data["race_id"] == sample_race.id
+
+    # Verify registration in DB
+    registration = UserRaceRegistration.query.filter_by(user_id=user.id, race_id=sample_race.id).first()
+    assert registration is not None
+
+def test_join_race_by_code_already_registered(authenticated_client, sample_race, db_session):
+    """Test joining a race when already registered, should still be 'successful' for redirection."""
+    test_client, user = authenticated_client("PLAYER")
+
+    # Ensure user IS already registered
+    from backend.models import UserRaceRegistration
+    existing_reg = UserRaceRegistration.query.filter_by(user_id=user.id, race_id=sample_race.id).first()
+    if not existing_reg:
+        reg = UserRaceRegistration(user_id=user.id, race_id=sample_race.id)
+        db_session.add(reg)
+        db_session.commit()
+
+    response = test_client.post('/api/races/join_by_code', json={"access_code": sample_race.access_code})
+    assert response.status_code == 200 # Or 200 if API returns OK for already registered
+    data = response.get_json()
+    assert "You are already registered for this race" in data["message"]
+    assert data["race_id"] == sample_race.id
+
+def test_join_race_by_code_invalid_code(authenticated_client):
+    """Test joining with a non-existent access code."""
+    test_client, _ = authenticated_client("PLAYER")
+    response = test_client.post('/api/races/join_by_code', json={"access_code": "INVALID-NON-EXISTENT-CODE"})
+    assert response.status_code == 404
+    data = response.get_json()
+    assert "Invalid access code or race not found" in data["message"]
+
+def test_join_race_by_code_empty_code(authenticated_client):
+    """Test joining with an empty access code string."""
+    test_client, _ = authenticated_client("PLAYER")
+    response = test_client.post('/api/races/join_by_code', json={"access_code": "   "}) # Empty or whitespace
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "Access code cannot be empty" in data["message"]
+
+def test_join_race_by_code_missing_code_payload(authenticated_client):
+    """Test joining without the access_code field in payload."""
+    test_client, _ = authenticated_client("PLAYER")
+    response = test_client.post('/api/races/join_by_code', json={"other_field": "some_value"})
+    assert response.status_code == 400
+    data = response.get_json()
+    assert "Access code is required" in data["message"]
+
+def test_join_race_by_code_deleted_race(authenticated_client, sample_race, db_session):
+    """Test joining a race that has been logically deleted."""
+    test_client, _ = authenticated_client("PLAYER")
+
+    # Logically delete the race
+    sample_race.is_deleted = True
+    db_session.add(sample_race)
+    db_session.commit()
+
+    response = test_client.post('/api/races/join_by_code', json={"access_code": sample_race.access_code})
+    assert response.status_code == 404 # Race not found (as it's treated as deleted)
+    data = response.get_json()
+    assert "Invalid access code or race not found" in data["message"] # Or a more specific "Race deleted"
