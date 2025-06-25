@@ -4002,3 +4002,22 @@ def save_official_answers(race_id):
         db.session.rollback()
         app.logger.error(f"Exception saving official answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while saving official answers."), 500
+
+# --- API Route for TriCal Events ---
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    try:
+        events = Event.query.all()
+        events_data = []
+        for event in events:
+            events_data.append({
+                'id': event.id,
+                'name': event.name,
+                'event_date': event.event_date.strftime('%Y-%m-%d') if event.event_date else None,
+                'city': event.city,
+                'province': event.province
+            })
+        return jsonify(events_data), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching events: {e}", exc_info=True)
+        return jsonify(message="Error fetching events"), 500

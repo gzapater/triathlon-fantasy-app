@@ -284,4 +284,73 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndDisplayUserDetails();
 
     // --- End of Official Answers Section Logic ---
+
+    // --- TriCal Events List Logic ---
+    async function fetchAndDisplayTriCalEvents() {
+        const loadingDiv = document.getElementById('trical-events-loading');
+        const listDiv = document.getElementById('trical-events-list');
+        const errorDiv = document.getElementById('trical-events-error');
+
+        if (!loadingDiv || !listDiv || !errorDiv) {
+            console.error('TriCal event display elements not found!');
+            return;
+        }
+
+        loadingDiv.style.display = 'block';
+        listDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+        listDiv.innerHTML = ''; // Clear previous content
+
+        try {
+            const response = await fetch('/api/events');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const events = await response.json();
+
+            if (events && events.length > 0) {
+                const table = document.createElement('table');
+                table.className = 'w-full table-hover';
+                const thead = document.createElement('thead');
+                thead.innerHTML = `
+                    <tr class="gradient-orange text-white">
+                        <th class="px-6 py-4 text-left font-semibold">Nombre del Evento</th>
+                        <th class="px-6 py-4 text-left font-semibold">Fecha</th>
+                        <th class="px-6 py-4 text-left font-semibold">Ubicación</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                tbody.className = 'divide-y divide-gray-200';
+
+                events.forEach(event => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="px-6 py-4 text-gray-900">${event.name}</td>
+                        <td class="px-6 py-4 text-gray-700">${event.event_date || 'N/A'}</td>
+                        <td class="px-6 py-4 text-gray-700">${event.city || 'N/A'}, ${event.province || 'N/A'}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                listDiv.appendChild(table);
+                listDiv.style.display = 'block';
+            } else {
+                listDiv.innerHTML = '<p class="text-center text-gray-500 py-10">No hay eventos disponibles por el momento.</p>';
+                listDiv.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error fetching TriCal events:', error);
+            errorDiv.style.display = 'block';
+        } finally {
+            loadingDiv.style.display = 'none';
+        }
+    }
+
+    // Call the function to fetch events when the page loads
+    // Ensure this is called after the DOM is fully loaded.
+    // The main DOMContentLoaded listener is already present, so this will be executed within it.
+    fetchAndDisplayTriCalEvents();
+    // --- End TriCal Events List Logic ---
 });
