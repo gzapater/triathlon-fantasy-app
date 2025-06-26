@@ -2512,7 +2512,76 @@ def tripredict_promo_page():
 @app.route('/TriCal')
 def trical_events_page():
     """Serves the TriCal events calendar page."""
-    return render_template('TriCal.html')
+    # Define the tag fields
+    tag_fields = [
+        'is_good_for_debutants',
+        'is_challenging',
+        'has_great_views',
+        'has_good_atmosphere',
+        'is_world_qualifier'
+    ]
+
+    # Get filter values from request arguments
+    filters = {}
+    for field in tag_fields:
+        if request.args.get(field): # Check if the filter is present and "on" (usually 'on' for checkboxes)
+            filters[field] = True
+
+    query = Event.query
+
+    # Apply filters to the query
+    if filters:
+        for field, value in filters.items():
+            if hasattr(Event, field):
+                query = query.filter(getattr(Event, field) == value)
+
+    # Date filtering (optional, but good to have for a calendar)
+    filter_date_from_str = request.args.get('filter_date_from')
+    filter_date_to_str = request.args.get('filter_date_to')
+
+    if filter_date_from_str:
+        try:
+            date_from_obj = datetime.strptime(filter_date_from_str, '%Y-%m-%d').date()
+            query = query.filter(Event.event_date >= date_from_obj)
+        except ValueError:
+            app.logger.warning(f"Invalid 'from' date format received for /TriCal: {filter_date_from_str}")
+            pass # Or flash a message
+
+    if filter_date_to_str:
+        try:
+            date_to_obj = datetime.strptime(filter_date_to_str, '%Y-%m-%d').date()
+            query = query.filter(Event.event_date <= date_to_obj)
+        except ValueError:
+            app.logger.warning(f"Invalid 'to' date format received for /TriCal: {filter_date_to_str}")
+            pass # Or flash a message
+
+
+    # Execute the query
+    try:
+        events = query.order_by(Event.event_date.asc()).all()
+    except Exception as e:
+        app.logger.error(f"Error fetching events for TriCal page: {e}", exc_info=True)
+        events = []
+        flash('Error al cargar los eventos.', 'error')
+
+    # Prepare tag labels for the template (to build filter controls)
+    tag_labels = {
+        'is_good_for_debutants': 'Ideal Debutantes',
+        'is_challenging': 'Desafiante',
+        'has_great_views': 'Vistas Espectaculares',
+        'has_good_atmosphere': 'Buen Ambiente',
+        'is_world_qualifier': 'Clasificatorio Mundial'
+    }
+
+    # Pass current filter values to template to repopulate checkboxes
+    current_filters = {field: request.args.get(field) == 'on' for field in tag_fields}
+
+    return render_template('TriCal.html',
+                           events=events,
+                           tag_labels=tag_labels,
+                           current_filters=current_filters,
+                           filter_date_from_str=filter_date_from_str,
+                           filter_date_to_str=filter_date_to_str)
 
 @app.route('/Faq')
 def faq_page():
