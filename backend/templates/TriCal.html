@@ -66,6 +66,36 @@
             font-size: 0.9rem; /* Slightly smaller title */
         }
 
+        .hidden-checkbox { /* Ensure checkbox is truly hidden but accessible */
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+            margin: -1px;
+            overflow: hidden;
+        }
+
+        .visual-tag-filter {
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            /* Default deselected state */
+            background-color: #E5E7EB; /* gray-200 */
+            color: #4B5563; /* gray-600 */
+            border: 1px solid #D1D5DB; /* gray-300 */
+        }
+        .visual-tag-filter:hover {
+            border-color: #9CA3AF; /* gray-400 */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        /* Selected states - these will override the default .visual-tag-filter if .selected is present */
+        .visual-tag-filter.selected.tag-debutants { background-color: #E0F2FE; color: #0C4A6E; border-color: #7DD3FC; }
+        .visual-tag-filter.selected.tag-challenging { background-color: #FEE2E2; color: #991B1B; border-color: #FCA5A5; }
+        .visual-tag-filter.selected.tag-views { background-color: #D1FAE5; color: #065F46; border-color: #6EE7B7; }
+        .visual-tag-filter.selected.tag-atmosphere { background-color: #FEF3C7; color: #92400E; border-color: #FCD34D; }
+        .visual-tag-filter.selected.tag-qualifier { background-color: #E5E7EB; color: #1F2937; border-color: #6B7280; } /* Slightly darker for selected gray */
+
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800"> <!-- Changed bg-white to bg-gray-50 -->
@@ -149,13 +179,21 @@
                          <label class="block text-sm font-medium text-gray-700 mb-1 filter-group-title">
                             <i class="fas fa-tags mr-1"></i> Etiquetas:
                         </label>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                        <div class="flex flex-wrap gap-2"> {# Changed to flex-wrap for better flow of tag-like filters #}
                             {% if tag_labels %}
                                 {% for field, label in tag_labels.items() %}
-                                <label class="filter-checkbox-label">
-                                    <input type="checkbox" name="{{ field }}" value="on" {% if current_filters[field] %}checked{% endif %}
-                                           class="h-4 w-4 text-orange-500 border-gray-300 rounded focus:ring-orange-400">
-                                    <span>{{ label }}</span>
+                                <label class="visual-tag-filter tag
+                                            {% if field == 'is_good_for_debutants' %}tag-debutants{% endif %}
+                                            {% if field == 'is_challenging' %}tag-challenging{% endif %}
+                                            {% if field == 'has_great_views' %}tag-views{% endif %}
+                                            {% if field == 'has_good_atmosphere' %}tag-atmosphere{% endif %}
+                                            {% if field == 'is_world_qualifier' %}tag-qualifier{% endif %}
+                                            {% if current_filters[field] %}selected{% endif %}"
+                                       data-field="{{ field }}">
+                                    <input type="checkbox" name="{{ field }}" value="on"
+                                           class="hidden-checkbox" <!-- Visually hide the checkbox, sr-only was not enough for all browsers/setups -->
+                                           {% if current_filters[field] %}checked{% endif %}>
+                                    {{ label }}
                                 </label>
                                 {% endfor %}
                             {% endif %}
