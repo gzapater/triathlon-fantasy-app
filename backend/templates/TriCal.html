@@ -340,28 +340,61 @@
             }
         }
 
-        let allEvents = []; // Store all fetched events
-        let currentSortAscending = true; // For date sorting
+        // Client-side filtering and sorting logic has been removed as this is now handled by the backend.
+        // The 'allEvents' array and 'currentSortAscending' are no longer needed for client-side operations.
 
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
         document.addEventListener('DOMContentLoaded', function() {
-            const eventsContainer = document.getElementById('eventsContainer');
-            const loadingIndicator = document.getElementById('events-loading');
-            const errorIndicator = document.getElementById('events-error');
-            const noResultsIndicator = document.getElementById('noResults');
+            // const eventsContainer = document.getElementById('eventsContainer'); // Not directly manipulated by JS anymore
+            // const loadingIndicator = document.getElementById('events-loading'); // Not directly manipulated by JS anymore
+            // const errorIndicator = document.getElementById('events-error'); // Not directly manipulated by JS anymore
+            const noResultsIndicator = document.getElementById('noResultsMessage'); // Corrected ID based on rendered HTML
 
-            const totalEventsDisplay = document.getElementById('totalEvents');
-            const visibleCountDisplay = document.getElementById('visibleCount');
-            const totalCountDisplay = document.getElementById('totalCount');
+            // const totalEventsDisplay = document.getElementById('totalEvents'); // Updated by Jinja
+            // const visibleCountDisplay = document.getElementById('visibleCount'); // Updated by Jinja
+            // const totalCountDisplay = document.getElementById('totalCount'); // No longer used, total is in visibleCount or from Jinja
 
             const searchInput = document.getElementById('searchInput');
-            const disciplineFilter = document.getElementById('disciplineFilter');
-            const distanceFilter = document.getElementById('distanceFilter');
-            const provinceFilter = document.getElementById('provinceFilter');
-            const monthFilter = document.getElementById('monthFilter');
-            const clearFiltersBtn = document.getElementById('clearFilters');
-            const sortDateBtn = document.getElementById('sortDate');
+            // const disciplineFilter = document.getElementById('disciplineFilter'); // Backend controlled
+            // const distanceFilter = document.getElementById('distanceFilter'); // Backend controlled
+            // const provinceFilter = document.getElementById('provinceFilter'); // Backend controlled
+            // const monthFilter = document.getElementById('monthFilter'); // Backend controlled
+            // const clearFiltersBtn = document.getElementById('clearFilters'); // This is now an <a> tag
+            // const sortDateBtn = document.getElementById('sortDate'); // This button was removed
+
+            // Client-side search functionality (optional, acts on currently displayed results)
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+                    const eventCards = document.querySelectorAll('.event-card');
+                    let visibleCount = 0;
+                    eventCards.forEach(card => {
+                        const name = card.dataset.eventName || '';
+                        const city = card.dataset.eventCity || '';
+                        const province = card.dataset.eventProvince || '';
+                        const discipline = card.dataset.eventDiscipline || '';
+                        const distance = card.dataset.eventDistance || '';
+
+                        const isVisible = name.includes(searchTerm) ||
+                                          city.includes(searchTerm) ||
+                                          province.includes(searchTerm) ||
+                                          discipline.includes(searchTerm) ||
+                                          distance.includes(searchTerm);
+                        card.style.display = isVisible ? 'flex' : 'none'; // Assuming cards are flex containers
+                        if (isVisible) {
+                            visibleCount++;
+                        }
+                    });
+                    const visibleCountDisplay = document.getElementById('visibleCount');
+                    if (visibleCountDisplay) { // Update client-side visible count if search is used
+                        visibleCountDisplay.textContent = visibleCount;
+                    }
+                    if (noResultsIndicator) { // Show/hide noResultsIndicator based on client-side search
+                        noResultsIndicator.style.display = visibleCount === 0 ? 'block' : 'none';
+                    }
+                });
+            }
 
             // Modal elements
             const eventModal = document.getElementById('eventModal');
