@@ -66,14 +66,18 @@
             font-size: 0.9rem; /* Slightly smaller title */
         }
 
-        .hidden-checkbox { /* Ensure checkbox is truly hidden but accessible */
+        .hidden-checkbox {
+            /* Ensure checkbox is truly hidden but accessible for form submission */
+            /* Using Tailwind's sr-only was not enough, so more specific styles */
             position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-            pointer-events: none;
+            width: 1px;
+            height: 1px;
+            padding: 0;
             margin: -1px;
             overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap; /* Added */
+            border-width: 0; /* Added */
         }
 
         .visual-tag-filter {
@@ -201,22 +205,10 @@
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="flex flex-wrap items-center justify-start mt-6 gap-3">
-                    <button type="submit" class="px-5 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors text-sm font-medium flex items-center">
-                        <i class="fas fa-filter mr-2"></i>Aplicar Filtros
-                    </button>
-                    <a href="{{ url_for('trical_events_page') }}" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium flex items-center">
-                        <i class="fas fa-times mr-2"></i>Limpiar
-                    </a>
-                    <!-- Sort button can be re-added if client-side sorting is also desired -->
-                    <!-- <button id="sortDate" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors">
-                        <i class="fas fa-sort mr-1"></i> Ordenar por Fecha
-                    </button> -->
-                </div>
+                <!-- Action Buttons: Removed as per new requirements -->
             </form>
             <div class="text-sm text-gray-600 mt-4 text-right">
-                 Mostrando <span id="visibleCount">{{ events|length if events else 0 }}</span> eventos
+                 Mostrando <span id="visibleCount">{{ events|length if events else 0 }}</span> eventos. {{ "Todos los tags seleccionados por defecto." if not request.args else "" }}
             </div>
         </div>
     </section>
@@ -362,15 +354,20 @@
 
     <script>
         // Helper function to format date as DD Mon YYYY (e.g., 01 Ene 2025)
+        // This might be less critical now if Jinja pre-formats dates for data attributes.
         function formatDate(dateString) {
             if (!dateString) return 'Fecha no disponible';
+            // If dateString is already formatted (e.g., "01 Ene 2025" from data-attribute), just return it.
+            if (dateString.includes(" ") && isNaN(new Date(dateString).getTime())) { // Check if it's likely pre-formatted
+                return dateString;
+            }
             try {
-                const date = new Date(dateString + 'T00:00:00'); // Ensure date is parsed as local
-                const day = String(date.getDate()).padStart(2, '0');
-                // Ensure month is in Spanish and capitalized correctly
-                let month = date.toLocaleString('es-ES', { month: 'short' });
+                // Assuming dateString might be YYYY-MM-DD if not pre-formatted
+                const date = new Date(dateString + 'T00:00:00Z'); // Treat as UTC to avoid timezone shifts from YYYY-MM-DD
+                const day = String(date.getUTCDate()).padStart(2, '0');
+                let month = date.toLocaleString('es-ES', { month: 'short', timeZone: 'UTC' });
                 month = month.charAt(0).toUpperCase() + month.slice(1).replace('.', '');
-                const year = date.getFullYear();
+                const year = date.getUTCFullYear();
                 return `${day} ${month} ${year}`;
             } catch (e) {
                 console.error("Error formatting date:", dateString, e);
@@ -378,30 +375,13 @@
             }
         }
 
-        // Client-side filtering and sorting logic has been removed as this is now handled by the backend.
-        // The 'allEvents' array and 'currentSortAscending' are no longer needed for client-side operations.
-
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
         document.addEventListener('DOMContentLoaded', function() {
-            // const eventsContainer = document.getElementById('eventsContainer'); // Not directly manipulated by JS anymore
-            // const loadingIndicator = document.getElementById('events-loading'); // Not directly manipulated by JS anymore
-            // const errorIndicator = document.getElementById('events-error'); // Not directly manipulated by JS anymore
-            const noResultsIndicator = document.getElementById('noResultsMessage'); // Corrected ID based on rendered HTML
-
-            // const totalEventsDisplay = document.getElementById('totalEvents'); // Updated by Jinja
-            // const visibleCountDisplay = document.getElementById('visibleCount'); // Updated by Jinja
-            // const totalCountDisplay = document.getElementById('totalCount'); // No longer used, total is in visibleCount or from Jinja
-
+            const noResultsIndicator = document.getElementById('noResultsMessage');
             const searchInput = document.getElementById('searchInput');
-            // const disciplineFilter = document.getElementById('disciplineFilter'); // Backend controlled
-            // const distanceFilter = document.getElementById('distanceFilter'); // Backend controlled
-            // const provinceFilter = document.getElementById('provinceFilter'); // Backend controlled
-            // const monthFilter = document.getElementById('monthFilter'); // Backend controlled
-            // const clearFiltersBtn = document.getElementById('clearFilters'); // This is now an <a> tag
-            // const sortDateBtn = document.getElementById('sortDate'); // This button was removed
 
-            // Client-side search functionality (optional, acts on currently displayed results)
+            // Client-side search functionality (acts on currently displayed Jinja-rendered cards)
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
                     const searchTerm = this.value.toLowerCase().trim();
@@ -419,17 +399,19 @@
                                           province.includes(searchTerm) ||
                                           discipline.includes(searchTerm) ||
                                           distance.includes(searchTerm);
-                        card.style.display = isVisible ? 'flex' : 'none'; // Assuming cards are flex containers
+                        card.style.display = isVisible ? 'flex' : 'none';
                         if (isVisible) {
                             visibleCount++;
                         }
                     });
                     const visibleCountDisplay = document.getElementById('visibleCount');
-                    if (visibleCountDisplay) { // Update client-side visible count if search is used
+                    if (visibleCountDisplay) {
                         visibleCountDisplay.textContent = visibleCount;
                     }
-                    if (noResultsIndicator) { // Show/hide noResultsIndicator based on client-side search
-                        noResultsIndicator.style.display = visibleCount === 0 ? 'block' : 'none';
+
+                    const noResultsMessageDiv = document.getElementById('noResultsMessage');
+                    if (noResultsMessageDiv) {
+                        noResultsMessageDiv.style.display = visibleCount === 0 && eventCards.length > 0 ? 'block' : 'none';
                     }
                 });
             }
@@ -437,7 +419,7 @@
             // Modal elements
             const eventModal = document.getElementById('eventModal');
             const closeModalBtn = document.getElementById('closeModalBtn');
-            const closeModalBtnX = document.getElementById('closeModalBtnX'); // X button in modal
+            const closeModalBtnX = document.getElementById('closeModalBtnX');
             const modalEventName = document.getElementById('modalEventName');
             const modalEventDate = document.getElementById('modalEventDate');
             const modalEventLocation = document.getElementById('modalEventLocation');
@@ -445,21 +427,62 @@
             const modalEventDistance = document.getElementById('modalEventDistance');
             const modalEventDescription = document.getElementById('modalEventDescription');
 
-            function openModal(event) {
-                modalEventName.textContent = event.name || 'Detalles del Evento';
-                modalEventDate.textContent = formatDate(event.event_date);
-                modalEventLocation.textContent = `${event.city || 'N/A'}, ${event.province || 'N/A'}`;
-                modalEventDiscipline.textContent = event.discipline || 'N/A';
-                modalEventDistance.textContent = event.distance || 'N/A';
-                // Description is not in the Event model, so using a placeholder.
-                modalEventDescription.textContent = event.source_url ? `Más información en: <a href="${event.source_url}" target="_blank" class="text-orange-600 hover:underline">${event.source_url}</a>` : 'No hay descripción adicional o enlace disponible.';
-                eventModal.classList.remove('hidden');
-                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            function populateAndShowModal(eventData) {
+                if (!eventModal || !modalEventName || !modalEventDate || !modalEventLocation || !modalEventDiscipline || !modalEventDistance || !modalEventDescription) {
+                    console.error("One or more modal elements are missing from the DOM for populateAndShowModal.");
+                    return;
+                }
+                modalEventName.textContent = eventData.name || 'Detalles del Evento';
+                modalEventDate.textContent = eventData.date;
+                modalEventLocation.textContent = eventData.location || 'N/A';
+                modalEventDiscipline.textContent = eventData.discipline || 'N/A';
+                modalEventDistance.textContent = eventData.distance || 'N/A';
+                modalEventDescription.innerHTML = eventData.source_url ? `Más información en: <a href="${eventData.source_url}" target="_blank" class="text-orange-600 hover:underline">${eventData.source_url}</a>` : 'No hay descripción adicional o enlace disponible.';
+
+                if (eventModal) {
+                    eventModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
             }
 
+            document.querySelectorAll('.view-details-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const eventData = {
+                        id: this.dataset.eventId,
+                        name: this.dataset.eventName,
+                        date: this.dataset.eventDate,
+                        location: this.dataset.eventLocation,
+                        discipline: this.dataset.eventDiscipline,
+                        distance: this.dataset.eventDistance,
+                        source_url: this.dataset.eventSource_url
+                    };
+                    populateAndShowModal(eventData);
+                });
+            });
+
+            document.querySelectorAll('.event-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const detailsButton = card.querySelector('.view-details-btn');
+                    if (detailsButton) {
+                        const eventData = {
+                            id: detailsButton.dataset.eventId,
+                            name: detailsButton.dataset.eventName,
+                            date: detailsButton.dataset.eventDate,
+                            location: detailsButton.dataset.eventLocation,
+                            discipline: detailsButton.dataset.eventDiscipline,
+                            distance: detailsButton.dataset.eventDistance,
+                            source_url: detailsButton.dataset.eventSource_url
+                        };
+                        populateAndShowModal(eventData);
+                    }
+                });
+            });
+
             function closeModal() {
-                eventModal.classList.add('hidden');
-                document.body.style.overflow = ''; // Restore background scrolling
+                if (eventModal) {
+                    eventModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
             }
 
             if(closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
@@ -467,228 +490,43 @@
 
             if(eventModal){
                 eventModal.addEventListener('click', (e) => {
-                    if (e.target === eventModal) { // Click on backdrop
+                    if (e.target === eventModal) {
                         closeModal();
                     }
                 });
             }
-            // Close with Escape key
             document.addEventListener('keydown', (e) => {
-                if (e.key === "Escape" && !eventModal.classList.contains('hidden')) {
+                if (e.key === "Escape" && eventModal && !eventModal.classList.contains('hidden')) {
                     closeModal();
                 }
             });
 
+            // JavaScript for Visual Tag Filters
+            document.querySelectorAll('.visual-tag-filter').forEach(label => {
+                const checkbox = label.querySelector('.hidden-checkbox');
 
-            function populateFilterOptions(events) {
-                const disciplines = new Set();
-                const distances = new Set();
-                const provinces = new Set();
+                if (checkbox) {
+                    // Initial visual state is set by Jinja using the 'selected' class on the label.
+                    // This JS handles the click interaction.
+                    label.addEventListener('click', function(event) {
+                        // Toggle checkbox state first
+                        checkbox.checked = !checkbox.checked;
 
-                events.forEach(event => {
-                    if (event.discipline) disciplines.add(event.discipline);
-                    if (event.distance) distances.add(event.distance);
-                    if (event.province) provinces.add(event.province);
-                });
+                        // Then toggle visual class based on the new checkbox state
+                        if (checkbox.checked) {
+                            this.classList.add('selected');
+                        } else {
+                            this.classList.remove('selected');
+                        }
 
-                // Clear existing options except "Todas" / "Todos"
-                disciplineFilter.innerHTML = '<option value="">Todas</option>';
-                distanceFilter.innerHTML = '<option value="">Todas</option>';
-                provinceFilter.innerHTML = '<option value="">Todas</option>';
-
-                Array.from(disciplines).sort().forEach(d => {
-                    const option = document.createElement('option');
-                    option.value = d;
-                    option.textContent = d;
-                    disciplineFilter.appendChild(option);
-                });
-                Array.from(distances).sort().forEach(d => {
-                    const option = document.createElement('option');
-                    option.value = d;
-                    option.textContent = d;
-                    distanceFilter.appendChild(option);
-                });
-                Array.from(provinces).sort().forEach(p => {
-                    const option = document.createElement('option');
-                    option.value = p;
-                    option.textContent = p;
-                    provinceFilter.appendChild(option);
-                });
-            }
-
-            function renderEvents(eventsToRender) {
-                eventsContainer.innerHTML = '';
-                if (eventsToRender.length === 0) {
-                    noResultsIndicator.classList.remove('hidden');
-                } else {
-                    noResultsIndicator.classList.add('hidden');
-                }
-
-                eventsToRender.forEach(event => {
-                    const eventCard = document.createElement('div');
-                    eventCard.className = "bg-white rounded-lg shadow-md overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover cursor-pointer border border-gray-200 hover:shadow-xl";
-
-                    eventCard.innerHTML = `
-                        <div class="p-4 border-b border-gray-200">
-                            <h3 class="font-semibold text-lg text-gray-800 mb-1 truncate" title="${event.name}">${event.name}</h3>
-                            <p class="text-sm text-orange-600 font-medium">${event.discipline || 'N/A'}</p>
-                        </div>
-                        <div class="p-4 flex-grow space-y-2">
-                            <div class="flex items-center text-sm text-gray-600">
-                                <i class="fas fa-calendar-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
-                                <span>${formatDate(event.event_date)}</span>
-                            </div>
-                            <div class="flex items-center text-sm text-gray-600">
-                                <i class="fas fa-map-marker-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
-                                <span>${event.city || 'N/A'}, ${event.province || 'N/A'}</span>
-                            </div>
-                            <div class="flex items-center text-sm text-gray-600">
-                                <i class="fas fa-ruler-combined fa-fw mr-2 text-orange-500 opacity-75"></i>
-                                <span>${event.distance || 'N/A'}</span>
-                            </div>
-                        </div>
-                        <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
-                            <button class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
-                                Ver Detalles <i class="fas fa-arrow-right text-xs ml-1"></i>
-                            </button>
-                        </div>
-                    `;
-                    eventCard.querySelector('.view-details-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openModal(event);
-                    });
-                    eventCard.addEventListener('click', () => openModal(event));
-                    eventsContainer.appendChild(eventCard);
-                });
-                if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
-            }
-
-            function filterAndSortEvents() {
-                let filteredEvents = [...allEvents];
-                const searchTerm = searchInput.value.toLowerCase().trim();
-                const selectedDiscipline = disciplineFilter.value;
-                const selectedDistance = distanceFilter.value;
-                const selectedProvince = provinceFilter.value;
-                const selectedMonth = monthFilter.value;
-
-                if (searchTerm) {
-                    filteredEvents = filteredEvents.filter(event =>
-                        (event.name && event.name.toLowerCase().includes(searchTerm)) ||
-                        (event.city && event.city.toLowerCase().includes(searchTerm)) ||
-                        (event.province && event.province.toLowerCase().includes(searchTerm)) ||
-                        (event.discipline && event.discipline.toLowerCase().includes(searchTerm)) ||
-                        (event.distance && event.distance.toLowerCase().includes(searchTerm))
-                    );
-                }
-                if (selectedDiscipline) {
-                    filteredEvents = filteredEvents.filter(event => event.discipline === selectedDiscipline);
-                }
-                if (selectedDistance) {
-                    filteredEvents = filteredEvents.filter(event => event.distance === selectedDistance);
-                }
-                if (selectedProvince) {
-                    filteredEvents = filteredEvents.filter(event => event.province === selectedProvince);
-                }
-                if (selectedMonth) {
-                    filteredEvents = filteredEvents.filter(event => {
-                        if (!event.event_date) return false;
-                        // Ensure date is parsed as local before getting month
-                        const event_date_obj = new Date(event.event_date + 'T00:00:00');
-                        const event_month = event_date_obj.getMonth() + 1; // JS months are 0-indexed
-                        return event_month === parseInt(selectedMonth);
+                        // Automatically submit the form
+                        const form = this.closest('form');
+                        if (form) {
+                            form.submit();
+                        }
                     });
                 }
-
-                filteredEvents.sort((a, b) => {
-                    // Handle null or invalid dates by pushing them to the end
-                    const dateA = a.event_date ? new Date(a.event_date + 'T00:00:00') : null;
-                    const dateB = b.event_date ? new Date(b.event_date + 'T00:00:00') : null;
-
-                    if (!dateA && !dateB) return 0;
-                    if (!dateA) return 1; // Push nulls to end
-                    if (!dateB) return -1; // Keep non-nulls before nulls
-
-                    return currentSortAscending ? dateA - dateB : dateB - dateA;
-                });
-
-                renderEvents(filteredEvents);
-            }
-
-            loadingIndicator.style.display = 'block'; // Show loading indicator initially
-            errorIndicator.classList.add('hidden');
-            noResultsIndicator.classList.add('hidden');
-
-            fetch('/api/events')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(events_data => {
-                    allEvents = events_data.map(event => ({
-                        ...event,
-                        // API returns date as YYYY-MM-DD, which JS Date constructor handles correctly as local date.
-                        event_date: event.event_date ? event.event_date : null
-                    }));
-
-                    if (totalEventsDisplay) totalEventsDisplay.textContent = allEvents.length;
-                    if (totalCountDisplay) totalCountDisplay.textContent = allEvents.length;
-
-                    populateFilterOptions(allEvents);
-                    filterAndSortEvents(); // Initial sort and render
-                    loadingIndicator.style.display = 'none';
-
-                })
-                .catch(error => {
-                    console.error('Error fetching events:', error);
-                    loadingIndicator.style.display = 'none';
-                    errorIndicator.classList.remove('hidden');
-                    errorIndicator.querySelector('p.mt-2').textContent = `Detalles: ${error.message}. Por favor, inténtalo de nuevo más tarde.`;
-                    if(totalEventsDisplay) totalEventsDisplay.textContent = 0;
-                    if(visibleCountDisplay) visibleCountDisplay.textContent = 0;
-                    if(totalCountDisplay) totalCountDisplay.textContent = 0;
-                });
-
-            [searchInput, disciplineFilter, distanceFilter, provinceFilter, monthFilter].forEach(element => {
-                if (element.tagName === 'INPUT') {
-                    element.addEventListener('input', filterAndSortEvents);
-                } else {
-                    element.addEventListener('change', filterAndSortEvents);
-                }
             });
-
-            clearFiltersBtn.addEventListener('click', () => {
-                searchInput.value = '';
-                disciplineFilter.value = '';
-                distanceFilter.value = '';
-                provinceFilter.value = '';
-                monthFilter.value = '';
-                currentSortAscending = true;
-                sortDateBtn.innerHTML = '<i class="fas fa-sort mr-1"></i> Ordenar por Fecha';
-                filterAndSortEvents();
-            });
-
-            sortDateBtn.addEventListener('click', () => {
-                // 1. Invierte el estado del orden actual
-                currentSortAscending = !currentSortAscending;
-            
-                // 2. Actualiza el texto del botón según el nuevo estado
-                if (currentSortAscending) {
-                    // Si ahora es ascendente, muestra el texto y el icono correspondientes
-                    sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
-                } else {
-                    // Si ahora es descendente, muestra el otro texto y el otro icono
-                    sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Más nuevas primero)';
-                }
-            
-                // 3. Llama a la función que aplica el orden a los datos
-                filterAndSortEvents();
-            });
-            // Initial sort button text
-            sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
-
-
         });
     </script>
 </body>

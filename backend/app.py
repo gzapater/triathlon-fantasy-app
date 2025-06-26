@@ -2521,19 +2521,48 @@ def trical_events_page():
         'is_world_qualifier'
     ]
 
-    # Get filter values from request arguments
-    filters = {}
-    for field in tag_fields:
-        if request.args.get(field): # Check if the filter is present and "on" (usually 'on' for checkboxes)
-            filters[field] = True
-
     query = Event.query
 
-    # Apply filters to the query
-    if filters:
-        for field, value in filters.items():
-            if hasattr(Event, field):
-                query = query.filter(getattr(Event, field) == value)
+    # Tag Filtering Logic:
+    # If any tag filter is present in the URL (e.g., ?is_good_for_debutants=on),
+    # then we apply those specific filters.
+    # If NO tag filters are present in the URL, we don't filter by tags (showing all events,
+    # and the frontend will visually select all tags as per new default).
+
+    active_tag_filters = {}
+    has_tag_filter_in_url = False
+    for field in tag_fields:
+        if field in request.args:
+            has_tag_filter_in_url = True
+            if request.args.get(field) == 'on': # Only consider 'on' as an active filter requirement
+                active_tag_filters[field] = True
+
+    if has_tag_filter_in_url:
+        # If there are tag filters in the URL, apply them.
+        # This means if a tag is present and 'on', it's a requirement.
+        # If a tag is not present in active_tag_filters (either not in URL or not 'on'), it's not filtered for.
+        # This implicitly means if user deselects all, active_tag_filters is empty,
+        # and if has_tag_filter_in_url was true (e.g. ?is_good_for_debutants=off),
+        # this block would still run but might not add any positive filters if all were 'off'.
+        # The current logic only adds filters for 'on'.
+        # If all tags are deselected, active_tag_filters will be empty.
+        # In this case (has_tag_filter_in_url is true but active_tag_filters is empty),
+        # it means the user explicitly set filters that resulted in no positive requirements.
+        # This might mean showing events that have NONE of the tags, or all events.
+        # For "click-to-filter" where deselection removes the "=on" param:
+        # If active_tag_filters is empty BUT has_tag_filter_in_url is true, it means
+        # all previously selected tags were deselected one by one, and the last deselection
+        # removed the last "=on" param. This state should be treated same as no filters in URL.
+        # Let's refine: only filter if active_tag_filters is NOT empty.
+        if active_tag_filters:
+            for field in active_tag_filters: # Iterate only active 'on' filters
+                if hasattr(Event, field):
+                    query = query.filter(getattr(Event, field) == True)
+        # If has_tag_filter_in_url is true, but active_tag_filters is empty
+        # (e.g., user deselected the last active filter), we effectively show all events
+        # (respecting date filters), same as if no tag filters were in URL initially.
+        # This is because the default state implies "all selected". Deselecting one means
+        # that one is no longer a requirement. Deselecting all means no tag is a requirement.
 
     # Date filtering (optional, but good to have for a calendar)
     filter_date_from_str = request.args.get('filter_date_from')
@@ -2573,13 +2602,19 @@ def trical_events_page():
         'is_world_qualifier': 'Clasificatorio Mundial'
     }
 
-    # Pass current filter values to template to repopulate checkboxes
-    current_filters = {field: request.args.get(field) == 'on' for field in tag_fields}
+    # Determine current_filters state for the template
+    # This tells the template how to render the visual tags (selected or deselected)
+    current_filters_for_template = {}
+    if not has_tag_filter_in_url: # No tag filters in URL means "default all selected"
+        current_filters_for_template = {field: True for field in tag_fields}
+    else: # Some tag filters are in URL, reflect their state
+        current_filters_for_template = {field: (request.args.get(field) == 'on') for field in tag_fields}
+
 
     return render_template('TriCal.html',
                            events=events,
                            tag_labels=tag_labels,
-                           current_filters=current_filters,
+                           current_filters=current_filters_for_template, # Pass the correctly determined state
                            filter_date_from_str=filter_date_from_str,
                            filter_date_to_str=filter_date_to_str)
 
