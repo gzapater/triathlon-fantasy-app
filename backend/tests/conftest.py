@@ -4,12 +4,18 @@ from backend.models import db as _db, User, Role, RaceFormat, Segment, Race # Ad
 from datetime import datetime
 import os # Ensure os is imported
 
+import os # Ensure os is imported
+
+# Set environment variables at the top level of conftest.py
+# This ensures they are set before any module imports backend.app
+os.environ['FLASK_SECRET_KEY'] = 'test_secret_key_for_conftest_top_level'
+os.environ['DATABASE_URL'] = 'sqlite:///:memory:' # Test with in-memory SQLite
+
 @pytest.fixture(scope='session')
 def app():
     """Session-wide test Flask application."""
-    # Set environment variables before importing flask_app to prevent AWS SSM calls during import
-    os.environ['FLASK_SECRET_KEY'] = 'test_secret_key_for_conftest_env_v2' # V2 to ensure it's this version
-    os.environ['DATABASE_URL'] = 'sqlite:///:memory:' # Test with in-memory SQLite
+    # Environment variables are now set globally above.
+    # FLASK_SECRET_KEY and DATABASE_URL will be picked up by backend.app when it's imported.
 
     from backend.app import app as flask_app_instance # Import app here, use a distinct name
 

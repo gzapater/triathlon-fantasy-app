@@ -2714,6 +2714,7 @@ def serve_hello_world_page():
         except Exception as e:
             app.logger.error(f"Error fetching all non-deleted races for admin official answers: {e}")
         all_races_for_official_answers = [race.to_dict() for race in all_races_for_official_answers_query_result]
+        app.logger.info(f"[serve_hello_world_page - ADMIN] Races for official answers dropdown: {all_races_for_official_answers}") # DEBUG LOG
 
         return render_template('admin_dashboard.html',
                                races=general_races_for_cards_dicts, # Use the new list with actionable flag
