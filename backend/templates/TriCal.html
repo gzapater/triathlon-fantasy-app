@@ -468,11 +468,7 @@
                             </a>
                         </div>
                     `;
-                    eventCard.querySelector('.view-details-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openModal(event);
-                    });
-                    eventCard.addEventListener('click', () => openModal(event));
+                    // Listeners eliminados para que el enlace funcione y no se abra el modal.
                     eventsContainer.appendChild(eventCard);
                 });
                 if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
