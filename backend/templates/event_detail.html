@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ event.name | default('Detalle del Evento') }} - TriCal</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon_promo.svg') }}" type="image/svg+xml">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth;
+        }
+        .no-print {
+            @media print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+    <!-- 1. HEADER GLOBAL (Reutilizado de TriCal.html) -->
+    <header class="bg-gray-800 text-white shadow-lg no-print">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="{{ url_for('trical_events_page') }}"> <!-- Enlace al calendario -->
+                    <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <g>
+                            <path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </g>
+                        <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Cal</tspan></text>
+                    </svg>
+                </a>
+                <a href="{{ url_for('tripredict_promo_page') }}" class="bg-orange-500 text-white font-semibold py-2 px-4 rounded-md hover:bg-orange-600 transition">
+                    Conoce TriPredict
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- 2. HERO SECTION (Reutilizado de TriCal.html) -->
+    <div class="bg-orange-500 shadow-md no-print">
+       <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-white">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold flex items-center">
+                        <i class="fas fa-calendar-alt mr-3"></i>
+                        Directorio de Triatlón y Duatlón en España
+                    </h1>
+                    <p class="text-orange-100 mt-2">Encuentra tu próxima carrera de triatlón, duatlón o acuatlón.</p>
+                </div>
+                <!-- Podríamos poner aquí un contador dinámico si fuera relevante para la página de detalle -->
+           </div>
+       </div>
+    </div>
+
+    <!-- Contenido Principal: Detalles del Evento -->
+    <main class="container mx-auto px-4 py-8">
+        {% if event %}
+        <div class="bg-white shadow-xl rounded-lg p-6 md:p-8">
+            <div class="flex justify-between items-start mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-800">{{ event.name }}</h1>
+                <a href="{{ url_for('trical_events_page') }}" class="no-print text-orange-600 hover:text-orange-700 font-semibold hover:underline py-2 px-4 rounded-md border border-orange-600 hover:bg-orange-50 transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Calendario
+                </a>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <p class="text-sm text-gray-500 uppercase tracking-wider">Fecha</p>
+                    <p class="text-lg text-gray-700 font-semibold">{{ event.event_date | format_date_filter if event.event_date else 'Fecha no disponible' }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 uppercase tracking-wider">Localización</p>
+                    <p class="text-lg text-gray-700 font-semibold">{{ event.city | default('N/A') }}, {{ event.province | default('N/A') }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 uppercase tracking-wider">Disciplina</p>
+                    <p class="text-lg text-gray-700 font-semibold">{{ event.discipline | default('N/A') }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500 uppercase tracking-wider">Distancia</p>
+                    <p class="text-lg text-gray-700 font-semibold">{{ event.distance | default('N/A') }}</p>
+                </div>
+            </div>
+
+            {% if event.source_url %}
+            <div class="mt-6 border-t pt-6">
+                <p class="text-sm text-gray-500 uppercase tracking-wider mb-2">Más Información</p>
+                <a href="{{ event.source_url }}" target="_blank" rel="noopener noreferrer" class="text-orange-600 hover:text-orange-700 hover:underline break-all">
+                    {{ event.source_url }} <i class="fas fa-external-link-alt text-xs ml-1"></i>
+                </a>
+            </div>
+            {% else %}
+            <div class="mt-6 border-t pt-6">
+                <p class="text-sm text-gray-500 uppercase tracking-wider mb-1">Más Información</p>
+                <p class="text-gray-700">No hay un enlace o descripción adicional disponible para este evento.</p>
+            </div>
+            {% endif %}
+
+            <!-- Sección de Etiquetas (si el modelo Event las tuviera) -->
+            <!--
+            {% if event.tags and event.tags|length > 0 %}
+            <div class="mt-6 border-t pt-6">
+                <p class="text-sm text-gray-500 uppercase tracking-wider mb-2">Etiquetas</p>
+                <div class="flex flex-wrap gap-2">
+                    {% for tag_key, tag_info in tag_properties.items() %}
+                        {% if event[tag_key] %}
+                        <span class="px-3 py-1 text-sm font-medium rounded-full {{ tag_info.color }}">
+                            <i class="{{ tag_info.icon }} mr-1.5"></i> {{ tag_info.text }}
+                        </span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            -->
+
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <i class="fas fa-exclamation-triangle text-6xl text-red-400 mb-4"></i>
+            <h2 class="text-2xl font-semibold text-gray-700 mb-2">Evento no encontrado</h2>
+            <p class="text-gray-500 mb-6">No pudimos encontrar los detalles para el evento solicitado.</p>
+            <a href="{{ url_for('trical_events_page') }}" class="text-orange-600 hover:text-orange-700 font-semibold hover:underline py-2 px-4 rounded-md border border-orange-600 hover:bg-orange-50 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Volver al Calendario
+            </a>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Footer (Reutilizado de TriCal.html) -->
+    <footer class="bg-gray-800 text-white py-8 mt-10 no-print">
+        <div class="max-w-7xl mx-auto px-6 text-center">
+            <p>&copy; <span id="currentYear"></span> TriPredict. Todos los derechos reservados.</p>
+            <p class="text-sm text-gray-400">Tu plataforma para la quiniela de triatlón.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+        // Podríamos añadir aquí un filtro Jinja personalizado para formatear fechas si es necesario,
+        // o manejarlo en el backend antes de pasar los datos a la plantilla.
+        // Por ahora, asumo que event.event_date ya está en un formato legible o se creará un filtro.
+    </script>
+</body>
+</html>

@@ -23,6 +23,46 @@ else:
     # Configuración para desarrollo local (ej. python app.py)
     app.logger.setLevel(logging.DEBUG)
 
+# Filtro Jinja2 para formatear fechas
+def format_date_filter(value, format='%d %b %Y'):
+    """Formatea un objeto de fecha o una cadena de fecha."""
+    if value is None:
+        return "Fecha no disponible"
+    if isinstance(value, str):
+        try:
+            # Intenta parsear si es una cadena (ej. 'YYYY-MM-DD')
+            dt_obj = datetime.strptime(value, '%Y-%m-%d')
+        except ValueError:
+            try:
+                # Intenta parsear si es una cadena con hora (ej. 'YYYY-MM-DDTHH:MM:SS')
+                dt_obj = datetime.fromisoformat(value)
+            except ValueError:
+                return value # Devuelve el valor original si no se puede parsear
+    elif isinstance(value, datetime):
+        dt_obj = value
+    else:
+        return value # Devuelve el valor original si no es ni cadena ni datetime
+
+    # Formatear con mes en español y capitalizado
+    # Nota: esto depende de la configuración regional del servidor.
+    # Para asegurar español, se podría usar Babel u otra librería, o un mapeo manual.
+    # Por simplicidad, usamos strftime y luego ajustamos el mes si es necesario.
+    # Esta es una aproximación simple y podría no ser perfecta para todos los locales.
+    formatted_date = dt_obj.strftime(format) # ej. "01 Jan 2025"
+    # Reemplazo simple de meses en inglés a español (abreviado)
+    month_map = {
+        'Jan': 'Ene', 'Feb': 'Feb', 'Mar': 'Mar', 'Apr': 'Abr',
+        'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Aug': 'Ago',
+        'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dec': 'Dic'
+    }
+    for en, es in month_map.items():
+        if en in formatted_date:
+            formatted_date = formatted_date.replace(en, es)
+            break
+    return formatted_date
+
+app.jinja_env.filters['format_date_filter'] = format_date_filter
+
 def get_ssm_parameter(name, default=None):
     """Función para obtener un parámetro de AWS SSM Parameter Store."""
     try:
@@ -4034,3 +4074,26 @@ def get_events():
     except Exception as e:
         app.logger.error(f"Error fetching events: {e}", exc_info=True)
         return jsonify(message="Error fetching events"), 500
+
+@app.route('/event/<int:event_id>')
+def event_detail_page(event_id):
+    """Serves the detail page for a specific event."""
+    try:
+        event = Event.query.get(event_id)
+        if not event:
+            app.logger.warning(f"Event with id {event_id} not found.")
+            # Renderizar la misma plantilla pero con event=None para que muestre el mensaje de error
+            return render_template('event_detail.html', event=None, current_year=datetime.utcnow().year), 404
+
+        # El objeto event ya contiene event.event_date como un objeto datetime.date o None
+        # El filtro Jinja 'format_date_filter' se encargará de formatearlo en la plantilla.
+        # Si event_date fuera una cadena, necesitaríamos convertirla aquí:
+        # if isinstance(event.event_date, str):
+        #     event.event_date = datetime.strptime(event.event_date, '%Y-%m-%d').date()
+
+        return render_template('event_detail.html', event=event, current_year=datetime.utcnow().year)
+    except Exception as e:
+        app.logger.error(f"Error fetching event detail for event_id {event_id}: {e}", exc_info=True)
+        # En caso de un error inesperado, también mostrar la página de detalle con un mensaje genérico
+        # o redirigir a una página de error general. Por ahora, usamos event=None.
+        return render_template('event_detail.html', event=None, current_year=datetime.utcnow().year), 500
