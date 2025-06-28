@@ -19,6 +19,34 @@
             }
         }
     </style>
+    {% if event %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SportsEvent",
+  "name": {{ event.name | tojson }},
+  "startDate": "{{ event.event_date.strftime('%Y-%m-%d') if event.event_date else '' }}",
+  "endDate": "{{ event.event_date.strftime('%Y-%m-%d') if event.event_date else '' }}",
+  "description": "Encuentra todos los detalles sobre {{ event.name }}, incluyendo fecha, ubicación y distancia. Únete a la comunidad de TriCal para descubrir tu próxima carrera.",
+  "location": {
+    "@type": "Place",
+    "name": {{ event.city | tojson }},
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": {{ event.city | tojson }},
+      "addressRegion": {{ event.province | tojson }},
+      "addressCountry": "ES"
+    }
+  },
+  "url": "{{ url_for('event_detail_page', event_id=event.id, _external=True) }}",
+  "organizer": {
+    "@type": "Organization",
+    "name": "TriCal",
+    "url": "{{ url_for('trical_events_page', _external=True) }}"
+  }
+}
+</script>
+{% endif %}
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800">
 
