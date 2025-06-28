@@ -368,10 +368,11 @@
                     const button = document.createElement('button');
                     button.id = `filter-${key}`;
                     button.dataset.tagKey = key;
-                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
+                    // Start as inactive: apply inactive styles and set data attribute
+                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
                     button.innerHTML = `<i class="${tagInfo.icon} mr-1.5"></i> ${tagInfo.text}`;
-                    button.setAttribute('aria-pressed', 'true');
-                    button.dataset.active = "true";
+                    button.setAttribute('aria-pressed', 'false');
+                    button.dataset.active = "false";
 
                     button.addEventListener('click', () => {
                         const isActive = button.dataset.active === "true";
@@ -597,15 +598,16 @@
                 }
 
                 // Apply tag filters
-                const tagKeys = Object.keys(activeTagFilters);
-                if (tagKeys.length > 0) { // Only filter if there are active tag filters (though they start all active)
+                const activeTagKeys = Object.keys(activeTagFilters);
+                if (activeTagKeys.length > 0) { // Only apply tag filters if at least one tag filter is active
                     filteredEvents = filteredEvents.filter(event => {
-                        return tagKeys.every(tagKey => {
+                        return activeTagKeys.every(tagKey => {
                             // Event property must be true for the tag to match
                             return event[tagKey] === true || event[tagKey] === 1 || event[tagKey] === '1' || event[tagKey] === 't' || event[tagKey] === 'True';
                         });
                     });
                 }
+                // If activeTagKeys.length is 0, no tag filtering is applied, so all events pass this stage.
 
 
                 filteredEvents.sort((a, b) => {
@@ -682,9 +684,10 @@
                     tagFiltersContainer.querySelectorAll('button').forEach(button => {
                         const tagKey = button.dataset.tagKey;
                         const tagInfo = tagProperties[tagKey];
-                        button.dataset.active = "true";
-                        button.setAttribute('aria-pressed', 'true');
-                        button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
+                        // Set to inactive state
+                        button.dataset.active = "false";
+                        button.setAttribute('aria-pressed', 'false');
+                        button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
                     });
                 }
 
