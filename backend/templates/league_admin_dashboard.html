@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Triatlón - Base Design</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --orange-primary: #FF6B35;
+            --orange-light: #FF8F65;
+            --orange-dark: #FF4500;
+            --orange-pale: #FFB380;
+            --gray-dark: #2C3E50;
+            --gray-medium: #34495E;
+            --gray-light: #7F8C8D;
+            --blue-water: #3498DB;
+            --green-run: #27AE60;
+            --red-accent: #E74C3C;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #F8F9FA 0%, #E8F4FD 100%);
+        }
+
+        .brand-font {
+            font-family: 'Orbitron', monospace;
+        }
+
+        .gradient-orange {
+            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-light) 100%);
+        }
+
+        .gradient-water {
+            background: linear-gradient(135deg, var(--blue-water) 0%, #5DADE2 100%);
+        }
+
+        .gradient-run {
+            background: linear-gradient(135deg, var(--green-run) 0%, #58D68D 100%);
+        }
+
+        .gradient-bike {
+            background: linear-gradient(135deg, var(--gray-dark) 0%, var(--gray-medium) 100%);
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(255, 107, 53, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange-primary) 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .icon-swim { color: var(--blue-water); }
+        .icon-bike { color: var(--gray-dark); }
+        .icon-run { color: var(--green-run); }
+
+        @keyframes pulse-orange {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); }
+        }
+
+        .pulse-orange {
+            animation: pulse-orange 2s infinite;
+        }
+
+        .modal-backdrop {
+            background: rgba(44, 62, 80, 0.8);
+            backdrop-filter: blur(8px);
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(255, 107, 53, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+
+        .badge-admin { background: linear-gradient(135deg, var(--red-accent) 0%, #F1948A 100%); }
+        .badge-league { background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-light) 100%); }
+        .badge-player { background: linear-gradient(135deg, var(--blue-water) 0%, #5DADE2 100%); }
+
+        .no-scroll {
+            height: auto;
+            overflow: visible;
+        }
+    </style>
+</head>
+<body class="no-scroll">
+    {% include '_header.html' %}
+
+    <!-- Main Layout -->
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar sidebar-transition w-64 bg-white shadow-lg fixed md:relative z-40 h-full md:h-auto">
+            <div class="p-6">
+                <h3 class="brand-font text-gray-800 font-semibold text-lg mb-6">Quick Actions</h3>
+                <nav class="space-y-3">
+                    {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
+                    <a href="{{ url_for('serve_create_race_page') }}" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Nueva Carrera</span>
+                    </a>
+                    {% endif %}
+                    <a href="#" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
+                        <i class="fas fa-users"></i>
+                        <span>Gestionar Liga</span>
+                    </a>
+                    <a href="#" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Estadísticas</span>
+                    </a>
+                    <a href="#" class="flex items-center space-x-3 text-gray-600 hover:text-orange-500 hover:bg-orange-50 p-3 rounded-lg transition-all">
+                        <i class="fas fa-cogs"></i>
+                        <span>Configuración</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 md:ml-0">
+            <!-- Hero Section -->
+            <div class="gradient-orange rounded-2xl p-8 mb-8 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="brand-font text-3xl font-bold mb-2">¡Bienvenido a TriFantasy, {{ current_user.username }}!</h2>
+                        <p class="text-orange-100 text-lg">Gestiona tu liga de triatlón como nunca antes</p>
+                    </div>
+                    <div class="hidden md:flex space-x-4">
+                        <div class="text-center">
+                            <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
+                                <i class="fas fa-swimmer text-3xl"></i>
+                            </div>
+                            <p class="text-sm">Natación</p>
+                        </div>
+                        <div class="text-center">
+                            <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
+                                <i class="fas fa-biking text-3xl"></i>
+                            </div>
+                            <p class="text-sm">Ciclismo</p>
+                        </div>
+                        <div class="text-center">
+                            <div class="bg-white bg-opacity-20 rounded-full p-4 mb-2">
+                                <i class="fas fa-running text-3xl"></i>
+                            </div>
+                            <p class="text-sm">Running</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Join Race by Code Button -->
+            <div class="my-6 text-center"> <!-- Added margin top and bottom, and centered the button -->
+                <button id="joinRaceByCodeBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
+                    <i class="fas fa-key mr-2"></i>Unirse a Carrera por Código
+                </button>
+            </div>
+
+            <!-- Dashboard Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="gradient-water rounded-full p-3">
+                            <i class="fas fa-flag-checkered text-white text-xl"></i>
+                        </div>
+                        <span class="text-2xl font-bold text-gray-800">24</span>
+                    </div>
+                    <h3 class="text-gray-600 font-medium">Carreras Activas</h3>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="gradient-run rounded-full p-3">
+                            <i class="fas fa-users text-white text-xl"></i>
+                        </div>
+                        <span class="text-2xl font-bold text-gray-800">1,247</span>
+                    </div>
+                    <h3 class="text-gray-600 font-medium">Participantes</h3>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="gradient-bike rounded-full p-3">
+                            <i class="fas fa-trophy text-white text-xl"></i>
+                        </div>
+                        <span class="text-2xl font-bold text-gray-800">8</span>
+                    </div>
+                    <h3 class="text-gray-600 font-medium">Ligas</h3>
+                </div>
+
+                <div class="bg-white rounded-xl p-6 shadow-lg card-hover">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="gradient-orange rounded-full p-3">
+                            <i class="fas fa-calendar text-white text-xl"></i>
+                        </div>
+                        <span class="text-2xl font-bold text-gray-800">15</span>
+                    </div>
+                    <h3 class="text-gray-600 font-medium">Este Mes</h3>
+                </div>
+            </div>
+
+            <!-- Filters Form -->
+            <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Filtrar Carreras</h3>
+                <form method="GET" action="{{ url_for('serve_hello_world_page') }}" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label for="filter_race_format_id" class="block text-sm font-medium text-gray-700">Formato:</label>
+                            <select id="filter_race_format_id" name="filter_race_format_id" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                                <option value="">Todos los Formatos</option>
+                                {% if all_race_formats %} {# Ensure all_race_formats is passed and not None #}
+                                    {% for rf_item in all_race_formats %}
+                                        <option value="{{ rf_item.id }}" {% if rf_item.id|string == filter_race_format_id_str %}selected{% endif %}>
+                                            {{ rf_item.name }}
+                                        </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter_date_from" class="block text-sm font-medium text-gray-700">Desde:</label>
+                            <input type="date" id="filter_date_from" name="filter_date_from" value="{{ filter_date_from_str or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="filter_date_to" class="block text-sm font-medium text-gray-700">Hasta:</label>
+                            <input type="date" id="filter_date_to" name="filter_date_to" value="{{ filter_date_to_str or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                        </div>
+                        <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 md:pt-5"> {# Adjusted for better button stacking on small screens #}
+                            <button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg font-medium flex items-center w-full sm:w-auto justify-center">
+                                <i class="fas fa-filter mr-2"></i>Filtrar
+                            </button>
+                            <a href="{{ url_for('serve_hello_world_page') }}" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors w-full sm:w-auto text-center">
+                                Limpiar
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Race Cards Section -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="brand-font text-2xl font-bold text-gray-800">Carreras Destacadas</h2>
+                    {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
+                    <a href="{{ url_for('serve_create_race_page') }}" class="btn-primary text-white px-6 py-2 rounded-lg font-medium">
+                        <i class="fas fa-plus mr-2"></i>Nueva Carrera
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% if races and races|length > 0 %}
+                        {% for race in races %}
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover flex flex-col">
+                            {# Determine card header gradient and icon based on race_format #}
+                            {% set race_format_name = race.race_format.name %}
+                            {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
+                            {% set race_icon = 'fas fa-flag-checkered' %} {# Default icon #}
+
+                            {% if race_format_name == 'Duatlón' %}
+                                {% set card_gradient_class = 'gradient-run' %}
+                                {% set race_icon = 'fas fa-road' %}
+                            {% elif race_format_name == 'Acuatlón' %}
+                                {% set card_gradient_class = 'gradient-bike' %} {# Using bike gradient as placeholder #}
+                                {% set race_icon = 'fas fa-swimmer' %}
+                            {% elif race_format_name == 'Triatlón' %}
+                                {% set race_icon = 'fas fa-water' %}
+                            {% endif %}
+
+                            {# Header: Icon, Title, Format Name - Left Aligned #}
+                            <div class="{{ card_gradient_class }} h-24 p-4 flex items-center space-x-4 text-white">
+                                <i class="{{ race_icon }} text-3xl flex-shrink-0"></i>
+                                <div class="flex-grow overflow-hidden">
+                                    <h3 class="font-bold text-xl leading-tight truncate" title="{{ race.title }}">{{ race.title }}</h3>
+                                    <p class="text-sm font-semibold">{{ race_format_name }}</p>
+                                </div>
+                            </div>
+
+                            {# Card Body #}
+                            <div class="p-6 flex-grow flex flex-col">
+                                <div class="flex items-center justify-end mb-3"> {# Date aligned to the right, badge removed #}
+                                    <span class="text-sm text-gray-500">{{ race.event_date.strftime('%d %b %Y') if race.event_date else 'Fecha no disp.' }}</span>
+                                </div>
+
+                                {% if race.description %}
+                                    <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden">{{ race.description[:100] }}{% if race.description|length > 100 %}...{% endif %}</p>
+                                {% else %}
+                                    {# If no description, show location here, but it will be shown again below. Consider conditional display or merging. #}
+                                    {# For now, keeping structure similar to races_list, showing a placeholder if no description #}
+                                    <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden italic">No hay descripción disponible.</p>
+                                {% endif %}
+
+                                {# Location info moved here, directly after description #}
+                                <div class="flex items-center space-x-2 text-sm text-gray-600 mb-4">
+                                    <i class="fas fa-map-marker-alt text-gray-400"></i>
+                                    <span>{{ race.location if race.location else 'N/A' }}</span>
+                                </div>
+
+                                {# Button at the bottom #}
+                                <div class="mt-auto">
+                                    <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="btn-primary w-full text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center text-center">
+                                        Acceder a la carrera
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-span-1 md:col-span-2 lg:col-span-3">
+                            <p class="text-center text-gray-500 py-10">No hay carreras destacadas por el momento.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Form Section -->
+            <div class="mb-8">
+                <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Formulario de Ejemplo</h2>
+                <div class="bg-white rounded-xl shadow-lg p-8">
+                    <form class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nombre de la Carrera</label>
+                                <input type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors" placeholder="Ej: Ironman Barcelona 2024">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Formato de Carrera</label>
+                                <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors">
+                                    <option>Triatlón</option>
+                                    <option>Duatlón</option>
+                                    <option>Acuatlón</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Descripción</label>
+                            <textarea class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors" rows="4" placeholder="Describe los detalles de la carrera..."></textarea>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Fecha del Evento</label>
+                                <input type="date" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Ubicación</label>
+                                <input type="text" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors" placeholder="Ciudad, País">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Categoría de Género</label>
+                                <select class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors">
+                                    <option>Ambos</option>
+                                    <option>Masculino</option>
+                                    <option>Femenino</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-end space-x-4">
+                            <button type="button" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Cancelar</button>
+                            <button type="submit" class="btn-primary text-white px-6 py-3 rounded-lg font-medium">
+                                <i class="fas fa-save mr-2"></i>Guardar Carrera
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Table Section -->
+            <div class="mb-8">
+                <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Tabla de Participantes</h2>
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                    <table class="w-full table-hover">
+                        <thead class="gradient-orange text-white">
+                            <tr>
+                                <th class="px-6 py-4 text-left font-semibold">Participante</th>
+                                <th class="px-6 py-4 text-left font-semibold">Rol</th>
+                                <th class="px-6 py-4 text-left font-semibold">Carreras</th>
+                                <th class="px-6 py-4 text-left font-semibold">Puntos</th>
+                                <th class="px-6 py-4 text-left font-semibold">Estado</th>
+                                <th class="px-6 py-4 text-left font-semibold">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full">
+                                        <div>
+                                            <p class="font-medium text-gray-900">Ana García</p>
+                                            <p class="text-sm text-gray-500">ana.garcia@email.com</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="badge-player px-3 py-1 rounded-full text-xs text-white">Player</span>
+                                </td>
+                                <td class="px-6 py-4 text-gray-900">12</td>
+                                <td class="px-6 py-4 text-gray-900 font-semibold">2,450</td>
+                                <td class="px-6 py-4">
+                                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Activo</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-2">
+                                        <button class="text-blue-500 hover:text-blue-700">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="text-orange-500 hover:text-orange-700">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full">
+                                        <div>
+                                            <p class="font-medium text-gray-900">Carlos Ruiz</p>
+                                            <p class="text-sm text-gray-500">carlos.ruiz@email.com</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="badge-league px-3 py-1 rounded-full text-xs text-white">League Admin</span>
+                                </td>
+                                <td class="px-6 py-4 text-gray-900">8</td>
+                                <td class="px-6 py-4 text-gray-900 font-semibold">1,890</td>
+                                <td class="px-6 py-4">
+                                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Activo</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-2">
+                                        <button class="text-blue-500 hover:text-blue-700">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="text-orange-500 hover:text-orange-700">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-3">
+                                        <img src="https://via.placeholder.com/40x40" alt="Avatar" class="w-10 h-10 rounded-full">
+                                        <div>
+                                            <p class="font-medium text-gray-900">María López</p>
+                                            <p class="text-sm text-gray-500">maria.lopez@email.com</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="badge-admin px-3 py-1 rounded-full text-xs text-white">Admin</span>
+                                </td>
+                                <td class="px-6 py-4 text-gray-900">15</td>
+                                <td class="px-6 py-4 text-gray-900 font-semibold">3,120</td>
+                                <td class="px-6 py-4">
+                                    <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">Activo</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center space-x-2">
+                                        <button class="text-blue-500 hover:text-blue-700">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="text-orange-500 hover:text-orange-700">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modal Example (Hidden by default) -->
+            <div id="example-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+                    <div class="gradient-orange rounded-t-2xl p-6 text-white">
+                        <div class="flex items-center justify-between">
+                            <h3 class="brand-font text-xl font-bold">Confirmar Acción</h3>
+                            <button onclick="closeModal()" class="text-white hover:text-orange-200">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="text-center mb-6">
+                            <div class="gradient-orange rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                                <i class="fas fa-question text-white text-2xl"></i>
+                            </div>
+                            <p class="text-gray-700">¿Estás seguro de que quieres realizar esta acción? Esta operación no se puede deshacer.</p>
+                        </div>
+                        <div class="flex items-center justify-end space-x-4">
+                            <button onclick="closeModal()" class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                                Cancelar
+                            </button>
+                            <button class="btn-primary text-white px-6 py-3 rounded-lg font-medium">
+                                Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Button to show modal -->
+            <div class="mb-8 text-center">
+                <button onclick="showModal()" class="btn-primary text-white px-6 py-3 rounded-lg font-medium">
+                    <i class="fas fa-eye mr-2"></i>Ver Modal de Ejemplo
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="gradient-bike text-white mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-swimmer text-orange-400"></i>
+                        <i class="fas fa-biking text-orange-400"></i>
+                        <i class="fas fa-running text-orange-400"></i>
+                        <span class="brand-font font-bold text-xl">TriFantasy</span>
+                    </div>
+                    <p class="text-gray-300 text-sm">La plataforma líder para gestionar ligas de triatlón fantasy</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Navegación</h4>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Dashboard</a></li>
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Carreras</a></li>
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Ligas</a></li>
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Perfil</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Soporte</h4>
+                    <ul class="space-y-2 text-sm text-gray-300">
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Centro de Ayuda</a></li>
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Contacto</a></li>
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Términos de Uso</a></li>
+                        <li><a href="#" class="hover:text-orange-400 transition-colors">Privacidad</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4">Síguenos</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                            <i class="fab fa-twitter text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </a>
+                        <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                            <i class="fab fa-linkedin text-xl"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-600 mt-8 pt-8 text-center text-sm text-gray-300">
+                <p>&copy; 2024 TriFantasy. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    {% include '_join_by_code_modal.html' %}
+
+    <script>
+        // Sidebar toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Modal functions
+        function showModal() {
+            document.getElementById('example-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('example-modal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('example-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Add some interactive effects on load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate cards on scroll (simple effect)
+            const cards = document.querySelectorAll('.card-hover');
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                    }
+                });
+            });
+
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                observer.observe(card);
+            });
+
+            // Header-related JavaScript (logout, dropdown, mobile menu) is in _header.html
+        });
+
+    // --- Join Race By Code Modal Logic ---
+    const joinRaceByCodeBtn = document.getElementById('joinRaceByCodeBtn');
+    const joinByCodeModal = document.getElementById('joinByCodeModal');
+    const closeJoinByCodeModalBtn = document.getElementById('closeJoinByCodeModalBtn');
+    const cancelJoinByCodeBtn = document.getElementById('cancelJoinByCodeBtn');
+    const joinByCodeForm = document.getElementById('joinByCodeForm');
+    const raceAccessCodeToJoinInput = document.getElementById('raceAccessCodeToJoin');
+    const joinByCodeError = document.getElementById('joinByCodeError');
+    const submitJoinByCodeBtn = document.getElementById('submitJoinByCodeBtn');
+
+    if (joinRaceByCodeBtn) {
+        joinRaceByCodeBtn.addEventListener('click', () => {
+            if (joinByCodeModal) {
+                if(raceAccessCodeToJoinInput) raceAccessCodeToJoinInput.value = ''; // Clear previous input
+                if(joinByCodeError) joinByCodeError.style.display = 'none'; // Clear previous errors
+                joinByCodeModal.style.display = 'flex';
+            }
+        });
+    }
+
+    function closeJoinByCodeDialog() {
+        if (joinByCodeModal) {
+            joinByCodeModal.style.display = 'none';
+        }
+    }
+
+    if (closeJoinByCodeModalBtn) {
+        closeJoinByCodeModalBtn.addEventListener('click', closeJoinByCodeDialog);
+    }
+    if (cancelJoinByCodeBtn) {
+        cancelJoinByCodeBtn.addEventListener('click', closeJoinByCodeDialog);
+    }
+
+    if (joinByCodeForm && submitJoinByCodeBtn) {
+        joinByCodeForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const accessCode = raceAccessCodeToJoinInput.value.trim();
+            if (!accessCode) {
+                if(joinByCodeError) {
+                    joinByCodeError.textContent = 'Por favor, ingresa un código de acceso.';
+                    joinByCodeError.style.display = 'block';
+                }
+                return;
+            }
+
+            submitJoinByCodeBtn.disabled = true;
+            submitJoinByCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uniéndose...';
+            if(joinByCodeError) joinByCodeError.style.display = 'none';
+
+            fetch('/api/races/join_by_code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Add CSRF token if needed
+                    // 'X-CSRFToken': '...' // Placeholder if CSRF needed
+                },
+                body: JSON.stringify({ access_code: accessCode })
+            })
+            .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+            .then(result => {
+                if (result.ok) {
+                    closeJoinByCodeDialog();
+                    window.location.href = `/race/${result.body.race_id}?action=start_quiniela`;
+                } else {
+                    if(joinByCodeError) {
+                        joinByCodeError.textContent = result.body.message || `Error: ${result.status}. No se pudo unir a la carrera.`;
+                        joinByCodeError.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error joining race by code:', error);
+                if(joinByCodeError) {
+                    joinByCodeError.textContent = 'Error de conexión o del servidor. Inténtalo de nuevo.';
+                    joinByCodeError.style.display = 'block';
+                }
+            })
+            .finally(() => {
+                submitJoinByCodeBtn.disabled = false;
+                submitJoinByCodeBtn.innerHTML = 'Unirse a Carrera';
+            });
+        });
+    }
+    // --- End Join Race By Code Modal Logic ---
+    </script>
+</body>
+</html>
