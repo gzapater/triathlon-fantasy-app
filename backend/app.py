@@ -2568,7 +2568,7 @@ def user_personal_data():
 
 @app.route('/')
 def tripredict_promo_page():
-    return render_template('tripredict_promo.html')
+    return render_template('index.html')
 
 @app.route('/TriCal')
 def trical_events_page():
