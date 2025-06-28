@@ -4131,7 +4131,9 @@ def serve_events_management_page():
         organized_races=[],
         participating_races=[],
         favorite_races=[],
-        active_players_count=0
+        active_players_count=0,
+        auto_join_race_id=None, # Añadido para el modal join by link
+        race_to_join_title=None # Añadido para el modal join by link
     )
 
 @app.route('/api/events', methods=['POST']) # API para crear evento
