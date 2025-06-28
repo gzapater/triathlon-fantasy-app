@@ -9,7 +9,7 @@
     <li class="breadcrumb-item active" aria-current="page">Gestión de Eventos</li>
 {% endblock %}
 
-{% block content %}
+{% block main_dashboard_content %}
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Administrar Eventos de TriCal</h1>
 
@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endblock %}
+{% endblock %} {# main_dashboard_content #}
 
 {% block additional_scripts %}
     {{ super() }}

@@ -146,6 +146,7 @@
             </div>
 
             <div id="dashboard-content-wrapper">
+                {% block main_dashboard_content %}
                 <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
                     <div class="mb-6 text-right"> <!-- Wrapper for alignment and margin -->
                         <a href="{{ url_for('serve_create_race_page') }}" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow">
@@ -570,6 +571,7 @@
 
             {% include '_official_answers_modal.html' %}
                 </div> <!-- MODIFIED: End of wrapper for content below hero -->
+                {% endblock %} {# End of main_dashboard_content #}
             </div>
         </main>
     </div>
@@ -877,8 +879,8 @@
             }
 
             // Check for auto_join_race_id passed from server
-            const autoJoinRaceIdFromServer = "{{ auto_join_race_id | default('') }}";
-            const raceToJoinTitleFromServer = {{ race_to_join_title | tojson }};
+            const autoJoinRaceIdFromServer = {{ auto_join_race_id | default(none) | tojson }};
+            const raceToJoinTitleFromServer = {{ race_to_join_title | default(none) | tojson }};
         
             const urlParamsClean = new URLSearchParams(window.location.search);
             const joinRaceIdFromQuery = urlParamsClean.get('join_race_id');
@@ -890,31 +892,23 @@
             let source = null;
 
             // 1. Try to get ID from server-injected data
-            if (autoJoinRaceIdFromServer && autoJoinRaceIdFromServer.toLowerCase() !== 'none') {
-                const parsedServerId = parseInt(autoJoinRaceIdFromServer, 10);
-                if (!isNaN(parsedServerId) && parsedServerId > 0) {
-                    effectiveRaceId = parsedServerId;
+            // autoJoinRaceIdFromServer is now null or a number. raceToJoinTitleFromServer is null or a string.
+            if (typeof autoJoinRaceIdFromServer === 'number') {
+                effectiveRaceId = autoJoinRaceIdFromServer;
+                source = 'server';
 
-                    let useServerTitle = false;
-                    if (typeof raceToJoinTitleFromServer === 'string' && raceToJoinTitleFromServer.trim() !== '') {
-                        const titleLower = raceToJoinTitleFromServer.toLowerCase();
-                        if (titleLower !== 'none' && titleLower !== 'null') {
-                            useServerTitle = true;
-                        }
-                    }
-
-                    if (useServerTitle) {
-                        effectiveRaceTitle = raceToJoinTitleFromServer;
-                    } else {
-                        effectiveRaceTitle = null;
-                    }
-                    source = 'server';
+                if (typeof raceToJoinTitleFromServer === 'string' && raceToJoinTitleFromServer.trim() !== '') {
+                    effectiveRaceTitle = raceToJoinTitleFromServer;
                 } else {
-                    console.warn(`autoJoinRaceIdFromServer ('${autoJoinRaceIdFromServer}') no es un ID numérico válido o es una cadena vacía.`);
+                    effectiveRaceTitle = null;
                 }
-            } else if (autoJoinRaceIdFromServer.toLowerCase() === 'none') {
-                console.warn(`autoJoinRaceIdFromServer era la cadena 'None', tratado como ID inválido.`);
-                }
+            } else if (autoJoinRaceIdFromServer === null) {
+                // This is an expected case when no specific race_id is passed from server
+                // (e.g., on normal dashboard load or when events_management extends this)
+                // console.debug("autoJoinRaceIdFromServer is null. No specific race to join from server context.");
+            } else {
+                // This case handles if autoJoinRaceIdFromServer was something else unexpected
+                console.warn(`autoJoinRaceIdFromServer ('${autoJoinRaceIdFromServer}') is not a valid number or null.`);
             }
 
             // 2. If not found from server, try from URL query parameter
