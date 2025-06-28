@@ -153,6 +153,17 @@
                 </div>
             </div>
 
+            <!-- Tag Filters Section -->
+            <div class="mt-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-tags mr-1"></i> Etiquetas
+                </label>
+                <div id="tagFiltersContainer" class="flex flex-wrap gap-2">
+                    <!-- Tag filter buttons will be populated by JS or hardcoded here -->
+                </div>
+            </div>
+
+
             <!-- Action Buttons -->
             <div class="flex flex-wrap items-center justify-between mt-6 gap-4">
                 <div class="flex flex-wrap gap-2">
@@ -301,6 +312,7 @@
             const monthFilter = document.getElementById('monthFilter');
             const clearFiltersBtn = document.getElementById('clearFilters');
             const sortDateBtn = document.getElementById('sortDate');
+            const tagFiltersContainer = document.getElementById('tagFiltersContainer');
 
             // Modal elements
             const eventModal = document.getElementById('eventModal');
@@ -346,6 +358,37 @@
                     closeModal();
                 }
             });
+
+            function populateTagFilterButtons() {
+                if (!tagFiltersContainer) return;
+                tagFiltersContainer.innerHTML = ''; // Clear any existing buttons
+
+                for (const key in tagProperties) {
+                    const tagInfo = tagProperties[key];
+                    const button = document.createElement('button');
+                    button.id = `filter-${key}`;
+                    button.dataset.tagKey = key;
+                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
+                    button.innerHTML = `<i class="${tagInfo.icon} mr-1.5"></i> ${tagInfo.text}`;
+                    button.setAttribute('aria-pressed', 'true');
+                    button.dataset.active = "true";
+
+                    button.addEventListener('click', () => {
+                        const isActive = button.dataset.active === "true";
+                        if (isActive) {
+                            button.dataset.active = "false";
+                            button.setAttribute('aria-pressed', 'false');
+                            button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`; // Use defined inactive filter color
+                        } else {
+                            button.dataset.active = "true";
+                            button.setAttribute('aria-pressed', 'true');
+                            button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
+                        }
+                        filterAndSortEvents();
+                    });
+                    tagFiltersContainer.appendChild(button);
+                }
+            }
 
 
             function populateFilterOptions(events) {
@@ -414,6 +457,9 @@
                                 <i class="fas fa-ruler-combined fa-fw mr-2 text-orange-500 opacity-75"></i>
                                 <span>${event.distance || 'N/A'}</span>
                             </div>
+                            <div class="mt-3 event-tags flex flex-wrap gap-2">
+                                <!-- Tags will be inserted here by JS -->
+                            </div>
                         </div>
                         <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
                             <button class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
@@ -431,6 +477,80 @@
                 if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
             }
 
+            const tagProperties = {
+                is_good_for_debutants: { text: "Good for Debutants", color: "bg-green-100 text-green-800", filterColor: "bg-green-500 hover:bg-green-600 text-white", filterActiveColor: "bg-green-700 text-white", icon: "fas fa-seedling" },
+                is_challenging: { text: "Challenging", color: "bg-red-100 text-red-800", filterColor: "bg-red-500 hover:bg-red-600 text-white", filterActiveColor: "bg-red-700 text-white", icon: "fas fa-mountain" },
+                has_great_views: { text: "Great Views", color: "bg-blue-100 text-blue-800", filterColor: "bg-blue-500 hover:bg-blue-600 text-white", filterActiveColor: "bg-blue-700 text-white", icon: "fas fa-image" },
+                has_good_atmosphere: { text: "Good Atmosphere", color: "bg-purple-100 text-purple-800", filterColor: "bg-purple-500 hover:bg-purple-600 text-white", filterActiveColor: "bg-purple-700 text-white", icon: "fas fa-users" },
+                is_world_qualifier: { text: "World Qualifier", color: "bg-yellow-400 hover:bg-yellow-500 text-gray-800", filterColor: "bg-yellow-400 hover:bg-yellow-500 text-gray-800", filterActiveColor: "bg-yellow-500 text-gray-900", icon: "fas fa-trophy" } // Adjusted yellow for better contrast
+            };
+
+            function renderEvents(eventsToRender) {
+                eventsContainer.innerHTML = '';
+                if (eventsToRender.length === 0) {
+                    noResultsIndicator.classList.remove('hidden');
+                } else {
+                    noResultsIndicator.classList.add('hidden');
+                }
+
+                eventsToRender.forEach(event => {
+                    const eventCard = document.createElement('div');
+                    eventCard.className = "bg-white rounded-lg shadow-md overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover cursor-pointer border border-gray-200 hover:shadow-xl";
+
+                    eventCard.innerHTML = `
+                        <div class="p-4 border-b border-gray-200">
+                            <h3 class="font-semibold text-lg text-gray-800 mb-1 truncate" title="${event.name}">${event.name}</h3>
+                            <p class="text-sm text-orange-600 font-medium">${event.discipline || 'N/A'}</p>
+                        </div>
+                        <div class="p-4 flex-grow space-y-2">
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-calendar-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${formatDate(event.event_date)}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-map-marker-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${event.city || 'N/A'}, ${event.province || 'N/A'}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-ruler-combined fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${event.distance || 'N/A'}</span>
+                            </div>
+                            <div class="mt-3 event-tags flex flex-wrap gap-2">
+                                <!-- Tags will be inserted here by JS -->
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
+                            <button class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
+                                Ver Detalles <i class="fas fa-arrow-right text-xs ml-1"></i>
+                            </button>
+                        </div>
+                    `;
+
+                    const tagsContainer = eventCard.querySelector('.event-tags');
+                    for (const key in tagProperties) {
+                        if (event[key] === true || event[key] === 1 || event[key] === '1' || event[key] === 't' || event[key] === 'True') { // Check for various truthy values from DB
+                            const tagInfo = tagProperties[key];
+                            const tagElement = document.createElement('span');
+                            tagElement.className = `px-2 py-1 text-xs font-medium rounded-full ${tagInfo.color}`;
+                            tagElement.innerHTML = `<i class="${tagInfo.icon} mr-1"></i> ${tagInfo.text}`;
+                            tagsContainer.appendChild(tagElement);
+                        }
+                    }
+                    if (tagsContainer.children.length === 0) { // If no tags, ensure the container doesn't take up space
+                        tagsContainer.classList.add('hidden');
+                    }
+
+
+                    eventCard.querySelector('.view-details-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openModal(event);
+                    });
+                    eventCard.addEventListener('click', () => openModal(event));
+                    eventsContainer.appendChild(eventCard);
+                });
+                if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
+            }
+
             function filterAndSortEvents() {
                 let filteredEvents = [...allEvents];
                 const searchTerm = searchInput.value.toLowerCase().trim();
@@ -438,6 +558,15 @@
                 const selectedDistance = distanceFilter.value;
                 const selectedProvince = provinceFilter.value;
                 const selectedMonth = monthFilter.value;
+
+                const activeTagFilters = {};
+                if (tagFiltersContainer) {
+                    tagFiltersContainer.querySelectorAll('button').forEach(btn => {
+                        if (btn.dataset.active === "true") {
+                            activeTagFilters[btn.dataset.tagKey] = true;
+                        }
+                    });
+                }
 
                 if (searchTerm) {
                     filteredEvents = filteredEvents.filter(event =>
@@ -466,6 +595,18 @@
                         return event_month === parseInt(selectedMonth);
                     });
                 }
+
+                // Apply tag filters
+                const tagKeys = Object.keys(activeTagFilters);
+                if (tagKeys.length > 0) { // Only filter if there are active tag filters (though they start all active)
+                    filteredEvents = filteredEvents.filter(event => {
+                        return tagKeys.every(tagKey => {
+                            // Event property must be true for the tag to match
+                            return event[tagKey] === true || event[tagKey] === 1 || event[tagKey] === '1' || event[tagKey] === 't' || event[tagKey] === 'True';
+                        });
+                    });
+                }
+
 
                 filteredEvents.sort((a, b) => {
                     // Handle null or invalid dates by pushing them to the end
@@ -504,6 +645,7 @@
                     if (totalCountDisplay) totalCountDisplay.textContent = allEvents.length;
 
                     populateFilterOptions(allEvents);
+                    populateTagFilterButtons(); // Populate tag filter buttons
                     filterAndSortEvents(); // Initial sort and render
                     loadingIndicator.style.display = 'none';
 
@@ -532,8 +674,20 @@
                 distanceFilter.value = '';
                 provinceFilter.value = '';
                 monthFilter.value = '';
-                currentSortAscending = true;
-                sortDateBtn.innerHTML = '<i class="fas fa-sort mr-1"></i> Ordenar por Fecha';
+                currentSortAscending = true; // Reset sort order
+                sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)'; // Reset sort button text/icon
+
+                // Reset tag filters to all active
+                if (tagFiltersContainer) {
+                    tagFiltersContainer.querySelectorAll('button').forEach(button => {
+                        const tagKey = button.dataset.tagKey;
+                        const tagInfo = tagProperties[tagKey];
+                        button.dataset.active = "true";
+                        button.setAttribute('aria-pressed', 'true');
+                        button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
+                    });
+                }
+
                 filterAndSortEvents();
             });
 
