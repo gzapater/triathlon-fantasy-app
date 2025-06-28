@@ -13,95 +13,113 @@
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Administrar Eventos de TriCal</h1>
 
-    <!-- Formulario para Añadir/Editar Evento -->
-    <div class="bg-white shadow-md rounded-lg p-6 mb-8">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4" id="form-title">Añadir Nuevo Evento</h2>
-        <form id="event-form">
-            <input type="hidden" id="event_id" name="event_id">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento:</label>
-                    <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="event_date" class="block text-sm font-medium text-gray-700 mb-1">Fecha del Evento:</label>
-                    <input type="date" id="event_date" name="event_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad:</label>
-                    <input type="text" id="city" name="city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
-                    <input type="text" id="province" name="province" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="discipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
-                    <input type="text" id="discipline" name="discipline" placeholder="Ej: Triatlón, Duatlón, Acuatlón" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="distance" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
-                    <input type="text" id="distance" name="distance" placeholder="Ej: Olímpica, Sprint, Media Distancia" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div class="md:col-span-2">
-                    <label for="source_url" class="block text-sm font-medium text-gray-700 mb-1">URL Fuente (Organizador):</label>
-                    <input type="url" id="source_url" name="source_url" placeholder="https://www.example.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-            </div>
+    <!-- Botón para abrir el modal de creación de evento -->
+    <div class="mb-6 text-right">
+        <button id="open-event-modal-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded shadow-lg hover:shadow-xl transition duration-150 ease-in-out">
+            <i class="fas fa-plus mr-2"></i> Crear Nuevo Evento
+        </button>
+    </div>
 
-            <fieldset class="mb-4">
-                <legend class="text-lg font-medium text-gray-900 mb-2">Puntuación TriCal (Opcional):</legend>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_good_for_debutants" name="is_good_for_debutants" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_good_for_debutants" class="font-medium text-gray-700">Ideal para Debutantes</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_challenging" name="is_challenging" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_challenging" class="font-medium text-gray-700">Desafiante</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="has_great_views" name="has_great_views" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="has_great_views" class="font-medium text-gray-700">Vistas Espectaculares</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="has_good_atmosphere" name="has_good_atmosphere" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="has_good_atmosphere" class="font-medium text-gray-700">Buen Ambiente</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_world_qualifier" name="is_world_qualifier" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_world_qualifier" class="font-medium text-gray-700">Clasificatorio Mundial</label>
-                        </div>
-                    </div>
-                </div>
-            </fieldset>
-
-            <div class="flex justify-end space-x-3">
-                <button type="button" id="cancel-edit-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 hidden">Cancelar Edición</button>
-                <button type="submit" id="submit-btn" class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                    Guardar Evento
+    <!-- Modal para Añadir/Editar Evento -->
+    <div id="event-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center pb-3">
+                <h2 class="text-2xl font-semibold text-gray-700" id="form-title">Añadir Nuevo Evento</h2>
+                <button id="close-event-modal-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
                 </button>
             </div>
-        </form>
+            <!-- Modal Body (Formulario) -->
+            <div class="bg-white rounded-lg p-0"> <!-- Eliminado shadow-md, mb-8 y p-6 ya que el modal tiene su propio padding y estructura -->
+                <form id="event-form">
+                    <input type="hidden" id="event_id" name="event_id">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento:</label>
+                            <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="event_date" class="block text-sm font-medium text-gray-700 mb-1">Fecha del Evento:</label>
+                            <input type="date" id="event_date" name="event_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad:</label>
+                            <input type="text" id="city" name="city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
+                            <input type="text" id="province" name="province" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="discipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
+                            <input type="text" id="discipline" name="discipline" placeholder="Ej: Triatlón, Duatlón, Acuatlón" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                        <div>
+                            <label for="distance" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
+                            <input type="text" id="distance" name="distance" placeholder="Ej: Olímpica, Sprint, Media Distancia" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="source_url" class="block text-sm font-medium text-gray-700 mb-1">URL Fuente (Organizador):</label>
+                            <input type="url" id="source_url" name="source_url" placeholder="https://www.example.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                        </div>
+                    </div>
+
+                    <fieldset class="mb-4">
+                        <legend class="text-lg font-medium text-gray-900 mb-2">Puntuación TriCal (Opcional):</legend>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="is_good_for_debutants" name="is_good_for_debutants" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="is_good_for_debutants" class="font-medium text-gray-700">Ideal para Debutantes</label>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="is_challenging" name="is_challenging" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="is_challenging" class="font-medium text-gray-700">Desafiante</label>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="has_great_views" name="has_great_views" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="has_great_views" class="font-medium text-gray-700">Vistas Espectaculares</label>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="has_good_atmosphere" name="has_good_atmosphere" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="has_good_atmosphere" class="font-medium text-gray-700">Buen Ambiente</label>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex items-center h-5">
+                                    <input id="is_world_qualifier" name="is_world_qualifier" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                                </div>
+                                <div class="ml-3 text-sm">
+                                    <label for="is_world_qualifier" class="font-medium text-gray-700">Clasificatorio Mundial</label>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <div class="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" id="cancel-edit-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">Cancelar</button>
+                        <button type="submit" id="submit-btn" class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                            Guardar Evento
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 
     <!-- Tabla de Eventos Existentes -->
@@ -135,12 +153,46 @@ document.addEventListener('DOMContentLoaded', function() {
     const formTitle = document.getElementById('form-title');
     const eventIdInput = document.getElementById('event_id');
     const submitBtn = document.getElementById('submit-btn');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn'); // Este es el botón "Cancelar" dentro del modal
+
+    const eventModal = document.getElementById('event-modal');
+    const openEventModalBtn = document.getElementById('open-event-modal-btn');
+    const closeEventModalBtn = document.getElementById('close-event-modal-btn');
+
 
     const apiBaseUrl = '/api/events'; // Ajusta si tu API base es diferente
 
     // Cargar eventos al iniciar
     loadEvents();
+
+    // --- Modal Control ---
+    function showModal() {
+        eventModal.classList.remove('hidden');
+    }
+
+    function hideModal() {
+        eventModal.classList.add('hidden');
+    }
+
+    openEventModalBtn.addEventListener('click', function() {
+        resetForm(); // Asegura que el formulario esté limpio para crear
+        formTitle.textContent = 'Añadir Nuevo Evento'; // Asegura el título correcto
+        submitBtn.textContent = 'Guardar Evento'; // Asegura el texto del botón de envío
+        cancelEditBtn.classList.remove('hidden'); // El botón cancelar siempre visible en el modal
+        showModal();
+    });
+
+    closeEventModalBtn.addEventListener('click', function() {
+        resetForm(); // Limpia el formulario al cerrar con 'X'
+        hideModal();
+    });
+
+    // El botón "Cancelar" dentro del formulario ahora también cierra el modal
+    cancelEditBtn.addEventListener('click', function() {
+        resetForm(); // resetForm ya se encarga de limpiar y ajustar títulos/botones
+        hideModal(); // Añadido para ocultar el modal
+    });
+
 
     eventForm.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -177,20 +229,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
                 showFlashMessage(result.message || (eventId ? 'Evento actualizado con éxito' : 'Evento creado con éxito'), 'success');
                 resetForm();
-                loadEvents();
+                hideModal(); // Ocultar el modal después de éxito
+                // loadEvents(); // loadEvents actualiza la tabla. La recarga de página lo hará de todas formas.
+                location.reload(); // Recargar la página como solicitado.
             } else {
                 const errorResult = await response.json();
                 showFlashMessage(errorResult.message || 'Error al guardar el evento', 'error');
+                // No ocultar el modal en caso de error para que el usuario pueda corregir.
             }
         } catch (error) {
             console.error('Error en la petición:', error);
             showFlashMessage('Error de conexión al guardar el evento.', 'error');
+             // No ocultar el modal en caso de error de conexión.
         }
     });
 
-    cancelEditBtn.addEventListener('click', function() {
-        resetForm();
-    });
+    // cancelEditBtn click listener ya modificado arriba para incluir hideModal()
 
     async function loadEvents() {
         try {
@@ -257,8 +311,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 eventForm.elements['is_world_qualifier'].checked = event.is_world_qualifier || false;
 
                 submitBtn.textContent = 'Actualizar Evento';
-                cancelEditBtn.classList.remove('hidden');
-                window.scrollTo(0, 0); // Scroll al inicio para ver el formulario
+                cancelEditBtn.classList.remove('hidden'); // Asegurar que el botón cancelar está visible
+                showModal(); // Mostrar el modal con el formulario poblado
+                // window.scrollTo(0, 0); // Ya no es necesario hacer scroll, el modal aparece en el centro
             })
             .catch(error => {
                 console.error('Error al cargar evento para editar:', error);
@@ -291,10 +346,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function resetForm() {
         eventForm.reset();
-        eventIdInput.value = '';
-        formTitle.textContent = 'Añadir Nuevo Evento';
-        submitBtn.textContent = 'Guardar Evento';
-        cancelEditBtn.classList.add('hidden');
+        eventIdInput.value = ''; // Limpiar el ID del evento
+        formTitle.textContent = 'Añadir Nuevo Evento'; // Restablecer título del formulario/modal
+        submitBtn.textContent = 'Guardar Evento'; // Restablecer texto del botón de envío
+        // cancelEditBtn.classList.add('hidden'); // Ya no es necesario ocultar/mostrar, siempre está en el modal
+                                                // y su comportamiento de cierre de modal está manejado.
+                                                // Si se decide que solo aparezca en modo edición, entonces:
+                                                // cancelEditBtn.classList.add('hidden');
+                                                // Pero para un modal, es común tener siempre visible el "Cancelar".
     }
 
     // Función para mostrar mensajes flash (simulada, ya que el header maneja los reales)
