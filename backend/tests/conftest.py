@@ -91,7 +91,7 @@ def new_user_factory(db_session):
 
 @pytest.fixture(scope="session")
 def admin_user(new_user_factory):
-    return new_user_factory("admin_user", "admin@test.com", "admin_password", "ADMIN")
+    return new_user_factory("admin_user", "admin@test.com", "adminpassword", "ADMIN")
 
 @pytest.fixture(scope="session")
 def league_admin_user(new_user_factory):

@@ -2505,7 +2505,7 @@ def user_personal_data():
         return jsonify(message="Forbidden: You do not have the required permissions for this data."), 403
 # --- HTML Serving Routes ---
 
-@app.route('/Tripredict')
+@app.route('/')
 def tripredict_promo_page():
     return render_template('tripredict_promo.html')
 
@@ -2518,9 +2518,12 @@ def trical_events_page():
 def faq_page():
     return render_template('faq.html')
 
-@app.route('/')
-def root():
-    return redirect(url_for('serve_login_page'))
+# The @app.route('/') for tripredict_promo_page is now defined above.
+# We need to ensure the old root() redirect is removed or handled.
+# The original root redirecting to login is no longer needed if / serves promo.
+# @app.route('/')
+# def root():
+#    return redirect(url_for('serve_login_page'))
 
 @app.route('/login')
 def serve_login_page():

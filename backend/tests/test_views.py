@@ -242,14 +242,14 @@ class TestEventsAPI:
         response = client.get('/TriCal')
         assert response.status_code == 200
         response_data_text = response.get_data(as_text=True)
-        assert "Calendario de Carreras TriCal" in response_data_text # Unique title from TriCal.html
-        assert 'events-container' in response_data_text # Check for the div where events would be loaded
+        assert "Directorio de Triatlón y Duatlón en España" in response_data_text # Check for H1 content
+        assert 'eventsContainer' in response_data_text # Check for the div where events would be loaded
         # Check that the promo page specific content is NOT there
         assert "El pique no debería acabar en la línea de meta." not in response_data_text
 
     def test_tripredict_promo_page_no_longer_shows_events(self, client):
-        """Test that the /Tripredict promo page no longer directly embeds the events list script."""
-        response = client.get('/Tripredict')
+        """Test that the / promo page no longer directly embeds the events list script."""
+        response = client.get('/')
         assert response.status_code == 200
         response_data_text = response.get_data(as_text=True)
         # Check for a known part of the promo page

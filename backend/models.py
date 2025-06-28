@@ -110,6 +110,7 @@ class Race(db.Model):
             'id': self.id,
             'title': self.title,
             'description': self.description,
+            'race_format_name': self.race_format.name if self.race_format else None, # Changed here
             'race_format': {
                 'id': self.race_format.id,
                 'name': self.race_format.name

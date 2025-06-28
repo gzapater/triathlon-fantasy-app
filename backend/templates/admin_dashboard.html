@@ -240,7 +240,67 @@
                 </div>
             </div>
 
-{% if current_user.role.code == 'LEAGUE_ADMIN' %}
+{% if current_user.role.code == 'ADMIN' %}
+    <!-- Section for "Carreras Generales" for ADMIN -->
+    <div class="mb-8">
+        <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras Generales Disponibles</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% if races and races|length > 0 %}
+                {% for race in races %}
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover flex flex-col">
+                        {% set race_format_name = race['race_format']['name'] %}
+                        {% set card_gradient_class = 'gradient-water' %}
+                        {% set race_icon = 'fas fa-flag-checkered' %}
+
+                        {% if race_format_name == 'Duatlón' %}{% set card_gradient_class = 'gradient-run' %}{% set race_icon = 'fas fa-road' %}
+                        {% elif race_format_name == 'Acuatlón' %}{% set card_gradient_class = 'gradient-bike' %}{% set race_icon = 'fas fa-swimmer' %}
+                        {% elif race_format_name == 'Triatlón' %}{% set race_icon = 'fas fa-water' %}
+                        {% endif %}
+
+                        <div class="{{ card_gradient_class }} h-20 p-3 flex items-center space-x-3 text-white relative">
+                            <i class="{{ race_icon }} text-2xl flex-shrink-0"></i>
+                            <div class="flex-grow overflow-hidden">
+                                <h3 class="font-bold text-base leading-tight truncate" title="{{ race['title'] }}">{{ race['title'] }}</h3>
+                                <p class="text-xs font-semibold">{{ race_format_name }}</p>
+                            </div>
+                            {% if race.status %}
+                                {% set status_bg_color = 'bg-gray-500' %}
+                                {% if race.status == 'PLANNED' %}{% set status_bg_color = 'bg-blue-500' %}{% endif %}
+                                {% if race.status == 'ACTIVE' %}{% set status_bg_color = 'bg-green-500' %}{% endif %}
+                                {% if race.status == 'ARCHIVED' %}{% set status_bg_color = 'bg-gray-700' %}{% endif %}
+                                <span class="absolute top-1 right-1 text-xs {{ status_bg_color }} text-white px-1.5 py-0.5 rounded-full shadow-sm">
+                                    {{ race.status|capitalize }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        <div class="p-3 flex-grow flex flex-col">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
+                            </div>
+                            {% if race['description'] %}
+                                <p class="text-gray-600 text-sm mb-1 h-12 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
+                            {% else %}
+                                <p class="text-gray-600 text-sm mb-1 h-12 overflow-hidden italic">No hay descripción disponible.</p>
+                            {% endif %}
+                            <div class="flex items-center space-x-2 text-sm text-gray-600 mb-3">
+                                <i class="fas fa-map-marker-alt text-gray-400"></i>
+                                <span>{{ race['location'] if race['location'] else 'N/A' }}</span>
+                            </div>
+                            <div class="mt-auto">
+                                <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="btn-primary w-full text-white px-3 py-1.5 rounded-md font-medium flex items-center justify-center text-center text-sm">
+                                    Acceder a la carrera
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="col-span-full text-center text-gray-500 py-10">No hay carreras generales disponibles.</p>
+            {% endif %}
+        </div>
+        {# Add a "View More" button if applicable, similar to other sections #}
+    </div>
+{% elif current_user.role.code == 'LEAGUE_ADMIN' %}
     <!-- Section for "Carreras organizadas por mí" -->
     <div class="mb-8">
         <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras organizadas por mí</h2>
@@ -570,7 +630,7 @@
     </footer>
 
     {% include '_join_by_code_modal.html' %}
-
+    <!-- DEBUG: {{ races_for_official_answers|tojson }} -->
     <script>
         // Sidebar toggle
         function toggleSidebar() {
