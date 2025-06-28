@@ -164,7 +164,27 @@
                             <label for="filter_date_to" class="block text-sm font-medium text-gray-700">Hasta:</label>
                             <input type="date" id="filter_date_to" name="filter_date_to" value="{{ filter_date_to_str or '' }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
                         </div>
-                        <div class="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 md:pt-5"> {# Adjusted for better button stacking on small screens #}
+
+                        <!-- New Boolean Tag Filters -->
+                        <div class="col-span-1 md:col-span-2 lg:col-span-4 pt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Características del Evento:</label>
+                            <div id="eventTagFiltersContainer" class="flex flex-wrap gap-2">
+                                {% if event_tag_definitions %}
+                                    {% for tag_def in event_tag_definitions %}
+                                        <button type="button"
+                                                class="event-tag-filter py-1.5 px-3 rounded-full text-xs sm:text-sm font-medium border transition-all duration-150 ease-in-out flex items-center default-active"
+                                                data-filter-field="{{ tag_def.field }}"
+                                                title="Filtrar por {{ tag_def.label }}">
+                                            <i class="fas {{ tag_def.icon }} mr-1.5"></i>{{ tag_def.label }}
+                                            <input type="hidden" name="filter_{{ tag_def.field }}" value="true">
+                                        </button>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- End New Boolean Tag Filters -->
+
+                        <div class="col-span-1 md:col-span-2 lg:col-span-4 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-2 pt-5"> {# Adjusted for button stacking and added col-span #}
                             <button type="submit" class="btn-primary text-white px-4 py-2 rounded-lg font-medium flex items-center w-full sm:w-auto justify-center">
                                 <i class="fas fa-filter mr-2"></i>Filtrar
                             </button>
@@ -330,6 +350,57 @@
     <script>
         // Add some interactive effects on load
         document.addEventListener('DOMContentLoaded', function() {
+            // Event Tag Filter Click Handler
+            const filterButtons = document.querySelectorAll('.event-tag-filter');
+            filterButtons.forEach(button => {
+                const hiddenInput = button.querySelector('input[type="hidden"]');
+                const tagDef = {{ event_tag_definitions | tojson }}.find(def => def.field === button.dataset.filterField);
+
+                // Set initial active state and styles based on hidden input (which defaults to "true")
+                // or based on query params if page was reloaded with filters
+                const urlParams = new URLSearchParams(window.location.search);
+                const filterParamValue = urlParams.get(`filter_${button.dataset.filterField}`);
+                const serverSideActiveTagFilters = {{ active_tag_filters | tojson | default({}) }};
+
+                let isActive;
+                // Prioritize server-side state if available (meaning form was submitted or page reloaded with filters)
+                if (serverSideActiveTagFilters.hasOwnProperty(button.dataset.filterField)) {
+                    isActive = serverSideActiveTagFilters[button.dataset.filterField];
+                } else if (filterParamValue !== null) { // Fallback to URL param if server state not directly passed for this specific filter
+                    isActive = filterParamValue === 'true';
+                } else { // Initial load, no specific server state for this filter, rely on default
+                    isActive = button.classList.contains('default-active');
+                }
+
+                if (isActive) {
+                    button.classList.add(tagDef.color_class || 'bg-orange-500');
+                    button.classList.add('text-white');
+                    button.classList.remove('border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                    if(hiddenInput) hiddenInput.value = 'true';
+                } else {
+                    button.classList.remove(tagDef.color_class || 'bg-orange-500');
+                    button.classList.remove('text-white');
+                    button.classList.add('border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                     if(hiddenInput) hiddenInput.value = 'false';
+                }
+
+
+                button.addEventListener('click', function() {
+                    const currentIsActive = hiddenInput.value === 'true';
+                    if (currentIsActive) {
+                        hiddenInput.value = 'false';
+                        this.classList.remove(tagDef.color_class || 'bg-orange-500');
+                        this.classList.remove('text-white');
+                        this.classList.add('border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                    } else {
+                        hiddenInput.value = 'true';
+                        this.classList.add(tagDef.color_class || 'bg-orange-500');
+                        this.classList.add('text-white');
+                        this.classList.remove('border-gray-300', 'text-gray-700', 'hover:bg-gray-100');
+                    }
+                });
+            });
+
             // Animate cards on scroll (simple effect)
             const cards = document.querySelectorAll('.card-hover');
 

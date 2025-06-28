@@ -241,3 +241,20 @@ ul li, ol li {
 
 /* Optional: Add a spinner or a more complex animation if desired */
 /* For simplicity, a basic progress bar is implemented here. */
+
+/* Event Tag Filter Styles */
+.event-tag-filter {
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    user-select: none; /* Prevent text selection on rapid clicks */
+}
+
+.event-tag-filter:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Active state is primarily handled by Tailwind classes added via JS,
+   but we can define a fallback or ensure border transparency if needed */
+.event-tag-filter.active { /* This class isn't explicitly used by JS, JS adds specific color classes */
+    /* Example: border-color: transparent; */
+}

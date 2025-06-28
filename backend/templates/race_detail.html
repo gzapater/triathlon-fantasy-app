@@ -207,23 +207,6 @@
             min-height: 2.5em; /* Accommodate unit text wrapping */
             text-align: center; /* Ensure text is centered if not already by Tailwind */
         }
-
-        /* Copied Tag styles from TriCal.html for consistency */
-        .tag {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-            border: 1px solid transparent;
-        }
-        .tag-debutants { background-color: #E0F2FE; color: #0C4A6E; border-color: #7DD3FC; }
-        .tag-challenging { background-color: #FEE2E2; color: #991B1B; border-color: #FCA5A5; }
-        .tag-views { background-color: #D1FAE5; color: #065F46; border-color: #6EE7B7; }
-        .tag-atmosphere { background-color: #FEF3C7; color: #92400E; border-color: #FCD34D; }
-        .tag-qualifier { background-color: #E5E7EB; color: #374151; border-color: #9CA3AF; }
     </style>
 </head>
 <body class="text-gray-700">
@@ -237,6 +220,15 @@
                     <div class="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.race_format.name | default('Formato no especificado') }}</span>
                         <span class="bg-white bg-opacity-20 px-3 py-1 rounded-full text-xs sm:text-sm">{{ race.gender_category | default('N/A') }}</span>
+                        {% if race.event and event_tag_definitions %}
+                            {% for tag_def in event_tag_definitions %}
+                                {% if race.event[tag_def.field] %}
+                                    <span class="{{ tag_def.color_class }} px-3 py-1 rounded-full text-xs sm:text-sm text-white shadow-md flex items-center">
+                                        <i class="fas {{ tag_def.icon }} mr-1.5"></i>{{ tag_def.label }}
+                                    </span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                         {% if race.status %}
                             {% set status_text = race.status.value|capitalize %}
                             {% set status_bg_color = 'bg-gray-500' %} {# Default for unknown/other statuses #}
@@ -265,7 +257,7 @@
                         </h1>
                     </div>
                     <p class="text-lg sm:text-xl mb-5 opacity-90">{{ race.description | truncate(150) if race.description else 'Descripción no disponible.' }}</p>
-                    <div class="flex flex-wrap justify-center lg:justify-start gap-x-4 gap-y-2 text-sm mb-3"> <!-- Reduced mb from 6 to 3 -->
+                    <div class="flex flex-wrap justify-center lg:justify-start gap-x-4 gap-y-2 text-sm mb-6">
                         <div class="flex items-center space-x-2">
                             <i class="fas fa-calendar"></i>
                             <span>{{ race.event_date.strftime('%d %B, %Y %H:%M') if race.event_date else 'Fecha no especificada' }}</span>
@@ -279,28 +271,6 @@
                             <span>Organizado por: <span class="font-semibold">{{ race.user.username if race.user else 'N/A' }}</span></span>
                         </div>
                     </div>
-
-                    <!-- Event Tags Display -->
-                    {% if race.event_id and race.event %}
-                        <div class="mb-5 text-center lg:text-left"> {# Increased mb to 5 for spacing, aligned with hero content #}
-                            {% if race.event.is_good_for_debutants %}
-                                <span class="tag tag-debutants">Ideal Debutantes</span>
-                            {% endif %}
-                            {% if race.event.is_challenging %}
-                                <span class="tag tag-challenging">Desafiante</span>
-                            {% endif %}
-                            {% if race.event.has_great_views %}
-                                <span class="tag tag-views">Vistas Espectaculares</span>
-                            {% endif %}
-                            {% if race.event.has_good_atmosphere %}
-                                <span class="tag tag-atmosphere">Buen Ambiente</span>
-                            {% endif %}
-                            {% if race.event.is_world_qualifier %}
-                                <span class="tag tag-qualifier">Clasificatorio Mundial</span>
-                            {% endif %}
-                        </div>
-                    {% endif %}
-
                     <div class="flex flex-wrap justify-center lg:justify-start gap-3">
                         {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
                         <button id="openEditRaceModalBtn" class="btn btn-secondary px-5 py-2.5 sm:px-6 sm:py-3">

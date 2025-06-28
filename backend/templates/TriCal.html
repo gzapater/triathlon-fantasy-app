@@ -13,93 +13,22 @@
         body {
             font-family: 'Inter', sans-serif;
             scroll-behavior: smooth;
+            /* Original body bg-white text-gray-800, new is bg-gray-50 */
         }
         .card-hover:hover {
             transform: translateY(-4px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
+        /* Additional style for modal if needed */
         .modal-backdrop {
-            /* backdrop-filter: blur(2px); */
+            /* backdrop-filter: blur(2px); */ /* Optional: for frosted glass effect */
         }
         .no-print {
+             /* Class to hide elements during print */
             @media print {
                 display: none !important;
             }
         }
-        .tag {
-            display: inline-block;
-            padding: 0.25rem 0.75rem; /* Adjusted padding */
-            border-radius: 9999px; /* Full pill shape */
-            font-size: 0.75rem; /* Smaller font size */
-            font-weight: 500;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem; /* Added margin-bottom for spacing when tags wrap */
-            border: 1px solid transparent;
-        }
-        .tag-debutants { background-color: #E0F2FE; color: #0C4A6E; border-color: #7DD3FC; } /* light-blue-100, text-light-blue-800, border-light-blue-300 */
-        .tag-challenging { background-color: #FEE2E2; color: #991B1B; border-color: #FCA5A5; } /* red-100, text-red-800, border-red-300 */
-        .tag-views { background-color: #D1FAE5; color: #065F46; border-color: #6EE7B7; } /* green-100, text-green-800, border-green-300 */
-        .tag-atmosphere { background-color: #FEF3C7; color: #92400E; border-color: #FCD34D; } /* amber-100, text-amber-800, border-amber-300 */
-        .tag-qualifier { background-color: #E5E7EB; color: #374151; border-color: #9CA3AF; } /* gray-200, text-gray-700, border-gray-400 */
-
-        /* Ensure filter checkboxes align well with labels */
-        .filter-checkbox-label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            padding: 0.3rem 0.5rem; /* Reduced padding */
-            border-radius: 0.375rem; /* Equivalent to rounded-md */
-            transition: background-color 0.2s ease-in-out;
-            font-size: 0.8rem; /* Smaller font for filter labels */
-        }
-        .filter-checkbox-label:hover {
-            background-color: #f0f0f0; /* Light gray hover */
-        }
-        .filter-checkbox-label input[type="checkbox"] {
-            margin-right: 0.5rem;
-            accent-color: #F97316; /* Tailwind orange-500 */
-        }
-        .filter-group-title {
-            font-weight: 600; /* Semibold */
-            color: #4B5563; /* gray-600 */
-            margin-bottom: 0.5rem; /* Space below title */
-            font-size: 0.9rem; /* Slightly smaller title */
-        }
-
-        .hidden-checkbox {
-            /* Ensure checkbox is truly hidden but accessible for form submission */
-            /* Using Tailwind's sr-only was not enough, so more specific styles */
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap; /* Added */
-            border-width: 0; /* Added */
-        }
-
-        .visual-tag-filter {
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            /* Default deselected state */
-            background-color: #E5E7EB; /* gray-200 */
-            color: #4B5563; /* gray-600 */
-            border: 1px solid #D1D5DB; /* gray-300 */
-        }
-        .visual-tag-filter:hover {
-            border-color: #9CA3AF; /* gray-400 */
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        /* Selected states - these will override the default .visual-tag-filter if .selected is present */
-        .visual-tag-filter.selected.tag-debutants { background-color: #E0F2FE; color: #0C4A6E; border-color: #7DD3FC; }
-        .visual-tag-filter.selected.tag-challenging { background-color: #FEE2E2; color: #991B1B; border-color: #FCA5A5; }
-        .visual-tag-filter.selected.tag-views { background-color: #D1FAE5; color: #065F46; border-color: #6EE7B7; }
-        .visual-tag-filter.selected.tag-atmosphere { background-color: #FEF3C7; color: #92400E; border-color: #FCD34D; }
-        .visual-tag-filter.selected.tag-qualifier { background-color: #E5E7EB; color: #1F2937; border-color: #6B7280; } /* Slightly darker for selected gray */
-
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800"> <!-- Changed bg-white to bg-gray-50 -->
@@ -155,66 +84,100 @@
         </div>
 
     <!-- Filters Section -->
+    <!-- New section: bg-white shadow-sm border-b -->
     <section class="bg-white shadow-sm border-b no-print">
         <div class="container mx-auto px-4 py-6">
-            <form method="GET" action="{{ url_for('trical_events_page') }}">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-x-6 gap-y-4 items-end">
-                    <!-- Search (kept for potential future use, but not part of current backend filtering) -->
-                    <div class="lg:col-span-1 xl:col-span-1">
-                        <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1 filter-group-title">
-                            <i class="fas fa-search mr-1"></i> Búsqueda (Cliente)
-                        </label>
-                        <input type="text" id="searchInput" placeholder="Nombre, localización..."
-                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm">
-                    </div>
-
-                    <!-- Date Filters -->
-                    <div>
-                        <label for="filter_date_from" class="block text-sm font-medium text-gray-700 mb-1 filter-group-title">Desde:</label>
-                        <input type="date" id="filter_date_from" name="filter_date_from" value="{{ filter_date_from_str or '' }}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm">
-                    </div>
-                    <div>
-                        <label for="filter_date_to" class="block text-sm font-medium text-gray-700 mb-1 filter-group-title">Hasta:</label>
-                        <input type="date" id="filter_date_to" name="filter_date_to" value="{{ filter_date_to_str or '' }}" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm">
-                    </div>
-
-                    <!-- Tag Filters -->
-                    <div class="lg:col-span-2 xl:col-span-2">
-                         <label class="block text-sm font-medium text-gray-700 mb-1 filter-group-title">
-                            <i class="fas fa-tags mr-1"></i> Etiquetas:
-                        </label>
-                        <div class="flex flex-wrap gap-2"> {# Changed to flex-wrap for better flow of tag-like filters #}
-                            {% if tag_labels %}
-                                {% for field, label in tag_labels.items() %}
-                                <label class="visual-tag-filter tag
-                                            {% if field == 'is_good_for_debutants' %}tag-debutants{% endif %}
-                                            {% if field == 'is_challenging' %}tag-challenging{% endif %}
-                                            {% if field == 'has_great_views' %}tag-views{% endif %}
-                                            {% if field == 'has_good_atmosphere' %}tag-atmosphere{% endif %}
-                                            {% if field == 'is_world_qualifier' %}tag-qualifier{% endif %}
-                                            {% if current_filters[field] %}selected{% endif %}"
-                                       data-field="{{ field }}">
-                                    <input type="checkbox" name="{{ field }}" value="on"
-                                           class="hidden-checkbox" <!-- Visually hide the checkbox, sr-only was not enough for all browsers/setups -->
-                                           {% if current_filters[field] %}checked{% endif %}>
-                                    {{ label }}
-                                </label>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                <!-- Search -->
+                <div class="lg:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-search mr-1"></i> Búsqueda
+                    </label>
+                    <input type="text" id="searchInput" placeholder="Buscar por nombre o localización..."
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-blue-500 -> focus:ring-orange-500 -->
                 </div>
 
-                <!-- Action Buttons: Removed as per new requirements -->
-            </form>
-            <div class="text-sm text-gray-600 mt-4 text-right">
-                 Mostrando <span id="visibleCount">{{ events|length if events else 0 }}</span> eventos. {{ "Todos los tags seleccionados por defecto." if not request.args else "" }}
+                <!-- Discipline Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-bicycle mr-1"></i> Disciplina
+                    </label>
+                    <select id="disciplineFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todas</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Distance Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-ruler mr-1"></i> Distancia
+                    </label>
+                    <select id="distanceFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todas</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Province Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-map-marker-alt mr-1"></i> Provincia
+                    </label>
+                    <select id="provinceFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todas</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Month Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar mr-1"></i> Mes
+                    </label>
+                    <select id="monthFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"> <!-- focus:ring-orange-500 -->
+                        <option value="">Todos</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center justify-between mt-6 gap-4">
+                <div class="flex flex-wrap gap-2">
+                    <!-- bg-gray-500 -> bg-gray-600, hover:bg-gray-700 (darker gray for contrast with bg-white section) -->
+                    <button id="clearFilters" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-times mr-1"></i> Limpiar Filtros
+                    </button>
+                    <!-- bg-blue-500 -> bg-orange-500 (main theme color) -->
+                    <button id="sortDate" class="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-sort mr-1"></i> Ordenar por Fecha
+                    </button>
+                </div>
+                <div class="text-sm text-gray-600">
+                    Mostrando <span id="visibleCount">0</span> de <span id="totalCount">0</span> eventos
+                </div>
             </div>
         </div>
     </section>
 
+    <!-- Results Section -->
+    <!-- Original section: py-12 md:py-20 bg-gray-50 -->
+    <!-- New main: container mx-auto px-4 py-8 (bg-gray-50 is now on body) -->
     <main class="container mx-auto px-4 py-8">
-        <div id="events-loading" class="text-center text-gray-500 py-10" style="display:none;"> <!-- Hidden by default, shown by JS if needed -->
+        <!-- Original Loading and Error indicators were inside a specific section, now adapting to new structure -->
+        <div id="events-loading" class="text-center text-gray-500 py-10">
             <svg class="animate-spin h-10 w-10 text-orange-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -222,77 +185,23 @@
             <p class="mt-3 text-lg">Cargando eventos...</p>
         </div>
         <div id="events-error" class="hidden text-center text-red-600 py-10 bg-red-50 p-6 rounded-lg border border-red-300 shadow-md">
-             <!-- Error content remains the same -->
+            <svg class="mx-auto h-16 w-16 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p class="mt-4 text-xl font-medium">Error al cargar los eventos.</p>
+            <p class="mt-2 text-md">Hubo un problema al contactar con el servidor. Por favor, inténtalo de nuevo más tarde.</p>
         </div>
 
         <div id="eventsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% if events and events|length > 0 %}
-                {% for event in events %}
-                <div class="event-card bg-white rounded-lg shadow-md overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover border border-gray-200 hover:shadow-xl"
-                     data-event-name="{{ event.name.lower() }}"
-                     data-event-city="{{ event.city.lower() if event.city else '' }}"
-                     data-event-province="{{ event.province.lower() if event.province else '' }}"
-                     data-event-discipline="{{ event.discipline.lower() if event.discipline else '' }}"
-                     data-event-distance="{{ event.distance.lower() if event.distance else '' }}"
-                     data-event-date="{{ event.event_date.strftime('%Y-%m-%d') if event.event_date else '' }}">
+            <!-- Event cards will be populated here by JavaScript -->
+        </div>
 
-                    <div class="p-4 border-b border-gray-200">
-                        <h3 class="font-semibold text-lg text-gray-800 mb-1 truncate" title="{{ event.name }}">{{ event.name }}</h3>
-                        <p class="text-sm text-orange-600 font-medium">{{ event.discipline or 'N/A' }}</p>
-                    </div>
-                    <div class="p-4 flex-grow space-y-2">
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-calendar-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
-                            <span>{{ event.event_date.strftime('%d %b %Y') if event.event_date else 'Fecha N/A' }}</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-map-marker-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
-                            <span>{{ event.city or 'N/A' }}, {{ event.province or 'N/A' }}</span>
-                        </div>
-                        <div class="flex items-center text-sm text-gray-600">
-                            <i class="fas fa-ruler-combined fa-fw mr-2 text-orange-500 opacity-75"></i>
-                            <span>{{ event.distance or 'N/A' }}</span>
-                        </div>
-                        <!-- Tags Display -->
-                        <div class="pt-2 mt-2 border-t border-gray-100">
-                            {% if event.is_good_for_debutants %}
-                                <span class="tag tag-debutants">Ideal Debutantes</span>
-                            {% endif %}
-                            {% if event.is_challenging %}
-                                <span class="tag tag-challenging">Desafiante</span>
-                            {% endif %}
-                            {% if event.has_great_views %}
-                                <span class="tag tag-views">Vistas Espectaculares</span>
-                            {% endif %}
-                            {% if event.has_good_atmosphere %}
-                                <span class="tag tag-atmosphere">Buen Ambiente</span>
-                            {% endif %}
-                            {% if event.is_world_qualifier %}
-                                <span class="tag tag-qualifier">Clasificatorio Mundial</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
-                        <button class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline"
-                                data-event-id="{{ event.id }}"
-                                data-event-name="{{ event.name }}"
-                                data-event-date="{{ event.event_date.strftime('%d %b %Y') if event.event_date else 'Fecha N/A' }}"
-                                data-event-location="{{ event.city or 'N/A' }}, {{ event.province or 'N/A' }}"
-                                data-event-discipline="{{ event.discipline or 'N/A' }}"
-                                data-event-distance="{{ event.distance or 'N/A' }}"
-                                data-event-source_url="{{ event.source_url or '' }}">
-                            Ver Detalles <i class="fas fa-arrow-right text-xs ml-1"></i>
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div id="noResultsMessage" class="col-span-1 md:col-span-2 lg:col-span-3 text-center py-12">
-                    <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
-                    <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron eventos</h3>
-                    <p class="text-gray-500">Intenta ajustar los filtros de búsqueda o eliminarlos.</p>
-                </div>
-            {% endif %}
+        <!-- No Results Message -->
+        <!-- Original no-events was similar, new one has different icon and text -->
+        <div id="noResults" class="text-center py-12 hidden"> <!-- Renamed from 'no-events' for clarity with new HTML -->
+            <i class="fas fa-search text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron eventos</h3>
+            <p class="text-gray-500">Intenta ajustar los filtros de búsqueda</p>
         </div>
     </main>
 
@@ -354,20 +263,15 @@
 
     <script>
         // Helper function to format date as DD Mon YYYY (e.g., 01 Ene 2025)
-        // This might be less critical now if Jinja pre-formats dates for data attributes.
         function formatDate(dateString) {
             if (!dateString) return 'Fecha no disponible';
-            // If dateString is already formatted (e.g., "01 Ene 2025" from data-attribute), just return it.
-            if (dateString.includes(" ") && isNaN(new Date(dateString).getTime())) { // Check if it's likely pre-formatted
-                return dateString;
-            }
             try {
-                // Assuming dateString might be YYYY-MM-DD if not pre-formatted
-                const date = new Date(dateString + 'T00:00:00Z'); // Treat as UTC to avoid timezone shifts from YYYY-MM-DD
-                const day = String(date.getUTCDate()).padStart(2, '0');
-                let month = date.toLocaleString('es-ES', { month: 'short', timeZone: 'UTC' });
+                const date = new Date(dateString + 'T00:00:00'); // Ensure date is parsed as local
+                const day = String(date.getDate()).padStart(2, '0');
+                // Ensure month is in Spanish and capitalized correctly
+                let month = date.toLocaleString('es-ES', { month: 'short' });
                 month = month.charAt(0).toUpperCase() + month.slice(1).replace('.', '');
-                const year = date.getUTCFullYear();
+                const year = date.getFullYear();
                 return `${day} ${month} ${year}`;
             } catch (e) {
                 console.error("Error formatting date:", dateString, e);
@@ -375,51 +279,33 @@
             }
         }
 
+        let allEvents = []; // Store all fetched events
+        let currentSortAscending = true; // For date sorting
+
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
         document.addEventListener('DOMContentLoaded', function() {
-            const noResultsIndicator = document.getElementById('noResultsMessage');
+            const eventsContainer = document.getElementById('eventsContainer');
+            const loadingIndicator = document.getElementById('events-loading');
+            const errorIndicator = document.getElementById('events-error');
+            const noResultsIndicator = document.getElementById('noResults');
+
+            const totalEventsDisplay = document.getElementById('totalEvents');
+            const visibleCountDisplay = document.getElementById('visibleCount');
+            const totalCountDisplay = document.getElementById('totalCount');
+
             const searchInput = document.getElementById('searchInput');
-
-            // Client-side search functionality (acts on currently displayed Jinja-rendered cards)
-            if (searchInput) {
-                searchInput.addEventListener('input', function() {
-                    const searchTerm = this.value.toLowerCase().trim();
-                    const eventCards = document.querySelectorAll('.event-card');
-                    let visibleCount = 0;
-                    eventCards.forEach(card => {
-                        const name = card.dataset.eventName || '';
-                        const city = card.dataset.eventCity || '';
-                        const province = card.dataset.eventProvince || '';
-                        const discipline = card.dataset.eventDiscipline || '';
-                        const distance = card.dataset.eventDistance || '';
-
-                        const isVisible = name.includes(searchTerm) ||
-                                          city.includes(searchTerm) ||
-                                          province.includes(searchTerm) ||
-                                          discipline.includes(searchTerm) ||
-                                          distance.includes(searchTerm);
-                        card.style.display = isVisible ? 'flex' : 'none';
-                        if (isVisible) {
-                            visibleCount++;
-                        }
-                    });
-                    const visibleCountDisplay = document.getElementById('visibleCount');
-                    if (visibleCountDisplay) {
-                        visibleCountDisplay.textContent = visibleCount;
-                    }
-
-                    const noResultsMessageDiv = document.getElementById('noResultsMessage');
-                    if (noResultsMessageDiv) {
-                        noResultsMessageDiv.style.display = visibleCount === 0 && eventCards.length > 0 ? 'block' : 'none';
-                    }
-                });
-            }
+            const disciplineFilter = document.getElementById('disciplineFilter');
+            const distanceFilter = document.getElementById('distanceFilter');
+            const provinceFilter = document.getElementById('provinceFilter');
+            const monthFilter = document.getElementById('monthFilter');
+            const clearFiltersBtn = document.getElementById('clearFilters');
+            const sortDateBtn = document.getElementById('sortDate');
 
             // Modal elements
             const eventModal = document.getElementById('eventModal');
             const closeModalBtn = document.getElementById('closeModalBtn');
-            const closeModalBtnX = document.getElementById('closeModalBtnX');
+            const closeModalBtnX = document.getElementById('closeModalBtnX'); // X button in modal
             const modalEventName = document.getElementById('modalEventName');
             const modalEventDate = document.getElementById('modalEventDate');
             const modalEventLocation = document.getElementById('modalEventLocation');
@@ -427,62 +313,21 @@
             const modalEventDistance = document.getElementById('modalEventDistance');
             const modalEventDescription = document.getElementById('modalEventDescription');
 
-            function populateAndShowModal(eventData) {
-                if (!eventModal || !modalEventName || !modalEventDate || !modalEventLocation || !modalEventDiscipline || !modalEventDistance || !modalEventDescription) {
-                    console.error("One or more modal elements are missing from the DOM for populateAndShowModal.");
-                    return;
-                }
-                modalEventName.textContent = eventData.name || 'Detalles del Evento';
-                modalEventDate.textContent = eventData.date;
-                modalEventLocation.textContent = eventData.location || 'N/A';
-                modalEventDiscipline.textContent = eventData.discipline || 'N/A';
-                modalEventDistance.textContent = eventData.distance || 'N/A';
-                modalEventDescription.innerHTML = eventData.source_url ? `Más información en: <a href="${eventData.source_url}" target="_blank" class="text-orange-600 hover:underline">${eventData.source_url}</a>` : 'No hay descripción adicional o enlace disponible.';
-
-                if (eventModal) {
-                    eventModal.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
-                }
+            function openModal(event) {
+                modalEventName.textContent = event.name || 'Detalles del Evento';
+                modalEventDate.textContent = formatDate(event.event_date);
+                modalEventLocation.textContent = `${event.city || 'N/A'}, ${event.province || 'N/A'}`;
+                modalEventDiscipline.textContent = event.discipline || 'N/A';
+                modalEventDistance.textContent = event.distance || 'N/A';
+                // Description is not in the Event model, so using a placeholder.
+                modalEventDescription.textContent = event.source_url ? `Más información en: <a href="${event.source_url}" target="_blank" class="text-orange-600 hover:underline">${event.source_url}</a>` : 'No hay descripción adicional o enlace disponible.';
+                eventModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
             }
 
-            document.querySelectorAll('.view-details-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const eventData = {
-                        id: this.dataset.eventId,
-                        name: this.dataset.eventName,
-                        date: this.dataset.eventDate,
-                        location: this.dataset.eventLocation,
-                        discipline: this.dataset.eventDiscipline,
-                        distance: this.dataset.eventDistance,
-                        source_url: this.dataset.eventSource_url
-                    };
-                    populateAndShowModal(eventData);
-                });
-            });
-
-            document.querySelectorAll('.event-card').forEach(card => {
-                card.addEventListener('click', function() {
-                    const detailsButton = card.querySelector('.view-details-btn');
-                    if (detailsButton) {
-                        const eventData = {
-                            id: detailsButton.dataset.eventId,
-                            name: detailsButton.dataset.eventName,
-                            date: detailsButton.dataset.eventDate,
-                            location: detailsButton.dataset.eventLocation,
-                            discipline: detailsButton.dataset.eventDiscipline,
-                            distance: detailsButton.dataset.eventDistance,
-                            source_url: detailsButton.dataset.eventSource_url
-                        };
-                        populateAndShowModal(eventData);
-                    }
-                });
-            });
-
             function closeModal() {
-                if (eventModal) {
-                    eventModal.classList.add('hidden');
-                    document.body.style.overflow = '';
-                }
+                eventModal.classList.add('hidden');
+                document.body.style.overflow = ''; // Restore background scrolling
             }
 
             if(closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
@@ -490,43 +335,228 @@
 
             if(eventModal){
                 eventModal.addEventListener('click', (e) => {
-                    if (e.target === eventModal) {
+                    if (e.target === eventModal) { // Click on backdrop
                         closeModal();
                     }
                 });
             }
+            // Close with Escape key
             document.addEventListener('keydown', (e) => {
-                if (e.key === "Escape" && eventModal && !eventModal.classList.contains('hidden')) {
+                if (e.key === "Escape" && !eventModal.classList.contains('hidden')) {
                     closeModal();
                 }
             });
 
-            // JavaScript for Visual Tag Filters
-            document.querySelectorAll('.visual-tag-filter').forEach(label => {
-                const checkbox = label.querySelector('.hidden-checkbox');
 
-                if (checkbox) {
-                    // Initial visual state is set by Jinja using the 'selected' class on the label.
-                    // This JS handles the click interaction.
-                    label.addEventListener('click', function(event) {
-                        // Toggle checkbox state first
-                        checkbox.checked = !checkbox.checked;
+            function populateFilterOptions(events) {
+                const disciplines = new Set();
+                const distances = new Set();
+                const provinces = new Set();
 
-                        // Then toggle visual class based on the new checkbox state
-                        if (checkbox.checked) {
-                            this.classList.add('selected');
-                        } else {
-                            this.classList.remove('selected');
-                        }
+                events.forEach(event => {
+                    if (event.discipline) disciplines.add(event.discipline);
+                    if (event.distance) distances.add(event.distance);
+                    if (event.province) provinces.add(event.province);
+                });
 
-                        // Automatically submit the form
-                        const form = this.closest('form');
-                        if (form) {
-                            form.submit();
-                        }
+                // Clear existing options except "Todas" / "Todos"
+                disciplineFilter.innerHTML = '<option value="">Todas</option>';
+                distanceFilter.innerHTML = '<option value="">Todas</option>';
+                provinceFilter.innerHTML = '<option value="">Todas</option>';
+
+                Array.from(disciplines).sort().forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d;
+                    option.textContent = d;
+                    disciplineFilter.appendChild(option);
+                });
+                Array.from(distances).sort().forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d;
+                    option.textContent = d;
+                    distanceFilter.appendChild(option);
+                });
+                Array.from(provinces).sort().forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p;
+                    option.textContent = p;
+                    provinceFilter.appendChild(option);
+                });
+            }
+
+            function renderEvents(eventsToRender) {
+                eventsContainer.innerHTML = '';
+                if (eventsToRender.length === 0) {
+                    noResultsIndicator.classList.remove('hidden');
+                } else {
+                    noResultsIndicator.classList.add('hidden');
+                }
+
+                eventsToRender.forEach(event => {
+                    const eventCard = document.createElement('div');
+                    eventCard.className = "bg-white rounded-lg shadow-md overflow-hidden flex flex-col transition-all duration-300 ease-in-out card-hover cursor-pointer border border-gray-200 hover:shadow-xl";
+
+                    eventCard.innerHTML = `
+                        <div class="p-4 border-b border-gray-200">
+                            <h3 class="font-semibold text-lg text-gray-800 mb-1 truncate" title="${event.name}">${event.name}</h3>
+                            <p class="text-sm text-orange-600 font-medium">${event.discipline || 'N/A'}</p>
+                        </div>
+                        <div class="p-4 flex-grow space-y-2">
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-calendar-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${formatDate(event.event_date)}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-map-marker-alt fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${event.city || 'N/A'}, ${event.province || 'N/A'}</span>
+                            </div>
+                            <div class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-ruler-combined fa-fw mr-2 text-orange-500 opacity-75"></i>
+                                <span>${event.distance || 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
+                            <button class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
+                                Ver Detalles <i class="fas fa-arrow-right text-xs ml-1"></i>
+                            </button>
+                        </div>
+                    `;
+                    eventCard.querySelector('.view-details-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openModal(event);
+                    });
+                    eventCard.addEventListener('click', () => openModal(event));
+                    eventsContainer.appendChild(eventCard);
+                });
+                if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
+            }
+
+            function filterAndSortEvents() {
+                let filteredEvents = [...allEvents];
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                const selectedDiscipline = disciplineFilter.value;
+                const selectedDistance = distanceFilter.value;
+                const selectedProvince = provinceFilter.value;
+                const selectedMonth = monthFilter.value;
+
+                if (searchTerm) {
+                    filteredEvents = filteredEvents.filter(event =>
+                        (event.name && event.name.toLowerCase().includes(searchTerm)) ||
+                        (event.city && event.city.toLowerCase().includes(searchTerm)) ||
+                        (event.province && event.province.toLowerCase().includes(searchTerm)) ||
+                        (event.discipline && event.discipline.toLowerCase().includes(searchTerm)) ||
+                        (event.distance && event.distance.toLowerCase().includes(searchTerm))
+                    );
+                }
+                if (selectedDiscipline) {
+                    filteredEvents = filteredEvents.filter(event => event.discipline === selectedDiscipline);
+                }
+                if (selectedDistance) {
+                    filteredEvents = filteredEvents.filter(event => event.distance === selectedDistance);
+                }
+                if (selectedProvince) {
+                    filteredEvents = filteredEvents.filter(event => event.province === selectedProvince);
+                }
+                if (selectedMonth) {
+                    filteredEvents = filteredEvents.filter(event => {
+                        if (!event.event_date) return false;
+                        // Ensure date is parsed as local before getting month
+                        const event_date_obj = new Date(event.event_date + 'T00:00:00');
+                        const event_month = event_date_obj.getMonth() + 1; // JS months are 0-indexed
+                        return event_month === parseInt(selectedMonth);
                     });
                 }
+
+                filteredEvents.sort((a, b) => {
+                    // Handle null or invalid dates by pushing them to the end
+                    const dateA = a.event_date ? new Date(a.event_date + 'T00:00:00') : null;
+                    const dateB = b.event_date ? new Date(b.event_date + 'T00:00:00') : null;
+
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1; // Push nulls to end
+                    if (!dateB) return -1; // Keep non-nulls before nulls
+
+                    return currentSortAscending ? dateA - dateB : dateB - dateA;
+                });
+
+                renderEvents(filteredEvents);
+            }
+
+            loadingIndicator.style.display = 'block'; // Show loading indicator initially
+            errorIndicator.classList.add('hidden');
+            noResultsIndicator.classList.add('hidden');
+
+            fetch('/api/events')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(events_data => {
+                    allEvents = events_data.map(event => ({
+                        ...event,
+                        // API returns date as YYYY-MM-DD, which JS Date constructor handles correctly as local date.
+                        event_date: event.event_date ? event.event_date : null
+                    }));
+
+                    if (totalEventsDisplay) totalEventsDisplay.textContent = allEvents.length;
+                    if (totalCountDisplay) totalCountDisplay.textContent = allEvents.length;
+
+                    populateFilterOptions(allEvents);
+                    filterAndSortEvents(); // Initial sort and render
+                    loadingIndicator.style.display = 'none';
+
+                })
+                .catch(error => {
+                    console.error('Error fetching events:', error);
+                    loadingIndicator.style.display = 'none';
+                    errorIndicator.classList.remove('hidden');
+                    errorIndicator.querySelector('p.mt-2').textContent = `Detalles: ${error.message}. Por favor, inténtalo de nuevo más tarde.`;
+                    if(totalEventsDisplay) totalEventsDisplay.textContent = 0;
+                    if(visibleCountDisplay) visibleCountDisplay.textContent = 0;
+                    if(totalCountDisplay) totalCountDisplay.textContent = 0;
+                });
+
+            [searchInput, disciplineFilter, distanceFilter, provinceFilter, monthFilter].forEach(element => {
+                if (element.tagName === 'INPUT') {
+                    element.addEventListener('input', filterAndSortEvents);
+                } else {
+                    element.addEventListener('change', filterAndSortEvents);
+                }
             });
+
+            clearFiltersBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                disciplineFilter.value = '';
+                distanceFilter.value = '';
+                provinceFilter.value = '';
+                monthFilter.value = '';
+                currentSortAscending = true;
+                sortDateBtn.innerHTML = '<i class="fas fa-sort mr-1"></i> Ordenar por Fecha';
+                filterAndSortEvents();
+            });
+
+            sortDateBtn.addEventListener('click', () => {
+                // 1. Invierte el estado del orden actual
+                currentSortAscending = !currentSortAscending;
+
+                // 2. Actualiza el texto del botón según el nuevo estado
+                if (currentSortAscending) {
+                    // Si ahora es ascendente, muestra el texto y el icono correspondientes
+                    sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
+                } else {
+                    // Si ahora es descendente, muestra el otro texto y el otro icono
+                    sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Más nuevas primero)';
+                }
+
+                // 3. Llama a la función que aplica el orden a los datos
+                filterAndSortEvents();
+            });
+            // Initial sort button text
+            sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
+
+
         });
     </script>
 </body>

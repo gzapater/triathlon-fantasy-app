@@ -14,6 +14,14 @@ from datetime import datetime # For event_date processing
 
 app = Flask(__name__)
 
+EVENT_TAG_DEFINITIONS = [
+    {'field': 'is_good_for_debutants', 'label': 'Good for Debutants', 'color_class': 'bg-green-500', 'icon': 'fa-seedling'},
+    {'field': 'is_challenging', 'label': 'Challenging', 'color_class': 'bg-red-500', 'icon': 'fa-mountain'},
+    {'field': 'has_great_views', 'label': 'Great Views', 'color_class': 'bg-blue-500', 'icon': 'fa-image'},
+    {'field': 'has_good_atmosphere', 'label': 'Good Atmosphere', 'color_class': 'bg-yellow-500', 'icon': 'fa-users'},
+    {'field': 'is_world_qualifier', 'label': 'World Qualifier', 'color_class': 'bg-purple-500', 'icon': 'fa-trophy'},
+]
+
 # Configuración de logging para que funcione bien con Gunicorn
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -2512,111 +2520,7 @@ def tripredict_promo_page():
 @app.route('/TriCal')
 def trical_events_page():
     """Serves the TriCal events calendar page."""
-    # Define the tag fields
-    tag_fields = [
-        'is_good_for_debutants',
-        'is_challenging',
-        'has_great_views',
-        'has_good_atmosphere',
-        'is_world_qualifier'
-    ]
-
-    query = Event.query
-
-    # Tag Filtering Logic:
-    # If any tag filter is present in the URL (e.g., ?is_good_for_debutants=on),
-    # then we apply those specific filters.
-    # If NO tag filters are present in the URL, we don't filter by tags (showing all events,
-    # and the frontend will visually select all tags as per new default).
-
-    active_tag_filters = {}
-    has_tag_filter_in_url = False
-    for field in tag_fields:
-        if field in request.args:
-            has_tag_filter_in_url = True
-            if request.args.get(field) == 'on': # Only consider 'on' as an active filter requirement
-                active_tag_filters[field] = True
-
-    if has_tag_filter_in_url:
-        # If there are tag filters in the URL, apply them.
-        # This means if a tag is present and 'on', it's a requirement.
-        # If a tag is not present in active_tag_filters (either not in URL or not 'on'), it's not filtered for.
-        # This implicitly means if user deselects all, active_tag_filters is empty,
-        # and if has_tag_filter_in_url was true (e.g. ?is_good_for_debutants=off),
-        # this block would still run but might not add any positive filters if all were 'off'.
-        # The current logic only adds filters for 'on'.
-        # If all tags are deselected, active_tag_filters will be empty.
-        # In this case (has_tag_filter_in_url is true but active_tag_filters is empty),
-        # it means the user explicitly set filters that resulted in no positive requirements.
-        # This might mean showing events that have NONE of the tags, or all events.
-        # For "click-to-filter" where deselection removes the "=on" param:
-        # If active_tag_filters is empty BUT has_tag_filter_in_url is true, it means
-        # all previously selected tags were deselected one by one, and the last deselection
-        # removed the last "=on" param. This state should be treated same as no filters in URL.
-        # Let's refine: only filter if active_tag_filters is NOT empty.
-        if active_tag_filters:
-            for field in active_tag_filters: # Iterate only active 'on' filters
-                if hasattr(Event, field):
-                    query = query.filter(getattr(Event, field) == True)
-        # If has_tag_filter_in_url is true, but active_tag_filters is empty
-        # (e.g., user deselected the last active filter), we effectively show all events
-        # (respecting date filters), same as if no tag filters were in URL initially.
-        # This is because the default state implies "all selected". Deselecting one means
-        # that one is no longer a requirement. Deselecting all means no tag is a requirement.
-
-    # Date filtering (optional, but good to have for a calendar)
-    filter_date_from_str = request.args.get('filter_date_from')
-    filter_date_to_str = request.args.get('filter_date_to')
-
-    if filter_date_from_str:
-        try:
-            date_from_obj = datetime.strptime(filter_date_from_str, '%Y-%m-%d').date()
-            query = query.filter(Event.event_date >= date_from_obj)
-        except ValueError:
-            app.logger.warning(f"Invalid 'from' date format received for /TriCal: {filter_date_from_str}")
-            pass # Or flash a message
-
-    if filter_date_to_str:
-        try:
-            date_to_obj = datetime.strptime(filter_date_to_str, '%Y-%m-%d').date()
-            query = query.filter(Event.event_date <= date_to_obj)
-        except ValueError:
-            app.logger.warning(f"Invalid 'to' date format received for /TriCal: {filter_date_to_str}")
-            pass # Or flash a message
-
-
-    # Execute the query
-    try:
-        events = query.order_by(Event.event_date.asc()).all()
-    except Exception as e:
-        app.logger.error(f"Error fetching events for TriCal page: {e}", exc_info=True)
-        events = []
-        flash('Error al cargar los eventos.', 'error')
-
-    # Prepare tag labels for the template (to build filter controls)
-    tag_labels = {
-        'is_good_for_debutants': 'Ideal Debutantes',
-        'is_challenging': 'Desafiante',
-        'has_great_views': 'Vistas Espectaculares',
-        'has_good_atmosphere': 'Buen Ambiente',
-        'is_world_qualifier': 'Clasificatorio Mundial'
-    }
-
-    # Determine current_filters state for the template
-    # This tells the template how to render the visual tags (selected or deselected)
-    current_filters_for_template = {}
-    if not has_tag_filter_in_url: # No tag filters in URL means "default all selected"
-        current_filters_for_template = {field: True for field in tag_fields}
-    else: # Some tag filters are in URL, reflect their state
-        current_filters_for_template = {field: (request.args.get(field) == 'on') for field in tag_fields}
-
-
-    return render_template('TriCal.html',
-                           events=events,
-                           tag_labels=tag_labels,
-                           current_filters=current_filters_for_template, # Pass the correctly determined state
-                           filter_date_from_str=filter_date_from_str,
-                           filter_date_to_str=filter_date_to_str)
+    return render_template('TriCal.html')
 
 @app.route('/Faq')
 def faq_page():
@@ -2830,7 +2734,8 @@ def serve_hello_world_page():
                                 selected_statuses_for_ui=[s.value for s in selected_statuses_for_query],
                                current_year=current_year,
                                auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
-                               race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
+                               race_to_join_title=race_to_join_title_to_template, # Mantener estos nombres para la plantilla
+                               event_tag_definitions=EVENT_TAG_DEFINITIONS)
     elif current_user.role.code == 'LEAGUE_ADMIN':
         # --- Active Players KPI Calculation ---
         active_players_count = 0
@@ -2955,7 +2860,8 @@ def serve_hello_world_page():
                                current_year=current_year,
                                active_players_count=active_players_count, # Pass the count to the template
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
-                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
+                                race_to_join_title=race_to_join_title_to_template, # Mantener estos nombres para la plantilla
+                               event_tag_definitions=EVENT_TAG_DEFINITIONS)
     elif current_user.role.code == 'PLAYER':
         # Query UserRaceRegistration for all race_ids for the current_user
         user_registrations = UserRaceRegistration.query.filter_by(user_id=current_user.id).all()
@@ -3078,7 +2984,8 @@ def serve_hello_world_page():
                                 selected_statuses_for_ui=[s.value for s in selected_statuses_for_query],
                                current_year=current_year,
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
-                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
+                                race_to_join_title=race_to_join_title_to_template, # Mantener estos nombres para la plantilla
+                               event_tag_definitions=EVENT_TAG_DEFINITIONS)
 
     else:
         # Fallback for any other authenticated role, or if roles are added in the future
@@ -3128,7 +3035,8 @@ def serve_hello_world_page():
                                 selected_statuses_for_ui=[s.value for s in selected_statuses_for_query], # Pass selected status values for UI
                                 current_year=current_year,
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
-                                race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
+                                race_to_join_title=race_to_join_title_to_template, # Mantener estos nombres para la plantilla
+                               event_tag_definitions=EVENT_TAG_DEFINITIONS)
 
 
 @app.route('/races', methods=['GET'])
@@ -3137,6 +3045,36 @@ def serve_races_list_page():
     filter_date_from_str = request.args.get('filter_date_from')
     filter_date_to_str = request.args.get('filter_date_to')
     filter_race_format_id_str = request.args.get('filter_race_format_id')
+
+    # Get boolean filter states from request.args
+    # Default to 'true' (string) if not present, as filters are active by default
+    active_tag_filters = {}
+    for tag_def in EVENT_TAG_DEFINITIONS:
+        filter_key = f"filter_{tag_def['field']}"
+        # If the form is submitted and a filter was previously "false", it might not be in args if it's a simple button.
+        # The hidden input will always submit "true" or "false".
+        # If a filter checkbox/button is "off", its value in request.args might be "false" or it might be absent.
+        # We'll treat absence as "false" IF other filters are present, otherwise default to "true" for initial load.
+        # A simpler approach: if the key exists and is "true", it's active. Otherwise, if key doesn't exist, it's also active (default state).
+        # If key exists and is "false", it's inactive.
+
+        # Check if any filter has been applied (i.e., form submitted)
+        # A simple way to check if form was submitted is if 'filter_race_format_id' or date filters are present,
+        # or if ANY of the boolean filters are present with "false".
+        # For default load, all boolean filters are considered "true".
+        # If a boolean filter is submitted as "false", it means user deactivated it.
+        # If a boolean filter is submitted as "true", it means user kept it active.
+        # If a boolean filter is NOT submitted (e.g. if we didn't use hidden inputs and relied on checkbox presence),
+        # it would mean it's off. But with hidden inputs, they always submit.
+
+        # The JS sets hidden input to 'true' or 'false'.
+        # So, if param is 'false', it's inactive. Otherwise (present as 'true', or not present at all for initial load), it's active.
+        param_value = request.args.get(filter_key)
+        if param_value == 'false': # Explicitly turned off
+            active_tag_filters[tag_def['field']] = False
+        else: # Either 'true' or not present (implies default active)
+            active_tag_filters[tag_def['field']] = True
+
 
     all_race_formats = RaceFormat.query.order_by(RaceFormat.name).all()
 
@@ -3175,6 +3113,65 @@ def serve_races_list_page():
         query = query.filter(Race.event_date <= date_to_obj)
     if race_format_id_int is not None:
         query = query.filter(Race.race_format_id == race_format_id_int)
+
+    # Apply boolean tag filters
+    # Only apply these if not all of them are true (i.e., user has deselected at least one)
+    # Or, more simply, always join and filter if any of them is specifically set to true by the user.
+    # If all are true (default or explicitly set), we don't need to filter by specific tags,
+    # but races without an event or with all tags false would be excluded if we use AND.
+    # The logic should be: if a tag filter is active (true), then the event must have that tag.
+    # This means we build a list of conditions that must ALL be met for the linked event.
+
+    # Check if any of the boolean filters are active (i.e., set to true)
+    # If all are false, it means we should show races that have ALL these tags as false (or no event linked).
+    # If some are true, some are false: show races where event has true for ALL active_tag_filters[tag_field] == true
+    # AND event has false for ALL active_tag_filters[tag_field] == false. This is complex.
+
+    # Simpler: if a filter for "Good for Debutants" is ON, then Event.is_good_for_debutants must be true.
+    # If multiple filters are ON, then Event must satisfy ALL of them.
+    # This requires an INNER JOIN to Event, and races without events will be excluded.
+    # If a race has no Event linked, it should probably still show up if other filters match,
+    # unless the tag filters are meant to exclusively show races with matching event tags.
+    # For now, let's assume tag filters apply to races that HAVE an event.
+
+    # If any specific tag filter is active (i.e., user wants to see events with this tag)
+    # we need to join with Event and filter.
+    # If ALL tag filters are true (default state), we don't add specific event tag conditions yet,
+    # as it would mean "show all events".
+    # However, if the user de-selects one, then it implies "show events that DON'T have this tag".
+    # This is getting tricky.
+
+    # Let's try this: if a filter is set to TRUE in active_tag_filters, the event must have it.
+    # If a filter is set to FALSE, the event must NOT have it.
+    # This means we always join to Event if any tag filter is not in its "show all" state.
+
+    # Determine if we need to join with Event based on active_tag_filters
+    apply_event_tag_filters = False
+    for tag_field, is_active in active_tag_filters.items():
+        if is_active: # If any tag is specifically requested
+            apply_event_tag_filters = True
+            break
+    # If all tag filters are false, it means "show events that are NOT good for debutants AND NOT challenging AND...",
+    # which also requires joining and filtering.
+    # So, we effectively always need to join if any tag filter is *not* in a "don't care" state.
+    # The "don't care" state is when all filters are active by default.
+    # If the user has interacted, then we filter.
+    # Let's refine: only filter if the current state of active_tag_filters is different from "all true".
+    all_tags_default_active = all(active_tag_filters.values())
+
+    if not all_tags_default_active: # If any filter has been toggled from the default "all true"
+        query = query.join(Race.event) # INNER JOIN, so races without events are excluded
+        for tag_field, is_active in active_tag_filters.items():
+            if is_active: # User wants events WITH this tag
+                query = query.filter(getattr(Event, tag_field) == True)
+            # If !is_active, it means user wants events WITHOUT this tag.
+            # This is like an AND condition: Event.tag1 == true AND Event.tag2 == false ...
+            # The current loop adds AND conditions for all TRUE filters.
+            # If a filter is FALSE (e.g. "Good for Debutants" is OFF), we want events where Event.is_good_for_debutants == False.
+            # So, if is_active is False, we should add filter(getattr(Event, tag_field) == False)
+            else: # User wants events WITHOUT this tag
+                 query = query.filter(getattr(Event, tag_field) == False)
+
 
     races_query_result = []
     try:
@@ -3218,7 +3215,9 @@ def serve_races_list_page():
                            filter_date_from_str=filter_date_from_str,
                            filter_date_to_str=filter_date_to_str,
                            filter_race_format_id_str=filter_race_format_id_str,
-                           current_year=current_year)
+                           current_year=current_year,
+                           event_tag_definitions=EVENT_TAG_DEFINITIONS,
+                           active_tag_filters=active_tag_filters)
 
 @app.route('/create-race')
 @login_required
@@ -3298,7 +3297,8 @@ def serve_race_detail_page(race_id):
                            num_answered_questions_pool=num_answered_questions_pool, # Add this
                            is_quiniela_actionable=is_quiniela_actionable_detail,
                            is_favorite=is_favorite, # Add this new variable
-                           current_time_utc=current_time_utc) # Pass current_time_utc to template
+                           current_time_utc=current_time_utc, # Pass current_time_utc to template
+                           event_tag_definitions=EVENT_TAG_DEFINITIONS)
 
 # --- API Endpoint for Saving User Answers ---
 @app.route('/api/races/<int:race_id>/answers', methods=['POST'])
