@@ -252,6 +252,21 @@
 
         document.getElementById('currentYear').textContent = new Date().getFullYear();
 
+        // Función para generar slugs amigables para URL
+        function generateEventSlug(eventName) {
+            if (!eventName) return 'evento';
+            return eventName
+                .toString()
+                .toLowerCase()
+                .normalize('NFKD') // Descomponer caracteres acentuados en base + diacrítico
+                .replace(/[\u0300-\u036f]/g, '') // Eliminar diacríticos
+                .replace(/\s+/g, '-')         // Reemplazar espacios con -
+                .replace(/[^\w-]+/g, '')    // Eliminar todos los caracteres no alfanuméricos excepto -
+                .replace(/--+/g, '-')       // Reemplazar múltiples - con uno solo
+                .replace(/^-+/, '')          // Quitar - del inicio
+                .replace(/-+$/, '');         // Quitar - del final
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const eventsContainer = document.getElementById('eventsContainer');
             const loadingIndicator = document.getElementById('events-loading');
@@ -377,15 +392,20 @@
                             </div>
                         </div>
                         <div class="p-3 bg-gray-50 border-t border-gray-200 text-right">
-                            <a href="/event/${event.id}" class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
+                            <a href="/event/${event.id}/${generateEventSlug(event.name)}" class="view-details-btn text-sm text-orange-600 hover:text-orange-700 font-semibold hover:underline">
                                 Ver Detalles <i class="fas fa-arrow-right text-xs ml-1"></i>
                             </a>
                         </div>
                     `;
-                    // El event listener para el botón ahora es un enlace <a>, por lo que no se necesita JS para la navegación.
-                    // El event listener para el click en la tarjeta entera también se redirigirá.
+
+                    const detailLink = `/event/${event.id}/${generateEventSlug(event.name)}`;
+
+                    eventCard.querySelector('.view-details-btn').addEventListener('click', (e) => {
+                        e.stopPropagation(); // Evita que el click en el botón propague al listener de la tarjeta
+                        window.location.href = detailLink;
+                    });
                     eventCard.addEventListener('click', () => {
-                        window.location.href = `/event/${event.id}`;
+                        window.location.href = detailLink;
                     });
                     eventsContainer.appendChild(eventCard);
                 });

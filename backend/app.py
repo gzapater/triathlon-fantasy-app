@@ -4075,25 +4075,23 @@ def get_events():
         app.logger.error(f"Error fetching events: {e}", exc_info=True)
         return jsonify(message="Error fetching events"), 500
 
-@app.route('/event/<int:event_id>')
-def event_detail_page(event_id):
-    """Serves the detail page for a specific event."""
+@app.route('/event/<int:event_id>/<string:event_name_slug>')
+def event_detail_page(event_id, event_name_slug):
+    """
+    Serves the detail page for a specific event.
+    The event_name_slug is for SEO purposes and not used to fetch the event.
+    """
     try:
         event = Event.query.get(event_id)
         if not event:
-            app.logger.warning(f"Event with id {event_id} not found.")
-            # Renderizar la misma plantilla pero con event=None para que muestre el mensaje de error
+            app.logger.warning(f"Event with id {event_id} (slug: {event_name_slug}) not found.")
             return render_template('event_detail.html', event=None, current_year=datetime.utcnow().year), 404
 
-        # El objeto event ya contiene event.event_date como un objeto datetime.date o None
-        # El filtro Jinja 'format_date_filter' se encargará de formatearlo en la plantilla.
-        # Si event_date fuera una cadena, necesitaríamos convertirla aquí:
-        # if isinstance(event.event_date, str):
-        #     event.event_date = datetime.strptime(event.event_date, '%Y-%m-%d').date()
+        # El event_name_slug no se usa para la consulta, pero podría usarse para una redirección
+        # canónica si el slug no coincide con el nombre del evento, aunque esto es más avanzado.
+        # Por ahora, simplemente lo aceptamos en la ruta.
 
         return render_template('event_detail.html', event=event, current_year=datetime.utcnow().year)
     except Exception as e:
-        app.logger.error(f"Error fetching event detail for event_id {event_id}: {e}", exc_info=True)
-        # En caso de un error inesperado, también mostrar la página de detalle con un mensaje genérico
-        # o redirigir a una página de error general. Por ahora, usamos event=None.
+        app.logger.error(f"Error fetching event detail for event_id {event_id} (slug: {event_name_slug}): {e}", exc_info=True)
         return render_template('event_detail.html', event=None, current_year=datetime.utcnow().year), 500
