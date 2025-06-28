@@ -25,6 +25,32 @@
     </style>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4759573852902159"
      crossorigin="anonymous"></script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "name": "TriPredict",
+      "url": "https://tripredict.es",
+      "logo": "{{ url_for('static', filename='img/favicon_promo.svg', _external=True) }}"
+    },
+    {
+      "@type": "WebSite",
+      "name": "TriPredict",
+      "url": "https://tripredict.es",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "{{ url_for('trical_events_page', _external=True) }}?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+  ]
+}
+</script>
 </head>
 <body class="bg-white text-gray-800">
 
