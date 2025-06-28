@@ -111,6 +111,9 @@
                         </button>
                         <div id="profileDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden">
                             <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile (próxiamamente)</a>
+                            {% if current_user.role.code == 'ADMIN' %}
+                            <a href="{{ url_for('serve_events_management_page') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Eventos</a>
+                            {% endif %}
                             <a href="#" id="logoutLink" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
                         </div>
                     </div>
