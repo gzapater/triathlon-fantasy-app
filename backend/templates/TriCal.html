@@ -32,6 +32,39 @@
     </style>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4759573852902159"
      crossorigin="anonymous"></script>
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Calendario de Triatlón y Duatlón en España 2025",
+  "description": "Encuentra tu próxima carrera de triatlón, duatlón o acuatlón en el directorio más completo de España.",
+  "url": "{{ url_for('trical_events_page', _external=True) }}",
+  "itemListElement": [
+    {% for event in events %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "item": {
+        "@type": "SportsEvent",
+        "name": {{ event.name | tojson }},
+        "startDate": "{{ event.event_date.strftime('%Y-%m-%d') if event.event_date }}",
+        "location": {
+          "@type": "Place",
+          "name": {{ event.city | tojson }},
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": {{ event.city | tojson }},
+            "addressRegion": {{ event.province | tojson }},
+            "addressCountry": "ES"
+          }
+        },
+        "url": "{{ url_for('event_detail_page', event_id=event.id, _external=True) }}"
+      }
+    }{{ ',' if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800"> <!-- Changed bg-white to bg-gray-50 -->
 
