@@ -3571,6 +3571,31 @@ def update_user_answer(user_answer_id):
         return jsonify(message="An error occurred while updating the answer."), 500
 
 
+# --- Event Detail Page Route ---
+@app.route('/evento/<int:event_id>/<string:event_name>')
+def event_detail_page(event_id, event_name):
+    """
+    Serves the dedicated page for a specific event.
+    The event_name is primarily for SEO-friendly URLs.
+    The actual event data will be fetched client-side via API.
+    However, passing basic event info (or the full event object if readily available)
+    can be useful for initial render and especially for injecting JSON-LD SEO data.
+    """
+    # Attempt to fetch the event by ID to pass some initial data to the template,
+    # especially for SEO (JSON-LD). The full details will be fetched client-side.
+    event = Event.query.get(event_id)
+
+    # If the event is not found, the template should ideally handle this,
+    # or we could redirect to a 404 page. For now, pass event=None.
+    if not event:
+        app.logger.warning(f"Event with ID {event_id} (name: {event_name}) not found for detail page.")
+        # Consider redirecting to a custom 404 or the TriCal index page
+        # For now, we'll let the template handle a None event object.
+        # Alternatively, could use: abort(404) after importing from flask
+
+    return render_template('event_detail.html', event_id=event_id, event_name=event_name, event=event)
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
 

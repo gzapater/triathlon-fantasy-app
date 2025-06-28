@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- El título se establecerá dinámicamente con JavaScript -->
+    <title>Detalles del Evento - TriCal</title>
+
+    <!-- Schema.org markup for Google -->
+    <script type="application/ld+json" id="event-json-ld">
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      "name": "{{ event.name if event else event_name | default('Evento de Triatlón', true) | tojson | safe }}",
+      {% if event and event.event_date -%}
+      "startDate": "{{ event.event_date.strftime('%Y-%m-%d') }}",
+      "endDate": "{{ event.event_date.strftime('%Y-%m-%d') }}",
+      {%- endif %}
+      "description": "{{ event.discipline if event else 'Participa en este emocionante evento deportivo.' | tojson | safe }}",
+      {% set loc_name = event.city if event and event.city else (event.province if event and event.province else event_name) %}
+      {% set loc_city = event.city if event and event.city else null %}
+      {% set loc_province = event.province if event and event.province else null %}
+      "location": {
+        "@type": "Place"
+        {%- if loc_name -%}
+        ,"name": {{ loc_name | tojson | safe }}
+        {%- endif %}
+        {%- if loc_city or loc_province -%}
+        ,"address": {
+          "@type": "PostalAddress"
+          {%- if loc_city -%}
+          ,"addressLocality": {{ loc_city | tojson | safe }}
+          {%- endif %}
+          {%- if loc_province -%}
+          ,"addressRegion": {{ loc_province | tojson | safe }}
+          {%- endif %}
+          ,"addressCountry": "ES" {# Asumiendo España si no hay más datos #}
+        }
+        {%- else -%}
+        {# Fallback si no hay ciudad ni provincia, pero tenemos un nombre de evento para el lugar #}
+        ,"address": {
+            "@type": "PostalAddress",
+            "addressLocality": {{ event_name | default('España', true) | tojson | safe }},
+            "addressCountry": "ES"
+        }
+        {%- endif %}
+      },
+      "organizer": {
+        "@type": "Organization",
+        "name": "TriCal",
+        "url": "https://tripredict.es/TriCal" {# URL genérica de TriCal #}
+      }
+      // "image" and other fields will be populated by client-side JS after API call
+    }
+    </script>
+
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* Tailwind gray-50 */
+        }
+        .hero-bg {
+            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); /* Tailwind orange-500 to orange-400 */
+        }
+        .stat-card {
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06); /* shadow-lg */
+        }
+        .btn-primary {
+            background-color: #f97316; /* Tailwind orange-500 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* rounded-lg */
+            font-weight: 600; /* semibold */
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #ea580c; /* Tailwind orange-600 */
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    {% include '_header.html' %}
+
+    <!-- Hero Section (Dynamic based on event data) -->
+    <div id="event-hero" class="hero-bg text-white py-10 md:py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 id="event-name-hero" class="text-3xl md:text-4xl lg:text-5xl font-bold mb-3">Cargando nombre del evento...</h1>
+            <p id="event-date-hero" class="text-lg md:text-xl opacity-90 mb-2">Cargando fecha...</p>
+            <p id="event-location-hero" class="text-lg md:text-xl opacity-90">Cargando localización...</p>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="loading-indicator" class="text-center py-12">
+            <i class="fas fa-spinner fa-spin fa-3x text-orange-500"></i>
+            <p class="mt-2 text-lg text-gray-600">Cargando detalles del evento...</p>
+        </div>
+
+        <div id="event-content" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Main Content Area -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- Event Information Card -->
+                    <div class="stat-card p-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Información del Evento</h2>
+                        <div class="space-y-3">
+                            <div>
+                                <span class="font-semibold text-gray-700">Disciplina:</span>
+                                <span id="event-discipline" class="text-gray-600 ml-2">Cargando...</span>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-700">Distancia:</span>
+                                <span id="event-distance" class="text-gray-600 ml-2">Cargando...</span>
+                            </div>
+                            <!-- Más detalles se pueden añadir aquí según la API -->
+                        </div>
+                    </div>
+
+                    <!-- Badges de TriCal Section -->
+                    <div class="stat-card p-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Badges de TriCal</h2>
+                        <div id="trical-badges" class="flex flex-wrap gap-3">
+                            <!-- Los badges se cargarán dinámicamente o serán placeholders -->
+                            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">Badge Ejemplo 1</span>
+                            <span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">Badge Ejemplo 2</span>
+                            <p class="text-gray-500 w-full">Esta sección mostrará los badges relevantes del evento.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar Area -->
+                <aside class="space-y-8">
+                    <!-- Map Section -->
+                    <div class="stat-card p-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Ubicación</h2>
+                        <div id="event-map" class="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                            <p class="text-gray-500">Mapa se cargará aquí...</p>
+                            <!-- Google Maps Embed iframe irá aquí -->
+                        </div>
+                    </div>
+
+                    <!-- TriPredict CTA Section -->
+                    <div class="stat-card p-6 text-center">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-3">¿Listo para Predecir?</h2>
+                        <p class="text-gray-600 mb-5">Usa TriPredict para analizar tus posibilidades y comparar con otros atletas.</p>
+                        <a href="https://tripredict.es/predictor" target="_blank" class="btn-primary inline-block">
+                            Ir a TriPredict <i class="fas fa-chart-line ml-2"></i>
+                        </a>
+                    </div>
+                </aside>
+            </div>
+        </div>
+        <div id="error-indicator" class="hidden text-center py-12">
+            <i class="fas fa-exclamation-triangle fa-3x text-red-500"></i>
+            <p id="error-message" class="mt-2 text-lg text-red-600">No se pudo cargar la información del evento.</p>
+            <button onclick="fetchEventDetails()" class="mt-4 btn-primary">Intentar de Nuevo</button>
+        </div>
+    </main>
+
+    {% include '_footer.html' %}
+
+    <script>
+        const eventId = {{ event_id | tojson }};
+        const eventName = {{ event_name | tojson }}; // Para el título de la página y SEO
+
+        // Elementos del DOM
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorIndicator = document.getElementById('error-indicator');
+        const errorMessageElement = document.getElementById('error-message');
+        const eventContent = document.getElementById('event-content');
+        const eventJsonLdElement = document.getElementById('event-json-ld');
+
+        // Hero section elements
+        const eventNameHero = document.getElementById('event-name-hero');
+        const eventDateHero = document.getElementById('event-date-hero');
+        const eventLocationHero = document.getElementById('event-location-hero');
+
+        // Detail elements
+        const eventDiscipline = document.getElementById('event-discipline');
+        const eventDistance = document.getElementById('event-distance');
+        const eventMapContainer = document.getElementById('event-map');
+
+        function updatePageTitle(name) {
+            document.title = `${name} - Detalles del Evento - TriCal`;
+        }
+
+        function populateJsonLd(eventData) {
+            const ldJson = {
+                "@context": "https://schema.org",
+                "@type": "SportsEvent",
+                "name": eventData.name,
+                "startDate": eventData.event_date, // Asumiendo que la API devuelve YYYY-MM-DD
+                "endDate": eventData.event_date, // Asumiendo mismo día
+                "description": eventData.description || `Detalles sobre ${eventData.name}`, // Usar descripción de API si existe
+                "location": {
+                    "@type": "Place",
+                    "name": eventData.city || eventData.province || eventData.name,
+                    "address": {
+                        "@type": "PostalAddress",
+                        "addressLocality": eventData.city || "",
+                        "addressRegion": eventData.province || "",
+                        "addressCountry": "ES" // Asumir España
+                    }
+                },
+                "organizer": {
+                    "@type": "Organization",
+                    "name": "TriCal", // O el organizador real si viene de la API
+                    "url": eventData.source_url || "https://tripredict.es/TriCal"
+                }
+                // Puedes añadir "image" si la API lo proporciona
+                // "image": [eventData.promo_image_url || "URL_IMAGEN_POR_DEFECTO"]
+            };
+            if (eventJsonLdElement) {
+                eventJsonLdElement.textContent = JSON.stringify(ldJson);
+            }
+        }
+
+        function displayEventDetails(eventData) {
+            updatePageTitle(eventData.name);
+            populateJsonLd(eventData);
+
+            // Populate Hero
+            if(eventNameHero) eventNameHero.textContent = eventData.name;
+            if(eventDateHero) eventDateHero.textContent = eventData.event_date ? new Date(eventData.event_date + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Fecha no disponible';
+            if(eventLocationHero) eventLocationHero.textContent = `${eventData.city || ''}${eventData.city && eventData.province ? ', ' : ''}${eventData.province || ''}` || 'Ubicación no disponible';
+
+            // Populate Details
+            if(eventDiscipline) eventDiscipline.textContent = eventData.discipline || 'No especificada';
+            if(eventDistance) eventDistance.textContent = eventData.distance || 'No especificada';
+
+            // Populate Map (Ejemplo con iframe de Google Maps Embed)
+            // La API debería proveer latitud/longitud o una query para el mapa.
+            // Por ahora, usaremos la ciudad y provincia.
+            if(eventMapContainer) {
+                const mapQuery = encodeURIComponent(`${eventData.name}, ${eventData.city || ''}, ${eventData.province || ''}, España`);
+                eventMapContainer.innerHTML = `<iframe width="100%" height="100%" frameborder="0" style="border:0; border-radius: 0.5rem;" src="https://www.google.com/maps/embed/v1/place?key=TU_API_KEY_DE_GOOGLE_MAPS&q=${mapQuery}" allowfullscreen></iframe>`;
+                // ¡¡¡IMPORTANTE!!! Reemplazar TU_API_KEY_DE_GOOGLE_MAPS con una clave de API real de Google Maps.
+                // Si no se usa una clave, el mapa puede mostrar errores o limitaciones.
+            }
+
+            // Mostrar contenido y ocultar loading/error
+            if(loadingIndicator) loadingIndicator.style.display = 'none';
+            if(errorIndicator) errorIndicator.style.display = 'none';
+            if(eventContent) eventContent.classList.remove('hidden');
+        }
+
+        function fetchEventDetails() {
+            if(loadingIndicator) loadingIndicator.style.display = 'block';
+            if(errorIndicator) errorIndicator.style.display = 'none';
+            if(eventContent) eventContent.classList.add('hidden');
+
+            // Primero, intenta obtener los detalles del evento desde la API
+            // Esto es crucial porque la API `/api/events/${eventId}` debe existir y funcionar.
+            // Si no existe, esta llamada fallará.
+            fetch(`/api/events/${eventId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        // Si la respuesta no es OK, intenta parsear el JSON de error si existe
+                        return response.json().then(errData => {
+                            throw new Error(errData.message || `Error ${response.status}: ${response.statusText}`);
+                        }).catch(() => {
+                            // Si el parseo del JSON de error falla (ej. respuesta no es JSON), lanza error genérico
+                            throw new Error(`Error ${response.status}: ${response.statusText}. No se pudo obtener el evento.`);
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.id) { // Verifica que data no sea null y tenga un id
+                        displayEventDetails(data);
+                    } else {
+                        // Esto podría ocurrir si la API devuelve un 200 pero con cuerpo vacío o sin ID
+                        // o si la API devuelve un objeto `event` que no representa el evento esperado (ej. `{"message": "Event not found"}`)
+                        // que no fue capturado como error HTTP.
+                        console.error('Event data is invalid or event not found:', data);
+                        throw new Error(data.message || 'Datos del evento inválidos o evento no encontrado.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching event details:', error);
+                    if(loadingIndicator) loadingIndicator.style.display = 'none';
+                    if(errorMessageElement) errorMessageElement.textContent = error.message || 'No se pudo cargar la información del evento. Por favor, verifica la URL o inténtalo más tarde.';
+                    if(errorIndicator) errorIndicator.style.display = 'block';
+
+                    // Actualizar título a un estado de error si la carga falla
+                    const errorPageTitle = `Error al cargar evento ID ${eventId}`;
+                    document.title = errorPageTitle + " - TriCal";
+                    if(eventNameHero) eventNameHero.textContent = errorPageTitle;
+                    if(eventDateHero) eventDateHero.textContent = "Información no disponible";
+                    if(eventLocationHero) eventLocationHero.textContent = "";
+
+                    // Limpiar JSON-LD o poner un placeholder si falla la carga
+                    if (eventJsonLdElement) {
+                        eventJsonLdElement.textContent = JSON.stringify({
+                            "@context": "https://schema.org",
+                            "@type": "SportsEvent",
+                            "name": `Error al cargar evento ID ${eventId}`,
+                            "description": "No se pudo cargar la información para este evento."
+                        });
+                    }
+                });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // El `event` pasado desde Flask puede ser `null` si no se encontró en el backend al renderizar la plantilla.
+            // Este objeto `initialEventData` se usa para el JSON-LD inicial.
+            const initialEventData = {{ event | tojson | safe if event else 'null' }};
+
+            if (initialEventData && initialEventData.name) {
+                updatePageTitle(initialEventData.name); // Actualiza el título de la página con el nombre del evento si está disponible
+                // El JSON-LD ya se llena parcialmente desde Flask en el <head>
+                // Aquí podríamos hacer un primer llenado del Hero si quisiéramos,
+                // antes de la llamada a la API, pero la llamada a la API lo sobrescribirá.
+                if(eventNameHero) eventNameHero.textContent = initialEventData.name;
+                if(eventDateHero && initialEventData.event_date) eventDateHero.textContent = new Date(initialEventData.event_date + 'T00:00:00').toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+                if(eventLocationHero) eventLocationHero.textContent = `${initialEventData.city || ''}${initialEventData.city && initialEventData.province ? ', ' : ''}${initialEventData.province || ''}`.trim() || 'Ubicación no disponible';
+
+            } else if (eventName) { // Si no hay initialEventData pero sí eventName de la URL
+                updatePageTitle(eventName); // Usa el nombre de la URL para el título
+                if(eventNameHero) eventNameHero.textContent = eventName; // Y para el hero H1
+                // JSON-LD en <head> usará event_name si event es null
+            } else {
+                 // Si ni initialEventData ni eventName están disponibles (caso improbable si la ruta está bien definida)
+                const fallbackTitle = `Evento ID ${eventId}`;
+                updatePageTitle(fallbackTitle);
+                if(eventNameHero) eventNameHero.textContent = fallbackTitle;
+            }
+
+            // Siempre llama a fetchEventDetails para obtener los datos completos de la API
+            fetchEventDetails();
+        });
+    </script>
+
+</body>
+</html>
