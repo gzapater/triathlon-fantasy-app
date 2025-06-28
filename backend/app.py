@@ -63,6 +63,27 @@ def format_date_filter(value, format='%d %b %Y'):
 
 app.jinja_env.filters['format_date_filter'] = format_date_filter
 
+# Slugify filter for Jinja2
+import re
+import unicodedata
+
+def slugify(value, separator='-'):
+    """
+    Normalizes string, converts to lowercase, removes non-alpha characters,
+    and converts spaces to hyphens.
+    """
+    if value is None:
+        return ""
+    # Normalize and handle unicode characters
+    value = unicodedata.normalize('NFKD', str(value)).encode('ascii', 'ignore').decode('ascii')
+    # Remove characters that are not alphanumeric, underscores, or hyphens
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    # Replace whitespace and repeated hyphens with a single separator
+    value = re.sub(r'[-\s]+', separator, value)
+    return value
+
+app.jinja_env.filters['slugify'] = slugify
+
 def get_ssm_parameter(name, default=None):
     """Función para obtener un parámetro de AWS SSM Parameter Store."""
     try:
