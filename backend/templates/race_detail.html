@@ -4,6 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fantasy Triatlón - {{ race.title if race else 'Detalle de Carrera' }}</title> <!-- Dynamic Title -->
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SportsEvent",
+      "name": {{ race.title | default('', true) | tojson | safe }},
+      {% if race.event_date -%}
+      "startDate": "{{ race.event_date.strftime('%Y-%m-%d') }}",
+      "endDate": "{{ race.event_date.strftime('%Y-%m-%d') }}",
+      {%- endif %}
+      {% if race.description -%}
+      "description": {{ race.description | truncate(150) | tojson | safe }},
+      {%- endif %}
+      {# Location object handling #}
+      {% set loc_name = race.event.city if race.event and race.event.city else race.location %}
+      {% set loc_city = race.event.city if race.event and race.event.city else none %}
+      {% set loc_province = race.event.province if race.event and race.event.province else none %}
+      {% if loc_name or loc_city or loc_province -%}
+      "location": {
+        "@type": "Place"
+        {%- if loc_name -%}
+        ,"name": {{ loc_name | tojson | safe }}
+        {%- endif %}
+        {%- if loc_city or loc_province -%}
+        ,"address": {
+          "@type": "PostalAddress"
+          {%- if loc_city -%}
+          ,"addressLocality": {{ loc_city | tojson | safe }}
+          {%- endif %}
+          {%- if loc_province -%}
+          ,"addressRegion": {{ loc_province | tojson | safe }}
+          {%- endif %}
+          ,"addressCountry": "ES"
+        }
+        {%- endif %}
+      },
+      {%- endif %}
+      {% if race.promo_image_url -%}
+      "image": [
+        "{{ race.promo_image_url | tojson | safe }}"
+      ],
+      {% endif %}
+      "organizer": {
+        "@type": "Organization",
+        "name": "TriCal",
+        "url": "https://tripredict.es/TriCal"
+      }
+    }
+    </script>
+
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
