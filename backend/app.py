@@ -4108,8 +4108,31 @@ def serve_events_management_page():
     if current_user.role.code != 'ADMIN':
         flash("Acceso denegado. Esta sección es solo para administradores.", "error")
         return redirect(url_for('serve_hello_world_page'))
-    # Los datos se cargarán vía API en el frontend, así que solo servimos el template.
-    return render_template('events_management.html', current_year=datetime.utcnow().year)
+
+    # Proporcionar valores por defecto para las variables que espera admin_dashboard.html
+    # para evitar el error de 'Undefined'.
+    # Estas variables pueden no ser directamente relevantes para events_management.html,
+    # pero son necesarias si admin_dashboard.html las usa.
+    return render_template(
+        'events_management.html',
+        current_year=datetime.utcnow().year,
+        races=[], # Para la tabla principal de carreras en admin_dashboard si se renderiza
+        races_for_official_answers=[], # Para el modal de respuestas oficiales
+        all_race_formats=RaceFormat.query.order_by(RaceFormat.name).all(), # Necesario para filtros
+        filter_date_from_str=None,
+        filter_date_to_str=None,
+        filter_race_format_id_str=None,
+        all_race_statuses=[status.value for status in RaceStatus], # Para filtros de estado
+        selected_statuses_for_ui=[], # Para filtros de estado
+        # Añade aquí cualquier otra variable que admin_dashboard.html espere y
+        # que pueda causar un error 'Undefined' si no está presente.
+        # Por ejemplo, si admin_dashboard.html tiene secciones específicas para LEAGUE_ADMIN
+        # que esperan otras variables, podrían necesitarse aquí también con valores por defecto.
+        organized_races=[],
+        participating_races=[],
+        favorite_races=[],
+        active_players_count=0
+    )
 
 @app.route('/api/events', methods=['POST']) # API para crear evento
 @login_required

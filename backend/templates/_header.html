@@ -89,6 +89,12 @@
                         <span>TriPredict App</span>
                     </a>
                     <!-- MODIFIED: Removed Profile Link -->
+                    {% if current_user.role.code == 'ADMIN' %}
+                    <a href="{{ url_for('serve_events_management_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                        <i class="fas fa-calendar-alt"></i> <!-- Icono sugerido para eventos -->
+                        <span>Eventos</span>
+                    </a>
+                    {% endif %}
                 </nav>
             </div>
 
@@ -111,9 +117,7 @@
                         </button>
                         <div id="profileDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden">
                             <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile (próxiamamente)</a>
-                            {% if current_user.role.code == 'ADMIN' %}
-                            <a href="{{ url_for('serve_events_management_page') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Eventos</a>
-                            {% endif %}
+                            {# El enlace de Eventos se movió a la navegación principal #}
                             <a href="#" id="logoutLink" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
                         </div>
                     </div>
@@ -146,6 +150,12 @@
             <i class="fas fa-bullhorn w-5"></i>
             <span>TriPredict App</span>
         </a>
+        {% if current_user.role.code == 'ADMIN' %}
+        <a href="{{ url_for('serve_events_management_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-calendar-alt w-5"></i>
+            <span>Eventos</span>
+        </a>
+        {% endif %}
         <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
             <i class="fas fa-user w-5"></i>
             <span>Profile</span>
