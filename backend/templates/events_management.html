@@ -9,106 +9,203 @@
     <li class="breadcrumb-item active" aria-current="page">Gestión de Eventos</li>
 {% endblock %}
 
+{% block join_by_code_button %}{% endblock %} {# Esto oculta el botón de unirse por código #}
+
 {% block main_dashboard_content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Administrar Eventos de TriCal</h1>
-
-    <!-- Formulario para Añadir/Editar Evento -->
-    <div class="bg-white shadow-md rounded-lg p-6 mb-8">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4" id="form-title">Añadir Nuevo Evento</h2>
-        <form id="event-form">
-            <input type="hidden" id="event_id" name="event_id">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento:</label>
-                    <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="event_date" class="block text-sm font-medium text-gray-700 mb-1">Fecha del Evento:</label>
-                    <input type="date" id="event_date" name="event_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad:</label>
-                    <input type="text" id="city" name="city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
-                    <input type="text" id="province" name="province" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="discipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
-                    <input type="text" id="discipline" name="discipline" placeholder="Ej: Triatlón, Duatlón, Acuatlón" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div>
-                    <label for="distance" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
-                    <input type="text" id="distance" name="distance" placeholder="Ej: Olímpica, Sprint, Media Distancia" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-                <div class="md:col-span-2">
-                    <label for="source_url" class="block text-sm font-medium text-gray-700 mb-1">URL Fuente (Organizador):</label>
-                    <input type="url" id="source_url" name="source_url" placeholder="https://www.example.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                </div>
-            </div>
-
-            <fieldset class="mb-4">
-                <legend class="text-lg font-medium text-gray-900 mb-2">Puntuación TriCal (Opcional):</legend>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_good_for_debutants" name="is_good_for_debutants" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_good_for_debutants" class="font-medium text-gray-700">Ideal para Debutantes</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_challenging" name="is_challenging" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_challenging" class="font-medium text-gray-700">Desafiante</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="has_great_views" name="has_great_views" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="has_great_views" class="font-medium text-gray-700">Vistas Espectaculares</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="has_good_atmosphere" name="has_good_atmosphere" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="has_good_atmosphere" class="font-medium text-gray-700">Buen Ambiente</label>
-                        </div>
-                    </div>
-                    <div class="flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="is_world_qualifier" name="is_world_qualifier" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="is_world_qualifier" class="font-medium text-gray-700">Clasificatorio Mundial</label>
-                        </div>
-                    </div>
-                </div>
-            </fieldset>
-
-            <div class="flex justify-end space-x-3">
-                <button type="button" id="cancel-edit-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 hidden">Cancelar Edición</button>
-                <button type="submit" id="submit-btn" class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                    Guardar Evento
-                </button>
-            </div>
-        </form>
+<div class="container-fluid mx-auto px-4 py-8"> <!-- Cambiado container a container-fluid para ancho completo -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Administrar Eventos de TriCal</h1>
+        <button id="open-event-modal-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
+            Crear Nuevo Evento
+        </button>
     </div>
 
+    <!-- Modal para Añadir/Editar Evento -->
+    <div id="event-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3">
+                <h2 class="text-2xl font-semibold text-gray-700" id="modal-title">Añadir Nuevo Evento</h2>
+                <button id="close-event-modal-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+            <form id="event-form">
+                <input type="hidden" id="event_id" name="event_id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento:</label>
+                        <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="event_date" class="block text-sm font-medium text-gray-700 mb-1">Fecha del Evento:</label>
+                        <input type="date" id="event_date" name="event_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad:</label>
+                        <input type="text" id="city" name="city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
+                        <input type="text" id="province" name="province" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="discipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
+                        <input type="text" id="discipline" name="discipline" placeholder="Ej: Triatlón, Duatlón, Acuatlón" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                    <div>
+                        <label for="distance" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
+                        <input type="text" id="distance" name="distance" placeholder="Ej: Olímpica, Sprint, Media Distancia" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="source_url" class="block text-sm font-medium text-gray-700 mb-1">URL Fuente (Organizador):</label>
+                        <input type="url" id="source_url" name="source_url" placeholder="https://www.example.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    </div>
+                </div>
+
+                <fieldset class="mb-4">
+                    <legend class="text-lg font-medium text-gray-900 mb-2">Puntuación TriCal (Opcional):</legend>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="is_good_for_debutants" name="is_good_for_debutants" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="is_good_for_debutants" class="font-medium text-gray-700">Ideal para Debutantes</label>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="is_challenging" name="is_challenging" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="is_challenging" class="font-medium text-gray-700">Desafiante</label>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="has_great_views" name="has_great_views" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="has_great_views" class="font-medium text-gray-700">Vistas Espectaculares</label>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="has_good_atmosphere" name="has_good_atmosphere" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="has_good_atmosphere" class="font-medium text-gray-700">Buen Ambiente</label>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="flex items-center h-5">
+                                <input id="is_world_qualifier" name="is_world_qualifier" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                            </div>
+                            <div class="ml-3 text-sm">
+                                <label for="is_world_qualifier" class="font-medium text-gray-700">Clasificatorio Mundial</label>
+                            </div>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t">
+                    <button type="button" id="cancel-event-modal-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">Cancelar</button>
+                    <button type="submit" id="submit-btn" class="px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
+                        Guardar Evento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filters Section (adaptada de TriCal.html) -->
+    <section class="bg-white shadow-md rounded-lg p-6 mt-8 mb-8 no-print">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Filtrar Eventos</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            <!-- Search -->
+            <div class="lg:col-span-1 xl:col-span-2">
+                <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">Búsqueda:</label>
+                <input type="text" id="searchInput" placeholder="Nombre, ciudad, provincia..."
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+            </div>
+
+            <!-- Discipline Filter -->
+            <div>
+                <label for="disciplineFilter" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
+                <select id="disciplineFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <option value="">Todas</option>
+                    <!-- Options will be populated by JS -->
+                </select>
+            </div>
+
+            <!-- Distance Filter -->
+            <div>
+                <label for="distanceFilter" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
+                <select id="distanceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <option value="">Todas</option>
+                    <!-- Options will be populated by JS -->
+                </select>
+            </div>
+
+            <!-- Province Filter -->
+            <div>
+                <label for="provinceFilter" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
+                <select id="provinceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <option value="">Todas</option>
+                    <!-- Options will be populated by JS -->
+                </select>
+            </div>
+
+            <!-- Month Filter -->
+            <div>
+                <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-1">Mes:</label>
+                <select id="monthFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <option value="">Todos</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tag Filters Section -->
+        <div class="mt-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Etiquetas:</label>
+            <div id="tagFiltersContainer" class="flex flex-wrap gap-2">
+                <!-- Tag filter buttons will be populated by JS -->
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center justify-between mt-6 gap-4">
+            <div class="flex flex-wrap gap-2">
+                <button id="clearFilters" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm">
+                    <i class="fas fa-times mr-1"></i> Limpiar Filtros
+                </button>
+                <button id="sortDate" class="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors text-sm">
+                    <i class="fas fa-sort mr-1"></i> Ordenar por Fecha
+                </button>
+            </div>
+            <div class="text-sm text-gray-600">
+                Mostrando <span id="visibleCount">0</span> de <span id="totalCount">0</span> eventos
+            </div>
+        </div>
+    </section>
+
     <!-- Tabla de Eventos Existentes -->
-    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+    <div class="bg-white shadow-md rounded-lg overflow-hidden mt-8">
         <h2 class="text-2xl font-semibold text-gray-700 p-6">Eventos Existentes</h2>
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
@@ -130,14 +227,215 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const eventModal = document.getElementById('event-modal');
+    const openEventModalBtn = document.getElementById('open-event-modal-btn');
+    const closeEventModalBtn = document.getElementById('close-event-modal-btn');
+    const cancelEventModalBtn = document.getElementById('cancel-event-modal-btn');
+
     const eventForm = document.getElementById('event-form');
     const eventsTableBody = document.getElementById('events-table-body');
-    const formTitle = document.getElementById('form-title');
+    const modalTitle = document.getElementById('modal-title');
     const eventIdInput = document.getElementById('event_id');
     const submitBtn = document.getElementById('submit-btn');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
 
-    const apiBaseUrl = '/api/events'; // Ajusta si tu API base es diferente
+    const apiBaseUrl = '/api/events';
+
+    // --- Variables para Filtros (adaptado de TriCal.html) ---
+    let allEvents = [];
+    let currentSortAscending = true;
+
+    const searchInput = document.getElementById('searchInput');
+    const disciplineFilter = document.getElementById('disciplineFilter');
+    const distanceFilter = document.getElementById('distanceFilter');
+    const provinceFilter = document.getElementById('provinceFilter');
+    const monthFilter = document.getElementById('monthFilter');
+    const tagFiltersContainer = document.getElementById('tagFiltersContainer');
+    const clearFiltersBtn = document.getElementById('clearFilters');
+    const sortDateBtn = document.getElementById('sortDate');
+    const visibleCountDisplay = document.getElementById('visibleCount');
+    const totalCountDisplay = document.getElementById('totalCount');
+
+    // --- Constante para Etiquetas (adaptado de TriCal.html) ---
+    const tagProperties = {
+        is_good_for_debutants: { text: "Good for Debutants", color: "bg-green-100 text-green-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-green-600 text-white", icon: "fas fa-seedling" },
+        is_challenging: { text: "Challenging", color: "bg-red-100 text-red-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-red-600 text-white", icon: "fas fa-mountain" },
+        has_great_views: { text: "Great Views", color: "bg-blue-100 text-blue-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-blue-600 text-white", icon: "fas fa-image" },
+        has_good_atmosphere: { text: "Good Atmosphere", color: "bg-purple-100 text-purple-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-purple-600 text-white", icon: "fas fa-users" },
+        is_world_qualifier: { text: "World Qualifier", color: "bg-yellow-100 text-yellow-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-yellow-500 text-gray-900", icon: "fas fa-trophy" }
+    };
+
+    // --- Modal Handling ---
+    function openModal() {
+        eventModal.classList.remove('hidden');
+        // Opcional: enfocar el primer campo del formulario
+        eventForm.elements['name'].focus();
+    }
+
+    function closeModal() {
+        eventModal.classList.add('hidden');
+        resetForm(); // Asegurarse de que el formulario se resetea al cerrar el modal
+    }
+
+    openEventModalBtn.addEventListener('click', function() {
+        resetForm(); // Asegura que el form esté limpio para "Crear"
+        modalTitle.textContent = 'Añadir Nuevo Evento';
+        submitBtn.textContent = 'Guardar Evento';
+        openModal();
+    });
+
+    closeEventModalBtn.addEventListener('click', closeModal);
+    cancelEventModalBtn.addEventListener('click', closeModal);
+
+    // Cerrar modal si se hace clic fuera de él (en el overlay)
+    eventModal.addEventListener('click', function(e) {
+        if (e.target === eventModal) {
+            closeModal();
+        }
+    });
+
+    // Cerrar modal con la tecla Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === "Escape" && !eventModal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
+    // --- End Modal Handling ---
+
+    // --- Funciones de Filtros (adaptadas de TriCal.html) ---
+    function populateTagFilterButtons() {
+        if (!tagFiltersContainer) return;
+        tagFiltersContainer.innerHTML = '';
+
+        for (const key in tagProperties) {
+            const tagInfo = tagProperties[key];
+            const button = document.createElement('button');
+            button.id = `filter-${key}`;
+            button.dataset.tagKey = key;
+            button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
+            button.innerHTML = `<i class="${tagInfo.icon} mr-1.5"></i> ${tagInfo.text}`;
+            button.setAttribute('aria-pressed', 'false');
+            button.dataset.active = "false";
+
+            button.addEventListener('click', () => {
+                const isActive = button.dataset.active === "true";
+                if (isActive) {
+                    button.dataset.active = "false";
+                    button.setAttribute('aria-pressed', 'false');
+                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
+                } else {
+                    button.dataset.active = "true";
+                    button.setAttribute('aria-pressed', 'true');
+                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
+                }
+                filterAndSortEvents();
+            });
+            tagFiltersContainer.appendChild(button);
+        }
+    }
+
+    function populateFilterOptions(events) {
+        const disciplines = new Set();
+        const distances = new Set();
+        const provinces = new Set();
+
+        events.forEach(event => {
+            if (event.discipline) disciplines.add(event.discipline);
+            if (event.distance) distances.add(event.distance);
+            if (event.province) provinces.add(event.province);
+        });
+
+        disciplineFilter.innerHTML = '<option value="">Todas</option>';
+        distanceFilter.innerHTML = '<option value="">Todas</option>';
+        provinceFilter.innerHTML = '<option value="">Todas</option>';
+
+        Array.from(disciplines).sort().forEach(d => {
+            const option = document.createElement('option');
+            option.value = d;
+            option.textContent = d;
+            disciplineFilter.appendChild(option);
+        });
+        Array.from(distances).sort().forEach(d => {
+            const option = document.createElement('option');
+            option.value = d;
+            option.textContent = d;
+            distanceFilter.appendChild(option);
+        });
+        Array.from(provinces).sort().forEach(p => {
+            const option = document.createElement('option');
+            option.value = p;
+            option.textContent = p;
+            provinceFilter.appendChild(option);
+        });
+    }
+
+    function filterAndSortEvents() {
+        let filteredEvents = [...allEvents];
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const selectedDiscipline = disciplineFilter.value;
+        const selectedDistance = distanceFilter.value;
+        const selectedProvince = provinceFilter.value;
+        const selectedMonth = monthFilter.value;
+
+        const activeTagFilters = {};
+        if (tagFiltersContainer) {
+            tagFiltersContainer.querySelectorAll('button').forEach(btn => {
+                if (btn.dataset.active === "true") {
+                    activeTagFilters[btn.dataset.tagKey] = true;
+                }
+            });
+        }
+
+        if (searchTerm) {
+            filteredEvents = filteredEvents.filter(event =>
+                (event.name && event.name.toLowerCase().includes(searchTerm)) ||
+                (event.city && event.city.toLowerCase().includes(searchTerm)) ||
+                (event.province && event.province.toLowerCase().includes(searchTerm)) ||
+                (event.discipline && event.discipline.toLowerCase().includes(searchTerm)) ||
+                (event.distance && event.distance.toLowerCase().includes(searchTerm))
+            );
+        }
+        if (selectedDiscipline) {
+            filteredEvents = filteredEvents.filter(event => event.discipline === selectedDiscipline);
+        }
+        if (selectedDistance) {
+            filteredEvents = filteredEvents.filter(event => event.distance === selectedDistance);
+        }
+        if (selectedProvince) {
+            filteredEvents = filteredEvents.filter(event => event.province === selectedProvince);
+        }
+        if (selectedMonth) {
+            filteredEvents = filteredEvents.filter(event => {
+                if (!event.event_date) return false;
+                const event_date_obj = new Date(event.event_date + 'T00:00:00Z'); // Use Z for UTC to match toLocaleDateString later
+                const event_month = event_date_obj.getUTCMonth() + 1;
+                return event_month === parseInt(selectedMonth);
+            });
+        }
+
+        const activeTagKeys = Object.keys(activeTagFilters);
+        if (activeTagKeys.length > 0) {
+            filteredEvents = filteredEvents.filter(event => {
+                return activeTagKeys.every(tagKey => {
+                    return event[tagKey] === true || event[tagKey] === 1 || event[tagKey] === '1' || event[tagKey] === 't' || String(event[tagKey]).toLowerCase() === 'true';
+                });
+            });
+        }
+
+        filteredEvents.sort((a, b) => {
+            const dateA = a.event_date ? new Date(a.event_date + 'T00:00:00Z') : null;
+            const dateB = b.event_date ? new Date(b.event_date + 'T00:00:00Z') : null;
+
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+
+            return currentSortAscending ? dateA - dateB : dateB - dateA;
+        });
+
+        renderEventsTable(filteredEvents); // Llamar a renderEventsTable en lugar de renderEvents
+        if (visibleCountDisplay) visibleCountDisplay.textContent = filteredEvents.length;
+    }
+    // --- End Funciones de Filtros ---
 
     // Cargar eventos al iniciar
     loadEvents();
@@ -188,36 +486,60 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    cancelEditBtn.addEventListener('click', function() {
-        resetForm();
-    });
+    // cancelEditBtn.addEventListener('click', function() { // Eliminado ya que el botón "Cancelar" del modal ahora simplemente cierra el modal.
+    //     resetForm();
+    // });
 
     async function loadEvents() {
         try {
-            const response = await fetch(apiBaseUrl); // Ruta GET para listar eventos
+            const response = await fetch(apiBaseUrl);
             if (response.ok) {
-                const events = await response.json();
-                renderEventsTable(events);
+                const events_data = await response.json();
+                allEvents = events_data.map(event => ({ // Almacenar en allEvents
+                    ...event,
+                    event_date: event.event_date ? event.event_date : null
+                }));
+
+                if (totalCountDisplay) totalCountDisplay.textContent = allEvents.length;
+
+                populateFilterOptions(allEvents);
+                populateTagFilterButtons();
+                filterAndSortEvents(); // Esto llamará a renderEventsTable
+                // renderEventsTable(allEvents); // Ya no se llama directamente aquí
             } else {
                 showFlashMessage('Error al cargar los eventos.', 'error');
+                 if (totalCountDisplay) totalCountDisplay.textContent = 0;
+                 if (visibleCountDisplay) visibleCountDisplay.textContent = 0;
             }
         } catch (error) {
             console.error('Error cargando eventos:', error);
             showFlashMessage('Error de conexión al cargar eventos.', 'error');
+            if (totalCountDisplay) totalCountDisplay.textContent = 0;
+            if (visibleCountDisplay) visibleCountDisplay.textContent = 0;
         }
     }
 
-    function renderEventsTable(events) {
-        eventsTableBody.innerHTML = ''; // Limpiar tabla
-        if (events.length === 0) {
-            eventsTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay eventos registrados.</td></tr>';
+    function renderEventsTable(eventsToRender) { // Recibe eventsToRender
+        eventsTableBody.innerHTML = '';
+        if (eventsToRender.length === 0) {
+            eventsTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No hay eventos que coincidan con los filtros.</td></tr>';
+            // Actualizar contador de visibles a 0
+            if (visibleCountDisplay) visibleCountDisplay.textContent = 0;
             return;
         }
-        events.forEach(event => {
+        // Actualizar contador de visibles
+        if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
+
+        eventsToRender.forEach(event => {
             const row = eventsTableBody.insertRow();
+            // Asegurarse que la fecha se interprete como UTC para evitar desfases al usar toLocaleDateString
+            // El backend devuelve 'YYYY-MM-DD'. Si se crea new Date('YYYY-MM-DD'), se interpreta como local.
+            // Para consistencia con el filtro de mes, y para mostrar la fecha tal cual es, es mejor añadir 'T00:00:00Z'.
+            const displayDate = event.event_date ? new Date(event.event_date + 'T00:00:00Z').toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' }) : 'N/A';
+
             row.innerHTML = `
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${event.name}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.event_date ? new Date(event.event_date + 'T00:00:00Z').toLocaleDateString() : 'N/A'}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${displayDate}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.city || 'N/A'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.province || 'N/A'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.discipline || 'N/A'}</td>
@@ -239,7 +561,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(event => {
-                formTitle.textContent = 'Editar Evento';
+                modalTitle.textContent = 'Editar Evento'; // Usar modalTitle
                 eventIdInput.value = event.id;
                 eventForm.elements['name'].value = event.name;
                 // Formatear la fecha para el input type="date" (YYYY-MM-DD)
@@ -257,8 +579,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 eventForm.elements['is_world_qualifier'].checked = event.is_world_qualifier || false;
 
                 submitBtn.textContent = 'Actualizar Evento';
-                cancelEditBtn.classList.remove('hidden');
-                window.scrollTo(0, 0); // Scroll al inicio para ver el formulario
+                // cancelEditBtn.classList.remove('hidden'); // El botón de cancelar del modal siempre está visible dentro del modal
+                openModal(); // Abrir el modal en lugar de hacer scroll
             })
             .catch(error => {
                 console.error('Error al cargar evento para editar:', error);
@@ -292,10 +614,51 @@ document.addEventListener('DOMContentLoaded', function() {
     function resetForm() {
         eventForm.reset();
         eventIdInput.value = '';
-        formTitle.textContent = 'Añadir Nuevo Evento';
-        submitBtn.textContent = 'Guardar Evento';
-        cancelEditBtn.classList.add('hidden');
     }
+
+    // --- Event Listeners para Filtros (adaptado de TriCal.html) ---
+    if (searchInput) searchInput.addEventListener('input', filterAndSortEvents);
+    if (disciplineFilter) disciplineFilter.addEventListener('change', filterAndSortEvents);
+    if (distanceFilter) distanceFilter.addEventListener('change', filterAndSortEvents);
+    if (provinceFilter) provinceFilter.addEventListener('change', filterAndSortEvents);
+    if (monthFilter) monthFilter.addEventListener('change', filterAndSortEvents);
+
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (disciplineFilter) disciplineFilter.value = '';
+            if (distanceFilter) distanceFilter.value = '';
+            if (provinceFilter) provinceFilter.value = '';
+            if (monthFilter) monthFilter.value = '';
+
+            currentSortAscending = true;
+            if (sortDateBtn) sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)';
+
+            if (tagFiltersContainer) {
+                tagFiltersContainer.querySelectorAll('button').forEach(button => {
+                    const tagKey = button.dataset.tagKey;
+                    const tagInfo = tagProperties[tagKey];
+                    button.dataset.active = "false";
+                    button.setAttribute('aria-pressed', 'false');
+                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
+                });
+            }
+            filterAndSortEvents();
+        });
+    }
+
+    if (sortDateBtn) {
+        sortDateBtn.addEventListener('click', () => {
+            currentSortAscending = !currentSortAscending;
+            sortDateBtn.innerHTML = currentSortAscending ?
+                '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
+                '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
+            filterAndSortEvents();
+        });
+        // Initial sort button text
+        sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)';
+    }
+    // --- Fin Event Listeners para Filtros ---
 
     // Función para mostrar mensajes flash (simulada, ya que el header maneja los reales)
     function showFlashMessage(message, category) {
