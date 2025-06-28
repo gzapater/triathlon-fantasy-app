@@ -2551,8 +2551,9 @@ def tripredict_promo_page():
 
 @app.route('/TriCal')
 def trical_events_page():
-    """Serves the TriCal events calendar page."""
-    return render_template('TriCal.html')
+    # Obtienes TODOS los eventos de la base de datos
+    events_list = Event.query.order_by(Event.event_date.asc()).all()
+    return render_template('TriCal.html', events=events_list)
 
 @app.route('/Faq')
 def faq_page():

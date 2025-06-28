@@ -32,7 +32,8 @@
     </style>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4759573852902159"
      crossorigin="anonymous"></script>
-    <script type="application/ld+json">
+{% if events %}
+<script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "ItemList",
@@ -59,12 +60,14 @@
           }
         },
         "url": "{{ url_for('event_detail_page', event_id=event.id, event_name_slug=event.name|lower|replace(' ', '-'), _external=True) }}"
+        "url": "{{ url_for('event_detail_page', event_id=event.id, event_name_slug=event.name | slugify, _external=True) }}"
       }
     }{{ ',' if not loop.last }}
     {% endfor %}
   ]
 }
 </script>
+{% endif %}
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800"> <!-- Changed bg-white to bg-gray-50 -->
 
