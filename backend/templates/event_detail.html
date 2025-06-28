@@ -38,7 +38,7 @@
       "addressCountry": "ES"
     }
   },
-  "url": "{{ url_for('event_detail_page', event_id=event.id, _external=True) }}",
+  "url": "{{ url_for('event_detail_page', event_id=event.id, event_name_slug=event.name|lower|replace(' ', '-'), _external=True) }}",
   "organizer": {
     "@type": "Organization",
     "name": "TriCal",
