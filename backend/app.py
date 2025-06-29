@@ -4142,11 +4142,73 @@ def serve_events_management_page():
         race_to_join_title=None # Añadido para el modal join by link
     )
 
-# @app.route('/api/events', methods=['POST']) # API para crear evento - Eliminada
-# @login_required
-# def create_event():
-#     # Funcionalidad eliminada
-#     return jsonify(message="Funcionalidad de creación de eventos no disponible."), 405
+@app.route('/api/events', methods=['POST'])
+@login_required
+def create_event_api():
+    if current_user.role.code != 'ADMIN':
+        return jsonify(message="Forbidden: Solo los administradores pueden crear eventos."), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Campos requeridos
+    name = data.get('name')
+    event_date_str = data.get('event_date')
+
+    if not name or not name.strip():
+        return jsonify(message="El nombre del evento es obligatorio."), 400
+    if not event_date_str:
+        return jsonify(message="La fecha del evento es obligatoria."), 400
+
+    try:
+        event_date_obj = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify(message="Formato de fecha inválido. Use YYYY-MM-DD."), 400
+
+    # Campos opcionales
+    city = data.get('city')
+    province = data.get('province')
+    discipline = data.get('discipline')
+    distance = data.get('distance')
+    source_url = data.get('source_url')
+
+    # Campos booleanos de curación (default a False si no vienen)
+    is_good_for_debutants = data.get('is_good_for_debutants', False)
+    is_challenging = data.get('is_challenging', False)
+    has_great_views = data.get('has_great_views', False)
+    has_good_atmosphere = data.get('has_good_atmosphere', False)
+    is_world_qualifier = data.get('is_world_qualifier', False)
+
+    new_event = Event(
+        name=name,
+        event_date=event_date_obj,
+        city=city if city and city.strip() else None,
+        province=province if province and province.strip() else None,
+        discipline=discipline if discipline and discipline.strip() else None,
+        distance=distance if distance and distance.strip() else None,
+        source_url=source_url if source_url and source_url.strip() else None,
+        is_good_for_debutants=is_good_for_debutants,
+        is_challenging=is_challenging,
+        has_great_views=has_great_views,
+        has_good_atmosphere=has_good_atmosphere,
+        is_world_qualifier=is_world_qualifier
+    )
+
+    try:
+        db.session.add(new_event)
+        db.session.commit()
+        # Devolver el evento creado podría ser útil, o solo un mensaje de éxito
+        return jsonify(message="Evento creado con éxito", event_id=new_event.id), 201
+    except IntegrityError:
+        db.session.rollback()
+        # Esto podría pasar si hay una constraint unique en 'name' y 'event_date' por ejemplo.
+        return jsonify(message="Error de integridad: El evento ya podría existir o hubo un conflicto."), 409
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error creando evento vía API: {e}", exc_info=True)
+        return jsonify(message="Error interno del servidor al crear el evento."), 500
+
 
 # @app.route('/api/events/<int:event_id>', methods=['PUT']) # API para actualizar evento - Eliminada
 # @login_required
