@@ -4074,13 +4074,60 @@ def save_official_answers(race_id):
         return jsonify(message="An error occurred while saving official answers."), 500
 
 @app.route('/api/events', methods=['GET'])
+@login_required # Require login for this endpoint
 def get_events():
     """
-    Provides a list of all available events (from TriCal definitions).
-    Does not require authentication.
+    Provides a list of all available events, with optional filtering.
+    Requires admin authentication.
     """
+    if current_user.role.code != 'ADMIN':
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+
     try:
-        events = Event.query.order_by(Event.event_date.desc()).all()
+        query = Event.query
+
+        # Filtering logic
+        search_term = request.args.get('search')
+        distances = request.args.getlist('distance') # Expects list for multiple choices
+        disciplines = request.args.getlist('discipline')
+        months = request.args.getlist('month') # Expects list of month numbers as strings
+        cities = request.args.getlist('city')
+        sort_by_date = request.args.get('sort_by_date', 'desc') # 'asc' or 'desc'
+
+        if search_term:
+            search_filter = f"%{search_term}%"
+            query = query.filter(
+                db.or_(
+                    Event.name.ilike(search_filter),
+                    Event.city.ilike(search_filter),
+                    Event.province.ilike(search_filter),
+                    Event.discipline.ilike(search_filter),
+                    Event.distance.ilike(search_filter)
+                )
+            )
+
+        if distances:
+            query = query.filter(Event.distance.in_(distances))
+        if disciplines:
+            query = query.filter(Event.discipline.in_(disciplines))
+        if cities:
+            query = query.filter(Event.city.in_(cities))
+
+        if months:
+            # Convert month strings to integers for filtering
+            month_ints = [int(m) for m in months if m.isdigit()]
+            if month_ints:
+                # This creates an OR condition for each selected month
+                month_filters = [func.extract('month', Event.event_date) == m for m in month_ints]
+                query = query.filter(db.or_(*month_filters))
+
+        # Sorting
+        if sort_by_date == 'asc':
+            query = query.order_by(Event.event_date.asc())
+        else: # Default to descending
+            query = query.order_by(Event.event_date.desc())
+
+        events = query.all()
 
         output = []
         for event in events:
@@ -4102,6 +4149,9 @@ def get_events():
                 "updated_at": event.updated_at.isoformat() if event.updated_at else None
             })
         return jsonify(output), 200
+    except ValueError as ve: # Catch specific error for month conversion
+        app.logger.error(f"ValueError in get_events: {ve}", exc_info=True)
+        return jsonify(message=f"Invalid month value provided: {ve}"), 400
     except Exception as e:
         app.logger.error(f"Error fetching events: {e}", exc_info=True)
         return jsonify(message="Error fetching events"), 500
@@ -4141,6 +4191,39 @@ def serve_events_management_page():
         auto_join_race_id=None, # Añadido para el modal join by link
         race_to_join_title=None # Añadido para el modal join by link
     )
+
+@app.route('/api/events_filters', methods=['GET'])
+@login_required # Opcional, dependiendo de si quieres que solo admins vean detalles por API
+def get_event_filters():
+    if current_user.role.code != 'ADMIN': # O ajusta el permiso como necesites
+        return jsonify(message="Forbidden: Insufficient permissions"), 403
+    try:
+        distinct_distances = [item[0] for item in db.session.query(Event.distance).distinct().all() if item[0]]
+        distinct_disciplines = [item[0] for item in db.session.query(Event.discipline).distinct().all() if item[0]]
+        distinct_cities = [item[0] for item in db.session.query(Event.city).distinct().all() if item[0]]
+        # Para meses, podrías querer una lista fija o derivarla de los datos
+        # Aquí un ejemplo derivado, pero considera si una lista fija es mejor
+        # distinct_months = sorted(list(set(item[0].month for item in db.session.query(Event.event_date).distinct().all() if item[0])))
+
+        # Lista fija de meses para el filtro
+        fixed_months = [
+            {"value": 1, "name": "Enero"}, {"value": 2, "name": "Febrero"},
+            {"value": 3, "name": "Marzo"}, {"value": 4, "name": "Abril"},
+            {"value": 5, "name": "Mayo"}, {"value": 6, "name": "Junio"},
+            {"value": 7, "name": "Julio"}, {"value": 8, "name": "Agosto"},
+            {"value": 9, "name": "Septiembre"}, {"value": 10, "name": "Octubre"},
+            {"value": 11, "name": "Noviembre"}, {"value": 12, "name": "Diciembre"}
+        ]
+
+        return jsonify({
+            "distances": distinct_distances,
+            "disciplines": distinct_disciplines,
+            "cities": distinct_cities,
+            "months": fixed_months # Usar la lista fija de meses
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching event filters: {e}", exc_info=True)
+        return jsonify(message="Error fetching event filters"), 500
 
 @app.route('/api/events', methods=['POST']) # API para crear evento
 @login_required
