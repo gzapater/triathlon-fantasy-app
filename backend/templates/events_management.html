@@ -19,113 +19,11 @@
 
         <h1 class="text-3xl font-bold text-gray-800">Administrar Eventos de TriCal</h1>
 
-        <button id="open-event-modal-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
-
-            Crear Nuevo Evento
-
-        </button>
+        <!-- Botón de Crear Nuevo Evento eliminado -->
 
     </div>
 
-    <!-- Modal para Añadir/Editar Evento -->
-    <div id="event-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-        <div class="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-            <div class="flex justify-between items-center pb-3">
-                <h2 class="text-2xl font-semibold text-gray-700" id="modal-title">Añadir Nuevo Evento</h2>
-                <button id="close-event-modal-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                </button>
-            </div>
-            <form id="event-form">
-                <input type="hidden" id="event_id" name="event_id">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento:</label>
-                        <input type="text" id="name" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                    <div>
-                        <label for="event_date" class="block text-sm font-medium text-gray-700 mb-1">Fecha del Evento:</label>
-                        <input type="date" id="event_date" name="event_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                    <div>
-                        <label for="city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad:</label>
-                        <input type="text" id="city" name="city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                    <div>
-                        <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
-                        <input type="text" id="province" name="province" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                    <div>
-                        <label for="discipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
-                        <input type="text" id="discipline" name="discipline" placeholder="Ej: Triatlón, Duatlón, Acuatlón" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                    <div>
-                        <label for="distance" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
-                        <input type="text" id="distance" name="distance" placeholder="Ej: Olímpica, Sprint, Media Distancia" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="source_url" class="block text-sm font-medium text-gray-700 mb-1">URL Fuente (Organizador):</label>
-                        <input type="url" id="source_url" name="source_url" placeholder="https://www.example.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    </div>
-                </div>
-
-                <fieldset class="mb-4">
-                    <legend class="text-lg font-medium text-gray-900 mb-2">Puntuación TriCal (Opcional):</legend>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="is_good_for_debutants" name="is_good_for_debutants" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="is_good_for_debutants" class="font-medium text-gray-700">Ideal para Debutantes</label>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="is_challenging" name="is_challenging" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="is_challenging" class="font-medium text-gray-700">Desafiante</label>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="has_great_views" name="has_great_views" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="has_great_views" class="font-medium text-gray-700">Vistas Espectaculares</label>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="has_good_atmosphere" name="has_good_atmosphere" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="has_good_atmosphere" class="font-medium text-gray-700">Buen Ambiente</label>
-                            </div>
-                        </div>
-                        <div class="flex items-start">
-                            <div class="flex items-center h-5">
-                                <input id="is_world_qualifier" name="is_world_qualifier" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                            </div>
-                            <div class="ml-3 text-sm">
-                                <label for="is_world_qualifier" class="font-medium text-gray-700">Clasificatorio Mundial</label>
-                            </div>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <div class="flex justify-end space-x-3 pt-4 border-t">
-                    <button type="button" id="cancel-event-modal-btn" class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">Cancelar</button>
-                        <button id="open-event-modal-btn" 
-        class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded..." 
-        style="background-color: orange;" 
-        type="button">
-Guardar evento    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <!-- Modal para Añadir/Editar Evento eliminado -->
 
     <!-- Filters Section (adaptada de TriCal.html) -->
     <section class="bg-white shadow-md rounded-lg p-6 mt-8 mb-8 no-print">
@@ -233,16 +131,16 @@ Guardar evento    </button>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const eventModal = document.getElementById('event-modal');
-    const openEventModalBtn = document.getElementById('open-event-modal-btn');
-    const closeEventModalBtn = document.getElementById('close-event-modal-btn');
-    const cancelEventModalBtn = document.getElementById('cancel-event-modal-btn');
+    // const eventModal = document.getElementById('event-modal'); // Eliminado
+    // const openEventModalBtn = document.getElementById('open-event-modal-btn'); // Eliminado
+    // const closeEventModalBtn = document.getElementById('close-event-modal-btn'); // Eliminado
+    // const cancelEventModalBtn = document.getElementById('cancel-event-modal-btn'); // Eliminado
 
-    const eventForm = document.getElementById('event-form');
+    // const eventForm = document.getElementById('event-form'); // Eliminado
     const eventsTableBody = document.getElementById('events-table-body');
-    const modalTitle = document.getElementById('modal-title');
-    const eventIdInput = document.getElementById('event_id');
-    const submitBtn = document.getElementById('submit-btn');
+    // const modalTitle = document.getElementById('modal-title'); // Eliminado
+    // const eventIdInput = document.getElementById('event_id'); // Eliminado
+    // const submitBtn = document.getElementById('submit-btn'); // Eliminado
 
     const apiBaseUrl = '/api/events';
 
@@ -285,42 +183,7 @@ document.addEventListener('DOMContentLoaded', function() {
         is_world_qualifier: { text: "World Qualifier", color: "bg-yellow-100 text-yellow-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-yellow-500 text-gray-900", icon: "fas fa-trophy" }
     };
 
-    // --- Modal Handling ---
-    function openModal() {
-        eventModal.classList.remove('hidden');
-        // Opcional: enfocar el primer campo del formulario
-        eventForm.elements['name'].focus();
-    }
-
-    function closeModal() {
-        eventModal.classList.add('hidden');
-        resetForm(); // Asegurarse de que el formulario se resetea al cerrar el modal
-    }
-
-    openEventModalBtn.addEventListener('click', function() {
-        resetForm(); // Asegura que el form esté limpio para "Crear"
-        modalTitle.textContent = 'Añadir Nuevo Evento';
-        submitBtn.textContent = 'Guardar Evento';
-        openModal();
-    });
-
-    closeEventModalBtn.addEventListener('click', closeModal);
-    cancelEventModalBtn.addEventListener('click', closeModal);
-
-    // Cerrar modal si se hace clic fuera de él (en el overlay)
-    eventModal.addEventListener('click', function(e) {
-        if (e.target === eventModal) {
-            closeModal();
-        }
-    });
-
-    // Cerrar modal con la tecla Escape
-    document.addEventListener('keydown', function(e) {
-        if (e.key === "Escape" && !eventModal.classList.contains('hidden')) {
-            closeModal();
-        }
-    });
-    // --- End Modal Handling ---
+    // --- Modal Handling (eliminado) ---
 
     // --- Funciones de Filtros (adaptadas de TriCal.html) ---
     function populateTagFilterButtons() {
@@ -556,53 +419,53 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar eventos al iniciar
     loadEvents();
 
-    eventForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const formData = new FormData(eventForm);
-        const data = Object.fromEntries(formData.entries());
+    // eventForm.addEventListener('submit', async function(e) { // Eliminado
+    //     e.preventDefault();
+    //     const formData = new FormData(eventForm);
+    //     const data = Object.fromEntries(formData.entries());
 
-        // Convertir checkboxes a booleanos
-        data.is_good_for_debutants = formData.has('is_good_for_debutants');
-        data.is_challenging = formData.has('is_challenging');
-        data.has_great_views = formData.has('has_great_views');
-        data.has_good_atmosphere = formData.has('has_good_atmosphere');
-        data.is_world_qualifier = formData.has('is_world_qualifier');
+    //     // Convertir checkboxes a booleanos
+    //     data.is_good_for_debutants = formData.has('is_good_for_debutants');
+    //     data.is_challenging = formData.has('is_challenging');
+    //     data.has_great_views = formData.has('has_great_views');
+    //     data.has_good_atmosphere = formData.has('has_good_atmosphere');
+    //     data.is_world_qualifier = formData.has('is_world_qualifier');
 
-        const eventId = data.event_id;
-        let url = apiBaseUrl;
-        let method = 'POST';
+    //     const eventId = data.event_id;
+    //     let url = apiBaseUrl;
+    //     let method = 'POST';
 
-        if (eventId) {
-            url = `${apiBaseUrl}/${eventId}`;
-            method = 'PUT';
-        }
+    //     if (eventId) {
+    //         url = `${apiBaseUrl}/${eventId}`;
+    //         method = 'PUT';
+    //     }
 
-        try {
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    // Añadir CSRF token si es necesario
-                },
-                body: JSON.stringify(data)
-            });
+    //     try {
+    //         const response = await fetch(url, {
+    //             method: method,
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //                 // Añadir CSRF token si es necesario
+    //             },
+    //             body: JSON.stringify(data)
+    //         });
 
-            if (response.ok) {
-                const result = await response.json();
-                showFlashMessage(result.message || (eventId ? 'Evento actualizado con éxito' : 'Evento creado con éxito'), 'success');
-                resetForm();
-                loadEvents();
-            } else {
-                const errorResult = await response.json();
-                showFlashMessage(errorResult.message || 'Error al guardar el evento', 'error');
-            }
-        } catch (error) {
-            console.error('Error en la petición:', error);
-            showFlashMessage('Error de conexión al guardar el evento.', 'error');
-        }
-    });
+    //         if (response.ok) {
+    //             const result = await response.json();
+    //             showFlashMessage(result.message || (eventId ? 'Evento actualizado con éxito' : 'Evento creado con éxito'), 'success');
+    //             resetForm();
+    //             loadEvents();
+    //         } else {
+    //             const errorResult = await response.json();
+    //             showFlashMessage(errorResult.message || 'Error al guardar el evento', 'error');
+    //         }
+    //     } catch (error) {
+    //         console.error('Error en la petición:', error);
+    //         showFlashMessage('Error de conexión al guardar el evento.', 'error');
+    //     }
+    // });
 
-    // cancelEditBtn.addEventListener('click', function() { // Eliminado ya que el botón "Cancelar" del modal ahora simplemente cierra el modal.
+    // cancelEditBtn.addEventListener('click', function() { // Eliminado
     //     resetForm();
     // });
 
@@ -661,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.discipline || 'N/A'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.distance || 'N/A'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button onclick="editEvent(${event.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
+                    <!-- <button onclick="editEvent(${event.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button> -->
                     <button onclick="deleteEventConfirmation(${event.id})" class="text-red-600 hover:text-red-900">Eliminar</button>
                 </td>
             `;
@@ -710,13 +573,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // La función editEvent ya no es necesaria aquí ya que el modal fue eliminado.
+    // Si se necesita editar, se debería implementar una página separada o un mecanismo diferente.
+    // Por ahora, el botón "Editar" en la tabla simplemente no hará nada o podría eliminarse también.
+    // Vamos a comentar la función window.editEvent y la referencia a ella en la tabla.
+
+    // window.editEvent = function(id) { ... } // Comentado o eliminado
+
     async function deleteEvent(id) {
         try {
             const response = await fetch(`${apiBaseUrl}/${id}`, { method: 'DELETE' });
             if (response.ok) {
                 const result = await response.json();
                 showFlashMessage(result.message || 'Evento eliminado con éxito', 'success');
-                loadEvents();
+                loadEvents(); // Recargar eventos para reflejar la eliminación
             } else {
                 const errorResult = await response.json();
                 showFlashMessage(errorResult.message || 'Error al eliminar el evento', 'error');
@@ -727,10 +597,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function resetForm() {
-        eventForm.reset();
-        eventIdInput.value = '';
-    }
+    // function resetForm() { // Eliminado, ya no hay formulario principal de creación/edición
+    //     // eventForm.reset();
+    //     // eventIdInput.value = '';
+    // }
 
     // --- Event Listeners para Filtros (adaptado de TriCal.html) ---
     if (searchInput) searchInput.addEventListener('input', filterAndSortEvents);

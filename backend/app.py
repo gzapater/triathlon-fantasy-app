@@ -4142,57 +4142,20 @@ def serve_events_management_page():
         race_to_join_title=None # Añadido para el modal join by link
     )
 
-@app.route('/api/events', methods=['POST']) # API para crear evento
-@login_required
-def create_event():
-    if current_user.role.code != 'ADMIN':
-        return jsonify(message="Forbidden: Insufficient permissions"), 403
+# @app.route('/api/events', methods=['POST']) # API para crear evento - Eliminada
+# @login_required
+# def create_event():
+#     # Funcionalidad eliminada
+#     return jsonify(message="Funcionalidad de creación de eventos no disponible."), 405
 
-    data = request.get_json()
-    if not data:
-        return jsonify(message="Invalid input: No data provided"), 400
+# @app.route('/api/events/<int:event_id>', methods=['PUT']) # API para actualizar evento - Eliminada
+# @login_required
+# def update_event(event_id):
+#     # Funcionalidad eliminada
+#     return jsonify(message="Funcionalidad de actualización de eventos no disponible."), 405
 
-    required_fields = ['name', 'event_date']
-    missing_fields = [field for field in required_fields if not data.get(field)]
-    if missing_fields:
-        return jsonify(message=f"Missing required fields: {', '.join(missing_fields)}"), 400
-
-    try:
-        event_date = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
-    except ValueError:
-        return jsonify(message="Invalid event_date format. Required format: YYYY-MM-DD."), 400
-
-    new_event = Event(
-        name=data['name'],
-        event_date=event_date,
-        city=data.get('city'),
-        province=data.get('province'),
-        discipline=data.get('discipline'),
-        distance=data.get('distance'),
-        source_url=data.get('source_url'),
-        is_good_for_debutants=data.get('is_good_for_debutants', False),
-        is_challenging=data.get('is_challenging', False),
-        has_great_views=data.get('has_great_views', False),
-        has_good_atmosphere=data.get('has_good_atmosphere', False),
-        is_world_qualifier=data.get('is_world_qualifier', False)
-    )
-
-    try:
-        db.session.add(new_event)
-        db.session.commit()
-        # Convert event to dict for response
-        event_dict = {f.name: getattr(new_event, f.name) for f in new_event.__table__.columns}
-        event_dict['event_date'] = new_event.event_date.isoformat() # Ensure date is ISO format
-        return jsonify(message="Evento creado con éxito", event=event_dict), 201
-    except IntegrityError as e:
-        db.session.rollback()
-        app.logger.error(f"IntegrityError creando evento: {e}", exc_info=True)
-        return jsonify(message="Error de integridad de base de datos al crear evento."), 500
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Excepción creando evento: {e}", exc_info=True)
-        return jsonify(message="Error al crear el evento"), 500
-
+# La ruta GET /api/events/<int:event_id> para obtener detalles de un evento específico se mantiene si es necesaria para otros propósitos.
+# Si solo se usaba para el modal de edición, también podría eliminarse. Por ahora se conserva.
 @app.route('/api/events/<int:event_id>', methods=['GET']) # API para obtener un evento específico
 @login_required # Opcional, dependiendo si quieres que solo admins vean detalles por API
 def get_event_detail_api(event_id):
@@ -4209,50 +4172,7 @@ def get_event_detail_api(event_id):
 
     return jsonify(event_dict), 200
 
-
-@app.route('/api/events/<int:event_id>', methods=['PUT']) # API para actualizar evento
-@login_required
-def update_event(event_id):
-    if current_user.role.code != 'ADMIN':
-        return jsonify(message="Forbidden: Insufficient permissions"), 403
-
-    event = Event.query.get(event_id)
-    if not event:
-        return jsonify(message="Evento no encontrado"), 404
-
-    data = request.get_json()
-    if not data:
-        return jsonify(message="Invalid input: No data provided"), 400
-
-    try:
-        if 'name' in data: event.name = data['name']
-        if 'event_date' in data:
-            event.event_date = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
-        if 'city' in data: event.city = data.get('city')
-        if 'province' in data: event.province = data.get('province')
-        if 'discipline' in data: event.discipline = data.get('discipline')
-        if 'distance' in data: event.distance = data.get('distance')
-        if 'source_url' in data: event.source_url = data.get('source_url')
-
-        if 'is_good_for_debutants' in data: event.is_good_for_debutants = data.get('is_good_for_debutants', False)
-        if 'is_challenging' in data: event.is_challenging = data.get('is_challenging', False)
-        if 'has_great_views' in data: event.has_great_views = data.get('has_great_views', False)
-        if 'has_good_atmosphere' in data: event.has_good_atmosphere = data.get('has_good_atmosphere', False)
-        if 'is_world_qualifier' in data: event.is_world_qualifier = data.get('is_world_qualifier', False)
-
-        event.updated_at = datetime.utcnow()
-        db.session.commit()
-        event_dict = {f.name: getattr(event, f.name) for f in event.__table__.columns}
-        event_dict['event_date'] = event.event_date.isoformat()
-        return jsonify(message="Evento actualizado con éxito", event=event_dict), 200
-    except ValueError:
-        db.session.rollback()
-        return jsonify(message="Invalid event_date format. Required format: YYYY-MM-DD."), 400
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Excepción actualizando evento {event_id}: {e}", exc_info=True)
-        return jsonify(message="Error al actualizar el evento"), 500
-
+# La ruta DELETE /api/events/<int:event_id> se mantiene para permitir la eliminación de eventos si es necesario.
 @app.route('/api/events/<int:event_id>', methods=['DELETE']) # API para eliminar evento
 @login_required
 def delete_event_api(event_id): # Renombrado para evitar conflicto con delete_event
