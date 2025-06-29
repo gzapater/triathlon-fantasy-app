@@ -703,7 +703,8 @@
             // For now, assuming header JS is self-contained within _header.html.
         });
     </script>
-    <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script>
+    {# <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script> #}
+    {# Se comenta la carga global de admin_official_answers.js. Este script debe cargarse específicamente en las plantillas que lo requieran. #}
 
     <script>
     // --- Join Race By Code Modal Logic (copied to admin_dashboard.html) ---
