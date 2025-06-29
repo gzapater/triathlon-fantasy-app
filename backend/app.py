@@ -4092,8 +4092,14 @@ def get_events():
                 "province": event.province,
                 "discipline": event.discipline,
                 "distance": event.distance,
-                "source_url": event.source_url
-                # Add other fields from Event model if needed in the future
+                "source_url": event.source_url,
+                "is_good_for_debutants": event.is_good_for_debutants,
+                "is_challenging": event.is_challenging,
+                "has_great_views": event.has_great_views,
+                "has_good_atmosphere": event.has_good_atmosphere,
+                "is_world_qualifier": event.is_world_qualifier,
+                "created_at": event.created_at.isoformat() if event.created_at else None,
+                "updated_at": event.updated_at.isoformat() if event.updated_at else None
             })
         return jsonify(output), 200
     except Exception as e:

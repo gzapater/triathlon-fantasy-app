@@ -94,6 +94,7 @@
         }
 
         @media (min-width: 1024px) { /* Or another breakpoint like 1280px if it suits the design better */
+            {% if not self.full_width_page() %}
             #dashboard-content-wrapper {
                 max-width: 1280px; /* Max width for the content area */
                 margin-left: auto;
@@ -105,6 +106,7 @@
                    For now, constraining the width and centering is the primary goal.
                    The existing `px-6 pt-6` on the inner div will handle padding. */
             }
+            {% endif %}
         }
 
         @media (max-width: 768px) {
@@ -149,6 +151,7 @@
 
             <div id="dashboard-content-wrapper">
                 {% block main_dashboard_content %}
+                {% block full_width_page %}{% endblock %} {# This block determines if the content wrapper is full-width #}
                 <div class="px-6 pt-6"> <!-- MODIFIED: Wrapper for content below hero -->
                     <div class="mb-6 text-right"> <!-- Wrapper for alignment and margin -->
                         <a href="{{ url_for('serve_create_race_page') }}" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow">

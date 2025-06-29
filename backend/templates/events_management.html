@@ -1,5 +1,7 @@
 {% extends "admin_dashboard.html" %}
 
+{% block full_width_page %}1{% endblock %} {# This signals admin_dashboard to not restrict width #}
+
 {% block title %}Gestión de Eventos - TriPredict{% endblock %}
 
 {% block header_title %}Gestión de Eventos TriCal{% endblock %}
@@ -12,16 +14,12 @@
 {% block join_by_code_button %}{% endblock %} {# Esto oculta el botón de unirse por código #}
 
 {% block main_dashboard_content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Administrar Eventos de TriCal</h1>
-
-    <!-- Botón para abrir el modal de creación de evento -->
-    <div class="mb-6 text-right">
-        <button id="open-event-modal-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded shadow-lg hover:shadow-xl transition duration-150 ease-in-out">
+<div class="w-full px-4 py-8"> <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Administrar Eventos de TriCal</h1>
+        <button id="open-event-modal-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
             <i class="fas fa-plus mr-2"></i> Crear Nuevo Evento
         </button>
     </div>
-
     <!-- Modal para Añadir/Editar Evento -->
     <div id="event-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
@@ -226,59 +224,56 @@
     <!-- Filters Section (adaptada de TriCal.html) -->
     <section class="bg-white shadow-md rounded-lg p-6 mt-8 mb-8 no-print">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Filtrar Eventos</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div class="flex flex-wrap gap-4 items-center"> <!-- Changed items-end to items-center for better vertical alignment -->
             <!-- Search -->
-            <div class="lg:col-span-1 xl:col-span-2">
+            <div class="flex-grow min-w-[200px] lg:min-w-[250px]">
                 <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">Búsqueda:</label>
                 <input type="text" id="searchInput" placeholder="Nombre, ciudad, provincia..."
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 h-10"> <!-- Added h-10 for consistent height -->
             </div>
 
-            <!-- Discipline Filter -->
-            <div>
-                <label for="disciplineFilter" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
-                <select id="disciplineFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todas</option>
-                    <!-- Options will be populated by JS -->
-                </select>
+            <!-- Discipline Filter - Custom Dropdown -->
+            <div class="flex-grow min-w-[170px] relative">
+                <label for="disciplineFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
+                <button id="disciplineFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
+                    <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                </button>
+                <div id="disciplineFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <!-- Checkbox items will be populated by JS -->
+                </div>
             </div>
 
-            <!-- Distance Filter -->
-            <div>
-                <label for="distanceFilter" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
-                <select id="distanceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todas</option>
-                    <!-- Options will be populated by JS -->
-                </select>
+            <!-- Distance Filter - Custom Dropdown -->
+            <div class="flex-grow min-w-[170px] relative">
+                <label for="distanceFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
+                <button id="distanceFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
+                    <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                </button>
+                <div id="distanceFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <!-- Checkbox items will be populated by JS -->
+                </div>
             </div>
 
-            <!-- Province Filter -->
-            <div>
-                <label for="provinceFilter" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
-                <select id="provinceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todas</option>
-                    <!-- Options will be populated by JS -->
-                </select>
+            <!-- Province Filter - Custom Dropdown -->
+            <div class="flex-grow min-w-[170px] relative">
+                <label for="provinceFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
+                <button id="provinceFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
+                    <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                </button>
+                <div id="provinceFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <!-- Checkbox items will be populated by JS -->
+                </div>
             </div>
 
-            <!-- Month Filter -->
-            <div>
-                <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-1">Mes:</label>
-                <select id="monthFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todos</option>
-                    <option value="1">Enero</option>
-                    <option value="2">Febrero</option>
-                    <option value="3">Marzo</option>
-                    <option value="4">Abril</option>
-                    <option value="5">Mayo</option>
-                    <option value="6">Junio</option>
-                    <option value="7">Julio</option>
-                    <option value="8">Agosto</option>
-                    <option value="9">Septiembre</option>
-                    <option value="10">Octubre</option>
-                    <option value="11">Noviembre</option>
-                    <option value="12">Diciembre</option>
-                </select>
+            <!-- Month Filter - Custom Dropdown -->
+            <div class="flex-grow min-w-[170px] relative">
+                <label for="monthFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Mes:</label>
+                <button id="monthFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
+                    <span class="truncate">Todos</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                </button>
+                <div id="monthFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                    <!-- Checkbox items for months will be populated by JS (or could be static if preferred) -->
+                </div>
             </div>
         </div>
 
@@ -359,10 +354,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSortAscending = true;
 
     const searchInput = document.getElementById('searchInput');
-    const disciplineFilter = document.getElementById('disciplineFilter');
-    const distanceFilter = document.getElementById('distanceFilter');
-    const provinceFilter = document.getElementById('provinceFilter');
-    const monthFilter = document.getElementById('monthFilter');
+    // Custom dropdown elements
+    const filterButtonIds = ['disciplineFilterBtn', 'distanceFilterBtn', 'provinceFilterBtn', 'monthFilterBtn'];
+    const filterDropdownIds = ['disciplineFilterDropdown', 'distanceFilterDropdown', 'provinceFilterDropdown', 'monthFilterDropdown'];
+    const filterDataKeys = ['discipline', 'distance', 'province', 'month']; // To map buttons/dropdowns to event data keys
+
+    // Store references to buttons and dropdowns
+    const filterButtons = {};
+    const filterDropdowns = {};
+    filterButtonIds.forEach((btnId, index) => {
+        filterButtons[filterDataKeys[index]] = document.getElementById(btnId);
+        filterDropdowns[filterDataKeys[index]] = document.getElementById(filterDropdownIds[index]);
+    });
+
+    // Original select elements (will be removed or repurposed by JS logic if they were for data storage; now data is in JS)
+    // const disciplineFilter = document.getElementById('disciplineFilter'); // No longer a select
+    // const distanceFilter = document.getElementById('distanceFilter');   // No longer a select
+    // const provinceFilter = document.getElementById('provinceFilter');   // No longer a select
+    // const monthFilter = document.getElementById('monthFilter');       // No longer a select
+
     const tagFiltersContainer = document.getElementById('tagFiltersContainer');
     const clearFiltersBtn = document.getElementById('clearFilters');
     const sortDateBtn = document.getElementById('sortDate');
@@ -458,37 +468,98 @@ document.addEventListener('DOMContentLoaded', function() {
             if (event.province) provinces.add(event.province);
         });
 
-        disciplineFilter.innerHTML = '<option value="">Todas</option>';
-        distanceFilter.innerHTML = '<option value="">Todas</option>';
-        provinceFilter.innerHTML = '<option value="">Todas</option>';
+        // --- Helper function to create checkbox items for custom dropdowns ---
+        function createCheckboxItem(filterKey, value, text) {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'px-3 py-2 hover:bg-gray-100 cursor-pointer';
 
-        Array.from(disciplines).sort().forEach(d => {
-            const option = document.createElement('option');
-            option.value = d;
-            option.textContent = d;
-            disciplineFilter.appendChild(option);
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `filter-${filterKey}-${value}`;
+            checkbox.name = filterKey;
+            checkbox.value = value;
+            checkbox.className = 'form-checkbox h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 mr-2';
+            checkbox.addEventListener('change', () => {
+                updateFilterButtonText(filterKey);
+                filterAndSortEvents();
+            });
+
+            const label = document.createElement('label');
+            label.htmlFor = checkbox.id;
+            label.textContent = text;
+            label.className = 'text-sm text-gray-700 select-none';
+
+            itemDiv.appendChild(checkbox);
+            itemDiv.appendChild(label);
+            // Allow clicking the div to toggle checkbox
+            itemDiv.addEventListener('click', (e) => {
+                if (e.target !== checkbox) checkbox.click();
+            });
+            return itemDiv;
+        }
+
+        // --- Helper function to update filter button text ---
+        function updateFilterButtonText(filterKey) {
+            const dropdown = filterDropdowns[filterKey];
+            const button = filterButtons[filterKey];
+            if (!dropdown || !button) return;
+
+            const selectedCheckboxes = Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked'));
+            const buttonTextSpan = button.querySelector('span');
+
+            if (selectedCheckboxes.length === 0) {
+                buttonTextSpan.textContent = 'Todas'; // Or 'Todos' for month
+            } else if (selectedCheckboxes.length === 1) {
+                buttonTextSpan.textContent = selectedCheckboxes[0].parentElement.querySelector('label').textContent;
+            } else {
+                let baseName = '';
+                if (filterKey === 'discipline') baseName = 'Disciplinas';
+                else if (filterKey === 'distance') baseName = 'Distancias';
+                else if (filterKey === 'province') baseName = 'Provincias';
+                else if (filterKey === 'month') baseName = 'Meses';
+                buttonTextSpan.textContent = `${baseName} (${selectedCheckboxes.length})`;
+            }
+        }
+
+
+        // Populate dynamic filters (Discipline, Distance, Province)
+        ['discipline', 'distance', 'province'].forEach(key => {
+            const dropdownElement = filterDropdowns[key];
+            if (!dropdownElement) return;
+            dropdownElement.innerHTML = ''; // Clear previous options
+
+            let currentSet;
+            if (key === 'discipline') currentSet = disciplines;
+            else if (key === 'distance') currentSet = distances;
+            else if (key === 'province') currentSet = provinces;
+
+            Array.from(currentSet).sort().forEach(value => {
+                dropdownElement.appendChild(createCheckboxItem(key, value, value));
+            });
+            updateFilterButtonText(key); // Initial button text
         });
-        Array.from(distances).sort().forEach(d => {
-            const option = document.createElement('option');
-            option.value = d;
-            option.textContent = d;
-            distanceFilter.appendChild(option);
-        });
-        Array.from(provinces).sort().forEach(p => {
-            const option = document.createElement('option');
-            option.value = p;
-            option.textContent = p;
-            provinceFilter.appendChild(option);
-        });
+
+        // Populate Month Filter (static options)
+        const monthDropdown = filterDropdowns['month'];
+        if (monthDropdown) {
+            monthDropdown.innerHTML = ''; // Clear previous
+            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            monthNames.forEach((name, index) => {
+                monthDropdown.appendChild(createCheckboxItem('month', (index + 1).toString(), name));
+            });
+            updateFilterButtonText('month'); // Initial button text
+        }
     }
 
     function filterAndSortEvents() {
         let filteredEvents = [...allEvents];
         const searchTerm = searchInput.value.toLowerCase().trim();
-        const selectedDiscipline = disciplineFilter.value;
-        const selectedDistance = distanceFilter.value;
-        const selectedProvince = provinceFilter.value;
-        const selectedMonth = monthFilter.value;
+
+        // Get selected values from custom checkbox dropdowns
+        const selectedDisciplines = Array.from(filterDropdowns['discipline'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        const selectedDistances = Array.from(filterDropdowns['distance'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        const selectedProvinces = Array.from(filterDropdowns['province'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        const selectedMonths = Array.from(filterDropdowns['month'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
 
         const activeTagFilters = {};
         if (tagFiltersContainer) {
@@ -508,21 +579,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 (event.distance && event.distance.toLowerCase().includes(searchTerm))
             );
         }
-        if (selectedDiscipline) {
-            filteredEvents = filteredEvents.filter(event => event.discipline === selectedDiscipline);
+
+        if (selectedDisciplines.length > 0) {
+            filteredEvents = filteredEvents.filter(event => selectedDisciplines.includes(event.discipline));
         }
-        if (selectedDistance) {
-            filteredEvents = filteredEvents.filter(event => event.distance === selectedDistance);
+        if (selectedDistances.length > 0) {
+            filteredEvents = filteredEvents.filter(event => selectedDistances.includes(event.distance));
         }
-        if (selectedProvince) {
-            filteredEvents = filteredEvents.filter(event => event.province === selectedProvince);
+        if (selectedProvinces.length > 0) {
+            filteredEvents = filteredEvents.filter(event => selectedProvinces.includes(event.province));
         }
-        if (selectedMonth) {
+        if (selectedMonths.length > 0) {
             filteredEvents = filteredEvents.filter(event => {
                 if (!event.event_date) return false;
-                const event_date_obj = new Date(event.event_date + 'T00:00:00Z'); // Use Z for UTC to match toLocaleDateString later
-                const event_month = event_date_obj.getUTCMonth() + 1;
-                return event_month === parseInt(selectedMonth);
+                const event_date_obj = new Date(event.event_date + 'T00:00:00Z');
+                const event_month = (event_date_obj.getUTCMonth() + 1).toString();
+                return selectedMonths.includes(event_month);
             });
         }
 
@@ -550,6 +622,39 @@ document.addEventListener('DOMContentLoaded', function() {
         if (visibleCountDisplay) visibleCountDisplay.textContent = filteredEvents.length;
     }
     // --- End Funciones de Filtros ---
+
+    // --- Custom Dropdown Logic ---
+    let openDropdown = null; // Track the currently open dropdown
+
+    function toggleDropdown(filterKey) {
+        const dropdown = filterDropdowns[filterKey];
+        if (!dropdown) return;
+
+        if (openDropdown && openDropdown !== dropdown) {
+            openDropdown.classList.add('hidden');
+        }
+        dropdown.classList.toggle('hidden');
+        openDropdown = dropdown.classList.contains('hidden') ? null : dropdown;
+    }
+
+    filterDataKeys.forEach(key => {
+        if (filterButtons[key]) {
+            filterButtons[key].addEventListener('click', (event) => {
+                event.stopPropagation(); // Prevent click from bubbling to document
+                toggleDropdown(key);
+            });
+        }
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (event) => {
+        if (openDropdown && !openDropdown.contains(event.target) && !Array.from(Object.values(filterButtons)).some(btn => btn.contains(event.target))) {
+            openDropdown.classList.add('hidden');
+            openDropdown = null;
+        }
+    });
+    // --- End Custom Dropdown Logic ---
+
 
     // Cargar eventos al iniciar
     loadEvents();
@@ -794,10 +899,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
-            if (disciplineFilter) disciplineFilter.value = '';
-            if (distanceFilter) distanceFilter.value = '';
-            if (provinceFilter) provinceFilter.value = '';
-            if (monthFilter) monthFilter.value = '';
+
+            // For custom dropdowns, uncheck all checkboxes and update button text
+            filterDataKeys.forEach(key => {
+                const dropdown = filterDropdowns[key];
+                if (dropdown) {
+                    const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+                    checkboxes.forEach(cb => cb.checked = false);
+                    updateFilterButtonText(key); // Reset button text to 'Todas'/'Todos'
+                }
+            });
 
             currentSortAscending = true;
             if (sortDateBtn) sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)';
