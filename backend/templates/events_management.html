@@ -100,14 +100,16 @@
         <h2 class="text-2xl font-semibold text-gray-700 p-6">Eventos Existentes</h2>
         <div class="overflow-x-auto">
             <table class="w-full">
-                <thead class="bg-gray-50">
+                <thead class="bg-orange-500 text-white">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre del Evento</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Localización</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplina</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distancia</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre del Evento</th>
+                        <th id="table-header-fecha" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-orange-600 transition-colors">
+                            Fecha <span id="sort-indicator-fecha" class="ml-1"></span>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Localización</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Disciplina</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Distancia</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="events-table-body">
@@ -161,9 +163,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Variables para Filtros (adaptado de TriCal.html) ---
     let allEvents = [];
-    let currentSortAscending = true;
+    let currentSortAscending = true; // For the main sortDateBtn
+    let fechaSortAscending = true; // For the table header date sort
 
     const searchInput = document.getElementById('searchInput');
+    const tableHeaderFecha = document.getElementById('table-header-fecha');
+    const sortIndicatorFecha = document.getElementById('sort-indicator-fecha');
+
     // Custom dropdown elements
     const filterButtonIds = ['disciplineFilterBtn', 'distanceFilterBtn', 'provinceFilterBtn', 'monthFilterBtn'];
     const filterDropdownIds = ['disciplineFilterDropdown', 'distanceFilterDropdown', 'provinceFilterDropdown', 'monthFilterDropdown'];
@@ -395,8 +401,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
         renderEventsTable(filteredEvents); // Llamar a renderEventsTable en lugar de renderEvents
         if (visibleCountDisplay) visibleCountDisplay.textContent = filteredEvents.length;
+        updateFechaSortIndicator(); // Update indicator after sorting
     }
     // --- End Funciones de Filtros ---
+
+    // --- Update Sort Indicator for Fecha Header ---
+    function updateFechaSortIndicator() {
+        if (sortIndicatorFecha) {
+            if (fechaSortAscending) {
+                sortIndicatorFecha.innerHTML = '<i class="fas fa-arrow-down"></i>'; // Points down for ascending (older first)
+            } else {
+                sortIndicatorFecha.innerHTML = '<i class="fas fa-arrow-up"></i>'; // Points up for descending (newer first)
+            }
+        }
+    }
+    // --- End Update Sort Indicator ---
 
     // --- Custom Dropdown Logic ---
     let openDropdown = null; // Track the currently open dropdown
@@ -633,6 +652,20 @@ document.addEventListener('DOMContentLoaded', function() {
     if (provinceFilter) provinceFilter.addEventListener('change', filterAndSortEvents);
     if (monthFilter) monthFilter.addEventListener('change', filterAndSortEvents);
 
+    if (tableHeaderFecha) {
+        tableHeaderFecha.addEventListener('click', () => {
+            fechaSortAscending = !fechaSortAscending;
+            // The main sort button `currentSortAscending` should align with this new sort direction
+            currentSortAscending = fechaSortAscending;
+            if (sortDateBtn) { // Update the main sort button's text/icon if it exists
+                 sortDateBtn.innerHTML = currentSortAscending ?
+                    '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
+                    '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
+            }
+            filterAndSortEvents(); // This will re-sort and re-render
+        });
+    }
+
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
@@ -671,8 +704,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
             filterAndSortEvents();
         });
-        // Initial sort button text
-        sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)';
+        // Initial sort button text and table header indicator
+        if (sortDateBtn) {
+            sortDateBtn.innerHTML = currentSortAscending ?
+                '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
+                '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
+        }
+        updateFechaSortIndicator(); // Set initial indicator for table header
     }
     // --- Fin Event Listeners para Filtros ---
 
