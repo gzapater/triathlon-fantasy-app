@@ -343,7 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const openEventModalBtn = document.getElementById('open-event-modal-btn');
     const closeEventModalBtn = document.getElementById('close-event-modal-btn');
 
->>>>>>> feat/event-creation-modal
+
 
     const apiBaseUrl = '/api/events';
 
@@ -736,13 +736,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-<<<<<<< HEAD
-    // cancelEditBtn.addEventListener('click', function() { // Eliminado ya que el botón "Cancelar" del modal ahora simplemente cierra el modal.
-    //     resetForm();
-    // });
-=======
-    // cancelEditBtn click listener ya modificado arriba para incluir hideModal()
->>>>>>> feat/event-creation-modal
 
     async function loadEvents() {
         try {
@@ -833,14 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 eventForm.elements['is_world_qualifier'].checked = event.is_world_qualifier || false;
 
                 submitBtn.textContent = 'Actualizar Evento';
-<<<<<<< HEAD
-                // cancelEditBtn.classList.remove('hidden'); // El botón de cancelar del modal siempre está visible dentro del modal
-                openModal(); // Abrir el modal en lugar de hacer scroll
-=======
-                cancelEditBtn.classList.remove('hidden'); // Asegurar que el botón cancelar está visible
-                showModal(); // Mostrar el modal con el formulario poblado
-                // window.scrollTo(0, 0); // Ya no es necesario hacer scroll, el modal aparece en el centro
->>>>>>> feat/event-creation-modal
+
             })
             .catch(error => {
                 console.error('Error al cargar evento para editar:', error);
@@ -873,18 +859,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function resetForm() {
         eventForm.reset();
-<<<<<<< HEAD
-        eventIdInput.value = '';
-=======
-        eventIdInput.value = ''; // Limpiar el ID del evento
-        formTitle.textContent = 'Añadir Nuevo Evento'; // Restablecer título del formulario/modal
-        submitBtn.textContent = 'Guardar Evento'; // Restablecer texto del botón de envío
-        // cancelEditBtn.classList.add('hidden'); // Ya no es necesario ocultar/mostrar, siempre está en el modal
-                                                // y su comportamiento de cierre de modal está manejado.
-                                                // Si se decide que solo aparezca en modo edición, entonces:
-                                                // cancelEditBtn.classList.add('hidden');
-                                                // Pero para un modal, es común tener siempre visible el "Cancelar".
->>>>>>> feat/event-creation-modal
+
     }
 
 
