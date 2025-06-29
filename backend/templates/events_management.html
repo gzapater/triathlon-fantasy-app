@@ -337,8 +337,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalTitle = document.getElementById('modal-title');
     const eventIdInput = document.getElementById('event_id');
     const submitBtn = document.getElementById('submit-btn');
-<<<<<<< HEAD
-=======
     const cancelEditBtn = document.getElementById('cancel-edit-btn'); // Este es el botón "Cancelar" dentro del modal
 
     const eventModal = document.getElementById('event-modal');
@@ -889,12 +887,6 @@ document.addEventListener('DOMContentLoaded', function() {
 >>>>>>> feat/event-creation-modal
     }
 
-    // --- Event Listeners para Filtros (adaptado de TriCal.html) ---
-    if (searchInput) searchInput.addEventListener('input', filterAndSortEvents);
-    if (disciplineFilter) disciplineFilter.addEventListener('change', filterAndSortEvents);
-    if (distanceFilter) distanceFilter.addEventListener('change', filterAndSortEvents);
-    if (provinceFilter) provinceFilter.addEventListener('change', filterAndSortEvents);
-    if (monthFilter) monthFilter.addEventListener('change', filterAndSortEvents);
 
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', () => {
