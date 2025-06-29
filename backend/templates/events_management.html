@@ -1,5 +1,7 @@
 {% extends "admin_dashboard.html" %}
 
+{% block full_width_page %}1{% endblock %} {# This signals admin_dashboard to not restrict width #}
+
 {% block title %}Gestión de Eventos - TriPredict{% endblock %}
 
 {% block header_title %}Gestión de Eventos TriCal{% endblock %}
@@ -12,7 +14,7 @@
 {% block join_by_code_button %}{% endblock %} {# Esto oculta el botón de unirse por código #}
 
 {% block main_dashboard_content %}
-<div class="container-fluid mx-auto px-4 py-8"> <!-- Cambiado container a container-fluid para ancho completo -->
+<div class="w-full px-4 py-8"> <!-- Cambiado container-fluid mx-auto a w-full -->
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-800">Administrar Eventos de TriCal</h1>
         <button id="open-event-modal-btn" class="bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button">
