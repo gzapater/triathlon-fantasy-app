@@ -123,46 +123,42 @@
     <!-- Filters Section (adaptada de TriCal.html) -->
     <section class="bg-white shadow-md rounded-lg p-6 mt-8 mb-8 no-print">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">Filtrar Eventos</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div class="flex flex-wrap gap-4 items-end">
             <!-- Search -->
-            <div class="lg:col-span-1 xl:col-span-2">
+            <div class="flex-grow min-w-[200px] lg:min-w-[250px]">
                 <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">Búsqueda:</label>
                 <input type="text" id="searchInput" placeholder="Nombre, ciudad, provincia..."
                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
             </div>
 
             <!-- Discipline Filter -->
-            <div>
-                <label for="disciplineFilter" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
-                <select id="disciplineFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todas</option>
-                    <!-- Options will be populated by JS -->
+            <div class="flex-grow min-w-[150px]">
+                <label for="disciplineFilter" class="block text-sm font-medium text-gray-700 mb-1">Disciplina (múltiple):</label>
+                <select id="disciplineFilter" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 h-32">
+                    <!-- Options will be populated by JS. No 'Todas' option needed for multi-select by default. -->
                 </select>
             </div>
 
             <!-- Distance Filter -->
-            <div>
-                <label for="distanceFilter" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
-                <select id="distanceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todas</option>
-                    <!-- Options will be populated by JS -->
+            <div class="flex-grow min-w-[150px]">
+                <label for="distanceFilter" class="block text-sm font-medium text-gray-700 mb-1">Distancia (múltiple):</label>
+                <select id="distanceFilter" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 h-32">
+                    <!-- Options will be populated by JS. -->
                 </select>
             </div>
 
             <!-- Province Filter -->
-            <div>
-                <label for="provinceFilter" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
-                <select id="provinceFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todas</option>
-                    <!-- Options will be populated by JS -->
+            <div class="flex-grow min-w-[150px]">
+                <label for="provinceFilter" class="block text-sm font-medium text-gray-700 mb-1">Provincia (múltiple):</label>
+                <select id="provinceFilter" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 h-32">
+                    <!-- Options will be populated by JS. -->
                 </select>
             </div>
 
             <!-- Month Filter -->
-            <div>
-                <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-1">Mes:</label>
-                <select id="monthFilter" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
-                    <option value="">Todos</option>
+            <div class="flex-grow min-w-[150px]">
+                <label for="monthFilter" class="block text-sm font-medium text-gray-700 mb-1">Mes (múltiple):</label>
+                <select id="monthFilter" multiple class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 h-32">
                     <option value="1">Enero</option>
                     <option value="2">Febrero</option>
                     <option value="3">Marzo</option>
@@ -346,10 +342,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (event.province) provinces.add(event.province);
         });
 
-        disciplineFilter.innerHTML = '<option value="">Todas</option>';
-        distanceFilter.innerHTML = '<option value="">Todas</option>';
-        provinceFilter.innerHTML = '<option value="">Todas</option>';
+        // Clear previous options for dynamic filters
+        disciplineFilter.innerHTML = '';
+        distanceFilter.innerHTML = '';
+        provinceFilter.innerHTML = '';
 
+        // For multi-select, we don't add a "Todas" option by default.
+        // If nothing is selected, it means all are included.
         Array.from(disciplines).sort().forEach(d => {
             const option = document.createElement('option');
             option.value = d;
@@ -373,10 +372,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function filterAndSortEvents() {
         let filteredEvents = [...allEvents];
         const searchTerm = searchInput.value.toLowerCase().trim();
-        const selectedDiscipline = disciplineFilter.value;
-        const selectedDistance = distanceFilter.value;
-        const selectedProvince = provinceFilter.value;
-        const selectedMonth = monthFilter.value;
+
+        // Get selected values from multi-selects
+        const selectedDisciplines = Array.from(disciplineFilter.selectedOptions).map(opt => opt.value);
+        const selectedDistances = Array.from(distanceFilter.selectedOptions).map(opt => opt.value);
+        const selectedProvinces = Array.from(provinceFilter.selectedOptions).map(opt => opt.value);
+        const selectedMonths = Array.from(monthFilter.selectedOptions).map(opt => opt.value);
 
         const activeTagFilters = {};
         if (tagFiltersContainer) {
@@ -396,21 +397,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 (event.distance && event.distance.toLowerCase().includes(searchTerm))
             );
         }
-        if (selectedDiscipline) {
-            filteredEvents = filteredEvents.filter(event => event.discipline === selectedDiscipline);
+
+        if (selectedDisciplines.length > 0) {
+            filteredEvents = filteredEvents.filter(event => selectedDisciplines.includes(event.discipline));
         }
-        if (selectedDistance) {
-            filteredEvents = filteredEvents.filter(event => event.distance === selectedDistance);
+        if (selectedDistances.length > 0) {
+            filteredEvents = filteredEvents.filter(event => selectedDistances.includes(event.distance));
         }
-        if (selectedProvince) {
-            filteredEvents = filteredEvents.filter(event => event.province === selectedProvince);
+        if (selectedProvinces.length > 0) {
+            filteredEvents = filteredEvents.filter(event => selectedProvinces.includes(event.province));
         }
-        if (selectedMonth) {
+        if (selectedMonths.length > 0) {
             filteredEvents = filteredEvents.filter(event => {
                 if (!event.event_date) return false;
-                const event_date_obj = new Date(event.event_date + 'T00:00:00Z'); // Use Z for UTC to match toLocaleDateString later
-                const event_month = event_date_obj.getUTCMonth() + 1;
-                return event_month === parseInt(selectedMonth);
+                const event_date_obj = new Date(event.event_date + 'T00:00:00Z');
+                const event_month = (event_date_obj.getUTCMonth() + 1).toString();
+                return selectedMonths.includes(event_month);
             });
         }
 
@@ -628,10 +630,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', () => {
             if (searchInput) searchInput.value = '';
-            if (disciplineFilter) disciplineFilter.value = '';
-            if (distanceFilter) distanceFilter.value = '';
-            if (provinceFilter) provinceFilter.value = '';
-            if (monthFilter) monthFilter.value = '';
+
+            // For multi-select, deselect all options
+            if (disciplineFilter) Array.from(disciplineFilter.options).forEach(opt => opt.selected = false);
+            if (distanceFilter) Array.from(distanceFilter.options).forEach(opt => opt.selected = false);
+            if (provinceFilter) Array.from(provinceFilter.options).forEach(opt => opt.selected = false);
+            if (monthFilter) Array.from(monthFilter.options).forEach(opt => opt.selected = false);
+
+            // Trigger a change event manually if needed for any frameworks/libraries, though not typically for vanilla JS filtering like this
+            // disciplineFilter.dispatchEvent(new Event('change')); // Example
 
             currentSortAscending = true;
             if (sortDateBtn) sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)';
