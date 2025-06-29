@@ -245,8 +245,8 @@ ul li, ol li {
 /* Estilos específicos para los botones del modal de creación de eventos */
 #open-create-event-modal-btn,
 #save-event-btn {
-    background-color: #F97316; /* Naranja Tailwind (orange-500) */
-    color: #FFFFFF; /* Blanco */
+    background-color: #F97316 !important; /* Naranja Tailwind (orange-500) */
+    color: #FFFFFF !important; /* Blanco */
     padding: 0.5rem 1rem; /* Equivalente a px-4 py-2 de Tailwind */
     border-radius: 0.375rem; /* Equivalente a rounded-md de Tailwind */
     border: 1px solid transparent; /* Asegurar que no haya bordes extraños */
@@ -256,12 +256,12 @@ ul li, ol li {
 
 #open-create-event-modal-btn:hover,
 #save-event-btn:hover {
-    background-color: #EA580C; /* Naranja más oscuro (orange-600) */
+    background-color: #EA580C !important; /* Naranja más oscuro (orange-600) */
 }
 
 #cancel-create-event-btn {
-    background-color: #E5E7EB; /* Gris Tailwind (gray-200) */
-    color: #374151; /* Gris más oscuro para texto (gray-700) */
+    background-color: #E5E7EB !important; /* Gris Tailwind (gray-200) */
+    color: #374151 !important; /* Gris más oscuro para texto (gray-700) */
     padding: 0.5rem 1rem;
     border-radius: 0.375rem;
     border: 1px solid transparent;
@@ -270,5 +270,5 @@ ul li, ol li {
 }
 
 #cancel-create-event-btn:hover {
-    background-color: #D1D5DB; /* Gris más claro (gray-300) */
+    background-color: #D1D5DB !important; /* Gris más claro (gray-300) */
 }

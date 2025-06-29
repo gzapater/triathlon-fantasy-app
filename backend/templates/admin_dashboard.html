@@ -706,7 +706,12 @@
             // For now, assuming header JS is self-contained within _header.html.
         });
     </script>
+
+    {% block admin_dashboard_specific_scripts %}
     <script src="{{ url_for('static', filename='js/admin_official_answers.js') }}"></script>
+    {% endblock admin_dashboard_specific_scripts %}
+
+    {% block additional_scripts %}{% endblock %}
 
     <script>
     // --- Join Race By Code Modal Logic (copied to admin_dashboard.html) ---
