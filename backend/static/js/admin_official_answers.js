@@ -490,16 +490,22 @@ document.getElementById('save-official-answers-btn').addEventListener('click', f
     });
 });
 
-// Ensure modal is also closable by clicking its backdrop (if such element exists and is desired)
-// This was in the example modal, but the new modal might not have a separate backdrop element.
-// If `official-answers-modal` is the backdrop itself:
-document.getElementById('official-answers-modal').addEventListener('click', function(e) {
-    if (e.target === this) { // Check if the click is on the modal backdrop itself
-        closeOfficialAnswersModal();
-    }
-});
+// Ensure modal is also closable by clicking its backdrop
+const officialAnswersModalElement = document.getElementById('official-answers-modal');
+if (officialAnswersModalElement) {
+    officialAnswersModalElement.addEventListener('click', function(e) {
+        if (e.target === this) { // Check if the click is on the modal backdrop itself
+            closeOfficialAnswersModal();
+        }
+    });
 
-// Prevent clicks inside the modal content from closing it
-document.querySelector('#official-answers-modal > div').addEventListener('click', function(e) {
-    e.stopPropagation();
-});
+    // Prevent clicks inside the modal content from closing it
+    // Intenta seleccionar el primer div hijo directo como el contenedor del contenido del modal.
+    // Esto es una suposición común para la estructura de un modal.
+    const officialAnswersModalContent = officialAnswersModalElement.querySelector('div');
+    if (officialAnswersModalContent) {
+         officialAnswersModalContent.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    }
+}
