@@ -81,8 +81,8 @@ a:hover {
     color: #005f73; /* Darker teal on hover */
 }
 
-/* Buttons */
-button, .button {
+/* Global Button Style (si es necesario, usar una clase específica para evitar conflictos con Tailwind) */
+.button-global-style {
     display: inline-block;
     background: #ee9b00; /* Energetic orange for action buttons - cycling/running */
     color: #fff;
@@ -95,7 +95,7 @@ button, .button {
     transition: background-color 0.3s ease;
 }
 
-button:hover, .button:hover {
+.button-global-style:hover {
     background: #ca6702; /* Darker orange on hover */
 }
 
