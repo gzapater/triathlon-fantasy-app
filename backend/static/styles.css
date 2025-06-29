@@ -241,3 +241,34 @@ ul li, ol li {
 
 /* Optional: Add a spinner or a more complex animation if desired */
 /* For simplicity, a basic progress bar is implemented here. */
+
+/* Estilos específicos para los botones del modal de creación de eventos */
+#open-create-event-modal-btn,
+#save-event-btn {
+    background-color: #F97316; /* Naranja Tailwind (orange-500) */
+    color: #FFFFFF; /* Blanco */
+    padding: 0.5rem 1rem; /* Equivalente a px-4 py-2 de Tailwind */
+    border-radius: 0.375rem; /* Equivalente a rounded-md de Tailwind */
+    border: 1px solid transparent; /* Asegurar que no haya bordes extraños */
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+#open-create-event-modal-btn:hover,
+#save-event-btn:hover {
+    background-color: #EA580C; /* Naranja más oscuro (orange-600) */
+}
+
+#cancel-create-event-btn {
+    background-color: #E5E7EB; /* Gris Tailwind (gray-200) */
+    color: #374151; /* Gris más oscuro para texto (gray-700) */
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+#cancel-create-event-btn:hover {
+    background-color: #D1D5DB; /* Gris más claro (gray-300) */
+}
