@@ -94,6 +94,10 @@
                         <i class="fas fa-calendar-alt"></i> <!-- Icono sugerido para eventos -->
                         <span>Eventos</span>
                     </a>
+                    <a href="{{ url_for('admin_sugerencias_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                        <i class="fas fa-lightbulb"></i> <!-- Icono para sugerencias -->
+                        <span>Sugerencias</span>
+                    </a>
                     {% endif %}
                 </nav>
             </div>
@@ -154,6 +158,10 @@
         <a href="{{ url_for('serve_events_management_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
             <i class="fas fa-calendar-alt w-5"></i>
             <span>Eventos</span>
+        </a>
+        <a href="{{ url_for('admin_sugerencias_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+            <i class="fas fa-lightbulb w-5"></i>
+            <span>Sugerencias</span>
         </a>
         {% endif %}
         <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">

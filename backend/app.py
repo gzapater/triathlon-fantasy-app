@@ -3,7 +3,7 @@ import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus, Event # Added UserScore and RaceStatus, AND Event
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus, Event, EventStatus # Added UserScore, RaceStatus, Event, AND EventStatus
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -4080,7 +4080,8 @@ def get_events():
     Does not require authentication.
     """
     try:
-        events = Event.query.order_by(Event.event_date.desc()).all()
+        # Modificado para filtrar solo eventos VALIDADOS
+        events = Event.query.filter_by(status=EventStatus.VALIDADO).order_by(Event.event_date.desc()).all()
 
         output = []
         for event in events:
@@ -4367,3 +4368,129 @@ def event_detail_page(event_id, event_name_slug):
     except Exception as e:
         app.logger.error(f"Error fetching event detail for event_id {event_id} (slug: {event_name_slug}): {e}", exc_info=True)
         return render_template('event_detail.html', event=None, current_year=datetime.utcnow().year), 500
+
+@app.route('/api/sugerir_evento', methods=['POST'])
+def sugerir_evento_api():
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    required_fields = ['name', 'event_date', 'city', 'province', 'discipline', 'distance']
+    missing_fields = [field for field in required_fields if not data.get(field)]
+    if missing_fields:
+        return jsonify(message=f"Missing required fields: {', '.join(missing_fields)}"), 400
+
+    try:
+        event_date_obj = datetime.strptime(data['event_date'], '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify(message="Invalid event_date format. Required format: YYYY-MM-DD."), 400
+
+    # Campos opcionales
+    source_url = data.get('source_url')
+    is_good_for_debutants = bool(data.get('is_good_for_debutants', False))
+    is_challenging = bool(data.get('is_challenging', False))
+    has_great_views = bool(data.get('has_great_views', False))
+    has_good_atmosphere = bool(data.get('has_good_atmosphere', False))
+    is_world_qualifier = bool(data.get('is_world_qualifier', False))
+
+    new_event_suggestion = Event(
+        name=data['name'],
+        event_date=event_date_obj,
+        city=data['city'],
+        province=data['province'],
+        discipline=data['discipline'],
+        distance=data['distance'],
+        source_url=source_url if source_url and source_url.strip() else None,
+        is_good_for_debutants=is_good_for_debutants,
+        is_challenging=is_challenging,
+        has_great_views=has_great_views,
+        has_good_atmosphere=has_good_atmosphere,
+        is_world_qualifier=is_world_qualifier,
+        status='PENDIENTE' # Directamente asignamos el string, SQLAlchemy maneja el Enum
+        # Si EventStatus fuera importado, sería EventStatus.PENDIENTE
+    )
+
+    try:
+        db.session.add(new_event_suggestion)
+        db.session.commit()
+        app.logger.info(f"Nueva sugerencia de evento '{new_event_suggestion.name}' (ID: {new_event_suggestion.id}) creada con estado PENDIENTE.")
+        return jsonify(message="Sugerencia de evento enviada correctamente. Será revisada por un administrador.", event_id=new_event_suggestion.id), 201
+    except IntegrityError:
+        db.session.rollback()
+        app.logger.error(f"Error de integridad al guardar sugerencia de evento: {data.get('name')}")
+        return jsonify(message="Error de integridad: Conflicto al guardar la sugerencia."), 409
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error guardando sugerencia de evento '{data.get('name')}': {e}", exc_info=True)
+        return jsonify(message="Error interno del servidor al guardar la sugerencia."), 500
+
+# --- Admin Event Suggestion Management ---
+@app.route('/admin/sugerencias', methods=['GET'])
+@login_required
+def admin_sugerencias_page():
+    if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+        flash("Acceso denegado. Esta sección es solo para administradores.", "error")
+        return redirect(url_for('serve_hello_world_page'))
+
+    pending_events = Event.query.filter_by(status='PENDIENTE').order_by(Event.created_at.asc()).all()
+
+    # Valores por defecto para compatibilidad con _header y admin_dashboard si se extiende
+    # o si la plantilla de sugerencias extiende una base que los necesite.
+    default_context = {
+        'current_year': datetime.utcnow().year,
+        'races': [],
+        'races_for_official_answers': [],
+        'all_race_formats': RaceFormat.query.order_by(RaceFormat.name).all(),
+        'filter_date_from_str': None,
+        'filter_date_to_str': None,
+        'filter_race_format_id_str': None,
+        'all_race_statuses': [status.value for status in RaceStatus],
+        'selected_statuses_for_ui': [],
+        'organized_races': [],
+        'participating_races': [],
+        'favorite_races': [],
+        'active_players_count': 0,
+        'auto_join_race_id': None,
+        'race_to_join_title': None
+    }
+    return render_template('admin_sugerencias.html', pending_events=pending_events, **default_context)
+
+@app.route('/api/admin/sugerencias/<int:event_id>/validar', methods=['POST'])
+@login_required
+def admin_validar_sugerencia(event_id):
+    if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+        return jsonify(message="Acceso denegado."), 403
+
+    event = Event.query.get_or_404(event_id)
+    if event.status != EventStatus.PENDIENTE: # Usar el Enum aquí para la comparación
+        return jsonify(message="El evento no está pendiente de validación."), 400
+
+    event.status = EventStatus.VALIDADO # Usar el Enum para la asignación
+    try:
+        db.session.commit()
+        app.logger.info(f"Sugerencia de evento ID {event_id} validada por {current_user.username}.")
+        return jsonify(message="Sugerencia validada correctamente."), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error al validar sugerencia ID {event_id}: {e}", exc_info=True)
+        return jsonify(message="Error al validar la sugerencia."), 500
+
+@app.route('/api/admin/sugerencias/<int:event_id>/rechazar', methods=['POST'])
+@login_required
+def admin_rechazar_sugerencia(event_id):
+    if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+        return jsonify(message="Acceso denegado."), 403
+
+    event = Event.query.get_or_404(event_id)
+    if event.status != EventStatus.PENDIENTE: # Usar el Enum
+        return jsonify(message="El evento no está pendiente de validación/rechazo."), 400
+
+    event.status = EventStatus.RECHAZADO # Usar el Enum
+    try:
+        db.session.commit()
+        app.logger.info(f"Sugerencia de evento ID {event_id} rechazada por {current_user.username}.")
+        return jsonify(message="Sugerencia rechazada correctamente."), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error al rechazar sugerencia ID {event_id}: {e}", exc_info=True)
+        return jsonify(message="Error al rechazar la sugerencia."), 500

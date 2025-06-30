@@ -13,6 +13,11 @@ class RaceStatus(enum.Enum):
     ACTIVE = "active"
     ARCHIVED = "archived"
 
+class EventStatus(enum.Enum):
+    PENDIENTE = "pendiente"
+    VALIDADO = "validado"
+    RECHAZADO = "rechazado"
+
 # New Role Model
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -413,6 +418,9 @@ class Event(db.Model):
     has_great_views = db.Column(db.Boolean, default=False, server_default='f')
     has_good_atmosphere = db.Column(db.Boolean, default=False, server_default='f')
     is_world_qualifier = db.Column(db.Boolean, default=False, server_default='f')
+
+    # Nuevo campo para el estado del evento
+    status = db.Column(SQLAlchemyEnum(EventStatus), default=EventStatus.PENDIENTE, nullable=False, server_default=EventStatus.PENDIENTE.value)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

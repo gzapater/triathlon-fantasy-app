@@ -121,6 +121,18 @@
            </div>
         </div>
 
+    <!-- Suggestion Section -->
+    <section class="py-6 bg-gray-100 no-print">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-700 text-lg mb-3">
+                ¿Crees que falta alguna carrera? Indícanoslo y lo tendremos en cuenta:
+            </p>
+            <button id="openSuggestEventModalBtn" class="bg-green-500 text-white font-semibold py-2 px-6 rounded-md hover:bg-green-600 transition ease-in-out duration-150">
+                <i class="fas fa-plus-circle mr-2"></i>Sugerir un Evento
+            </button>
+        </div>
+    </section>
+
     <!-- Filters Section -->
     <!-- New section: bg-white shadow-sm border-b -->
     <section class="bg-white shadow-sm border-b no-print">
@@ -625,6 +637,181 @@
 
 
         });
+
+        // Modal Suggest Event
+        const openSuggestEventModalBtn = document.getElementById('openSuggestEventModalBtn');
+        const suggestEventModal = document.getElementById('suggestEventModal');
+        const closeSuggestEventModalBtn = document.getElementById('closeSuggestEventModalBtn');
+        const suggestEventForm = document.getElementById('suggestEventForm');
+        const cancelSuggestEventBtn = document.getElementById('cancelSuggestEventBtn');
+
+        function openSuggestEventModal() {
+            if (suggestEventModal) suggestEventModal.classList.remove('hidden');
+        }
+
+        function closeSuggestEventModal() {
+            if (suggestEventModal) suggestEventModal.classList.add('hidden');
+            if (suggestEventForm) suggestEventForm.reset(); // Reset form on close
+        }
+
+        if (openSuggestEventModalBtn) {
+            openSuggestEventModalBtn.addEventListener('click', openSuggestEventModal);
+        }
+        if (closeSuggestEventModalBtn) {
+            closeSuggestEventModalBtn.addEventListener('click', closeSuggestEventModal);
+        }
+        if (cancelSuggestEventBtn) {
+            cancelSuggestEventBtn.addEventListener('click', closeSuggestEventModal);
+        }
+
+        if (suggestEventModal) {
+            suggestEventModal.addEventListener('click', function(event) {
+                if (event.target === suggestEventModal) { // Clicked on backdrop
+                    closeSuggestEventModal();
+                }
+            });
+        }
+
+        if (suggestEventForm) {
+            suggestEventForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const formData = new FormData(suggestEventForm);
+                const data = Object.fromEntries(formData.entries());
+
+                // Convert checkbox values to boolean
+                data.is_good_for_debutants = formData.has('is_good_for_debutants');
+                data.is_challenging = formData.has('is_challenging');
+                data.has_great_views = formData.has('has_great_views');
+                data.has_good_atmosphere = formData.has('has_good_atmosphere');
+                data.is_world_qualifier = formData.has('is_world_qualifier');
+
+                console.log('Sugerencia de evento:', data); // Log para debug
+
+                fetch('/api/sugerir_evento', { // Endpoint a crear en backend
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw err; });
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    alert(result.message || 'Sugerencia enviada correctamente. Será revisada por un administrador.');
+                    closeSuggestEventModal();
+                })
+                .catch(error => {
+                    console.error('Error al enviar sugerencia:', error);
+                    let errorMessage = 'Error al enviar la sugerencia.';
+                    if (error && error.message) {
+                        errorMessage += ` Detalles: ${error.message}`;
+                    } else if (typeof error === 'object' && error !== null) {
+                        errorMessage += ` Detalles: ${JSON.stringify(error)}`;
+                    }
+                    alert(errorMessage);
+                });
+            });
+        }
+
     </script>
+
+    <!-- Suggest Event Modal -->
+    <div id="suggestEventModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden no-print modal-backdrop p-4">
+        <div class="bg-white p-5 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-semibold text-gray-700">Sugerir un Nuevo Evento</h3>
+                <button id="closeSuggestEventModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="suggestEventForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <!-- Nombre del Evento -->
+                    <div class="md:col-span-2">
+                        <label for="eventName" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Evento <span class="text-red-500">*</span></label>
+                        <input type="text" name="name" id="eventName" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Fecha del Evento -->
+                    <div>
+                        <label for="eventDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha del Evento <span class="text-red-500">*</span></label>
+                        <input type="date" name="event_date" id="eventDate" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Disciplina -->
+                    <div>
+                        <label for="eventDiscipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina <span class="text-red-500">*</span></label>
+                        <input type="text" name="discipline" id="eventDiscipline" required placeholder="Ej: Triatlón, Duatlón, Acuatlón" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Distancia -->
+                    <div>
+                        <label for="eventDistance" class="block text-sm font-medium text-gray-700 mb-1">Distancia <span class="text-red-500">*</span></label>
+                        <input type="text" name="distance" id="eventDistance" required placeholder="Ej: Olímpica, Media Distancia, Sprint" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Ciudad -->
+                    <div>
+                        <label for="eventCity" class="block text-sm font-medium text-gray-700 mb-1">Ciudad <span class="text-red-500">*</span></label>
+                        <input type="text" name="city" id="eventCity" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Provincia -->
+                    <div>
+                        <label for="eventProvince" class="block text-sm font-medium text-gray-700 mb-1">Provincia <span class="text-red-500">*</span></label>
+                        <input type="text" name="province" id="eventProvince" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- URL Fuente -->
+                    <div class="md:col-span-2">
+                        <label for="eventSourceUrl" class="block text-sm font-medium text-gray-700 mb-1">Enlace a la web oficial (o similar)</label>
+                        <input type="url" name="source_url" id="eventSourceUrl" placeholder="https://ejemplo.com/evento" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    </div>
+
+                    <!-- Etiquetas TriCal -->
+                    <div class="md:col-span-2 mt-4">
+                        <p class="block text-sm font-medium text-gray-700 mb-2">Características (opcional):</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label class="flex items-center space-x-2 p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="is_good_for_debutants" class="form-checkbox h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                <span class="text-gray-700">Ideal para debutantes</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="is_challenging" class="form-checkbox h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                <span class="text-gray-700">Desafiante</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="has_great_views" class="form-checkbox h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                <span class="text-gray-700">Vistas espectaculares</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="has_good_atmosphere" class="form-checkbox h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                <span class="text-gray-700">Buen ambiente</span>
+                            </label>
+                            <label class="flex items-center space-x-2 p-2 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="checkbox" name="is_world_qualifier" class="form-checkbox h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                <span class="text-gray-700">Clasificatorio Mundial</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex justify-end space-x-3">
+                    <button type="button" id="cancelSuggestEventBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-green-500 hover:bg-green-600 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <i class="fas fa-paper-plane mr-2"></i>Enviar Sugerencia
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
