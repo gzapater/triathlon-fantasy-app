@@ -86,8 +86,7 @@ function handleSuggestionAction(url, actionName, eventId) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // Aquí se podría añadir un token CSRF si la aplicación lo usa
-           {# // 'X-CSRFToken': '{{ csrf_token() }}' // Ejemplo si se usa Flask-WTF #}
+
         }
     })
     .then(response => {
