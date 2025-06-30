@@ -272,3 +272,41 @@ ul li, ol li {
 #cancel-create-event-btn:hover {
     background-color: #D1D5DB !important; /* Gris más claro (gray-300) */
 }
+
+/* Fix para botones transparentes en events_management.html */
+/* Estos son los botones de la sección de filtros */
+#clearFilters {
+    background-color: #4B5563 !important; /* Tailwind gray-600 */
+    color: #FFFFFF !important;
+}
+#clearFilters:hover {
+    background-color: #374151 !important; /* Tailwind gray-700 */
+}
+
+#sortDate {
+    background-color: #F97316 !important; /* Tailwind orange-500 */
+    color: #FFFFFF !important;
+}
+#sortDate:hover {
+    background-color: #EA580C !important; /* Tailwind orange-600 */
+}
+
+/* El botón "Crear Nuevo Evento" (#open-create-event-modal-btn) ya está cubierto por reglas anteriores en este archivo. */
+/* Si hay otros botones en la tabla (Editar, Eliminar) que también son transparentes y usan Tailwind, necesitarían reglas similares. */
+/* Por ejemplo, si los botones de acción de la tabla tuvieran clases como .edit-event-btn y .delete-event-btn: */
+/*
+.edit-event-btn {
+    color: #D97706 !important; // text-orange-600
+    background-color: transparent !important; // Asumo que son de texto/icono
+}
+.edit-event-btn:hover {
+    color: #9A3412 !important; // text-orange-900
+}
+.delete-event-btn {
+    color: #DC2626 !important; // text-red-600
+    background-color: transparent !important;
+}
+.delete-event-btn:hover {
+    color: #7F1D1D !important; // text-red-900
+}
+*/
