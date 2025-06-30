@@ -4106,6 +4106,75 @@ def get_events():
         app.logger.error(f"Error fetching events: {e}", exc_info=True)
         return jsonify(message="Error fetching events"), 500
 
+@app.route('/api/events/<int:event_id>', methods=['PUT'])
+@login_required
+def update_event_api(event_id):
+    if current_user.role.code != 'ADMIN':
+        return jsonify(message="Forbidden: Solo los administradores pueden actualizar eventos."), 403
+
+    event = Event.query.get(event_id)
+    if not event:
+        return jsonify(message="Evento no encontrado"), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    # Validar y actualizar campos
+    if 'name' in data:
+        name = data.get('name')
+        if not name or not name.strip():
+            return jsonify(message="El nombre del evento es obligatorio."), 400
+        event.name = name
+
+    if 'event_date' in data:
+        event_date_str = data.get('event_date')
+        if not event_date_str:
+            return jsonify(message="La fecha del evento es obligatoria."), 400
+        try:
+            event.event_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify(message="Formato de fecha inválido. Use YYYY-MM-DD."), 400
+
+    # Campos opcionales (si no están en data, no se actualizan, se mantiene el valor existente)
+    if 'city' in data:
+        event.city = data.get('city').strip() if data.get('city') and data.get('city').strip() else None
+    if 'province' in data:
+        event.province = data.get('province').strip() if data.get('province') and data.get('province').strip() else None
+    if 'discipline' in data:
+        event.discipline = data.get('discipline').strip() if data.get('discipline') and data.get('discipline').strip() else None
+    if 'distance' in data:
+        event.distance = data.get('distance').strip() if data.get('distance') and data.get('distance').strip() else None
+    if 'source_url' in data:
+        event.source_url = data.get('source_url').strip() if data.get('source_url') and data.get('source_url').strip() else None
+
+    # Campos booleanos de curación
+    # Si la clave está en `data`, se actualiza el valor. Si no, se mantiene el existente.
+    if 'is_good_for_debutants' in data:
+        event.is_good_for_debutants = bool(data.get('is_good_for_debutants'))
+    if 'is_challenging' in data:
+        event.is_challenging = bool(data.get('is_challenging'))
+    if 'has_great_views' in data:
+        event.has_great_views = bool(data.get('has_great_views'))
+    if 'has_good_atmosphere' in data:
+        event.has_good_atmosphere = bool(data.get('has_good_atmosphere'))
+    if 'is_world_qualifier' in data:
+        event.is_world_qualifier = bool(data.get('is_world_qualifier'))
+
+    event.updated_at = datetime.utcnow() # Actualizar timestamp
+
+    try:
+        db.session.commit()
+        return jsonify(message="Evento actualizado con éxito", event_id=event.id), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(message="Error de integridad: Conflicto al actualizar el evento."), 409
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error actualizando evento {event_id} vía API: {e}", exc_info=True)
+        return jsonify(message="Error interno del servidor al actualizar el evento."), 500
+
+
 # --- Event Management Routes (Admin only) ---
 
 @app.route('/admin/events_management')
