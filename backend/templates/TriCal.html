@@ -635,12 +635,89 @@
             // Initial sort button text
             sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Más antiguas primero)';
 
+            // Modal Suggest Event - MOVIDO DENTRO DE DOMCONTENTLOADED
+            const openSuggestEventModalBtn = document.getElementById('openSuggestEventModalBtn');
+            const suggestEventModal = document.getElementById('suggestEventModal');
+            const closeSuggestEventModalBtn = document.getElementById('closeSuggestEventModalBtn');
+            const suggestEventForm = document.getElementById('suggestEventForm');
+            const cancelSuggestEventBtn = document.getElementById('cancelSuggestEventBtn');
+
+            function openSuggestEventModal() {
+                if (suggestEventModal) suggestEventModal.classList.remove('hidden');
+            }
+
+            function closeSuggestEventModal() {
+                if (suggestEventModal) suggestEventModal.classList.add('hidden');
+                if (suggestEventForm) suggestEventForm.reset(); // Reset form on close
+            }
+
+            if (openSuggestEventModalBtn) {
+                openSuggestEventModalBtn.addEventListener('click', openSuggestEventModal);
+            }
+            if (closeSuggestEventModalBtn) {
+                closeSuggestEventModalBtn.addEventListener('click', closeSuggestEventModal);
+            }
+            if (cancelSuggestEventBtn) {
+                cancelSuggestEventBtn.addEventListener('click', closeSuggestEventModal);
+            }
+
+            if (suggestEventModal) {
+                suggestEventModal.addEventListener('click', function(event) {
+                    if (event.target === suggestEventModal) { // Clicked on backdrop
+                        closeSuggestEventModal();
+                    }
+                });
+            }
+
+            if (suggestEventForm) {
+                suggestEventForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const formData = new FormData(suggestEventForm);
+                    const data = Object.fromEntries(formData.entries());
+
+                    // Convert checkbox values to boolean
+                    data.is_good_for_debutants = formData.has('is_good_for_debutants');
+                    data.is_challenging = formData.has('is_challenging');
+                    data.has_great_views = formData.has('has_great_views');
+                    data.has_good_atmosphere = formData.has('has_good_atmosphere');
+                    data.is_world_qualifier = formData.has('is_world_qualifier');
+
+                    console.log('Sugerencia de evento:', data); // Log para debug
+
+                    fetch('/api/sugerir_evento', { // Endpoint a crear en backend
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data),
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => { throw err; });
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        alert(result.message || 'Sugerencia enviada correctamente. Será revisada por un administrador.');
+                        closeSuggestEventModal();
+                    })
+                    .catch(error => {
+                        console.error('Error al enviar sugerencia:', error);
+                        let errorMessage = 'Error al enviar la sugerencia.';
+                        if (error && error.message) {
+                            errorMessage += ` Detalles: ${error.message}`;
+                        } else if (typeof error === 'object' && error !== null) {
+                            errorMessage += ` Detalles: ${JSON.stringify(error)}`;
+                        }
+                        alert(errorMessage);
+                    });
+                });
+            }
+            // FIN DE Modal Suggest Event - MOVIDO DENTRO DE DOMCONTENTLOADED
 
         });
 
-        // Modal Suggest Event
-        const openSuggestEventModalBtn = document.getElementById('openSuggestEventModalBtn');
-        const suggestEventModal = document.getElementById('suggestEventModal');
+        // Código del modal de sugerencia de evento eliminado de aquí porque se movió arriba
         const closeSuggestEventModalBtn = document.getElementById('closeSuggestEventModalBtn');
         const suggestEventForm = document.getElementById('suggestEventForm');
         const cancelSuggestEventBtn = document.getElementById('cancelSuggestEventBtn');
