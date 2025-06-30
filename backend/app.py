@@ -10,7 +10,7 @@ from sqlalchemy import func # Add this import at the top of app.py if not presen
 from flask_migrate import Migrate # Import Migrate
 from werkzeug.middleware.proxy_fix import ProxyFix # <--- Añade esta importación
 from flask import render_template
-from datetime import datetime # For event_date processing
+from datetime import datetime, date # For event_date processing AND isinstance checks
 
 app = Flask(__name__)
 
@@ -4290,18 +4290,37 @@ def create_event_api():
 @app.route('/api/events/<int:event_id>', methods=['GET']) # API para obtener un evento específico
 @login_required # Opcional, dependiendo si quieres que solo admins vean detalles por API
 def get_event_detail_api(event_id):
-    if current_user.role.code != 'ADMIN': # O ajusta el permiso como necesites
-        return jsonify(message="Forbidden: Insufficient permissions"), 403
+    try:
+        if current_user.role.code != 'ADMIN':
+            return jsonify(message="Forbidden: Insufficient permissions"), 403
 
-    event = Event.query.get(event_id)
-    if not event:
-        return jsonify(message="Evento no encontrado"), 404
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify(message="Evento no encontrado"), 404
 
-    event_dict = {f.name: getattr(event, f.name) for f in event.__table__.columns}
-    if event_dict.get('event_date') and isinstance(event_dict['event_date'], datetime.date):
-        event_dict['event_date'] = event_dict['event_date'].isoformat()
+        # Construir el diccionario explícitamente para asegurar la serialización correcta
+        event_data = {
+            "id": event.id,
+            "name": event.name,
+            "event_date": event.event_date.isoformat() if event.event_date else None,
+            "city": event.city,
+            "province": event.province,
+            "discipline": event.discipline,
+            "distance": event.distance,
+            "source_url": event.source_url,
+            "is_good_for_debutants": event.is_good_for_debutants,
+            "is_challenging": event.is_challenging,
+            "has_great_views": event.has_great_views,
+            "has_good_atmosphere": event.has_good_atmosphere,
+            "is_world_qualifier": event.is_world_qualifier,
+            "created_at": event.created_at.isoformat() if event.created_at else None,
+            "updated_at": event.updated_at.isoformat() if event.updated_at else None
+        }
 
-    return jsonify(event_dict), 200
+        return jsonify(event_data), 200
+    except Exception as e:
+        app.logger.error(f"Error en get_event_detail_api para event_id {event_id}: {e}", exc_info=True)
+        return jsonify(message="Error interno al obtener detalles del evento."), 500
 
 # La ruta DELETE /api/events/<int:event_id> se mantiene para permitir la eliminación de eventos si es necesario.
 @app.route('/api/events/<int:event_id>', methods=['DELETE']) # API para eliminar evento
