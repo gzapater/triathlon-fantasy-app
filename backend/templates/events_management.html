@@ -87,9 +87,9 @@
                 <button id="clearFilters" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm">
                     <i class="fas fa-times mr-1"></i> Limpiar Filtros
                 </button>
-                <button id="sortDate" class="px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition-colors text-sm">
+                <a href="#" id="sortDate" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm">
                     <i class="fas fa-sort mr-1"></i> Ordenar por Fecha
-                </button>
+                </a>
             </div>
             <div class="text-sm text-gray-600">
                 Mostrando <span id="visibleCount">0</span> de <span id="totalCount">0</span> eventos
@@ -101,9 +101,9 @@
     <div class="bg-white shadow-md rounded-lg overflow-hidden mt-8">
         <div class="flex justify-between items-center p-6">
             <h2 class="text-2xl font-semibold text-gray-700">Eventos Existentes</h2>
-            <button id="open-create-event-modal-btn" class="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors">
+            <a href="#" id="open-create-event-modal-btn" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 hover:text-orange-600 transition-colors">
                 <i class="fas fa-plus mr-2"></i> Crear Nuevo Evento
-            </button>
+            </a>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full">
@@ -250,9 +250,9 @@
                 <button id="cancel-create-event-btn" type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors">
                     Cancelar
                 </button>
-                <button id="save-event-btn" type="submit" class="bg-orange-500 text-white px-4 py-2 rounded-md hover:bg-orange-600 transition-colors">
+                <a href="#" id="save-event-btn" role="button" aria-label="Guardar Evento" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 hover:text-orange-600 transition-colors">
                     Guardar Evento
-                </button>
+                </a>
             </div>
         </form>
     </div>
@@ -572,7 +572,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Lógica para el Modal de Crear Evento ---
     if (openCreateEventModalBtn && createEventModal) {
-        openCreateEventModalBtn.addEventListener('click', () => {
+        openCreateEventModalBtn.addEventListener('click', (event) => {
+            event.preventDefault(); // Prevenir comportamiento del enlace
             createEventModal.classList.remove('hidden');
             createEventForm.reset(); // Limpiar el formulario al abrir
         });
@@ -590,11 +591,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    if (saveEventBtn && createEventForm) {
+        saveEventBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            // Para asegurar que las validaciones HTML del formulario se ejecuten y
+            // para disparar el evento 'submit' del formulario:
+            if (createEventForm.checkValidity()) {
+                // Si se usa requestSubmit(), el botón que lo llama se pasa como "submitter"
+                // y puede ser útil si hay múltiples botones de submit.
+                // createEventForm.requestSubmit(saveEventBtn); // saveEventBtn es el enlace <a>
+
+                // Alternativamente, podemos disparar el evento submit manualmente.
+                // Esto es más compatible con navegadores antiguos que requestSubmit().
+                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                createEventForm.dispatchEvent(submitEvent);
+            } else {
+                createEventForm.reportValidity();
+            }
+        });
+    }
+
     if (createEventForm && createEventModal) {
         createEventForm.addEventListener('submit', async function(e) {
+            // e.preventDefault(); // El preventDefault ya está implícito si el evento 'submit' se dispara programáticamente y se maneja aquí.
+                               // Sin embargo, no hace daño mantenerlo por claridad si se dispara manualmente como arriba.
+                               // Si se usa requestSubmit(), el evento submit que se dispara es "real" y necesitaría e.preventDefault().
+                               // Dado que estoy usando dispatchEvent, lo mantendré por si acaso.
             e.preventDefault();
-            saveEventBtn.disabled = true;
-            saveEventBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            // saveEventBtn es el enlace <a>. 'disabled' no es un atributo estándar para <a>.
+            // Se maneja el estado visual con clases.
+            saveEventBtn.classList.add('opacity-50', 'pointer-events-none'); // Usar pointer-events-none para simular deshabilitado
 
             const formData = new FormData(createEventForm);
             const data = Object.fromEntries(formData.entries());
@@ -639,8 +666,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error en la petición de creación:', error);
                 showFlashMessage('Error de conexión al crear el evento.', 'error');
             } finally {
-                saveEventBtn.disabled = false;
-                saveEventBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                // saveEventBtn es el enlace <a>. 'disabled' no es un atributo estándar.
+                // Quitar las clases que simulan el estado deshabilitado.
+                saveEventBtn.classList.remove('opacity-50', 'pointer-events-none');
             }
         });
     }
@@ -844,7 +872,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (sortDateBtn) {
-        sortDateBtn.addEventListener('click', () => {
+        sortDateBtn.addEventListener('click', (event) => {
+            event.preventDefault(); // Prevenir comportamiento del enlace
             currentSortAscending = !currentSortAscending;
             sortDateBtn.innerHTML = currentSortAscending ?
                 '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
@@ -852,11 +881,10 @@ document.addEventListener('DOMContentLoaded', function() {
             filterAndSortEvents();
         });
         // Initial sort button text and table header indicator
-        if (sortDateBtn) {
-            sortDateBtn.innerHTML = currentSortAscending ?
-                '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
-                '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
-        }
+        // Esta parte es segura porque sortDateBtn ya fue verificado arriba.
+        sortDateBtn.innerHTML = currentSortAscending ?
+            '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
+            '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
         updateFechaSortIndicator(); // Set initial indicator for table header
     }
     // --- Fin Event Listeners para Filtros ---
