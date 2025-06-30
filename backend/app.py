@@ -4415,6 +4415,140 @@ def sugerir_evento_api():
         db.session.commit()
         app.logger.info(f"Nueva sugerencia de evento '{new_event_suggestion.name}' (ID: {new_event_suggestion.id}) creada con estado PENDIENTE.")
         return jsonify(message="Sugerencia de evento enviada correctamente. Será revisada por un administrador.", event_id=new_event_suggestion.id), 201
+
+# --- Admin Event Suggestion Management ---
+@app.route('/admin/event_suggestions') # Cambiado de /admin/sugerencias para seguir el plan
+@login_required
+def admin_event_suggestions_page(): # Renombrado de admin_sugerencias_page
+    if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+        flash("Acceso denegado. Esta sección es solo para administradores.", "error")
+        return redirect(url_for('serve_hello_world_page'))
+
+    # pending_events = Event.query.filter_by(status='PENDIENTE').order_by(Event.created_at.asc()).all()
+    # Usar EventStatus.PENDIENTE en lugar de la cadena 'PENDIENTE'
+    pending_events = Event.query.filter_by(status=EventStatus.PENDIENTE).order_by(Event.created_at.asc()).all()
+
+
+    # Valores por defecto para compatibilidad con _header y admin_dashboard si se extiende
+    # o si la plantilla de sugerencias extiende una base que los necesite.
+    default_context = {
+        'current_year': datetime.utcnow().year,
+        'races': [],
+        'races_for_official_answers': [],
+        'all_race_formats': RaceFormat.query.order_by(RaceFormat.name).all(),
+        'filter_date_from_str': None,
+        'filter_date_to_str': None,
+        'filter_race_format_id_str': None,
+        'all_race_statuses': [status.value for status in RaceStatus],
+        'selected_statuses_for_ui': [],
+        'organized_races': [],
+        'participating_races': [],
+        'favorite_races': [],
+        'active_players_count': 0,
+        'auto_join_race_id': None,
+        'race_to_join_title': None
+    }
+    # El nombre de la plantilla es admin_sugerencias.html como se modificó en el paso anterior
+    return render_template('admin_sugerencias.html', pending_events=pending_events, **default_context)
+
+@app.route('/admin/event_suggestions/<int:event_id>/validate', methods=['POST']) # Cambiado de /api/admin/sugerencias/...
+@login_required
+def admin_validate_event_suggestion(event_id): # Renombrado de admin_validar_sugerencia
+    if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+        flash("Acceso denegado.", "error") # Usar flash para redirecciones GET
+        return redirect(url_for('admin_event_suggestions_page'))
+
+
+    event = Event.query.get_or_404(event_id)
+    # Usar EventStatus.PENDIENTE y EventStatus.VALIDADO
+    if event.status != EventStatus.PENDIENTE:
+        flash("El evento no está pendiente de validación.", "warning")
+        return redirect(url_for('admin_event_suggestions_page'))
+
+    event.status = EventStatus.VALIDADO
+    try:
+        db.session.commit()
+        app.logger.info(f"Sugerencia de evento ID {event_id} validada por {current_user.username}.")
+        flash("Sugerencia validada correctamente.", "success")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error al validar sugerencia ID {event_id}: {e}", exc_info=True)
+        flash("Error al validar la sugerencia.", "error")
+    return redirect(url_for('admin_event_suggestions_page'))
+
+@app.route('/admin/event_suggestions/<int:event_id>/discard', methods=['POST']) # Cambiado de /api/admin/sugerencias/...
+@login_required
+def admin_discard_event_suggestion(event_id): # Renombrado de admin_rechazar_sugerencia y acción cambiada a eliminar
+    if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+        flash("Acceso denegado.", "error")
+        return redirect(url_for('admin_event_suggestions_page'))
+
+    event = Event.query.get_or_404(event_id)
+    # No es necesario comprobar el estado si la acción es eliminar directamente.
+    # Si se quisiera cambiar el estado a RECHAZADO en lugar de eliminar, sí sería importante:
+    # if event.status != EventStatus.PENDIENTE:
+    #     flash("El evento no está pendiente para ser descartado/rechazado.", "warning")
+    #     return redirect(url_for('admin_event_suggestions_page'))
+
+    try:
+        db.session.delete(event)
+        db.session.commit()
+        app.logger.info(f"Sugerencia de evento ID {event_id} descartada (eliminada) por {current_user.username}.")
+        flash("Sugerencia descartada (eliminada) correctamente.", "success")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error al descartar (eliminar) sugerencia ID {event_id}: {e}", exc_info=True)
+        flash("Error al descartar la sugerencia.", "error")
+    return redirect(url_for('admin_event_suggestions_page'))
+
+# Las rutas originales de /api/admin/sugerencias/.../validar y /rechazar se eliminan o se dejan si son usadas por otra parte.
+# Asumiendo que las nuevas rutas /admin/event_suggestions/... las reemplazan para la interacción desde la página HTML.
+# Si el Javascript de admin_sugerencias.html todavía usa las rutas API, entonces esas rutas API deberían devolver JSON
+# y las nuevas rutas HTML deberían manejar la lógica de redirección y mensajes flash.
+# Basado en el plan, las nuevas rutas son para la interacción directa desde la página, por lo que devuelven redirect.
+# El script en admin_sugerencias.html fue actualizado para usar estas nuevas rutas que redirigen.
+
+# Rutas API originales que el script JS de admin_sugerencias.html (versión inicial) podría haber usado.
+# Estas se pueden eliminar si el nuevo script JS en la plantilla llama a las rutas /admin/event_suggestions/...
+# y maneja la respuesta (o si las nuevas rutas HTML son el único target).
+# Por ahora, las comentaré para indicar que su funcionalidad ha sido migrada a las rutas HTML.
+
+# @app.route('/api/admin/sugerencias/<int:event_id>/validar', methods=['POST'])
+# @login_required
+# def api_admin_validar_sugerencia(event_id):
+#     if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+#         return jsonify(message="Acceso denegado."), 403
+#     event = Event.query.get_or_404(event_id)
+#     if event.status != EventStatus.PENDIENTE:
+#         return jsonify(message="El evento no está pendiente de validación."), 400
+#     event.status = EventStatus.VALIDADO
+#     try:
+#         db.session.commit()
+#         app.logger.info(f"API: Sugerencia de evento ID {event_id} validada por {current_user.username}.")
+#         return jsonify(message="Sugerencia validada correctamente."), 200
+#     except Exception as e:
+#         db.session.rollback()
+#         app.logger.error(f"API: Error al validar sugerencia ID {event_id}: {e}", exc_info=True)
+#         return jsonify(message="Error al validar la sugerencia."), 500
+
+# @app.route('/api/admin/sugerencias/<int:event_id>/rechazar', methods=['POST'])
+# @login_required
+# def api_admin_rechazar_sugerencia(event_id):
+#     if not current_user.is_authenticated or current_user.role.code != 'ADMIN':
+#         return jsonify(message="Acceso denegado."), 403
+#     event = Event.query.get_or_404(event_id)
+#     if event.status != EventStatus.PENDIENTE:
+#         return jsonify(message="El evento no está pendiente de validación/rechazo."), 400
+#     event.status = EventStatus.RECHAZADO # O eliminarlo si "descartar" significa eliminar
+#     try:
+#         db.session.commit()
+#         app.logger.info(f"API: Sugerencia de evento ID {event_id} rechazada por {current_user.username}.")
+#         return jsonify(message="Sugerencia rechazada correctamente."), 200
+#     except Exception as e:
+#         db.session.rollback()
+#         app.logger.error(f"API: Error al rechazar sugerencia ID {event_id}: {e}", exc_info=True)
+#         return jsonify(message="Error al rechazar la sugerencia."), 500
+
     except IntegrityError:
         db.session.rollback()
         app.logger.error(f"Error de integridad al guardar sugerencia de evento: {data.get('name')}")

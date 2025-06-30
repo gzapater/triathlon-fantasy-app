@@ -3,62 +3,82 @@
 {% block title %}Gestionar Sugerencias de Eventos - Admin{% endblock %}
 
 {% block header_title %}Gestionar Sugerencias de Eventos{% endblock %}
-{% block header_subtitle %}Revisa, valida o rechaza las sugerencias de eventos enviadas por los usuarios.{% endblock %}
+{% block header_subtitle %}Revisa, valida o descarta las sugerencias de eventos enviadas por los usuarios.{% endblock %}
 
-{% block admin_content %}
-<div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
-    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
-        Sugerencias Pendientes
-    </h3>
-    {% if pending_events %}
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lugar</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Disciplina</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distancia</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                {% for event in pending_events %}
-                <tr id="suggestion-row-{{ event.id }}">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ event.name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ event.event_date.strftime('%Y-%m-%d') }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ event.city }}, {{ event.province }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ event.discipline }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ event.distance }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {% if event.source_url %}
-                        <a href="{{ event.source_url }}" target="_blank" class="text-orange-600 hover:text-orange-900 hover:underline">Ver enlace</a>
-                        {% else %}
-                        N/A
-                        {% endif %}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button onclick="handleSuggestionAction({{ event.id }}, 'validar')" class="text-green-600 hover:text-green-900 hover:underline">Validar</button>
-                        <button onclick="handleSuggestionAction({{ event.id }}, 'rechazar')" class="text-red-600 hover:text-red-900 hover:underline">Rechazar</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{% block admin_dashboard_specific_scripts %}{% endblock %} {# Asegura que no se carguen scripts específicos del admin dashboard que no apliquen aquí #}
+{% block join_by_code_button %}{% endblock %} {# Oculta el botón de unirse por código si está en el layout base #}
+{% block official_answers_modal_if_any %}{% endblock %} {# Oculta el modal de respuestas oficiales si está en el layout base #}
+
+
+{% block main_dashboard_content %} {# Usa el mismo bloque que admin_dashboard.html para consistencia si extiende de una base común, o un bloque específico si es necesario #}
+<div class="w-full px-4 py-0">
+    <div class="bg-white shadow-md rounded-lg overflow-hidden mt-8">
+        <div class="p-6">
+            <h2 class="text-2xl font-semibold text-gray-700">Sugerencias de Eventos Pendientes</h2>
+        </div>
+        {% if pending_events %}
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="!bg-orange-500 !text-white">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Lugar</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Disciplina</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Distancia</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">URL Sugerida</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for event in pending_events %}
+                    <tr id="suggestion-row-{{ event.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ event.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ event.event_date | format_date_filter }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ event.city }}{% if event.city and event.province %}, {% endif %}{{ event.province }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {{ event.discipline | default('N/A') }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-500">{{ event.distance | default('N/A') }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if event.source_url %}
+                            <a href="{{ event.source_url }}" target="_blank" class="text-orange-600 hover:text-orange-900 hover:underline">Ver enlace</a>
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <button onclick="handleSuggestionAction('{{ url_for('admin_validate_event_suggestion', event_id=event.id) }}', 'Validar', {{ event.id }})" class="text-green-600 hover:text-green-900 hover:underline">Validar</button>
+                            <button onclick="handleSuggestionAction('{{ url_for('admin_discard_event_suggestion', event_id=event.id) }}', 'Descartar', {{ event.id }})" class="text-red-600 hover:text-red-900 hover:underline">Descartar</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-6">
+            <p class="text-gray-500">No hay sugerencias pendientes en este momento.</p>
+        </div>
+        {% endif %}
     </div>
-    {% else %}
-    <p class="text-gray-500">No hay sugerencias pendientes en este momento.</p>
-    {% endif %}
 </div>
 
 <script>
-function handleSuggestionAction(eventId, action) {
-    const url = `/api/admin/sugerencias/${eventId}/${action}`;
+function handleSuggestionAction(url, actionName, eventId) {
     const row = document.getElementById(`suggestion-row-${eventId}`);
 
-    if (!confirm(`¿Estás seguro de que quieres ${action} esta sugerencia?`)) {
+    if (!confirm(`¿Estás seguro de que quieres ${actionName.toLowerCase()} esta sugerencia?`)) {
         return;
     }
 
@@ -66,32 +86,56 @@ function handleSuggestionAction(eventId, action) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // Asumimos que el CSRF token se maneja globalmente si es necesario, o se añade aquí
+            // Aquí se podría añadir un token CSRF si la aplicación lo usa
+            // 'X-CSRFToken': '{{ csrf_token() }}' // Ejemplo si se usa Flask-WTF
         }
     })
     .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.message || `Error al ${action} la sugerencia.`); });
-        }
-        return response.json();
+        // Guardar el status code para usarlo después si es necesario
+        const statusCode = response.status;
+        // Siempre intentar parsear como JSON, ya que Flask puede devolver JSON incluso en errores
+        return response.json().then(data => ({ ok: response.ok, status: statusCode, data: data }));
     })
-    .then(data => {
-        alert(data.message || `Sugerencia ${action}da correctamente.`);
-        if (row) {
-            row.remove(); // Eliminar la fila de la tabla
+    .then(result => {
+        if (result.ok) {
+            showFlashMessage(result.data.message || `Sugerencia ${actionName.toLowerCase()}da correctamente.`, 'success');
+            if (row) {
+                row.remove();
+            }
+            // Considerar actualizar contador de sugerencias si existe
+            // Opcional: Recargar la página si es más simple que actualizar dinámicamente todo
+            // location.reload();
+        } else {
+            // Usar el mensaje del servidor si está disponible, sino un mensaje genérico
+            showFlashMessage(result.data.message || `Error al ${actionName.toLowerCase()} la sugerencia. Código: ${result.status}`, 'error');
         }
-        // Opcional: Recargar la página o actualizar la lista de otra forma
-        // location.reload();
     })
     .catch(error => {
-        console.error(`Error al ${action} la sugerencia:`, error);
-        alert(error.message || `Error al ${action} la sugerencia. Inténtalo de nuevo.`);
+        // Este catch es para errores de red o si response.json() falla (ej. respuesta no es JSON)
+        console.error(`Error en la acción '${actionName}' para el evento ${eventId}:`, error);
+        showFlashMessage(`Error de conexión o respuesta inesperada al ${actionName.toLowerCase()} la sugerencia. Por favor, revisa la consola.`, 'error');
     });
 }
+
+// Función para mostrar mensajes flash (debe estar definida globalmente o importada si es modular)
+// Se asume que showFlashMessage está disponible (ej. definida en el layout base o en script.js)
+// Si no, se debe incluir aquí una implementación básica o asegurar su disponibilidad.
+// Ejemplo básico de showFlashMessage (adaptar según el sistema de notificaciones de la app):
+/*
+function showFlashMessage(message, category) {
+    const flashContainer = document.getElementById('flash-messages-container') || createFlashContainer();
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert-flash alert-${category} p-4 mb-3 text-sm rounded-lg shadow-md ...`; // Clases de Tailwind
+    alertDiv.textContent = message;
+    flashContainer.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 7000);
+}
+function createFlashContainer() { ... } // Lógica para crear el contenedor si no existe
+*/
 </script>
 {% endblock %}
 
 {% block additional_scripts %}
 {{ super() }}
-<!-- Aquí puedes añadir scripts adicionales específicos para esta página si es necesario -->
+<!-- Puedes añadir scripts específicos para esta página aquí si es necesario -->
 {% endblock %}
