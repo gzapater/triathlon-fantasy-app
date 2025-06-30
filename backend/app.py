@@ -4624,7 +4624,7 @@ def admin_discard_event_suggestion(event_id): # Renombrado de admin_rechazar_sug
 #         db.session.commit()
 #         app.logger.info(f"Sugerencia de evento ID {event_id} rechazada por {current_user.username}.")
 #         return jsonify(message="Sugerencia rechazada correctamente."), 200
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error al rechazar sugerencia ID {event_id}: {e}", exc_info=True)
-        return jsonify(message="Error al rechazar la sugerencia."), 500
+#    except Exception as e:
+#        db.session.rollback()
+#        app.logger.error(f"Error al rechazar sugerencia ID {event_id}: {e}", exc_info=True)
+#        return jsonify(message="Error al rechazar la sugerencia."), 500
