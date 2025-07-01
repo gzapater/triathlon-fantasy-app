@@ -80,10 +80,12 @@
                         <i class="fas fa-flag-checkered"></i>
                         <span>Buscar carreras</span>
                     </a>
-                    <a href="#" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                    {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
+                    <a href="{{ url_for('list_leagues') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
                         <i class="fas fa-trophy"></i>
-                        <span>Ligas (próximamente)</span>
+                        <span>Ligas</span>
                     </a>
+                    {% endif %}
                     <a href="{{ url_for('tripredict_promo_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
                         <i class="fas fa-bullhorn"></i>
                         <span>TriPredict App</span>
@@ -146,10 +148,12 @@
             <i class="fas fa-flag-checkered w-5"></i>
             <span>Races</span>
         </a>
-        <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+        {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
+        <a href="{{ url_for('list_leagues') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
             <i class="fas fa-trophy w-5"></i>
-            <span>Leagues</span>
+            <span>Ligas</span>
         </a>
+        {% endif %}
         <a href="{{ url_for('tripredict_promo_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
             <i class="fas fa-bullhorn w-5"></i>
             <span>TriPredict App</span>

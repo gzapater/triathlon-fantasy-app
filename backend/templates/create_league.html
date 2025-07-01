@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Nueva Liga - Tripredict</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    <style>
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .races-selection-container {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .races-selection-container h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+        }
+        .race-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .race-item:last-child {
+            border-bottom: none;
+        }
+        .race-item input[type="checkbox"] {
+            margin-right: 10px;
+            width: 1.2em; /* Ajustar tamaño del checkbox */
+            height: 1.2em; /* Ajustar tamaño del checkbox */
+        }
+        .race-item label {
+            font-weight: normal;
+            flex-grow: 1;
+        }
+        .race-item .race-date {
+            font-size: 0.9em;
+            color: #666;
+            margin-left: 1rem;
+        }
+        .form-actions {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem; /* Espacio entre botones */
+        }
+    </style>
+</head>
+<body>
+    {% include '_header.html' %}
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <header class="page-header">
+            <h1>Crear Nueva Liga</h1>
+        </header>
+
+        <form method="POST" action="{{ url_for('create_league') }}" class="card card-form">
+            <div class="card-content">
+                <div class="form-group">
+                    <label for="league_name">Nombre de la Liga <span class="required">*</span></label>
+                    <input type="text" id="league_name" name="league_name" value="{{ league_name or '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="league_description">Descripción (Opcional)</label>
+                    <textarea id="league_description" name="league_description">{{ league_description or '' }}</textarea>
+                </div>
+
+                <div class="races-selection-container">
+                    <h3>Seleccionar Carreras para la Liga</h3>
+                    <p class="small-text">Solo se muestran las carreras que has creado y están en estado "Planned".</p>
+
+                    {% if available_races and available_races|length > 0 %}
+                        {% for race in available_races %}
+                            <div class="race-item">
+                                <input type="checkbox" id="race_{{ race.id }}" name="race_ids" value="{{ race.id }}">
+                                <label for="race_{{ race.id }}">{{ race.title }}</label>
+                                <span class="race-date">({{ race.event_date|format_date_filter }})</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>No tienes carreras en estado "Planned" para añadir a una liga en este momento.</p>
+                        <p>Puedes <a href="{{ url_for('serve_create_race_page') }}">crear una nueva carrera</a> y luego volver aquí para crear tu liga.</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-actions form-actions">
+                <button type="submit" class="button primary-button">Crear Liga</button>
+                <a href="{{ url_for('list_leagues') }}" class="button secondary-button">Cancelar</a>
+            </div>
+        </form>
+    </main>
+
+    <footer>
+        <p>&copy; {{ current_year }} Tripredict. Todos los derechos reservados.</p>
+    </footer>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

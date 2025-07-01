@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ligas - Tripredict</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    <!-- Podrías añadir más enlaces CSS o JS comunes aquí si no extiendes una base -->
+</head>
+<body>
+    {% include '_header.html' %}
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes">
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <header class="page-header">
+            <h1>Gestión de Ligas</h1>
+            <a href="{{ url_for('create_league') }}" class="button primary-button">Crear Nueva Liga</a>
+        </header>
+
+        {% if leagues and leagues|length > 0 %}
+            <section class="card-container">
+                {% for league in leagues %}
+                <article class="card league-card">
+                    <div class="card-header">
+                        <h2>{{ league.name }}</h2>
+                    </div>
+                    <div class="card-content">
+                        <p>
+                            {% if league.description %}
+                                {{ league.description }}
+                            {% else %}
+                                Sin descripción.
+                            {% endif %}
+                        </p>
+                        <p><strong>Creador:</strong> {{ league.creator.username if league.creator else 'Desconocido' }}</p>
+                        <p><strong>Carreras en la liga:</strong> {{ league.races.count() }}</p>
+                        <p><strong>Creada:</strong> {{ league.created_at|format_date_filter }}</p>
+                    </div>
+                    <div class="card-actions">
+                        <a href="{{ url_for('list_leagues') }}?league_id={{ league.id }}" class="button secondary-button icon-button" aria-label="Ver Detalles de {{ league.name }}">
+                            <span class="material-icons">visibility</span> Ver Detalles (Próximamente)
+                        </a>
+                        {# <a href="{{ url_for('edit_league', league_id=league.id) }}" class="button secondary-button icon-button" aria-label="Editar {{ league.name }}">
+                            <span class="material-icons">edit</span> Editar (Próximamente)
+                        </a> #}
+                         <form action="{{ url_for('list_leagues') }}?delete_league_id={{ league.id }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');">
+                            <button type="submit" class="button danger-button icon-button" aria-label="Eliminar {{ league.name }}">
+                                <span class="material-icons">delete</span> Eliminar (Próximamente)
+                            </button>
+                        </form>
+                    </div>
+                </article>
+                {% endfor %}
+            </section>
+        {% else %}
+            <div class="empty-state">
+                <span class="material-icons large-icon">emoji_events</span>
+                <p>No hay ligas creadas todavía.</p>
+                <p>¡Sé el primero en <a href="{{ url_for('create_league') }}">crear una nueva liga</a>!</p>
+            </div>
+        {% endif %}
+    </main>
+
+    <footer>
+        <p>&copy; {{ current_year }} Tripredict. Todos los derechos reservados.</p>
+    </footer>
+
+    <!-- Podrías añadir scripts JS comunes aquí si no extiendes una base -->
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

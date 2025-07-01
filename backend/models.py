@@ -430,3 +430,68 @@ class Event(db.Model):
 
     def __repr__(self):
         return f'<Event {self.name}>'
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++ MODELOS PARA LAS LIGAS ++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# Tabla de asociación para la relación muchos a muchos entre Ligas y Carreras
+league_races_table = db.Table('league_races',
+    db.Column('league_id', db.Integer, db.ForeignKey('leagues.id'), primary_key=True),
+    db.Column('race_id', db.Integer, db.ForeignKey('races.id'), primary_key=True),
+    db.Column('added_at', db.DateTime, default=datetime.utcnow, nullable=False) # Opcional: para saber cuándo se añadió una carrera a la liga
+)
+
+class League(db.Model):
+    __tablename__ = 'leagues'
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    name = db.Column(db.String(255), index=True, nullable=False, unique=True) # Nombre único para la liga
+    description = db.Column(db.Text, nullable=True) # Descripción opcional
+    creator_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) # Usuario que creó la liga
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False) # Para activar/desactivar ligas
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False) # Para borrado lógico
+
+    # Relación con el usuario creador
+    creator = db.relationship("User", backref=db.backref("created_leagues", lazy="dynamic"))
+
+    # Relación muchos a muchos con Carreras (Races)
+    # Las carreras que pertenecen a esta liga
+    races = db.relationship("Race",
+                            secondary=league_races_table,
+                            # primaryjoin=(league_races_table.c.league_id == id), # No es necesario si las FK están bien definidas
+                            # secondaryjoin=(league_races_table.c.race_id == Race.id), # No es necesario
+                            backref=db.backref("member_of_leagues", lazy="dynamic"), # Carreras pueden pertenecer a múltiples ligas
+                            lazy="dynamic") # Carga las carreras bajo demanda
+
+    def __repr__(self):
+        return f"<League {self.id}: {self.name}>"
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'creator_id': self.creator_id,
+            'creator_username': self.creator.username if self.creator else None,
+            'is_active': self.is_active,
+            'is_deleted': self.is_deleted,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'race_ids': [race.id for race in self.races] # Lista de IDs de carreras en la liga
+        }
+
+# Asegurarse de que Race tenga la relación inversa si no se usó backref antes o para más control
+# Si en Race.member_of_leagues (creado por el backref de League.races) es suficiente, no se necesita esto.
+# Si quieres definirlo explícitamente en Race:
+# Race.leagues = db.relationship("League",
+#                               secondary=league_races_table,
+#                               back_populates="races", # Si League.races usa back_populates
+#                               lazy="dynamic")
+# Sin embargo, el backref "member_of_leagues" ya debería crear esta colección en Race.
+
+# Nota: El campo Race.status ya existe y es un SQLAlchemyEnum(RaceStatus)
+# RaceStatus.PLANNED será usado para filtrar carreras elegibles para una liga.

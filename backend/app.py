@@ -4628,3 +4628,203 @@ def admin_discard_event_suggestion(event_id): # Renombrado de admin_rechazar_sug
 #        db.session.rollback()
 #        app.logger.error(f"Error al rechazar sugerencia ID {event_id}: {e}", exc_info=True)
 #        return jsonify(message="Error al rechazar la sugerencia."), 500
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++ RUTAS PARA LAS LIGAS ++++++++++++++++++++++++++++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+from backend.models import League # Asegurarse que League está importado
+
+def check_league_permission(user):
+    """Helper function to check if a user has league admin or admin permissions."""
+    if not user.is_authenticated:
+        return False
+    return user.role.code in ['ADMIN', 'LEAGUE_ADMIN']
+
+@app.route('/leagues', methods=['GET'])
+@login_required
+def list_leagues():
+    # Solo usuarios con permisos pueden ver la lista completa de ligas
+    # (o decidir si todos pueden verlas y solo los admins pueden crear/editar)
+    # Por ahora, restringimos la vista a admins y league_admins
+    if not check_league_permission(current_user):
+        flash("No tienes permiso para acceder a esta página.", "warning")
+        return redirect(url_for('serve_hello_world_page'))
+
+    leagues = League.query.filter_by(is_deleted=False).order_by(League.name).all()
+    return render_template('leagues.html', leagues=leagues, current_year=datetime.utcnow().year)
+
+@app.route('/leagues/create', methods=['GET', 'POST'])
+@login_required
+def create_league():
+    if not check_league_permission(current_user):
+        flash("No tienes permiso para crear ligas.", "danger")
+        return redirect(url_for('list_leagues'))
+
+    if request.method == 'POST':
+        league_name = request.form.get('league_name')
+        league_description = request.form.get('league_description')
+        selected_race_ids_str = request.form.getlist('race_ids') # Lista de strings
+
+        if not league_name or not league_name.strip():
+            flash("El nombre de la liga es obligatorio.", "danger")
+            # Re-render form with available races if validation fails
+            # Solo carreras 'planned' creadas por el usuario actual.
+            available_races = Race.query.filter_by(
+                user_id=current_user.id,
+                status=RaceStatus.PLANNED,
+                is_deleted=False
+            ).order_by(Race.event_date.desc()).all()
+            return render_template('create_league.html',
+                                   available_races=available_races,
+                                   current_year=datetime.utcnow().year,
+                                   league_name=league_name, # Preserve input
+                                   league_description=league_description), 400
+
+
+        # Validar que el nombre de la liga no exista ya
+        existing_league = League.query.filter(func.lower(League.name) == func.lower(league_name.strip()), League.is_deleted == False).first()
+        if existing_league:
+            flash(f"Ya existe una liga con el nombre '{league_name}'. Por favor, elige otro nombre.", "danger")
+            available_races = Race.query.filter_by(
+                user_id=current_user.id,
+                status=RaceStatus.PLANNED,
+                is_deleted=False
+            ).order_by(Race.event_date.desc()).all()
+            return render_template('create_league.html',
+                                   available_races=available_races,
+                                   current_year=datetime.utcnow().year,
+                                   league_name=league_name,
+                                   league_description=league_description), 400
+
+        selected_race_ids = []
+        if selected_race_ids_str:
+            try:
+                selected_race_ids = [int(rid) for rid in selected_race_ids_str]
+            except ValueError:
+                flash("IDs de carrera inválidos seleccionados.", "danger")
+                available_races = Race.query.filter_by(
+                    user_id=current_user.id,
+                    status=RaceStatus.PLANNED,
+                    is_deleted=False
+                ).order_by(Race.event_date.desc()).all()
+                return render_template('create_league.html',
+                                       available_races=available_races,
+                                       current_year=datetime.utcnow().year,
+                                       league_name=league_name,
+                                       league_description=league_description), 400
+
+        new_league = League(
+            name=league_name.strip(),
+            description=league_description.strip() if league_description else None,
+            creator_id=current_user.id
+        )
+
+        if selected_race_ids:
+            # Filtrar carreras para asegurar que son válidas y pertenecen al usuario y están 'planned'
+            # Esto es una doble verificación, ya que el formulario solo debería mostrar estas.
+            races_to_add = Race.query.filter(
+                Race.id.in_(selected_race_ids),
+                Race.user_id == current_user.id, # Seguridad: solo puede añadir sus propias carreras 'planned'
+                Race.status == RaceStatus.PLANNED,
+                Race.is_deleted == False
+            ).all()
+
+            if len(races_to_add) != len(selected_race_ids):
+                 flash("Algunas de las carreras seleccionadas no son válidas o no te pertenecen.", "warning")
+                 # No fallar completamente, pero loguear y continuar con las válidas.
+                 app.logger.warning(f"User {current_user.id} tried to add invalid races to league. Selected: {selected_race_ids}, Valid found: {[r.id for r in races_to_add]}")
+
+
+            for race in races_to_add:
+                new_league.races.append(race)
+
+        try:
+            db.session.add(new_league)
+            db.session.commit()
+            flash(f"Liga '{new_league.name}' creada exitosamente.", "success")
+            return redirect(url_for('list_leagues'))
+        except IntegrityError as e: # Podría ser por unique name si la primera validación falla por concurrencia
+            db.session.rollback()
+            app.logger.error(f"IntegrityError creando liga '{league_name}': {e}", exc_info=True)
+            flash("Error de base de datos: Es posible que ya exista una liga con ese nombre.", "danger")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Error creando liga '{league_name}': {e}", exc_info=True)
+            flash("Ocurrió un error al crear la liga.", "danger")
+
+        # Si llegamos aquí por un error, re-renderizar el formulario
+        available_races = Race.query.filter_by(
+            user_id=current_user.id,
+            status=RaceStatus.PLANNED,
+            is_deleted=False
+        ).order_by(Race.event_date.desc()).all()
+        return render_template('create_league.html',
+                               available_races=available_races,
+                               current_year=datetime.utcnow().year,
+                               league_name=league_name,
+                               league_description=league_description)
+
+    # GET request: Mostrar el formulario de creación
+    # Solo carreras 'planned' creadas por el usuario actual.
+    # Si el rol es ADMIN, ¿debería poder ver todas las carreras 'planned' de todos los usuarios?
+    # Por ahora, la lógica es que cada admin/league_admin crea ligas con *sus* carreras.
+    available_races = Race.query.filter_by(
+        user_id=current_user.id,
+        status=RaceStatus.PLANNED,
+        is_deleted=False
+    ).order_by(Race.event_date.desc()).all()
+
+    return render_template('create_league.html',
+                           available_races=available_races,
+                           current_year=datetime.utcnow().year)
+
+# Aquí podrían ir rutas para editar y ver detalles de una liga, si se añaden después.
+# Ejemplo:
+# @app.route('/leagues/<int:league_id>', methods=['GET'])
+# @login_required
+# def view_league_detail(league_id):
+#     if not check_league_permission(current_user): # O permitir a todos ver
+#         flash("No tienes permiso.", "warning")
+#         return redirect(url_for('list_leagues'))
+#     league = League.query.get_or_404(league_id)
+#     if league.is_deleted:
+#         flash("Liga no encontrada.", "warning")
+#         return redirect(url_for('list_leagues'))
+#     return render_template('league_detail.html', league=league, current_year=datetime.utcnow().year)
+
+# @app.route('/leagues/<int:league_id>/edit', methods=['GET', 'POST'])
+# @login_required
+# def edit_league(league_id):
+#     if not check_league_permission(current_user):
+#         flash("No tienes permiso para editar ligas.", "danger")
+#         return redirect(url_for('list_leagues'))
+#     league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
+#     # Adicionalmente, verificar si el current_user es el creator_id de la liga o un ADMIN general
+#     if league.creator_id != current_user.id and current_user.role.code != 'ADMIN':
+#         flash("No tienes permiso para editar esta liga específica.", "danger")
+#         return redirect(url_for('list_leagues'))
+#     # ... lógica de edición similar a create_league ...
+#     pass
+
+# @app.route('/leagues/<int:league_id>/delete', methods=['POST']) # Usar POST para acciones destructivas
+# @login_required
+# def delete_league(league_id):
+#     if not check_league_permission(current_user):
+#         flash("No tienes permiso para eliminar ligas.", "danger")
+#         return redirect(url_for('list_leagues'))
+#     league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
+#     if league.creator_id != current_user.id and current_user.role.code != 'ADMIN':
+#         flash("No tienes permiso para eliminar esta liga específica.", "danger")
+#         return redirect(url_for('list_leagues'))
+#
+#     league.is_deleted = True
+#     # Opcional: desasociar carreras, o manejarlo con cascade si es borrado físico
+#     # league.races.clear() # Si es borrado lógico y se quiere desasociar
+#     try:
+#         db.session.commit()
+#         flash(f"Liga '{league.name}' marcada como eliminada.", "success")
+#     except Exception as e:
+#         db.session.rollback()
+#         app.logger.error(f"Error eliminando (lógicamente) liga {league_id}: {e}", exc_info=True)
+#         flash("Error al eliminar la liga.", "danger")
+#     return redirect(url_for('list_leagues'))
