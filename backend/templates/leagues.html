@@ -1,81 +1,155 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ligas - Tripredict</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
-    <!-- Podrías añadir más enlaces CSS o JS comunes aquí si no extiendes una base -->
-</head>
-<body>
-    {% include '_header.html' %}
+{# ==================================================================
+   Plantilla: leagues_management.html
+   Propósito: Muestra la lista de ligas creadas y permite su gestión.
+   Hereda de: 'admin_layout.html' (o el nombre de tu plantilla base).
+   ================================================================== #}
 
-    <main class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flashes">
-                {% for category, message in messages %}
-                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
-                {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+{% extends "admin_layout.html" %}
 
-        <header class="page-header">
-            <h1>Gestión de Ligas</h1>
-            <a href="{{ url_for('create_league') }}" class="button primary-button">Crear Nueva Liga</a>
-        </header>
+{# Define el título específico para esta página #}
+{% block page_title %}Gestión de Ligas - Tripredict{% endblock %}
 
-        {% if leagues and leagues|length > 0 %}
-            <section class="card-container">
-                {% for league in leagues %}
-                <article class="card league-card">
-                    <div class="card-header">
-                        <h2>{{ league.name }}</h2>
+{# Contenido principal de la página #}
+{% block main_content %}
+<div class="px-6 pt-6">
+
+    <!-- 1. Cabecera de la Sección -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h1 class="brand-font text-3xl font-bold text-gray-800">Gestión de Ligas</h1>
+            <p class="mt-1 text-gray-500">Crea, edita y gestiona las competiciones de la temporada.</p>
+        </div>
+        <a href="{{ url_for('create_league') }}" class="btn-primary mt-4 md:mt-0 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow flex items-center">
+            <i class="fas fa-plus mr-2"></i>
+            Crear Nueva Liga
+        </a>
+    </header>
+
+    <!-- 2. Contenedor de las Tarjetas de Ligas -->
+    {% if leagues and leagues|length > 0 %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for league in leagues %}
+                <article class="bg-white rounded-xl shadow-lg overflow-hidden card-hover flex flex-col h-full">
+                    <!-- Encabezado de la Tarjeta -->
+                    <div class="gradient-bike p-4 text-white flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-trophy text-2xl opacity-80"></i>
+                            <h2 class="font-bold text-lg truncate" title="{{ league.name }}">{{ league.name }}</h2>
+                        </div>
+                        {% if league.is_active %}
+                            <span class="text-xs bg-green-500 text-white px-2 py-1 rounded-full shadow-sm">Activa</span>
+                        {% else %}
+                             <span class="text-xs bg-gray-500 text-white px-2 py-1 rounded-full shadow-sm">Inactiva</span>
+                        {% endif %}
                     </div>
-                    <div class="card-content">
-                        <p>
+
+                    <!-- Contenido de la Tarjeta -->
+                    <div class="p-5 flex-grow flex flex-col">
+                        <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">
                             {% if league.description %}
-                                {{ league.description }}
+                                {{ league.description[:120] }}{% if league.description|length > 120 %}...{% endif %}
                             {% else %}
-                                Sin descripción.
+                                <span class="italic">No hay descripción disponible para esta liga.</span>
                             {% endif %}
                         </p>
-                        <p><strong>Creador:</strong> {{ league.creator.username if league.creator else 'Desconocido' }}</p>
-                        <p><strong>Carreras en la liga:</strong> {{ league.races.count() }}</p>
-                        <p><strong>Creada:</strong> {{ league.created_at|format_date_filter }}</p>
+
+                        <!-- Metadatos de la Liga -->
+                        <div class="mt-auto space-y-3 text-sm text-gray-500">
+                            <div class="flex items-center justify-between border-t pt-3">
+                                <span><i class="fas fa-user-shield mr-2 text-gray-400"></i>Creador</span>
+                                <span class="font-medium text-gray-700">{{ league.creator.username if league.creator else 'N/A' }}</span>
+                            </div>
+                             <div class="flex items-center justify-between">
+                                <span><i class="fas fa-flag-checkered mr-2 text-gray-400"></i>Carreras</span>
+                                <span class="font-medium text-gray-700">{{ league.races.count() }}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span><i class="fas fa-calendar-plus mr-2 text-gray-400"></i>Creada</span>
+                                <span class="font-medium text-gray-700">{{ league.created_at|format_date_filter }}</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-actions">
-                        <a href="{{ url_for('list_leagues') }}?league_id={{ league.id }}" class="button secondary-button icon-button" aria-label="Ver Detalles de {{ league.name }}">
-                            <span class="material-icons">visibility</span> Ver Detalles (Próximamente)
+
+                    <!-- Acciones de la Tarjeta -->
+                    <div class="bg-gray-50 p-3 border-t flex justify-end items-center space-x-2">
+                        <a href="#" class="text-gray-400 hover:text-orange-500 transition-colors px-2 py-1 rounded-md cursor-not-allowed" title="Editar (Próximamente)">
+                            <i class="fas fa-edit text-lg"></i>
                         </a>
-                        {# <a href="{{ url_for('edit_league', league_id=league.id) }}" class="button secondary-button icon-button" aria-label="Editar {{ league.name }}">
-                            <span class="material-icons">edit</span> Editar (Próximamente)
-                        </a> #}
-                         <form action="{{ url_for('list_leagues') }}?delete_league_id={{ league.id }}" method="POST" style="display: inline;" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');">
-                            <button type="submit" class="button danger-button icon-button" aria-label="Eliminar {{ league.name }}">
-                                <span class="material-icons">delete</span> Eliminar (Próximamente)
-                            </button>
-                        </form>
+                        <a href="#" class="text-gray-400 hover:text-orange-500 transition-colors px-2 py-1 rounded-md cursor-not-allowed" title="Ver Detalles (Próximamente)">
+                            <i class="fas fa-eye text-lg"></i>
+                        </a>
+                        <!-- El formulario de borrado se puede manejar con un modal de confirmación en JS -->
+                        <button onclick="openDeleteConfirmationModal('{{ league.id }}', '{{ league.name }}')" class="text-gray-400 hover:text-red-500 transition-colors px-2 py-1 rounded-md" title="Eliminar Liga">
+                            <i class="fas fa-trash text-lg"></i>
+                        </button>
                     </div>
                 </article>
-                {% endfor %}
-            </section>
-        {% else %}
-            <div class="empty-state">
-                <span class="material-icons large-icon">emoji_events</span>
-                <p>No hay ligas creadas todavía.</p>
-                <p>¡Sé el primero en <a href="{{ url_for('create_league') }}">crear una nueva liga</a>!</p>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- 3. Estado Vacío -->
+        <div class="text-center py-20 px-6 bg-white rounded-xl shadow-lg mt-8">
+            <i class="fas fa-trophy text-7xl text-gray-300 mb-5"></i>
+            <h3 class="text-2xl font-bold text-gray-800 mb-2">Aún no hay Ligas Creadas</h3>
+            <p class="text-gray-500 mb-6 max-w-md mx-auto">Parece que el marcador está a cero. ¡Empieza la temporada creando la primera liga para tu comunidad!</p>
+            <a href="{{ url_for('create_league') }}" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow inline-block">
+                Crear Mi Primera Liga
+            </a>
+        </div>
+    {% endif %}
+
+</div>
+
+<!-- Modal de Confirmación de Borrado (Ejemplo) -->
+<!-- Este modal debería estar en tu plantilla base o en un fichero JS global -->
+<div id="delete-league-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+        <div class="p-6">
+            <div class="text-center">
+                <div class="bg-red-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                    <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Eliminar Liga</h3>
+                <p class="text-sm text-gray-500 mb-6">
+                    ¿Estás seguro de que quieres eliminar la liga "<strong id="league-name-to-delete"></strong>"? Esta acción es irreversible.
+                </p>
             </div>
-        {% endif %}
-    </main>
+            <form id="delete-league-form" action="" method="POST">
+                <div class="flex items-center justify-center space-x-4">
+                    <button type="button" onclick="closeDeleteConfirmationModal()" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                        Sí, Eliminar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-    <footer>
-        <p>&copy; {{ current_year }} Tripredict. Todos los derechos reservados.</p>
-    </footer>
+{% block additional_scripts %}
+<script>
+    function openDeleteConfirmationModal(leagueId, leagueName) {
+        const modal = document.getElementById('delete-league-modal');
+        const form = document.getElementById('delete-league-form');
+        const leagueNameSpan = document.getElementById('league-name-to-delete');
 
-    <!-- Podrías añadir scripts JS comunes aquí si no extiendes una base -->
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-</body>
-</html>
+        if (modal && form && leagueNameSpan) {
+            // Construye la URL para la acción del formulario dinámicamente
+            // Nota: Esto asume que tienes una ruta como 'delete_league' en Flask
+            form.action = `/leagues/${leagueId}/delete`; // O usa url_for si lo pasas al script
+            leagueNameSpan.textContent = leagueName;
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function closeDeleteConfirmationModal() {
+        const modal = document.getElementById('delete-league-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+</script>
+{% endblock %}
