@@ -4632,7 +4632,8 @@ def admin_discard_event_suggestion(event_id): # Renombrado de admin_rechazar_sug
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # +++++++++++++++++++++ RUTAS PARA LAS LIGAS ++++++++++++++++++++++++++++++++++
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-from backend.models import League # Asegurarse que League está importado
+from backend.models import League, LeagueParticipant, LeagueInvitationCode, RaceStatus # Asegurarse que League está importado y los nuevos modelos + RaceStatus
+import uuid # Para generar códigos de invitación
 
 def check_league_permission(user):
     """Helper function to check if a user has league admin or admin permissions."""
@@ -4791,6 +4792,158 @@ def create_league():
 #         flash("Liga no encontrada.", "warning")
 #         return redirect(url_for('list_leagues'))
 #     return render_template('league_detail.html', league=league, current_year=datetime.utcnow().year)
+
+
+@app.route('/league/<int:league_id>/view', methods=['GET'])
+@login_required
+def view_league_detail(league_id):
+    league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
+
+    # Detalles de las carreras de la liga
+    # Ordenar por fecha de evento, por ejemplo
+    league_races_detailed = league.races.filter_by(is_deleted=False).order_by(Race.event_date.asc()).all()
+
+    # Participantes de la liga
+    # Podríamos paginar esto si son muchos. Por ahora, tomamos una muestra.
+    league_participants_query = league.participants.order_by(LeagueParticipant.joined_at.desc())
+    league_participants_count = league_participants_query.count()
+    league_participants_sample = league_participants_query.limit(10).all() # Muestra los últimos 10
+
+    current_user_is_creator_or_admin = False
+    if current_user.is_authenticated:
+        if league.creator_id == current_user.id or current_user.role.code == 'ADMIN':
+            current_user_is_creator_or_admin = True
+
+    current_user_is_participant = False
+    if current_user.is_authenticated:
+        if LeagueParticipant.query.filter_by(user_id=current_user.id, league_id=league.id).first():
+            current_user_is_participant = True
+
+    # Código de invitación activo (el más reciente, por ejemplo)
+    active_invitation_code = LeagueInvitationCode.query.filter_by(
+        league_id=league.id,
+        is_active=True
+    ).order_by(LeagueInvitationCode.created_at.desc()).first()
+
+    # Mensaje para código recién generado (si se pasa por flash o parámetro)
+    generated_code_message = request.args.get('generated_code', None)
+
+
+    # Propiedad para descripción con fallback (puedes añadirla al modelo League si prefieres)
+    league.description_or_default = league.description if league.description and league.description.strip() else "Esta liga aún no tiene una descripción detallada."
+
+
+    return render_template('league_detail_view.html',
+                           league=league,
+                           league_races_detailed=league_races_detailed,
+                           league_participants_count=league_participants_count,
+                           league_participants=league_participants_sample,
+                           current_user_is_creator_or_admin=current_user_is_creator_or_admin,
+                           current_user_is_participant=current_user_is_participant,
+                           invitation_code=active_invitation_code,
+                           generated_code_message=generated_code_message,
+                           current_year=datetime.utcnow().year)
+
+
+@app.route('/league/<int:league_id>/generate_join_code', methods=['POST'])
+@login_required
+def generate_league_join_code(league_id):
+    league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
+
+    if not (league.creator_id == current_user.id or current_user.role.code == 'ADMIN'):
+        flash("No tienes permiso para generar códigos de invitación para esta liga.", "danger")
+        return redirect(url_for('view_league_detail', league_id=league.id))
+
+    # Opcional: invalidar códigos anteriores para esta liga
+    # LeagueInvitationCode.query.filter_by(league_id=league.id, is_active=True).update({"is_active": False})
+    # db.session.commit() # Si se descomenta la línea anterior
+
+    new_code = LeagueInvitationCode(
+        league_id=league.id,
+        # code se genera por defecto por el modelo
+        # expires_at podría establecerse aquí si se desea una expiración por defecto
+    )
+    try:
+        db.session.add(new_code)
+        db.session.commit()
+        flash(f"Nuevo código de invitación generado: {new_code.code}", "success")
+        # Redirigir de nuevo a la página de detalles, pasando el código como parámetro para mostrarlo
+        return redirect(url_for('view_league_detail', league_id=league.id, generated_code=new_code.code))
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generando código de invitación para liga {league.id} por user {current_user.id}: {e}", exc_info=True)
+        flash("Error al generar el código de invitación.", "danger")
+        return redirect(url_for('view_league_detail', league_id=league.id))
+
+@app.route('/league/join_with_code', methods=['POST'])
+@login_required
+def process_join_league_with_code():
+    join_code_str = request.form.get('join_code')
+
+    if not join_code_str or not join_code_str.strip():
+        flash("Debes proporcionar un código de invitación.", "warning")
+        # Redirigir a la página anterior o a una página de error/dashboard
+        # Necesitaríamos saber desde qué liga se intentó unir si queremos redirigir a view_league_detail
+        # Por ahora, al dashboard general.
+        return redirect(request.referrer or url_for('serve_hello_world_page'))
+
+    invitation_code = LeagueInvitationCode.query.filter_by(code=join_code_str.strip(), is_active=True).first()
+
+    if not invitation_code:
+        flash("El código de invitación no es válido o ha expirado.", "danger")
+        return redirect(request.referrer or url_for('serve_hello_world_page'))
+
+    league_to_join = League.query.filter_by(id=invitation_code.league_id, is_deleted=False, is_active=True).first()
+
+    if not league_to_join:
+        flash("La liga asociada a este código no está disponible o no está activa.", "danger")
+        # Podríamos desactivar el código aquí si la liga ya no es válida
+        # invitation_code.is_active = False
+        # db.session.commit()
+        return redirect(request.referrer or url_for('serve_hello_world_page'))
+
+    # Verificar si el usuario ya es participante
+    existing_participant = LeagueParticipant.query.filter_by(user_id=current_user.id, league_id=league_to_join.id).first()
+    if existing_participant:
+        flash(f"Ya eres participante de la liga '{league_to_join.name}'.", "info")
+        return redirect(url_for('view_league_detail', league_id=league_to_join.id))
+
+    # Añadir al usuario como participante de la liga
+    new_participant = LeagueParticipant(user_id=current_user.id, league_id=league_to_join.id)
+    db.session.add(new_participant)
+
+    # Inscribir al usuario en todas las carreras PLANNED y ACTIVE de la liga
+    races_in_league = league_to_join.races.filter(
+        Race.is_deleted == False,
+        Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE])
+    ).all()
+
+    races_joined_count = 0
+    for race in races_in_league:
+        is_already_registered_for_race = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race.id).first()
+        if not is_already_registered_for_race:
+            registration = UserRaceRegistration(user_id=current_user.id, race_id=race.id)
+            db.session.add(registration)
+            races_joined_count += 1
+
+    # Lógica para el código de invitación (ej. invalidar si es de un solo uso)
+    # Por ahora, los códigos son multi-uso y no se desactivan automáticamente al usarlos.
+    # Si se quisiera que fuera de un solo uso:
+    # invitation_code.is_active = False
+
+    try:
+        db.session.commit()
+        flash(f"¡Te has unido a la liga '{league_to_join.name}' exitosamente! Se te ha inscrito en {races_joined_count} carrera(s) de la liga.", "success")
+    except IntegrityError: # Podría ocurrir si hay una condición de carrera en la creación del participante
+        db.session.rollback()
+        flash("Error al unirte a la liga. Es posible que ya seas participante.", "danger")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error al procesar unión a liga {league_to_join.id} con código {join_code_str} por user {current_user.id}: {e}", exc_info=True)
+        flash("Ocurrió un error al procesar tu solicitud para unirte a la liga.", "danger")
+
+    return redirect(url_for('view_league_detail', league_id=league_to_join.id))
+
 
 # @app.route('/leagues/<int:league_id>/edit', methods=['GET', 'POST'])
 # @login_required

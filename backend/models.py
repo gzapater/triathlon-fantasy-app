@@ -495,3 +495,41 @@ class League(db.Model):
 
 # Nota: El campo Race.status ya existe y es un SQLAlchemyEnum(RaceStatus)
 # RaceStatus.PLANNED será usado para filtrar carreras elegibles para una liga.
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++++++++ MODELOS ADICIONALES PARA PARTICIPANTES Y CÓDIGOS DE INVITACIÓN DE LIGA ++++++++
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+class LeagueParticipant(db.Model):
+    __tablename__ = 'league_participants'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    league_id = db.Column(db.Integer, db.ForeignKey('leagues.id'), nullable=False)
+    joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('league_participations', lazy='dynamic', cascade="all, delete-orphan"))
+    league = db.relationship('League', backref=db.backref('participants', lazy='dynamic', cascade="all, delete-orphan"))
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'league_id', name='_user_league_uc'),)
+
+    def __repr__(self):
+        return f'<LeagueParticipant user_id={self.user_id} league_id={self.league_id}>'
+
+class LeagueInvitationCode(db.Model):
+    __tablename__ = 'league_invitation_codes'
+    id = db.Column(db.Integer, primary_key=True)
+    league_id = db.Column(db.Integer, db.ForeignKey('leagues.id'), nullable=False)
+    code = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    expires_at = db.Column(db.DateTime, nullable=True) # Puede ser nulo para códigos que no expiran
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    league = db.relationship('League', backref=db.backref('invitation_codes', lazy='dynamic', cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f'<LeagueInvitationCode code={self.code} league_id={self.league_id} active={self.is_active}>'
+
+# Actualizar relaciones en User y League si es necesario (backrefs ya lo hacen implícitamente)
+# User.league_participations (ya creado por backref)
+# League.participants (ya creado por backref)
+# League.invitation_codes (ya creado por backref)
