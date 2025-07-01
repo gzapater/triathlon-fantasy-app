@@ -1,0 +1,101 @@
+{% extends "admin_dashboard.html" %}
+
+{% block title %}Gestión de Ligas - TriPredict{% endblock %}
+
+{% block specific_content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Gestión de Ligas</h1>
+        <button id="openCreateLeagueModalBtn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-150 ease-in-out flex items-center">
+            <i class="fas fa-plus mr-2"></i> Crear Nueva Liga
+        </button>
+    </div>
+
+    <!-- Leagues Table -->
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+        <table class="min-w-full leading-normal">
+            <thead class="bg-gray-700 text-white">
+                <tr>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold uppercase tracking-wider">
+                        Nombre de la Liga
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold uppercase tracking-wider">
+                        Descripción
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold uppercase tracking-wider">
+                        Admin
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold uppercase tracking-wider">
+                        Nº Carreras
+                    </th>
+                    <th class="px-5 py-3 border-b-2 border-gray-200 text-left text-xs font-semibold uppercase tracking-wider">
+                        Acciones
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="leaguesTableBody" class="text-gray-700">
+                <!-- Rows will be populated by JavaScript -->
+                <tr>
+                    <td colspan="5" class="text-center py-10 px-5">
+                        <div id="leaguesLoadingSpinner" role="status">
+                            <svg aria-hidden="true" class="inline w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-orange-500" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                                <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                            </svg>
+                            <span class="sr-only">Cargando ligas...</span>
+                        </div>
+                        <p id="noLeaguesMessage" class="hidden text-gray-500">No se encontraron ligas. ¡Crea una nueva!</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create/Edit League Modal -->
+<div id="leagueModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-[70]">
+    <div class="relative bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all duration-300 ease-in-out scale-95 opacity-0" id="leagueModalDialog">
+        <h2 id="leagueModalTitle" class="text-2xl font-bold text-gray-800 mb-6">Crear Nueva Liga</h2>
+        <form id="leagueForm">
+            <input type="hidden" id="leagueId" name="leagueId">
+
+            <div class="mb-4">
+                <label for="leagueName" class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Liga</label>
+                <input type="text" id="leagueName" name="leagueName" required class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Ej: Liga de Verano TriPredict">
+            </div>
+
+            <div class="mb-6">
+                <label for="leagueDescription" class="block text-sm font-medium text-gray-700 mb-1">Descripción (Opcional)</label>
+                <textarea id="leagueDescription" name="leagueDescription" rows="3" class="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Breve descripción de la liga, reglas, etc."></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label for="leagueRaces" class="block text-sm font-medium text-gray-700 mb-1">Carreras Incluidas</label>
+                <div class="mt-1 bg-white border border-gray-300 rounded-lg shadow-sm p-3 max-h-60 overflow-y-auto">
+                    <div id="racesLoadingSpinner" class="text-center py-3">
+                        <svg aria-hidden="true" class="inline w-6 h-6 text-gray-200 animate-spin dark:text-gray-600 fill-orange-500" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">...</svg>
+                        <span class="text-sm text-gray-500">Cargando carreras disponibles...</span>
+                    </div>
+                    <div id="racesCheckboxContainer">
+                        <!-- Checkboxes will be populated by JavaScript -->
+                    </div>
+                    <p id="noRacesForLeagueMessage" class="hidden text-sm text-gray-500 p-2">No hay carreras en estado 'Planeada' que puedas añadir. Crea algunas primero.</p>
+                </div>
+                <p class="mt-1 text-xs text-gray-500">Solo se mostrarán carreras en estado "Planeada". {% if current_user.role.code == 'LEAGUE_ADMIN' %}Solo puedes seleccionar carreras creadas por ti.{% endif %}</p>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button type="button" id="closeLeagueModalBtn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg border border-gray-300 transition duration-150">Cancelar</button>
+                <button type="submit" id="saveLeagueBtn" class="px-6 py-2 text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition duration-150">
+                    <span id="saveLeagueBtnText">Guardar Liga</span>
+                    <i id="saveLeagueSpinner" class="fas fa-spinner fa-spin ml-2 hidden"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/leagues_management.js') }}"></script>
+{% endblock %}

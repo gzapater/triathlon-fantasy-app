@@ -3,7 +3,7 @@ import boto3
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
-from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus, Event, EventStatus # Added UserScore, RaceStatus, Event, AND EventStatus
+from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus, Event, EventStatus, League # Added League
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
@@ -3091,6 +3091,35 @@ def serve_hello_world_page():
                                 auto_join_race_id=auto_join_race_id_to_template, # Mantener estos nombres para la plantilla
                                 race_to_join_title=race_to_join_title_to_template) # Mantener estos nombres para la plantilla
 
+@app.route('/leagues_management')
+@login_required
+def serve_leagues_management_page():
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        flash("Acceso denegado. Esta sección es solo para administradores y administradores de liga.", "error")
+        return redirect(url_for('serve_hello_world_page'))
+
+    # Pass any necessary context if leagues_management.html extends a base that needs it
+    # For now, assuming it might extend admin_dashboard.html or a similar base
+    return render_template(
+        'leagues_management.html',
+        current_year=datetime.utcnow().year,
+        # Add other context variables that might be expected by the base template
+        # For example, if it uses parts of admin_dashboard's context:
+        races=[],
+        races_for_official_answers=[],
+        all_race_formats=RaceFormat.query.order_by(RaceFormat.name).all(),
+        filter_date_from_str=None,
+        filter_date_to_str=None,
+        filter_race_format_id_str=None,
+        all_race_statuses=[status.value for status in RaceStatus],
+        selected_statuses_for_ui=[],
+        organized_races=[],
+        participating_races=[],
+        favorite_races=[],
+        active_players_count=0,
+        auto_join_race_id=None,
+        race_to_join_title=None
+    )
 
 @app.route('/races', methods=['GET'])
 @login_required
@@ -4628,3 +4657,197 @@ def admin_discard_event_suggestion(event_id): # Renombrado de admin_rechazar_sug
 #        db.session.rollback()
 #        app.logger.error(f"Error al rechazar sugerencia ID {event_id}: {e}", exc_info=True)
 #        return jsonify(message="Error al rechazar la sugerencia."), 500
+
+# --- League Management API Endpoints ---
+
+@app.route('/api/leagues', methods=['POST'])
+@login_required
+def create_league():
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to create leagues."), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    name = data.get('name')
+    description = data.get('description')
+    race_ids = data.get('race_ids', [])
+
+    if not name or not isinstance(name, str) or not name.strip():
+        return jsonify(message="League name is required and must be a non-empty string."), 400
+    if not isinstance(race_ids, list):
+        return jsonify(message="race_ids must be a list."), 400
+
+    selected_races = []
+    if race_ids:
+        races_query = Race.query.filter(Race.id.in_(race_ids), Race.is_deleted == False).all()
+        races_map = {race.id: race for race in races_query}
+
+        for race_id in race_ids:
+            race = races_map.get(race_id)
+            if not race:
+                return jsonify(message=f"Race with ID {race_id} not found or has been deleted."), 404
+            if race.status != RaceStatus.PLANNED:
+                return jsonify(message=f"Race '{race.title}' (ID: {race_id}) is not in PLANNED status."), 400
+
+            if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
+                return jsonify(message=f"As LEAGUE_ADMIN, you can only add races you created. Race '{race.title}' (ID: {race_id}) was not created by you."), 403
+            selected_races.append(race)
+
+    new_league = League(
+        name=name,
+        description=description,
+        admin_id=current_user.id,
+        races=selected_races
+    )
+
+    try:
+        db.session.add(new_league)
+        db.session.commit()
+        return jsonify(message="League created successfully", league=new_league.to_dict()), 201
+    except IntegrityError as e:
+        db.session.rollback()
+        # Check if it's a unique constraint violation on the name
+        if "UNIQUE constraint failed: leagues.name" in str(e.orig).lower() or "unique constraint" in str(e.orig).lower() and "leagues_name_key" in str(e.orig).lower(): # Adjusted for PostgreSQL
+            return jsonify(message=f"League name '{name}' already exists. Please choose a different name."), 409
+        app.logger.error(f"IntegrityError creating league: {e}", exc_info=True)
+        return jsonify(message="Database integrity error while creating league."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception creating league: {e}", exc_info=True)
+        return jsonify(message="Error creating league"), 500
+
+@app.route('/api/leagues', methods=['GET'])
+@login_required # Or remove if leagues are public to view
+def get_leagues():
+    # Future: Add pagination and filtering
+    leagues_query = League.query.filter_by(is_deleted=False).order_by(League.created_at.desc()).all()
+    leagues_list = [league.to_dict() for league in leagues_query]
+    return jsonify(leagues_list), 200
+
+@app.route('/api/leagues/<int:league_id>', methods=['GET'])
+@login_required # Or remove if league details are public
+def get_league_details(league_id):
+    league = League.query.filter_by(id=league_id, is_deleted=False).first()
+    if not league:
+        return jsonify(message="League not found or has been deleted"), 404
+
+    league_data = league.to_dict()
+    # Enhance with full race details if needed by frontend
+    league_data['races'] = [race.to_dict() for race in league.races if not race.is_deleted]
+    return jsonify(league_data), 200
+
+@app.route('/api/leagues/<int:league_id>', methods=['PUT'])
+@login_required
+def update_league(league_id):
+    league = League.query.filter_by(id=league_id, is_deleted=False).first()
+    if not league:
+        return jsonify(message="League not found or has been deleted"), 404
+
+    if current_user.role.code != 'ADMIN' and league.admin_id != current_user.id:
+        return jsonify(message="Forbidden: You do not have permission to update this league."), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    updated = False
+    if 'name' in data:
+        name = data.get('name')
+        if not name or not isinstance(name, str) or not name.strip():
+            return jsonify(message="League name must be a non-empty string if provided."), 400
+        league.name = name
+        updated = True
+
+    if 'description' in data:
+        league.description = data.get('description') # Allow empty description
+        updated = True
+
+    if 'race_ids' in data:
+        race_ids = data.get('race_ids')
+        if not isinstance(race_ids, list):
+            return jsonify(message="race_ids must be a list if provided."), 400
+
+        new_selected_races = []
+        if race_ids:
+            races_query = Race.query.filter(Race.id.in_(race_ids), Race.is_deleted == False).all()
+            races_map = {race.id: race for race in races_query}
+
+            for race_id_val in race_ids: # Renamed race_id to avoid conflict
+                race = races_map.get(race_id_val)
+                if not race:
+                    return jsonify(message=f"Race with ID {race_id_val} not found or has been deleted."), 404
+                if race.status != RaceStatus.PLANNED:
+                    return jsonify(message=f"Race '{race.title}' (ID: {race_id_val}) is not in PLANNED status."), 400
+
+                # Role check for adding races: ADMIN can add any, LEAGUE_ADMIN only their own
+                # This check applies to the *league owner's* permissions if they are a LEAGUE_ADMIN
+                league_admin_user = User.query.get(league.admin_id)
+                if league_admin_user and league_admin_user.role.code == 'LEAGUE_ADMIN':
+                    if race.user_id != league.admin_id:
+                         return jsonify(message=f"The league owner (LEAGUE_ADMIN) can only add races they created. Race '{race.title}' (ID: {race_id_val}) is not owned by them."), 403
+                # If current_user is ADMIN editing any league, they can add any race.
+                # If current_user is LEAGUE_ADMIN editing their own league, this check is effectively race.user_id != current_user.id
+                elif current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
+                     return jsonify(message=f"As LEAGUE_ADMIN, you can only add races you created to your leagues. Race '{race.title}' (ID: {race_id_val}) was not created by you."), 403
+
+                new_selected_races.append(race)
+
+        league.races = new_selected_races # Replace the list of races
+        updated = True
+
+    if not updated:
+        return jsonify(message="No updatable fields provided."), 400
+
+    league.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+        return jsonify(message="League updated successfully", league=league.to_dict()), 200
+    except IntegrityError as e:
+        db.session.rollback()
+        if "UNIQUE constraint failed: leagues.name" in str(e.orig).lower() or "unique constraint" in str(e.orig).lower() and "leagues_name_key" in str(e.orig).lower():
+            return jsonify(message=f"League name '{league.name}' already exists. Please choose a different name."), 409
+        app.logger.error(f"IntegrityError updating league {league_id}: {e}", exc_info=True)
+        return jsonify(message="Database integrity error while updating league."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception updating league {league_id}: {e}", exc_info=True)
+        return jsonify(message="Error updating league"), 500
+
+@app.route('/api/leagues/<int:league_id>', methods=['DELETE'])
+@login_required
+def delete_league(league_id):
+    league = League.query.filter_by(id=league_id, is_deleted=False).first()
+    if not league:
+        return jsonify(message="League not found or already deleted"), 404
+
+    if current_user.role.code != 'ADMIN' and league.admin_id != current_user.id:
+        return jsonify(message="Forbidden: You do not have permission to delete this league."), 403
+
+    league.is_deleted = True
+    league.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+        return jsonify(message="League deleted successfully"), 200
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception deleting league {league_id}: {e}", exc_info=True)
+        return jsonify(message="Error deleting league"), 500
+
+@app.route('/api/races/planned_for_league_creation', methods=['GET'])
+@login_required
+def get_planned_races_for_league():
+    if current_user.role.code not in ['ADMIN', 'LEAGUE_ADMIN']:
+        return jsonify(message="Forbidden: You do not have permission to view these races."), 403
+
+    query = Race.query.filter(Race.is_deleted == False, Race.status == RaceStatus.PLANNED)
+
+    if current_user.role.code == 'LEAGUE_ADMIN':
+        query = query.filter(Race.user_id == current_user.id)
+
+    races = query.order_by(Race.event_date.desc()).all()
+    races_data = [{'id': race.id, 'title': race.title, 'event_date': race.event_date.strftime('%Y-%m-%d')} for race in races]
+    return jsonify(races_data), 200
+
+# --- End League Management API Endpoints ---

@@ -430,3 +430,43 @@ class Event(db.Model):
 
     def __repr__(self):
         return f'<Event {self.name}>'
+
+# Association table for the many-to-many relationship between Leagues and Races
+league_races = db.Table('league_races',
+    db.Column('league_id', db.Integer, db.ForeignKey('leagues.id'), primary_key=True),
+    db.Column('race_id', db.Integer, db.ForeignKey('races.id'), primary_key=True)
+)
+
+class League(db.Model):
+    __tablename__ = 'leagues'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False, unique=True)
+    description = db.Column(db.Text, nullable=True)
+    admin_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) # User who created the league
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False) # For logical deletion
+
+    # Relationship to the User who administers the league
+    admin = db.relationship('User', backref=db.backref('administered_leagues', lazy=True))
+
+    # Many-to-many relationship with Races
+    races = db.relationship('Race', secondary=league_races, lazy='subquery',
+                            backref=db.backref('leagues', lazy=True))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'admin_id': self.admin_id,
+            'admin_username': self.admin.username if self.admin else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_deleted': self.is_deleted,
+            'race_ids': [race.id for race in self.races] # Add IDs of associated races
+        }
+
+    def __repr__(self):
+        return f'<League {self.name}>'

@@ -80,10 +80,12 @@
                         <i class="fas fa-flag-checkered"></i>
                         <span>Buscar carreras</span>
                     </a>
-                    <a href="#" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                    {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
+                    <a href="{{ url_for('serve_leagues_management_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
                         <i class="fas fa-trophy"></i>
-                        <span>Ligas (próximamente)</span>
+                        <span>Ligas</span>
                     </a>
+                    {% endif %}
                     <a href="{{ url_for('tripredict_promo_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
                         <i class="fas fa-bullhorn"></i>
                         <span>TriPredict App</span>
