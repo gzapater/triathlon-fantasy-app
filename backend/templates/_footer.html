@@ -1,0 +1,53 @@
+<footer class="gradient-bike text-white mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+                <div class="flex items-center space-x-2 mb-4">
+                    <i class="fas fa-swimmer text-orange-400"></i>
+                    <i class="fas fa-biking text-orange-400"></i>
+                    <i class="fas fa-running text-orange-400"></i>
+                    <span class="brand-font font-bold text-xl">TriFantasy</span>
+                </div>
+                <p class="text-gray-300 text-sm">La plataforma líder para gestionar ligas de triatlón fantasy</p>
+            </div>
+            <div>
+                <h4 class="font-semibold mb-4">Navegación</h4>
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li><a href="{{ url_for('serve_hello_world_page') }}" class="hover:text-orange-400 transition-colors">Dashboard</a></li>
+                    <li><a href="{{ url_for('serve_races_list_page') }}" class="hover:text-orange-400 transition-colors">Carreras</a></li>
+                    <li><a href="{{ url_for('serve_leagues_page') }}" class="hover:text-orange-400 transition-colors">Ligas</a></li>
+                    <li><a href="#" class="hover:text-orange-400 transition-colors">Perfil</a></li> {# Assuming a future profile page #}
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-semibold mb-4">Soporte</h4>
+                <ul class="space-y-2 text-sm text-gray-300">
+                    <li><a href="{{ url_for('serve_faq_page') }}" class="hover:text-orange-400 transition-colors">Centro de Ayuda</a></li>
+                    <li><a href="#" class="hover:text-orange-400 transition-colors">Contacto</a></li> {# Placeholder #}
+                    <li><a href="#" class="hover:text-orange-400 transition-colors">Términos de Uso</a></li> {# Placeholder #}
+                    <li><a href="#" class="hover:text-orange-400 transition-colors">Privacidad</a></li> {# Placeholder #}
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-semibold mb-4">Síguenos</h4>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                        <i class="fab fa-facebook text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                        <i class="fab fa-twitter text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                        <i class="fab fa-instagram text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-300 hover:text-orange-400 transition-colors">
+                        <i class="fab fa-linkedin text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="border-t border-gray-600 mt-8 pt-8 text-center text-sm text-gray-300">
+            <p>&copy; 2024 TriFantasy. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</footer>

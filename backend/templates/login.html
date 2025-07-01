@@ -1,109 +1,121 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión - TriPredict</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon_promo.svg') }}">
-    <!-- Font Awesome is kept as it might be used by social icons, though not explicitly in the form provided -->
+{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+    {# El favicon de base.html (favicon.svg) es más acorde con el diseño de la app que favicon_promo.svg #}
+    {# No se necesita Inter font, ya que base.html carga Roboto y Orbitron #}
+    {# FontAwesome ya está en base.html #}
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .bg-triathlon {
-            /* URL de imagen de muestra para demostración */
-            /* TODO: Replace with your desired background image URL */
+        /* Estilos específicos para la página de login, si son necesarios más allá de Tailwind y main_theme.css */
+        .bg-triathlon-login { /* Renombrado para evitar conflictos y ser más específico */
             background-size: cover;
             background-position: center;
         }
     </style>
-</head>
-<body class="bg-gray-100">
-    <!-- Loading Bar Overlay -->
-    <div id="loading-overlay" style="/* Styles managed by CSS now, except for initial display:none */ display: none;">
-        <div id="loading-bar-container">
-            <div id="loading-progress">0%</div>
-        </div>
-    </div>
+{% endblock %}
 
-    <div class="min-h-screen flex items-center justify-center">
-        <div class="w-full lg:grid lg:grid-cols-2 lg:h-screen overflow-hidden">
+{% block hero %}
+    {# No se usa la sección hero estándar en esta página de login #}
+{% endblock hero %}
 
-            <!-- Panel Izquierdo: Formulario de Login -->
-            <div class="bg-white p-8 sm:p-12 flex flex-col justify-center">
-                <div class="w-full max-w-md mx-auto">
-                    <!-- Logo Apilado -->
-                    <div class="flex justify-center mb-6">
-                        <a href="#">
-                           <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <g transform="translate(37, 10)">
-                                  <path d="M1 29L16 14L1 0" stroke="#F97316" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                  <path d="M16 29L31 14L16 0" stroke="#F97316" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                  <path d="M31 29L46 14L31 0" stroke="#F97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </g>
-                                <text x="60" y="80" font-family="Inter, sans-serif" font-size="24" fill="#6B7280" font-weight="300" text-anchor="middle">Tri<tspan font-weight="700" fill="#1F2937">Predict</tspan></text>
-                            </svg>
-                        </a>
+{% block content %}
+<div class="min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,260px))] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    {# Nota: --header-height y --footer-height deberían definirse en main_theme.css o calcularse vía JS
+       para que el min-h funcione dinámicamente si las alturas del header/footer cambian.
+       Por ahora, son valores aproximados. Alternativamente, se puede usar flex-grow en el contenedor principal.
+       base.html ya usa flex-col min-h-screen en el wrapper principal y flex-1 en main,
+       por lo que este cálculo de altura podría no ser estrictamente necesario si #dashboard-content-wrapper
+       se ajusta para permitir centrado vertical.
+    #}
+    <div class="w-full lg:grid lg:grid-cols-2 lg:max-w-5xl lg:shadow-2xl lg:rounded-lg overflow-hidden bg-white">
+
+        <!-- Panel Izquierdo: Formulario de Login -->
+        <div class="p-8 sm:p-12 flex flex-col justify-center order-2 lg:order-1">
+            <div class="w-full max-w-md mx-auto">
+                <!-- Logo - Usaremos el logo del _header.html o uno consistente con el nuevo branding -->
+                <div class="flex justify-center mb-8">
+                    <a href="{{ url_for('serve_hello_world_page') }}"> {# Enlaza a la página principal de la app #}
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-swimmer text-3xl text-orange-primary"></i>
+                            <i class="fas fa-biking text-3xl text-orange-primary"></i>
+                            <i class="fas fa-running text-3xl text-orange-primary"></i>
+                            <span class="brand-font font-bold text-3xl text-gray-dark">TriFantasy</span>
+                        </div>
+                    </a>
+                </div>
+
+                <h2 class="text-2xl font-bold text-gray-dark brand-font text-center">Bienvenido de nuevo</h2>
+                <p class="text-gray-600 text-center mt-2 mb-8">Inicia sesión para acceder a tus ligas.</p>
+
+                <form id="loginForm" method="POST" class="space-y-6">
+                    {# El action se deja vacío, login.js lo maneja o Flask lo procesa en la misma ruta #}
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">Usuario</label>
+                        <div class="mt-1">
+                            <input id="username" name="username" type="text" autocomplete="username" required
+                                   class="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400
+                                          focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm">
+                        </div>
                     </div>
 
-                    <h2 class="text-2xl font-bold text-gray-900 text-center">Bienvenido de nuevo</h2>
-                    <p class="text-gray-600 text-center mt-2 mb-8">Inicia sesión para acceder a tus ligas.</p>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                        <div class="mt-1">
+                            <input id="password" name="password" type="password" autocomplete="current-password" required
+                                   class="appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400
+                                          focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm">
+                        </div>
+                    </div>
 
-                    <!-- Formulario -->
-                    <form id="loginForm" action="#" method="POST" class="space-y-6">
-                        <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700">Usuario</label>
-                            <div class="mt-1">
-                                <input id="username" name="username" type="text" autocomplete="username" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
-                            </div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <input id="remember-me" name="remember-me" type="checkbox"
+                                   class="h-4 w-4 text-orange-primary focus:ring-orange-light border-gray-300 rounded">
+                            <label for="remember-me" class="ml-2 block text-sm text-gray-900">Recuérdame</label>
                         </div>
 
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
-                            <div class="mt-1">
-                                <input id="password" name="password" type="password" autocomplete="current-password" required class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
-                            </div>
+                        <div class="text-sm">
+                            <a href="#" class="font-medium text-orange-primary hover:text-orange-dark">¿Olvidaste tu contraseña?</a>
                         </div>
+                    </div>
 
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
-                                <label for="remember-me" class="ml-2 block text-sm text-gray-900">Recuérdame</label>
-                            </div>
+                    <div>
+                        <button type="submit"
+                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white
+                                       btn-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-dark">
+                            Iniciar Sesión
+                        </button>
+                    </div>
+                </form>
 
-                            <div class="text-sm">
-                                <a href="#" class="font-medium text-orange-600 hover:text-orange-500">¿Olvidaste tu contraseña?</a>
-                            </div>
-                        </div>
-
-                        <div>
-                            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                                Iniciar Sesión
-                            </button>
-                        </div>
-                    </form>
-
-                    <div id="messageArea" class="mt-4 text-center text-sm"></div>
-                    <!-- login.js will make this visible and add content/classes, and control display -->
-
+                <div id="messageArea" class="mt-4 text-center text-sm" style="display: none;">
+                    {# JS llenará esto. Asegúrate que las clases success/error de main_theme.css se apliquen bien #}
                 </div>
+                 <!-- Loading Bar Overlay (HTML structure for JS to use) -->
+                <div id="loading-overlay" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50" style="display: none;">
+                    <div id="loading-bar-container" class="w-1/2 bg-gray-200 rounded-full">
+                        <div id="loading-progress" class="bg-orange-primary text-xs font-medium text-blue-100 text-center p-0.5 leading-none rounded-full" style="width: 0%">0%</div>
+                    </div>
+                </div>
+
                 <div class="mt-8 text-center text-sm text-gray-600">
-                    <p>¿No tienes una cuenta? <a href="{{ url_for('register_page') }}" class="font-medium text-orange-600 hover:text-orange-500">Regístrate ahora</a></p>
+                    <p>¿No tienes una cuenta? <a href="{{ url_for('register_page') }}" class="font-medium text-orange-primary hover:text-orange-dark">Regístrate ahora</a></p>
                 </div>
             </div>
+        </div>
 
-            <!-- Panel Derecho: Imagen -->
-            <div class="hidden lg:block relative">
-                <div class="absolute inset-0 bg-gray-800 opacity-25"></div> <!-- Overlay sutil -->
-                <div class="bg-triathlon h-full w-full"></div>
-            </div>
-
+        <!-- Panel Derecho: Imagen -->
+        <div class="hidden lg:block relative order-1 lg:order-2">
+            <div class="absolute inset-0 bg-gray-dark opacity-20"></div> <!-- Overlay sutil con color de la paleta -->
+            <div class="bg-triathlon-login h-full w-full"></div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script> <!-- Load script.js first -->
+</div>
+{% endblock content %}
+
+{% block scripts %}
+    {# script.js ya no parece ser relevante o sus funciones se integrarán/reemplazarán #}
     <script src="{{ url_for('static', filename='js/login.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -111,14 +123,20 @@
                 'https://d1le4h54pkkjcy.cloudfront.net/Login_Mujer_corriendo_sunset.png',
                 'https://d1le4h54pkkjcy.cloudfront.net/LOGIN_SWIMMER.png',
                 'https://d1le4h54pkkjcy.cloudfront.net/LOGIN_MUJER_CICLANDO_SUNSET.png'
+                // Añadir más imágenes si se desea, o mover esta lista a una config si es muy larga
             ];
             const randomIndex = Math.floor(Math.random() * images.length);
             const selectedImage = images[randomIndex];
-            const bgElement = document.querySelector('.bg-triathlon');
+            const bgElement = document.querySelector('.bg-triathlon-login');
             if (bgElement) {
                 bgElement.style.backgroundImage = `url('${selectedImage}')`;
             }
+
+            // Adaptación de la barra de carga para que use los estilos de main_theme.css si es posible
+            // La lógica de la barra de carga está en login.js, aquí solo nos aseguramos que el HTML esté.
+            // Si #loading-overlay, #loading-bar-container, #loading-progress necesitan estilos específicos
+            // diferentes a los de admin_dashboard, se deben añadir en el <style> de esta página o
+            // crear variantes en main_theme.css. El HTML para la barra de carga se ha movido dentro del form.
         });
     </script>
-</body>
-</html>
+{% endblock scripts %}

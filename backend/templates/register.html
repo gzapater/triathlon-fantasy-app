@@ -1,186 +1,176 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro - TriFantasy</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon_promo.svg') }}">
-    <style>
-        :root {
-            --orange-primary: #FF6B35;
-            --orange-light: #FF8F65;
-            --orange-dark: #FF4500;
-            --orange-pale: #FFB380;
-            --gray-dark: #2C3E50;
-            --gray-medium: #34495E;
-            --gray-light: #7F8C8D;
-            --blue-water: #3498DB;
-            --green-run: #27AE60;
-            --red-accent: #E74C3C;
-        }
-        /* Removed body styles, will be handled by Tailwind classes */
-        .brand-font {
-            font-family: 'Orbitron', monospace;
-        }
-        .gradient-orange-text {
-            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        /* .register-container, .input-field, .select-field, .btn-primary and their focus/hover states are removed as Tailwind classes are now used directly on elements. */
-        /* .logo-container and .footer-link styles are also removed as structure and styling are handled by Tailwind. */
+{% extends "base.html" %}
 
-        .message-area {
-            /* margin-top: 1.25rem; */ /* Adjusted by form structure */
-            /* margin-bottom: 1rem; */ /* Adjusted by form structure */
-            padding: 0.75rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            text-align: center;
-        }
-        .message-area.error {
-            background-color: #FEE2E2;
-            color: #B91C1C;
-            border: 1px solid #FCA5A5;
-        }
-        .message-area.success {
-            background-color: #D1FAE5;
-            color: #047857;
-            border: 1px solid #6EE7B7;
-        }
-        /* Removed label style as Tailwind classes are used directly on label elements */
-        .bg-triathlon {
-            /* URL de imagen de muestra para demostración */
-            /* TODO: Replace with your desired background image URL */
-            background-image: url('https://d1le4h54pkkjcy.cloudfront.net/LOGIN_SWIMMER.png');
+{% block title %}Registro - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+    <style>
+        .bg-triathlon-register { /* Renombrado para especificidad */
             background-size: cover;
             background-position: center;
         }
+        /* Estilo para el select con flecha personalizada, adaptado para la nueva paleta si es necesario */
         select#role {
-           background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+           background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='{{ get_css_variable_value('--gray-medium', '#34495E') | replace('#', '%23') }}' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
            background-position: right 0.5rem center;
            background-repeat: no-repeat;
            background-size: 1.5em 1.5em;
            padding-right: 2.5rem; /* Add padding to prevent text from overlapping the arrow */
-       }
+        }
+        /* Helper Jinja filter (necesitaría ser definido en el entorno de Flask)
+           {% filter get_css_variable_value(var_name, default_value) %}
+             // Lógica para obtener el valor de la variable CSS (no es trivial en Jinja puro)
+             // Por ahora, se usa un valor por defecto o se asume que el color está disponible.
+           {% endfilter %}
+           Simplificación: Usar directamente el color o asegurar que la variable CSS es accesible.
+           Para la flecha del select, el color #6B7280 (gray-500 de Tailwind) es común.
+           Lo he cambiado a var(--gray-medium) pero necesita que esta variable sea accesible por JS o usar el valor directamente.
+           Por simplicidad, usaré un color directamente en el SVG URL-encoded.
+        */
     </style>
-</head>
-<body class="bg-gray-100">
-    <!-- Loading Bar Overlay -->
-    <div id="loading-overlay" style="/* Styles managed by CSS now, except for initial display:none */ display: none;">
-        <div id="loading-bar-container">
-            <div id="loading-progress">0%</div>
-        </div>
-    </div>
+{% endblock %}
 
-    <div class="min-h-screen flex items-center justify-center">
-        <div class="w-full lg:grid lg:grid-cols-2 lg:h-screen overflow-hidden">
+{% block hero %}
+    {# No se usa la sección hero estándar en esta página de registro #}
+{% endblock hero %}
 
-            <!-- Panel Izquierdo: Formulario de Registro -->
-            <div class="bg-white p-8 sm:p-12 flex flex-col justify-center">
-                <div class="w-full max-w-md mx-auto">
-                    <!-- Logo -->
-                    <div class="flex justify-center mb-4">
-                        <a href="#">
-                           <svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <g transform="translate(37, 10)">
-                                  <path d="M1 29L16 14L1 0" stroke="#F97316" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                  <path d="M16 29L31 14L16 0" stroke="#F97316" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                  <path d="M31 29L46 14L31 0" stroke="#F97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </g>
-                                <text x="60" y="80" font-family="Inter, sans-serif" font-size="24" fill="#6B7280" font-weight="300" text-anchor="middle">Tri<tspan font-weight="700" fill="#1F2937">Predict</tspan></text>
-                            </svg>
-                        </a>
+{% block content %}
+<div class="min-h-[calc(100vh-var(--header-height,80px)-var(--footer-height,260px))] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="w-full lg:grid lg:grid-cols-2 lg:max-w-5xl lg:shadow-2xl lg:rounded-lg overflow-hidden bg-white">
+
+        <!-- Panel Izquierdo: Formulario de Registro -->
+        <div class="p-8 sm:p-12 flex flex-col justify-center order-2 lg:order-1">
+            <div class="w-full max-w-md mx-auto">
+                <!-- Logo -->
+                <div class="flex justify-center mb-6">
+                     <a href="{{ url_for('serve_hello_world_page') }}">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-swimmer text-3xl text-orange-primary"></i>
+                            <i class="fas fa-biking text-3xl text-orange-primary"></i>
+                            <i class="fas fa-running text-3xl text-orange-primary"></i>
+                            <span class="brand-font font-bold text-3xl text-gray-dark">TriFantasy</span>
+                        </div>
+                    </a>
+                </div>
+
+                <h2 class="text-2xl font-bold text-gray-dark brand-font text-center">Crear Cuenta</h2>
+                <p class="text-gray-600 text-center mt-2 mb-8">Regístrate para empezar a competir.</p>
+
+                <div id="messageArea" class="my-4 text-sm text-center" style="display: none;">
+                    {# JS llenará esto. Asegúrate que las clases success/error de main_theme.css o las locales se apliquen bien #}
+                </div>
+                <!-- Loading Bar Overlay (HTML structure for JS to use) -->
+                <div id="loading-overlay" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50" style="display: none;">
+                    <div id="loading-bar-container" class="w-1/2 bg-gray-200 rounded-full">
+                        <div id="loading-progress" class="bg-orange-primary text-xs font-medium text-white text-center p-0.5 leading-none rounded-full" style="width: 0%">0%</div>
                     </div>
-
-                    <h2 class="text-2xl font-bold text-gray-900 text-center">Crear Cuenta</h2>
-                    <p class="text-gray-600 text-center mt-2 mb-8">Regístrate para empezar a competir.</p>
-
-                    <div id="messageArea" class="message-area my-4" style="display: none;"></div>
-                    <!-- register.js will make this visible and add content/classes -->
-
-                    <!-- Formulario -->
-                    <form id="registerForm" action="#" method="POST" class="space-y-6">
-                        <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
-                            <div class="mt-1">
-                                <input type="text" id="name" name="name" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Tu nombre completo" required>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
-                            <div class="mt-1">
-                                <input type="text" id="username" name="username" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Elige un nombre de usuario" required>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                            <div class="mt-1">
-                                <input type="email" id="email" name="email" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="tu@email.com" required>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
-                            <div class="mt-1">
-                                <input type="password" id="password" name="password" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" placeholder="Crea una contraseña segura" required>
-                            </div>
-                        </div>
-                        <div>
-                            <label for="role" class="block text-sm font-medium text-gray-700">Rol</label>
-                            <div class="mt-1">
-                                <select id="role" name="role" class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm" required>
-                                    {% for role_obj in roles %}
-                                        {% if role_obj.description != 'Administrador' %}
-                                            <option value="{{ role_obj.code }}">{{ role_obj.description }}</option>
-                                        {% endif %}
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                                Registrarse
-                            </button>
-                        </div>
-                    </form>
                 </div>
+
+                <form id="registerForm" method="POST" class="space-y-5"> {# Reducido space-y para acomodar más campos #}
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700">Nombre Completo</label>
+                        <input type="text" id="name" name="name" required
+                               class="mt-1 appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400
+                                      focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm"
+                               placeholder="Tu nombre completo">
+                    </div>
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label>
+                        <input type="text" id="username" name="username" required
+                               class="mt-1 appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400
+                                      focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm"
+                               placeholder="Elige un nombre de usuario">
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
+                        <input type="email" id="email" name="email" required
+                               class="mt-1 appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400
+                                      focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm"
+                               placeholder="tu@email.com">
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                        <input type="password" id="password" name="password" required
+                               class="mt-1 appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400
+                                      focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm"
+                               placeholder="Crea una contraseña segura">
+                    </div>
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700">Quiero registrarme como</label>
+                        <select id="role" name="role" required
+                                class="mt-1 appearance-none block w-full px-3 py-3 border border-gray-300 rounded-md shadow-sm
+                                       focus:outline-none focus:ring-orange-primary focus:border-orange-primary sm:text-sm bg-white">
+                            {% for role_obj in roles %}
+                                {% if role_obj.code != 'ADMIN' %} {# Asumiendo que 'ADMIN' es el código para Administrador #}
+                                    <option value="{{ role_obj.code }}">{{ role_obj.description }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit"
+                                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white
+                                       btn-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-dark">
+                            Registrarse
+                        </button>
+                    </div>
+                </form>
+
                 <div class="mt-8 text-center text-sm text-gray-600">
-                    <p>¿Ya tienes una cuenta? <a href="{{ url_for('serve_login_page') }}" class="font-medium text-orange-600 hover:text-orange-500">Inicia sesión aquí</a></p>
+                    <p>¿Ya tienes una cuenta? <a href="{{ url_for('serve_login_page') }}" class="font-medium text-orange-primary hover:text-orange-dark">Inicia sesión aquí</a></p>
                 </div>
             </div>
+        </div>
 
-            <!-- Panel Derecho: Imagen -->
-            <div class="hidden lg:block relative">
-                <div class="absolute inset-0 bg-gray-800 opacity-25"></div> <!-- Overlay sutil -->
-                <div class="bg-triathlon h-full w-full"></div>
-            </div>
-
+        <!-- Panel Derecho: Imagen -->
+        <div class="hidden lg:block relative order-1 lg:order-2">
+            <div class="absolute inset-0 bg-gray-dark opacity-20"></div>
+            <div class="bg-triathlon-register h-full w-full"></div>
         </div>
     </div>
+</div>
+{% endblock content %}
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script> <!-- Load script.js first -->
+{% block scripts %}
+    {# script.js ya no parece relevante aquí #}
     <script src="{{ url_for('static', filename='js/register.js') }}"></script>
     <script>
-        // Small script to make messageArea visible only when it has content
-        const messageArea = document.getElementById('messageArea');
-        if (messageArea) { // Check if element exists
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                        if (messageArea.textContent.trim() !== '') {
-                            messageArea.style.display = 'block';
-                        } else {
-                            messageArea.style.display = 'none';
+        document.addEventListener('DOMContentLoaded', function () {
+            // Rotación de imágenes para el fondo
+            const images = [
+                'https://d1le4h54pkkjcy.cloudfront.net/Register_gente_corriendo_parque.png',
+                'https://d1le4h54pkkjcy.cloudfront.net/LOGIN_SWIMMER.png', // Puede reutilizar imágenes de login
+                'https://d1le4h54pkkjcy.cloudfront.net/Register_Bicis_colgadas.png',
+                'https://d1le4h54pkkjcy.cloudfront.net/Login_Mujer_corriendo_sunset.png'
+            ];
+            const randomIndex = Math.floor(Math.random() * images.length);
+            const selectedImage = images[randomIndex];
+            const bgElement = document.querySelector('.bg-triathlon-register');
+            if (bgElement) {
+                bgElement.style.backgroundImage = `url('${selectedImage}')`;
+            }
+
+            // Lógica para mostrar/ocultar messageArea (ya estaba en el original, se mantiene por si acaso)
+            const messageArea = document.getElementById('messageArea');
+            if (messageArea) {
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                            if (messageArea.textContent.trim() !== '' || messageArea.innerHTML.trim() !== '') {
+                                messageArea.style.display = 'block';
+                                // Aplicar clases de error/success basadas en el contenido o una clase padre
+                                // Esto es mejor manejado por register.js al establecer el mensaje.
+                            } else {
+                                messageArea.style.display = 'none';
+                            }
                         }
-                    }
+                    });
                 });
-            });
-            observer.observe(messageArea, { childList: true, characterData: true, subtree: true });
-        }
+                observer.observe(messageArea, { childList: true, characterData: true, subtree: true });
+                // Inicialmente oculto si está vacío
+                if (messageArea.textContent.trim() === '' && messageArea.innerHTML.trim() === '') {
+                     messageArea.style.display = 'none';
+                }
+            }
+        });
     </script>
-</body>
-</html>
+{% endblock scripts %}

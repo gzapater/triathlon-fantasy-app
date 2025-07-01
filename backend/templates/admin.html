@@ -1,66 +1,90 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - TriFantasy</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --orange-primary: #FF6B35;
-            --orange-light: #FF8F65;
-            --orange-dark: #FF4500;
-            --gray-dark: #2C3E50;
-        }
-        body {
-            font-family: 'Roboto', sans-serif;
-            background: linear-gradient(135deg, #F8F9FA 0%, #E8F4FD 100%);
-        }
-        .brand-font {
-            font-family: 'Orbitron', monospace;
-        }
-        .gradient-orange {
-            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-light) 100%);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
-            transition: all 0.3s ease;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange-primary) 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(255, 107, 53, 0.4);
-        }
-    </style>
-</head>
-<body class="flex flex-col min-h-screen">
-    {% include '_header.html' %}
+{% extends "base.html" %}
 
-    <!-- Main Content -->
-    <main class="flex-1 flex items-center justify-center p-6">
-        <div class="bg-white shadow-xl rounded-2xl p-8 md:p-12 text-center">
-            <h2 class="brand-font text-4xl font-bold text-gray-800 mb-6">Admin Dashboard</h2>
-            <p class="text-2xl text-gray-600">I am the admin</p>
-            <!-- Future admin-specific content can go here -->
+{% block title %}Panel de Administración - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+    {# No se necesitan estilos adicionales específicos para esta página por ahora,
+       ya que base.html y main_theme.css deben cubrir lo necesario. #}
+{% endblock %}
+
+{% block hero %}
+    {% set hero_title = "Panel de Administración" %}
+    {% set hero_subtitle = "Gestión y configuración del sistema TriFantasy." %}
+    {% include '_hero_section.html' %}
+{% endblock hero %}
+
+{% block content %}
+<div class="content-wrapper-max-width px-4 sm:px-6 lg:px-8 py-8"> {# Aplicando el wrapper y padding estándar #}
+    <div class="bg-white shadow-xl rounded-2xl p-8 md:p-12">
+
+        <div class="text-center mb-12">
+            <i class="fas fa-user-shield fa-4x text-orange-primary mb-4"></i>
+            <h2 class="text-3xl font-bold text-gray-dark brand-font">Bienvenido, Administrador</h2>
+            <p class="text-lg text-gray-600 mt-2">Desde aquí puedes supervisar y gestionar aspectos clave de la plataforma.</p>
         </div>
-    </main>
 
-    <!-- Footer -->
-    <footer class="gradient-orange text-white py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p>&copy; {{ current_year if current_year else '2024' }} TriFantasy. All rights reserved.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Card Ejemplo 1: Gestión de Usuarios -->
+            <div class="bg-gray-50 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                <div class="flex items-center text-orange-primary mb-3">
+                    <i class="fas fa-users-cog fa-2x mr-3"></i>
+                    <h3 class="text-xl font-semibold brand-font text-gray-dark">Gestión de Usuarios</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Ver, editar o gestionar roles de los usuarios registrados en la plataforma.
+                </p>
+                <a href="#" class="font-medium text-orange-primary hover:text-orange-dark transition-colors">Acceder a Usuarios &rarr;</a> {# Enlace Placeholder #}
+            </div>
+
+            <!-- Card Ejemplo 2: Configuración Global -->
+            <div class="bg-gray-50 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                <div class="flex items-center text-orange-primary mb-3">
+                    <i class="fas fa-cogs fa-2x mr-3"></i>
+                    <h3 class="text-xl font-semibold brand-font text-gray-dark">Configuración Global</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Ajustar parámetros generales de la aplicación, como límites, características activas, etc.
+                </p>
+                <a href="#" class="font-medium text-orange-primary hover:text-orange-dark transition-colors">Ir a Configuración &rarr;</a> {# Enlace Placeholder #}
+            </div>
+
+            <!-- Card Ejemplo 3: Ver Sugerencias -->
+            <div class="bg-gray-50 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                <div class="flex items-center text-orange-primary mb-3">
+                    <i class="fas fa-lightbulb fa-2x mr-3"></i>
+                    <h3 class="text-xl font-semibold brand-font text-gray-dark">Sugerencias de Usuarios</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Revisar y gestionar las sugerencias enviadas por los usuarios para mejorar la plataforma.
+                </p>
+                <a href="{{ url_for('serve_admin_sugerencias_page') }}" class="font-medium text-orange-primary hover:text-orange-dark transition-colors">Ver Sugerencias &rarr;</a>
+            </div>
+
+            <!-- Card Ejemplo 4: Monitorización (Placeholder) -->
+            <div class="bg-gray-50 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                <div class="flex items-center text-orange-primary mb-3">
+                    <i class="fas fa-chart-line fa-2x mr-3"></i>
+                    <h3 class="text-xl font-semibold brand-font text-gray-dark">Monitorización</h3>
+                </div>
+                <p class="text-gray-600 text-sm mb-4">
+                    Estadísticas de uso, errores recientes y rendimiento del sistema.
+                </p>
+                <a href="#" class="font-medium text-orange-primary hover:text-orange-dark transition-colors">Ver Métricas &rarr;</a> {# Enlace Placeholder #}
+            </div>
+
+            <!-- Más cards según sea necesario -->
+
         </div>
-    </footer>
 
-    <script>
-        // Page-specific JavaScript can go here if needed.
-        // Header-related JavaScript (logout, dropdown, mobile menu) is in _header.html
-        document.addEventListener('DOMContentLoaded', function() {
-            // Example: const somePageSpecificElement = document.getElementById('someId');
-            // if (somePageSpecificElement) { ... }
-        });
-    </script>
-</body>
-</html>
+        {# Contenido original simplificado, puede ser eliminado si las cards son suficientes #}
+        <div class="mt-12 text-center border-t pt-8">
+             <p class="text-gray-600">"I am the admin" - Contenido original del placeholder.</p>
+        </div>
+
+    </div>
+</div>
+{% endblock content %}
+
+{% block scripts %}
+    {# No se necesitan scripts específicos para esta página por ahora #}
+{% endblock scripts %}

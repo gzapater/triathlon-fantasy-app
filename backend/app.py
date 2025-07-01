@@ -4178,6 +4178,16 @@ def update_event_api(event_id):
 
 # --- Event Management Routes (Admin only) ---
 
+# Definición de TAG_PROPERTIES en Python para pasarla al template
+TAG_PROPERTIES_PYTHON = {
+    "is_good_for_debutants": {"text": "Bueno para Debutantes", "icon": "fas fa-seedling", "filterColor": "btn-outline-success", "filterActiveColor": "btn-success text-white"},
+    "is_challenging": {"text": "Desafiante", "icon": "fas fa-mountain", "filterColor": "btn-outline-danger", "filterActiveColor": "btn-danger text-white"},
+    "has_great_views": {"text": "Vistas Espectaculares", "icon": "fas fa-image", "filterColor": "btn-outline-info", "filterActiveColor": "btn-info text-white"},
+    "has_good_atmosphere": {"text": "Buen Ambiente", "icon": "fas fa-users", "filterColor": "btn-outline-purple", "filterActiveColor": "btn-purple text-white"}, # Asumiendo btn-purple y btn-outline-purple
+    "is_world_qualifier": {"text": "Clasificatorio Mundial", "icon": "fas fa-trophy", "filterColor": "btn-outline-warning", "filterActiveColor": "btn-warning text-dark"} # text-dark para contraste con amarillo
+}
+
+
 @app.route('/admin/events_management')
 @login_required
 def serve_events_management_page():
@@ -4185,31 +4195,27 @@ def serve_events_management_page():
         flash("Acceso denegado. Esta sección es solo para administradores.", "error")
         return redirect(url_for('serve_hello_world_page'))
 
-    # Proporcionar valores por defecto para las variables que espera admin_dashboard.html
-    # para evitar el error de 'Undefined'.
-    # Estas variables pueden no ser directamente relevantes para events_management.html,
-    # pero son necesarias si admin_dashboard.html las usa.
+    default_context = {
+        'current_year': datetime.utcnow().year,
+        'races': [],
+        'races_for_official_answers': [],
+        'all_race_formats': RaceFormat.query.order_by(RaceFormat.name).all(),
+        'filter_date_from_str': None,
+        'filter_date_to_str': None,
+        'filter_race_format_id_str': None,
+        'all_race_statuses': [status.value for status in RaceStatus],
+        'selected_statuses_for_ui': [],
+        'organized_races': [],
+        'participating_races': [],
+        'favorite_races': [],
+        'active_players_count': 0,
+        'auto_join_race_id': None,
+        'race_to_join_title': None,
+        'tag_properties_for_template': TAG_PROPERTIES_PYTHON # Añadido para el modal de eventos
+    }
     return render_template(
         'events_management.html',
-        current_year=datetime.utcnow().year,
-        races=[], # Para la tabla principal de carreras en admin_dashboard si se renderiza
-        races_for_official_answers=[], # Para el modal de respuestas oficiales
-        all_race_formats=RaceFormat.query.order_by(RaceFormat.name).all(), # Necesario para filtros
-        filter_date_from_str=None,
-        filter_date_to_str=None,
-        filter_race_format_id_str=None,
-        all_race_statuses=[status.value for status in RaceStatus], # Para filtros de estado
-        selected_statuses_for_ui=[], # Para filtros de estado
-        # Añade aquí cualquier otra variable que admin_dashboard.html espere y
-        # que pueda causar un error 'Undefined' si no está presente.
-        # Por ejemplo, si admin_dashboard.html tiene secciones específicas para LEAGUE_ADMIN
-        # que esperan otras variables, podrían necesitarse aquí también con valores por defecto.
-        organized_races=[],
-        participating_races=[],
-        favorite_races=[],
-        active_players_count=0,
-        auto_join_race_id=None, # Añadido para el modal join by link
-        race_to_join_title=None # Añadido para el modal join by link
+        **default_context
     )
 
 @app.route('/api/events', methods=['POST'])

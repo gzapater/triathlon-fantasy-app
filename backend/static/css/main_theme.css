@@ -1,0 +1,113 @@
+:root {
+    --orange-primary: #FF6B35;
+    --orange-light: #FF8F65;
+    --orange-dark: #FF4500;
+    --orange-pale: #FFB380;
+    --gray-dark: #2C3E50;
+    --gray-medium: #34495E;
+    --gray-light: #7F8C8D;
+    --blue-water: #3498DB;
+    --green-run: #27AE60;
+    --red-accent: #E74C3C;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background: linear-gradient(135deg, #F8F9FA 0%, #E8F4FD 100%);
+}
+
+.brand-font {
+    font-family: 'Orbitron', monospace;
+}
+
+.gradient-orange {
+    background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-light) 100%);
+}
+
+.gradient-water {
+    background: linear-gradient(135deg, var(--blue-water) 0%, #5DADE2 100%);
+}
+
+.gradient-run {
+    background: linear-gradient(135deg, var(--green-run) 0%, #58D68D 100%);
+}
+
+.gradient-bike {
+    background: linear-gradient(135deg, var(--gray-dark) 0%, var(--gray-medium) 100%);
+}
+
+.card-hover {
+    transition: all 0.3s ease;
+    transform: translateY(0);
+}
+
+.card-hover:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(255, 107, 53, 0.3);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-dark) 100%);
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange-primary) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255, 107, 53, 0.4);
+}
+
+.sidebar-transition {
+    transition: transform 0.3s ease-in-out;
+}
+
+.icon-swim { color: var(--blue-water); }
+.icon-bike { color: var(--gray-dark); }
+.icon-run { color: var(--green-run); }
+
+@keyframes pulse-orange {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 53, 0.7); }
+    50% { box-shadow: 0 0 0 10px rgba(255, 107, 53, 0); }
+}
+
+.pulse-orange {
+    animation: pulse-orange 2s infinite;
+}
+
+.modal-backdrop {
+    background: rgba(44, 62, 80, 0.8);
+    backdrop-filter: blur(8px);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 107, 53, 0.1);
+}
+
+/* Responsive adjustments for sidebar and content wrapper */
+/* Note: The Jinja condition `{% if not self.full_width_page() %}` cannot be replicated in pure CSS. */
+/* Changed #dashboard-content-wrapper to a class .content-wrapper-max-width */
+@media (min-width: 1024px) {
+    .content-wrapper-max-width { /* Apply this class to the main content div on pages that need constrained width */
+        max-width: 1280px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar { /* Assuming a class 'sidebar' is used for the sidebar element */
+        transform: translateX(-100%);
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+}
+
+.badge-admin { background: linear-gradient(135deg, var(--red-accent) 0%, #F1948A 100%); }
+.badge-league { background: linear-gradient(135deg, var(--orange-primary) 0%, var(--orange-light) 100%); }
+.badge-player { background: linear-gradient(135deg, var(--blue-water) 0%, #5DADE2 100%); }
+
+.no-scroll { /* This class was on body, might need to be managed by JS if specific conditions apply */
+    height: auto;
+    overflow: visible;
+}

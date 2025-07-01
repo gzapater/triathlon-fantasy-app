@@ -1,116 +1,119 @@
-{% extends "admin_dashboard.html" %}
+{% extends "base.html" %}
 
-{% block full_width_page %}1{% endblock %} {# This signals admin_dashboard to not restrict width #}
+{% block title %}Gestión de Eventos - {{ super() }}{% endblock %}
 
-{% block title %}Gestión de Eventos - TriPredict{% endblock %}
-
-{% block header_title %}Gestión de Eventos TriCal{% endblock %}
-
-{% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="{{ url_for('serve_hello_world_page') }}">Dashboard</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Gestión de Eventos</li>
+{% block head_extra %}
+    {# base.html ya incluye FontAwesome y los estilos principales.
+       Añadimos estilos específicos para esta página si son necesarios. #}
+    <style>
+        /* Estilos para filtros y tabla de gestión de eventos */
+        .filter-dropdown {
+            max-height: 20rem; /* Aumentado para más opciones */
+            overflow-y: auto;
+            border-top-width: 0; /* Evitar doble borde con el botón */
+        }
+        .table-header-custom th { /* Aplicar a los th dentro de un thead con esta clase */
+            background-color: var(--orange-primary);
+            color: white;
+            font-weight: 600; /*semibold*/
+        }
+        .no-print { /* Para ocultar elementos al imprimir */
+            @media print {
+                display: none !important;
+            }
+        }
+    </style>
 {% endblock %}
 
-{% block join_by_code_button %}{% endblock %} {# Esto oculta el botón de unirse por código #}
+{% block hero %}
+    {# Usamos el _hero_section.html que ahora está en base.html #}
+    {% set hero_title = "Gestión de Eventos TriCal" %}
+    {% set hero_subtitle = "Administra, filtra y crea nuevos eventos del calendario." %}
+    {% include '_hero_section.html' %}
+{% endblock hero %}
 
-{% block admin_dashboard_specific_scripts %}{% endblock %} {# Asegura que no se carguen scripts específicos del admin dashboard #}
 
-{% block main_dashboard_content %}
-<div class="w-full px-4 py-0"> <!-- Cambiado container-fluid mx-auto a w-full -->
-    <!-- Filters Section (adaptada de TriCal.html) -->
-    <section class="bg-white shadow-md rounded-lg p-6 mt-8 mb-8 no-print">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Filtrar Eventos</h2>
-        <div class="flex flex-wrap gap-4 items-center"> <!-- Changed items-end to items-center for better vertical alignment -->
-            <!-- Search -->
-            <div class="flex-grow min-w-[200px] lg:min-w-[250px]">
+{% block content %}
+<div class="px-4 sm:px-6 lg:px-8 py-8"> {# Ajustado padding para consistencia #}
+
+    {# Contenedor para mensajes Flash (si se usa un sistema JS de mensajes) #}
+    <div id="flash-messages-container-events" class="mb-4"></div>
+
+    <!-- Filters Section -->
+    <section class="bg-white shadow-xl rounded-lg p-6 mb-8 no-print">
+        <h2 class="text-xl font-bold text-gray-dark brand-font mb-4">Filtrar Eventos</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
+            <div>
                 <label for="searchInput" class="block text-sm font-medium text-gray-700 mb-1">Búsqueda:</label>
-                <input type="text" id="searchInput" placeholder="Nombre, ciudad, provincia..."
-                       class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2 h-10"> <!-- Added h-10 for consistent height -->
+                <input type="text" id="searchInput" placeholder="Nombre, ciudad..."
+                       class="input-field w-full bg-white h-10">
             </div>
-
-            <!-- Discipline Filter - Custom Dropdown -->
-            <div class="flex-grow min-w-[170px] relative">
+            <div>
                 <label for="disciplineFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Disciplina:</label>
-                <button id="disciplineFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
-                    <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
-                </button>
-                <div id="disciplineFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <!-- Checkbox items will be populated by JS -->
+                <div class="relative">
+                    <button id="disciplineFilterBtn" type="button" class="select-field-custom bg-white w-full h-10 text-left flex items-center justify-between">
+                        <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                    </button>
+                    <div id="disciplineFilterDropdown" class="hidden absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg filter-dropdown"></div>
                 </div>
             </div>
-
-            <!-- Distance Filter - Custom Dropdown -->
-            <div class="flex-grow min-w-[170px] relative">
+            <div>
                 <label for="distanceFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Distancia:</label>
-                <button id="distanceFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
-                    <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
-                </button>
-                <div id="distanceFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <!-- Checkbox items will be populated by JS -->
+                <div class="relative">
+                    <button id="distanceFilterBtn" type="button" class="select-field-custom bg-white w-full h-10 text-left flex items-center justify-between">
+                        <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                    </button>
+                    <div id="distanceFilterDropdown" class="hidden absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg filter-dropdown"></div>
                 </div>
             </div>
-
-            <!-- Province Filter - Custom Dropdown -->
-            <div class="flex-grow min-w-[170px] relative">
+            <div>
                 <label for="provinceFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
-                <button id="provinceFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
-                    <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
-                </button>
-                <div id="provinceFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <!-- Checkbox items will be populated by JS -->
+                <div class="relative">
+                    <button id="provinceFilterBtn" type="button" class="select-field-custom bg-white w-full h-10 text-left flex items-center justify-between">
+                        <span class="truncate">Todas</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                    </button>
+                    <div id="provinceFilterDropdown" class="hidden absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg filter-dropdown"></div>
                 </div>
             </div>
-
-            <!-- Month Filter - Custom Dropdown -->
-            <div class="flex-grow min-w-[170px] relative">
+            <div>
                 <label for="monthFilterBtn" class="block text-sm font-medium text-gray-700 mb-1">Mes:</label>
-                <button id="monthFilterBtn" type="button" class="mt-1 h-10 bg-white w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 flex items-center justify-between">
-                    <span class="truncate">Todos</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
-                </button>
-                <div id="monthFilterDropdown" class="hidden absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    <!-- Checkbox items for months will be populated by JS (or could be static if preferred) -->
+                <div class="relative">
+                    <button id="monthFilterBtn" type="button" class="select-field-custom bg-white w-full h-10 text-left flex items-center justify-between">
+                        <span class="truncate">Todos</span> <i class="fas fa-chevron-down ml-2 text-gray-500"></i>
+                    </button>
+                    <div id="monthFilterDropdown" class="hidden absolute z-20 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg filter-dropdown"></div>
                 </div>
             </div>
         </div>
-
-        <!-- Tag Filters Section -->
         <div class="mt-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">Etiquetas:</label>
-            <div id="tagFiltersContainer" class="flex flex-wrap gap-2">
-                <!-- Tag filter buttons will be populated by JS -->
-            </div>
+            <div id="tagFiltersContainer" class="flex flex-wrap gap-2"></div>
         </div>
-
-        <!-- Action Buttons -->
         <div class="flex flex-wrap items-center justify-between mt-6 gap-4">
             <div class="flex flex-wrap gap-2">
-                <button id="clearFilters" class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm">
-                    <i class="fas fa-times mr-1"></i> Limpiar Filtros
-                </button>
-                <a href="#" id="sortDate" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 hover:text-orange-600 transition-colors text-sm">
-                    <i class="fas fa-sort mr-1"></i> Ordenar por Fecha
-                </a>
+                <button id="clearFilters" class="btn btn-secondary btn-sm"><i class="fas fa-times mr-1"></i> Limpiar Filtros</button>
+                {# El botón de ordenar por fecha general se elimina, se usa el de la cabecera de tabla #}
             </div>
             <div class="text-sm text-gray-600">
-                Mostrando <span id="visibleCount">0</span> de <span id="totalCount">0</span> eventos
+                Mostrando <span id="visibleCount" class="font-semibold">0</span> de <span id="totalCount" class="font-semibold">0</span> eventos
             </div>
         </div>
     </section>
 
-    <!-- Tabla de Eventos Existentes -->
-    <div class="bg-white shadow-md rounded-lg overflow-hidden mt-8">
-        <div class="flex justify-between items-center p-6">
-            <h2 class="text-2xl font-semibold text-gray-700">Eventos Existentes</h2>
-            <a href="#" id="open-create-event-modal-btn" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 hover:text-orange-600 transition-colors">
+    <!-- Tabla de Eventos -->
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+        <div class="flex flex-wrap justify-between items-center p-6 border-b border-gray-200 gap-4">
+            <h2 class="text-2xl font-bold text-gray-dark brand-font">Eventos Existentes</h2>
+            <button id="open-create-event-modal-btn" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus mr-2"></i> Crear Nuevo Evento
-            </a>
+            </button>
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="!bg-orange-500 !text-white">
+            <table class="w-full table-hover">
+                <thead class="table-header-custom">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre del Evento</th>
-                        <th id="table-header-fecha" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer hover:!bg-orange-600 transition-colors">
+                        <th id="table-header-fecha" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-orange-dark transition-colors">
                             Fecha <span id="sort-indicator-fecha" class="ml-1"></span>
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Localización</th>
@@ -119,8 +122,8 @@
                         <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200" id="events-table-body">
-                    <!-- Las filas se cargarán aquí por JavaScript -->
+                <tbody id="events-table-body" class="bg-white divide-y divide-gray-200">
+                    {# Filas cargadas por JS #}
                 </tbody>
             </table>
         </div>
@@ -128,153 +131,97 @@
 </div>
 
 <!-- Modal para Crear/Editar Evento -->
-<div id="create-event-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center hidden z-50">
-    <div class="relative bg-white rounded-lg shadow-xl p-8 m-4 max-w-2xl max-h-full overflow-auto w-full">
-        <!-- Encabezado del Modal -->
-        <div class="flex justify-between items-center pb-3 border-b border-gray-200">
-            <h3 id="create-event-modal-title" class="text-2xl font-semibold text-orange-500">Crear Nuevo Evento</h3>
-            <button id="close-create-event-modal-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-            </button>
+<div id="create-event-modal" class="fixed inset-0 modal-backdrop hidden z-[1050] flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-xl shadow-2xl p-6 md:p-8 m-4 max-w-2xl max-h-[90vh] overflow-y-auto w-full transform transition-all">
+        <div class="flex justify-between items-center pb-4 border-b border-gray-200">
+            <h3 id="create-event-modal-title" class="text-2xl font-bold text-orange-primary brand-font">Crear Nuevo Evento</h3>
+            <button id="close-create-event-modal-btn" class="text-gray-400 hover:text-gray-600 transition-colors"><i class="fas fa-times text-2xl"></i></button>
         </div>
-
-        <!-- Cuerpo del Modal (Formulario) -->
-        <form id="create-event-form" class="mt-6 space-y-6">
-            <input type="hidden" name="event_id" id="event_id_hidden"> <!-- Campo oculto para el ID del evento en modo edición -->
+        <form id="create-event-form" class="mt-6 space-y-5">
+            <input type="hidden" name="event_id_hidden" id="event_id_hidden">
             <div>
-                <label for="event_name" class="block text-sm font-medium text-gray-700">Nombre del Evento <span class="text-red-500">*</span></label>
-                <input type="text" name="name" id="event_name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                <label for="event_name" class="block text-sm font-medium text-gray-700 mb-1">Nombre Evento <span class="text-red-500">*</span></label>
+                <input type="text" name="name" id="event_name" required class="input-field w-full bg-white">
             </div>
             <div>
-                <label for="event_date" class="block text-sm font-medium text-gray-700">Fecha del Evento <span class="text-red-500">*</span></label>
-                <input type="date" name="event_date" id="event_date" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                <label for="event_date" class="block text-sm font-medium text-gray-700 mb-1">Fecha Evento <span class="text-red-500">*</span></label>
+                <input type="date" name="event_date" id="event_date" required class="input-field w-full bg-white">
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <label for="event_city" class="block text-sm font-medium text-gray-700">Ciudad</label>
-                    <input type="text" name="city" id="event_city" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <label for="event_city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+                    <input type="text" name="city" id="event_city" class="input-field w-full bg-white">
                 </div>
                 <div>
-                    <label for="event_province" class="block text-sm font-medium text-gray-700">Provincia</label>
-                    <input type="text" name="province" id="event_province" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <label for="event_province" class="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
+                    <input type="text" name="province" id="event_province" class="input-field w-full bg-white">
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <label for="event_discipline" class="block text-sm font-medium text-gray-700">Disciplina</label>
-                    <input type="text" name="discipline" id="event_discipline" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <label for="event_discipline" class="block text-sm font-medium text-gray-700 mb-1">Disciplina</label>
+                    <input type="text" name="discipline" id="event_discipline" class="input-field w-full bg-white">
                 </div>
                 <div>
-                    <label for="event_distance" class="block text-sm font-medium text-gray-700">Distancia</label>
-                    <input type="text" name="distance" id="event_distance" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                    <label for="event_distance" class="block text-sm font-medium text-gray-700 mb-1">Distancia</label>
+                    <input type="text" name="distance" id="event_distance" class="input-field w-full bg-white">
                 </div>
             </div>
             <div>
-                <label for="event_source_url" class="block text-sm font-medium text-gray-700">URL de Origen</label>
-                <input type="url" name="source_url" id="event_source_url" placeholder="https://example.com" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                <label for="event_source_url" class="block text-sm font-medium text-gray-700 mb-1">URL de Origen</label>
+                <input type="url" name="source_url" id="event_source_url" placeholder="https://example.com" class="input-field w-full bg-white">
             </div>
-
-            <fieldset class="space-y-3">
-                <legend class="text-sm font-medium text-gray-900">Etiquetas de Curación:</legend>
+            <fieldset class="space-y-3 border border-gray-200 p-4 rounded-md">
+                <legend class="text-sm font-medium text-gray-dark px-1">Etiquetas de Curación:</legend>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                    {% for key, tag_info in tag_properties_for_template.items() %}
                     <div class="relative flex items-start">
                         <div class="flex items-center h-5">
-                            <input id="event_is_good_for_debutants" name="is_good_for_debutants" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
+                            <input id="event_{{ key }}" name="{{ key }}" type="checkbox" class="focus:ring-orange-primary h-4 w-4 text-orange-primary border-gray-300 rounded">
                         </div>
                         <div class="ml-3 text-sm">
-                            <label for="event_is_good_for_debutants" class="font-medium text-gray-700">Bueno para Debutantes</label>
+                            <label for="event_{{ key }}" class="font-medium text-gray-700">{{ tag_info.text }}</label>
                         </div>
                     </div>
-                    <div class="relative flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="event_is_challenging" name="is_challenging" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="event_is_challenging" class="font-medium text-gray-700">Desafiante</label>
-                        </div>
-                    </div>
-                    <div class="relative flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="event_has_great_views" name="has_great_views" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="event_has_great_views" class="font-medium text-gray-700">Vistas Espectaculares</label>
-                        </div>
-                    </div>
-                    <div class="relative flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="event_has_good_atmosphere" name="has_good_atmosphere" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="event_has_good_atmosphere" class="font-medium text-gray-700">Buen Ambiente</label>
-                        </div>
-                    </div>
-                    <div class="relative flex items-start">
-                        <div class="flex items-center h-5">
-                            <input id="event_is_world_qualifier" name="is_world_qualifier" type="checkbox" class="focus:ring-orange-500 h-4 w-4 text-orange-600 border-gray-300 rounded">
-                        </div>
-                        <div class="ml-3 text-sm">
-                            <label for="event_is_world_qualifier" class="font-medium text-gray-700">Clasificatorio Mundial</label>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
             </fieldset>
-
-            <!-- Pie del Modal (Botones) -->
             <div class="pt-6 border-t border-gray-200 flex items-center justify-end space-x-3">
-                <button id="cancel-create-event-btn" type="button" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors">
-                    Cancelar
-                </button>
-                <a href="#" id="save-event-btn" role="button" aria-label="Guardar Evento" class="px-4 py-2 border border-orange-500 text-orange-500 rounded-md hover:bg-orange-50 hover:text-orange-600 transition-colors">
-                    Guardar Evento
-                </a>
+                <button id="cancel-create-event-btn" type="button" class="btn btn-secondary">Cancelar</button>
+                <button id="save-event-btn" type="submit" class="btn btn-primary">Guardar Evento</button> {# Cambiado <a> a <button type="submit"> #}
             </div>
         </form>
     </div>
 </div>
+{% endblock content %}
 
-
+{% block scripts %}
+{{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // const eventModal = document.getElementById('event-modal'); // Eliminado
-    // const openEventModalBtn = document.getElementById('open-event-modal-btn'); // Eliminado
-    // const closeEventModalBtn = document.getElementById('close-event-modal-btn'); // Eliminado
-    // const cancelEventModalBtn = document.getElementById('cancel-event-modal-btn'); // Eliminado
-
-    // const eventForm = document.getElementById('event-form'); // Eliminado
     const eventsTableBody = document.getElementById('events-table-body');
-    // const modalTitle = document.getElementById('modal-title'); // Eliminado
-    // const eventIdInput = document.getElementById('event_id'); // Eliminado
-    // const submitBtn = document.getElementById('submit-btn'); // Eliminado
+    const apiBaseUrl = "{{ url_for('api_events_list') }}"; // Asegurar que esta ruta exista para GET/POST
+    const eventApiUrl = (id) => `{{ url_for('api_event_detail', event_id=0) }}`.replace('0', id); // Para PUT/DELETE
 
-    const apiBaseUrl = '/api/events';
-
-    // --- Variables para el Modal de Crear/Editar Evento ---
     const createEventModal = document.getElementById('create-event-modal');
     const openCreateEventModalBtn = document.getElementById('open-create-event-modal-btn');
     const closeCreateEventModalBtn = document.getElementById('close-create-event-modal-btn');
     const cancelCreateEventBtn = document.getElementById('cancel-create-event-btn');
     const createEventForm = document.getElementById('create-event-form');
-    const saveEventBtn = document.getElementById('save-event-btn');
+    const saveEventBtn = document.getElementById('save-event-btn'); // Este es el botón de submit ahora
     const modalTitleElement = document.getElementById('create-event-modal-title');
     const eventIdHiddenInput = document.getElementById('event_id_hidden');
 
-
-    // --- Variables para Filtros (adaptado de TriCal.html) ---
     let allEvents = [];
-    let currentSortAscending = true; // For the main sortDateBtn
-    let fechaSortAscending = true; // For the table header date sort
+    let currentSortAscending = true; // For table header date sort (default: oldest first)
 
     const searchInput = document.getElementById('searchInput');
     const tableHeaderFecha = document.getElementById('table-header-fecha');
     const sortIndicatorFecha = document.getElementById('sort-indicator-fecha');
 
-    // Custom dropdown elements
     const filterButtonIds = ['disciplineFilterBtn', 'distanceFilterBtn', 'provinceFilterBtn', 'monthFilterBtn'];
     const filterDropdownIds = ['disciplineFilterDropdown', 'distanceFilterDropdown', 'provinceFilterDropdown', 'monthFilterDropdown'];
-    const filterDataKeys = ['discipline', 'distance', 'province', 'month']; // To map buttons/dropdowns to event data keys
-
-    // Store references to buttons and dropdowns
+    const filterDataKeys = ['discipline', 'distance', 'province', 'month'];
     const filterButtons = {};
     const filterDropdowns = {};
     filterButtonIds.forEach((btnId, index) => {
@@ -282,683 +229,268 @@ document.addEventListener('DOMContentLoaded', function() {
         filterDropdowns[filterDataKeys[index]] = document.getElementById(filterDropdownIds[index]);
     });
 
-    // Original select elements (will be removed or repurposed by JS logic if they were for data storage; now data is in JS)
-    // const disciplineFilter = document.getElementById('disciplineFilter'); // No longer a select
-    // const distanceFilter = document.getElementById('distanceFilter');   // No longer a select
-    // const provinceFilter = document.getElementById('provinceFilter');   // No longer a select
-    // const monthFilter = document.getElementById('monthFilter');       // No longer a select
-
     const tagFiltersContainer = document.getElementById('tagFiltersContainer');
     const clearFiltersBtn = document.getElementById('clearFilters');
-    const sortDateBtn = document.getElementById('sortDate');
     const visibleCountDisplay = document.getElementById('visibleCount');
     const totalCountDisplay = document.getElementById('totalCount');
 
-    // --- Constante para Etiquetas (adaptado de TriCal.html) ---
-    const tagProperties = {
-        is_good_for_debutants: { text: "Good for Debutants", color: "bg-green-100 text-green-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-green-600 text-white", icon: "fas fa-seedling" },
-        is_challenging: { text: "Challenging", color: "bg-red-100 text-red-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-red-600 text-white", icon: "fas fa-mountain" },
-        has_great_views: { text: "Great Views", color: "bg-blue-100 text-blue-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-blue-600 text-white", icon: "fas fa-image" },
-        has_good_atmosphere: { text: "Good Atmosphere", color: "bg-purple-100 text-purple-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-purple-600 text-white", icon: "fas fa-users" },
-        is_world_qualifier: { text: "World Qualifier", color: "bg-yellow-100 text-yellow-800", filterColor: "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300", filterActiveColor: "bg-yellow-500 text-gray-900", icon: "fas fa-trophy" }
-    };
+    const TAG_PROPERTIES = {{ tag_properties_for_template | tojson | safe }};
 
-    // --- Modal Handling (eliminado) ---
+    // --- Flash Message System (similar to admin_sugerencias.html) ---
+    function showAppFlashMessage(message, category, containerId = 'flash-messages-container-events') {
+        const flashContainer = document.getElementById(containerId);
+        if (!flashContainer) {
+            console.error('Flash message container not found:', containerId);
+            alert(`${category.toUpperCase()}: ${message}`); return;
+        }
+        // ... (implementación de showAppFlashMessage como en admin_sugerencias.html, usando FontAwesome y Tailwind)
+        // For brevity, not repeating the full function here. Assume it's similar.
+        // Ensure it creates icons, uses correct colors from main_theme.css variables or Tailwind classes.
+        const alertDiv = document.createElement('div');
+        let bgColor, textColor, borderColor, iconHtml;
+        switch (category) {
+            case 'success': bgColor = 'bg-green-100'; textColor = 'text-green-700'; borderColor = 'border-green-400'; iconHtml = '<i class="fas fa-check-circle mr-2"></i>'; break;
+            case 'error': bgColor = 'bg-red-100'; textColor = 'text-red-700'; borderColor = 'border-red-400'; iconHtml = '<i class="fas fa-exclamation-triangle mr-2"></i>'; break;
+            default: bgColor = 'bg-blue-100'; textColor = 'text-blue-700'; borderColor = 'border-blue-400'; iconHtml = '<i class="fas fa-info-circle mr-2"></i>'; break;
+        }
+        alertDiv.className = `${bgColor} ${textColor} border-l-4 ${borderColor} p-4 mb-4 rounded-md shadow-sm flex items-center`;
+        alertDiv.innerHTML = `${iconHtml}<span>${message}</span><button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-transparent ${textColor} rounded-lg focus:ring-2 focus:ring-opacity-50 p-1.5 hover:bg-opacity-20 inline-flex h-8 w-8" onclick="this.parentElement.remove();"><span class="sr-only">Cerrar</span><i class="fas fa-times"></i></button>`;
+        while (flashContainer.firstChild) { flashContainer.removeChild(flashContainer.firstChild); }
+        flashContainer.appendChild(alertDiv);
+        setTimeout(() => { if (alertDiv.parentElement) { alertDiv.remove(); } }, 7000);
+    }
 
-    // --- Funciones de Filtros (adaptadas de TriCal.html) ---
-    function populateTagFilterButtons() {
-        if (!tagFiltersContainer) return;
+
+    // --- Filter Logic (adaptada de TriCal.html y el script original) ---
+    function populateTagFilterButtons() { /* ... (igual que original, usando TAG_PROPERTIES) ... */
+        if (!tagFiltersContainer || !TAG_PROPERTIES) return;
         tagFiltersContainer.innerHTML = '';
-
-        for (const key in tagProperties) {
-            const tagInfo = tagProperties[key];
+        for (const key in TAG_PROPERTIES) {
+            const tagInfo = TAG_PROPERTIES[key];
             const button = document.createElement('button');
             button.id = `filter-${key}`;
             button.dataset.tagKey = key;
-            button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
+            button.className = `btn btn-sm ${tagInfo.filterColor || 'btn-outline-secondary'} transition-all duration-200`; // Usar clases btn
             button.innerHTML = `<i class="${tagInfo.icon} mr-1.5"></i> ${tagInfo.text}`;
             button.setAttribute('aria-pressed', 'false');
             button.dataset.active = "false";
-
             button.addEventListener('click', () => {
                 const isActive = button.dataset.active === "true";
-                if (isActive) {
-                    button.dataset.active = "false";
-                    button.setAttribute('aria-pressed', 'false');
-                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
-                } else {
-                    button.dataset.active = "true";
-                    button.setAttribute('aria-pressed', 'true');
-                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterActiveColor}`;
-                }
+                button.dataset.active = isActive ? "false" : "true";
+                button.setAttribute('aria-pressed', !isActive);
+                button.classList.toggle(tagInfo.filterActiveColor || 'btn-primary', !isActive);
+                button.classList.toggle(tagInfo.filterColor || 'btn-outline-secondary', isActive);
                 filterAndSortEvents();
             });
             tagFiltersContainer.appendChild(button);
         }
     }
 
-    function populateFilterOptions(events) {
-        const disciplines = new Set();
-        const distances = new Set();
-        const provinces = new Set();
-
+    function populateFilterOptions(events) { /* ... (igual que original) ... */
+        const disciplines = new Set(); const distances = new Set(); const provinces = new Set();
         events.forEach(event => {
             if (event.discipline) disciplines.add(event.discipline);
             if (event.distance) distances.add(event.distance);
             if (event.province) provinces.add(event.province);
         });
-
-        // --- Helper function to create checkbox items for custom dropdowns ---
-        function createCheckboxItem(filterKey, value, text) {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'px-3 py-2 hover:bg-gray-100 cursor-pointer';
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `filter-${filterKey}-${value}`;
-            checkbox.name = filterKey;
-            checkbox.value = value;
-            checkbox.className = 'form-checkbox h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 mr-2';
-            checkbox.addEventListener('change', () => {
-                updateFilterButtonText(filterKey);
-                filterAndSortEvents();
-            });
-
-            const label = document.createElement('label');
-            label.htmlFor = checkbox.id;
-            label.textContent = text;
-            label.className = 'text-sm text-gray-700 select-none';
-
-            itemDiv.appendChild(checkbox);
-            itemDiv.appendChild(label);
-            // Allow clicking the div to toggle checkbox
-            itemDiv.addEventListener('click', (e) => {
-                if (e.target !== checkbox) checkbox.click();
-            });
+        function createCheckboxItem(filterKey, value, text) { /* ... (igual) ... */
+            const itemDiv = document.createElement('div'); itemDiv.className = 'px-3 py-2 hover:bg-gray-50 cursor-pointer';
+            const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.id = `filter-${filterKey}-${value.replace(/\s+/g, '-')}`; checkbox.name = filterKey; checkbox.value = value;
+            checkbox.className = 'form-checkbox h-4 w-4 text-orange-primary focus:ring-orange-light border-gray-300 rounded mr-2';
+            checkbox.addEventListener('change', () => { updateFilterButtonText(filterKey); filterAndSortEvents(); });
+            const label = document.createElement('label'); label.htmlFor = checkbox.id; label.textContent = text; label.className = 'text-sm text-gray-700 select-none cursor-pointer';
+            itemDiv.appendChild(checkbox); itemDiv.appendChild(label);
+            itemDiv.addEventListener('click', (e) => { if (e.target !== checkbox) checkbox.click(); });
             return itemDiv;
         }
-
-        // --- Helper function to update filter button text ---
-        function updateFilterButtonText(filterKey) {
-            const dropdown = filterDropdowns[filterKey];
-            const button = filterButtons[filterKey];
-            if (!dropdown || !button) return;
-
+        function updateFilterButtonText(filterKey) { /* ... (igual) ... */
+            const dropdown = filterDropdowns[filterKey]; const button = filterButtons[filterKey]; if (!dropdown || !button) return;
             const selectedCheckboxes = Array.from(dropdown.querySelectorAll('input[type="checkbox"]:checked'));
             const buttonTextSpan = button.querySelector('span');
-
-            if (selectedCheckboxes.length === 0) {
-                buttonTextSpan.textContent = 'Todas'; // Or 'Todos' for month
-            } else if (selectedCheckboxes.length === 1) {
-                buttonTextSpan.textContent = selectedCheckboxes[0].parentElement.querySelector('label').textContent;
-            } else {
+            if (selectedCheckboxes.length === 0) { buttonTextSpan.textContent = (filterKey === 'month' ? 'Todos' : 'Todas'); }
+            else if (selectedCheckboxes.length === 1) { buttonTextSpan.textContent = selectedCheckboxes[0].parentElement.querySelector('label').textContent; }
+            else {
                 let baseName = '';
-                if (filterKey === 'discipline') baseName = 'Disciplinas';
-                else if (filterKey === 'distance') baseName = 'Distancias';
-                else if (filterKey === 'province') baseName = 'Provincias';
-                else if (filterKey === 'month') baseName = 'Meses';
+                if (filterKey === 'discipline') baseName = 'Disciplinas'; else if (filterKey === 'distance') baseName = 'Distancias';
+                else if (filterKey === 'province') baseName = 'Provincias'; else if (filterKey === 'month') baseName = 'Meses';
                 buttonTextSpan.textContent = `${baseName} (${selectedCheckboxes.length})`;
             }
         }
-
-
-        // Populate dynamic filters (Discipline, Distance, Province)
-        ['discipline', 'distance', 'province'].forEach(key => {
-            const dropdownElement = filterDropdowns[key];
-            if (!dropdownElement) return;
-            dropdownElement.innerHTML = ''; // Clear previous options
-
+        ['discipline', 'distance', 'province'].forEach(key => { /* ... (igual) ... */
+            const dropdownElement = filterDropdowns[key]; if (!dropdownElement) return; dropdownElement.innerHTML = '';
             let currentSet;
-            if (key === 'discipline') currentSet = disciplines;
-            else if (key === 'distance') currentSet = distances;
-            else if (key === 'province') currentSet = provinces;
-
-            Array.from(currentSet).sort().forEach(value => {
-                dropdownElement.appendChild(createCheckboxItem(key, value, value));
-            });
-            updateFilterButtonText(key); // Initial button text
+            if (key === 'discipline') currentSet = disciplines; else if (key === 'distance') currentSet = distances; else if (key === 'province') currentSet = provinces;
+            Array.from(currentSet).sort().forEach(value => { dropdownElement.appendChild(createCheckboxItem(key, value, value)); });
+            updateFilterButtonText(key);
         });
-
-        // Populate Month Filter (static options)
-        const monthDropdown = filterDropdowns['month'];
+        const monthDropdown = filterDropdowns['month']; /* ... (igual) ... */
         if (monthDropdown) {
-            monthDropdown.innerHTML = ''; // Clear previous
-            const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-            monthNames.forEach((name, index) => {
-                monthDropdown.appendChild(createCheckboxItem('month', (index + 1).toString(), name));
-            });
-            updateFilterButtonText('month'); // Initial button text
+            monthDropdown.innerHTML = ''; const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+            monthNames.forEach((name, index) => { monthDropdown.appendChild(createCheckboxItem('month', (index + 1).toString(), name)); });
+            updateFilterButtonText('month');
         }
     }
-
-    function filterAndSortEvents() {
+    function filterAndSortEvents() { /* ... (igual que original, pero usa currentSortAscending para la fecha) ... */
         let filteredEvents = [...allEvents];
         const searchTerm = searchInput.value.toLowerCase().trim();
-
-        // Get selected values from custom checkbox dropdowns
         const selectedDisciplines = Array.from(filterDropdowns['discipline'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
         const selectedDistances = Array.from(filterDropdowns['distance'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
         const selectedProvinces = Array.from(filterDropdowns['province'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
         const selectedMonths = Array.from(filterDropdowns['month'].querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-
         const activeTagFilters = {};
-        if (tagFiltersContainer) {
-            tagFiltersContainer.querySelectorAll('button').forEach(btn => {
-                if (btn.dataset.active === "true") {
-                    activeTagFilters[btn.dataset.tagKey] = true;
-                }
-            });
-        }
+        if (tagFiltersContainer) { tagFiltersContainer.querySelectorAll('button').forEach(btn => { if (btn.dataset.active === "true") activeTagFilters[btn.dataset.tagKey] = true; });}
 
-        if (searchTerm) {
-            filteredEvents = filteredEvents.filter(event =>
-                (event.name && event.name.toLowerCase().includes(searchTerm)) ||
-                (event.city && event.city.toLowerCase().includes(searchTerm)) ||
-                (event.province && event.province.toLowerCase().includes(searchTerm)) ||
-                (event.discipline && event.discipline.toLowerCase().includes(searchTerm)) ||
-                (event.distance && event.distance.toLowerCase().includes(searchTerm))
-            );
-        }
-
-        if (selectedDisciplines.length > 0) {
-            filteredEvents = filteredEvents.filter(event => selectedDisciplines.includes(event.discipline));
-        }
-        if (selectedDistances.length > 0) {
-            filteredEvents = filteredEvents.filter(event => selectedDistances.includes(event.distance));
-        }
-        if (selectedProvinces.length > 0) {
-            filteredEvents = filteredEvents.filter(event => selectedProvinces.includes(event.province));
-        }
-        if (selectedMonths.length > 0) {
-            filteredEvents = filteredEvents.filter(event => {
-                if (!event.event_date) return false;
-                const event_date_obj = new Date(event.event_date + 'T00:00:00Z');
-                const event_month = (event_date_obj.getUTCMonth() + 1).toString();
-                return selectedMonths.includes(event_month);
-            });
-        }
-
+        if (searchTerm) { filteredEvents = filteredEvents.filter(event => (event.name && event.name.toLowerCase().includes(searchTerm)) || (event.city && event.city.toLowerCase().includes(searchTerm)) || (event.province && event.province.toLowerCase().includes(searchTerm)) || (event.discipline && event.discipline.toLowerCase().includes(searchTerm)) || (event.distance && event.distance.toLowerCase().includes(searchTerm))); }
+        if (selectedDisciplines.length > 0) { filteredEvents = filteredEvents.filter(event => selectedDisciplines.includes(event.discipline)); }
+        if (selectedDistances.length > 0) { filteredEvents = filteredEvents.filter(event => selectedDistances.includes(event.distance)); }
+        if (selectedProvinces.length > 0) { filteredEvents = filteredEvents.filter(event => selectedProvinces.includes(event.province)); }
+        if (selectedMonths.length > 0) { filteredEvents = filteredEvents.filter(event => { if (!event.event_date) return false; const event_date_obj = new Date(event.event_date + 'T00:00:00Z'); const event_month = (event_date_obj.getUTCMonth() + 1).toString(); return selectedMonths.includes(event_month); }); }
         const activeTagKeys = Object.keys(activeTagFilters);
-        if (activeTagKeys.length > 0) {
-            filteredEvents = filteredEvents.filter(event => {
-                return activeTagKeys.every(tagKey => {
-                    return event[tagKey] === true || event[tagKey] === 1 || event[tagKey] === '1' || event[tagKey] === 't' || String(event[tagKey]).toLowerCase() === 'true';
-                });
-            });
-        }
+        if (activeTagKeys.length > 0) { filteredEvents = filteredEvents.filter(event => activeTagKeys.every(tagKey => event[tagKey] === true || event[tagKey] === 1 || String(event[tagKey]).toLowerCase() === 'true'));}
 
         filteredEvents.sort((a, b) => {
-            const dateA = a.event_date ? new Date(a.event_date + 'T00:00:00Z') : null;
-            const dateB = b.event_date ? new Date(b.event_date + 'T00:00:00Z') : null;
-
-            if (!dateA && !dateB) return 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
-
-            return currentSortAscending ? dateA - dateB : dateB - dateA;
+            const dateA = a.event_date ? new Date(a.event_date + 'T00:00:00Z') : null; const dateB = b.event_date ? new Date(b.event_date + 'T00:00:00Z') : null;
+            if (!dateA && !dateB) return 0; if (!dateA) return 1; if (!dateB) return -1;
+            return currentSortAscending ? dateA - dateB : dateB - dateA; // Usa currentSortAscending
         });
-
-        renderEventsTable(filteredEvents); // Llamar a renderEventsTable en lugar de renderEvents
+        renderEventsTable(filteredEvents);
         if (visibleCountDisplay) visibleCountDisplay.textContent = filteredEvents.length;
-        updateFechaSortIndicator(); // Update indicator after sorting
-    }
-    // --- End Funciones de Filtros ---
-
-    // --- Update Sort Indicator for Fecha Header ---
-    function updateFechaSortIndicator() {
-        if (sortIndicatorFecha) {
-            if (fechaSortAscending) {
-                sortIndicatorFecha.innerHTML = '<i class="fas fa-arrow-down"></i>'; // Points down for ascending (older first)
-            } else {
-                sortIndicatorFecha.innerHTML = '<i class="fas fa-arrow-up"></i>'; // Points up for descending (newer first)
-            }
-        }
-    }
-    // --- End Update Sort Indicator ---
-
-    // --- Custom Dropdown Logic ---
-    let openDropdown = null; // Track the currently open dropdown
-
-    function toggleDropdown(filterKey) {
-        const dropdown = filterDropdowns[filterKey];
-        if (!dropdown) return;
-
-        if (openDropdown && openDropdown !== dropdown) {
-            openDropdown.classList.add('hidden');
-        }
-        dropdown.classList.toggle('hidden');
-        openDropdown = dropdown.classList.contains('hidden') ? null : dropdown;
+        updateFechaSortIndicator();
     }
 
-    filterDataKeys.forEach(key => {
-        if (filterButtons[key]) {
-            filterButtons[key].addEventListener('click', (event) => {
-                event.stopPropagation(); // Prevent click from bubbling to document
-                toggleDropdown(key);
-            });
-        }
-    });
-
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', (event) => {
-        if (openDropdown && !openDropdown.contains(event.target) && !Array.from(Object.values(filterButtons)).some(btn => btn.contains(event.target))) {
-            openDropdown.classList.add('hidden');
-            openDropdown = null;
-        }
-    });
-    // --- End Custom Dropdown Logic ---
-
-    // --- Lógica para el Modal de Crear/Editar Evento ---
-    function openModalForCreate() {
-        createEventModal.classList.remove('hidden');
-        createEventForm.reset();
-        eventIdHiddenInput.value = ''; // Asegurar que no haya ID de edición
-        createEventForm.removeAttribute('data-editing-id'); // Limpiar atributo de datos
-        modalTitleElement.textContent = 'Crear Nuevo Evento';
-        saveEventBtn.textContent = 'Guardar Evento';
+    function updateFechaSortIndicator() { /* ... (igual) ... */
+        if (sortIndicatorFecha) { sortIndicatorFecha.innerHTML = currentSortAscending ? '<i class="fas fa-arrow-down"></i>' : '<i class="fas fa-arrow-up"></i>'; }
     }
+    let openDropdown = null; /* ... (lógica de custom dropdown igual) ... */
+    function toggleDropdown(filterKey) { const dropdown = filterDropdowns[filterKey]; if (!dropdown) return; if (openDropdown && openDropdown !== dropdown) { openDropdown.classList.add('hidden'); } dropdown.classList.toggle('hidden'); openDropdown = dropdown.classList.contains('hidden') ? null : dropdown; }
+    filterDataKeys.forEach(key => { if (filterButtons[key]) { filterButtons[key].addEventListener('click', (event) => { event.stopPropagation(); toggleDropdown(key); }); } });
+    document.addEventListener('click', (event) => { if (openDropdown && !openDropdown.contains(event.target) && !Array.from(Object.values(filterButtons)).some(btn => btn.contains(event.target))) { openDropdown.classList.add('hidden'); openDropdown = null; } });
 
-    function openModalForEdit(eventData) {
-        createEventModal.classList.remove('hidden');
-        createEventForm.reset();
-        modalTitleElement.textContent = 'Editar Evento';
-        saveEventBtn.textContent = 'Actualizar Evento';
 
-        // Poblar formulario
-        eventIdHiddenInput.value = eventData.id; // Guardar ID en campo oculto
-        createEventForm.setAttribute('data-editing-id', eventData.id); // Guardar ID como atributo de datos
+    // --- Modal de Crear/Editar Evento ---
+    function openModalForCreate() { /* ... (igual, pero usa showAppFlashMessage) ... */
+        if (!createEventModal || !createEventForm || !eventIdHiddenInput || !modalTitleElement || !saveEventBtn) return;
+        createEventModal.classList.remove('hidden'); createEventForm.reset(); eventIdHiddenInput.value = '';
+        modalTitleElement.textContent = 'Crear Nuevo Evento'; saveEventBtn.textContent = 'Guardar Evento';
+    }
+    function openModalForEdit(eventData) { /* ... (igual) ... */
+        if (!createEventModal || !createEventForm || !eventIdHiddenInput || !modalTitleElement || !saveEventBtn) return;
+        createEventModal.classList.remove('hidden'); createEventForm.reset();
+        modalTitleElement.textContent = 'Editar Evento'; saveEventBtn.textContent = 'Actualizar Evento';
+        eventIdHiddenInput.value = eventData.id;
         createEventForm.elements['name'].value = eventData.name;
-        // Formatear la fecha para el input type="date" (YYYY-MM-DD)
         createEventForm.elements['event_date'].value = eventData.event_date ? eventData.event_date.split('T')[0] : '';
-        createEventForm.elements['city'].value = eventData.city || '';
-        createEventForm.elements['province'].value = eventData.province || '';
-        createEventForm.elements['discipline'].value = eventData.discipline || '';
-        createEventForm.elements['distance'].value = eventData.distance || '';
+        createEventForm.elements['city'].value = eventData.city || ''; createEventForm.elements['province'].value = eventData.province || '';
+        createEventForm.elements['discipline'].value = eventData.discipline || ''; createEventForm.elements['distance'].value = eventData.distance || '';
         createEventForm.elements['source_url'].value = eventData.source_url || '';
-
-        // Checkboxes de curación
-        createEventForm.elements['is_good_for_debutants'].checked = eventData.is_good_for_debutants || false;
-        createEventForm.elements['is_challenging'].checked = eventData.is_challenging || false;
-        createEventForm.elements['has_great_views'].checked = eventData.has_great_views || false;
-        createEventForm.elements['has_good_atmosphere'].checked = eventData.has_good_atmosphere || false;
-        createEventForm.elements['is_world_qualifier'].checked = eventData.is_world_qualifier || false;
+        for (const key in TAG_PROPERTIES) { if (createEventForm.elements[key]) createEventForm.elements[key].checked = eventData[key] || false; }
+    }
+    function closeModal() { /* ... (igual) ... */
+        if(createEventModal) createEventModal.classList.add('hidden'); if(createEventForm) createEventForm.reset(); if(eventIdHiddenInput) eventIdHiddenInput.value = '';
+        if(modalTitleElement) modalTitleElement.textContent = 'Crear Nuevo Evento'; if(saveEventBtn) saveEventBtn.textContent = 'Guardar Evento';
     }
 
-    function closeModal() {
-        createEventModal.classList.add('hidden');
-        createEventForm.reset(); // Limpiar formulario
-        eventIdHiddenInput.value = ''; // Limpiar ID oculto
-        createEventForm.removeAttribute('data-editing-id'); // Limpiar atributo de datos
-        // Restablecer título y botón a estado de creación por si acaso
-        modalTitleElement.textContent = 'Crear Nuevo Evento';
-        saveEventBtn.textContent = 'Guardar Evento';
-    }
+    if (openCreateEventModalBtn) openCreateEventModalBtn.addEventListener('click', (e) => { e.preventDefault(); openModalForCreate(); });
+    if (closeCreateEventModalBtn) closeCreateEventModalBtn.addEventListener('click', closeModal);
+    if (cancelCreateEventBtn) cancelCreateEventBtn.addEventListener('click', closeModal);
 
-
-    if (openCreateEventModalBtn) {
-        openCreateEventModalBtn.addEventListener('click', (event) => {
-            event.preventDefault();
-            openModalForCreate();
-        });
-    }
-
-    if (closeCreateEventModalBtn) {
-        closeCreateEventModalBtn.addEventListener('click', closeModal);
-    }
-
-    if (cancelCreateEventBtn) {
-        cancelCreateEventBtn.addEventListener('click', closeModal);
-    }
-
-    if (saveEventBtn && createEventForm) {
-        saveEventBtn.addEventListener('click', function(event) {
-            event.preventDefault();
-            // Para asegurar que las validaciones HTML del formulario se ejecuten y
-            // para disparar el evento 'submit' del formulario:
-            if (createEventForm.checkValidity()) {
-                // Si se usa requestSubmit(), el botón que lo llama se pasa como "submitter"
-                // y puede ser útil si hay múltiples botones de submit.
-                // createEventForm.requestSubmit(saveEventBtn); // saveEventBtn es el enlace <a>
-
-                // Alternativamente, podemos disparar el evento submit manualmente.
-                // Esto es más compatible con navegadores antiguos que requestSubmit().
-                const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                createEventForm.dispatchEvent(submitEvent);
-            } else {
-                createEventForm.reportValidity();
-            }
-        });
-    }
-
-    if (createEventForm && createEventModal) {
+    if (createEventForm) {
         createEventForm.addEventListener('submit', async function(e) {
-            // e.preventDefault(); // El preventDefault ya está implícito si el evento 'submit' se dispara programáticamente y se maneja aquí.
-                               // Sin embargo, no hace daño mantenerlo por claridad si se dispara manualmente como arriba.
-                               // Si se usa requestSubmit(), el evento submit que se dispara es "real" y necesitaría e.preventDefault().
-                               // Dado que estoy usando dispatchEvent, lo mantendré por si acaso.
             e.preventDefault();
+            if(saveEventBtn) saveEventBtn.classList.add('opacity-50', 'pointer-events-none');
+            const formData = new FormData(createEventForm); const data = Object.fromEntries(formData.entries());
+            delete data.event_id_hidden; // Usar el valor de eventIdHiddenInput.value directamente
+            for (const key in TAG_PROPERTIES) { data[key] = formData.has(key); }
+            if (!data.name || !data.event_date) { showAppFlashMessage('Nombre y Fecha son obligatorios.', 'error'); if(saveEventBtn) saveEventBtn.classList.remove('opacity-50', 'pointer-events-none'); return; }
 
-            saveEventBtn.classList.add('opacity-50', 'pointer-events-none');
-
-            const formData = new FormData(createEventForm);
-            const data = Object.fromEntries(formData.entries());
-            delete data.event_id; // Eliminar el campo oculto del objeto de datos si existe
-
-            // Convertir checkboxes a booleanos
-            data.is_good_for_debutants = formData.has('is_good_for_debutants');
-            data.is_challenging = formData.has('is_challenging');
-            data.has_great_views = formData.has('has_great_views');
-            data.has_good_atmosphere = formData.has('has_good_atmosphere');
-            data.is_world_qualifier = formData.has('is_world_qualifier');
-
-            if (!data.name || !data.event_date) {
-                showFlashMessage('Nombre del evento y Fecha son campos obligatorios.', 'error');
-                saveEventBtn.classList.remove('opacity-50', 'pointer-events-none');
-                return;
-            }
-
-            const editingId = createEventForm.getAttribute('data-editing-id');
+            const editingId = eventIdHiddenInput.value;
             const method = editingId ? 'PUT' : 'POST';
-            const url = editingId ? `${apiBaseUrl}/${editingId}` : apiBaseUrl;
-            const successMessage = editingId ? 'Evento actualizado con éxito' : 'Evento creado con éxito';
-            const errorMessageBase = editingId ? 'Error al actualizar el evento' : 'Error al crear el evento';
+            const url = editingId ? eventApiUrl(editingId) : apiBaseUrl;
+            const successMessage = editingId ? 'Evento actualizado' : 'Evento creado';
+            const errorMessageBase = editingId ? 'Error al actualizar' : 'Error al crear';
 
             try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-
+                const response = await fetch(url, { method: method, headers: { 'Content-Type': 'application/json', /* CSRF */ }, body: JSON.stringify(data) });
+                const result = await response.json(); // Leer JSON siempre
                 if (response.ok) {
-                    const result = await response.json();
-                    showFlashMessage(result.message || successMessage, 'success');
-                    closeModal();
-                    location.reload(); // Recargar para ver cambios
+                    showAppFlashMessage(result.message || successMessage, 'success'); closeModal(); loadEvents(); // Recargar
                 } else {
-                    const errorResult = await response.json();
-                    showFlashMessage(errorResult.message || errorMessageBase, 'error');
+                    showAppFlashMessage(result.message || `${errorMessageBase} (${response.status})`, 'error');
                 }
             } catch (error) {
-                console.error(`Error en la petición de ${method}:`, error);
-                showFlashMessage(`Error de conexión al ${editingId ? 'actualizar' : 'crear'} el evento.`, 'error');
+                console.error(`Error en ${method}:`, error); showAppFlashMessage(`Error de conexión.`, 'error');
             } finally {
-                saveEventBtn.classList.remove('opacity-50', 'pointer-events-none');
+                if(saveEventBtn) saveEventBtn.classList.remove('opacity-50', 'pointer-events-none');
             }
         });
     }
-    // --- Fin Lógica para el Modal de Crear/Editar Evento ---
 
-
-    // Cargar eventos al iniciar
-    loadEvents();
-
-    async function loadEvents() {
+    // --- Carga y renderizado de eventos ---
+    async function loadEvents() { /* ... (igual, pero usa showAppFlashMessage) ... */
         try {
             const response = await fetch(apiBaseUrl);
             if (response.ok) {
                 const events_data = await response.json();
-                allEvents = events_data.map(event => ({ // Almacenar en allEvents
-                    ...event,
-                    event_date: event.event_date ? event.event_date : null
-                }));
-
+                allEvents = events_data.map(event => ({ ...event, event_date: event.event_date ? event.event_date : null }));
                 if (totalCountDisplay) totalCountDisplay.textContent = allEvents.length;
-
-                populateFilterOptions(allEvents);
-                populateTagFilterButtons();
-                filterAndSortEvents(); // Esto llamará a renderEventsTable
-                // renderEventsTable(allEvents); // Ya no se llama directamente aquí
-            } else {
-                showFlashMessage('Error al cargar los eventos.', 'error');
-                 if (totalCountDisplay) totalCountDisplay.textContent = 0;
-                 if (visibleCountDisplay) visibleCountDisplay.textContent = 0;
-            }
-        } catch (error) {
-            console.error('Error cargando eventos:', error);
-            showFlashMessage('Error de conexión al cargar eventos.', 'error');
-            if (totalCountDisplay) totalCountDisplay.textContent = 0;
-            if (visibleCountDisplay) visibleCountDisplay.textContent = 0;
-        }
+                populateFilterOptions(allEvents); populateTagFilterButtons(); filterAndSortEvents();
+            } else { showAppFlashMessage('Error al cargar eventos.', 'error'); if (totalCountDisplay) totalCountDisplay.textContent = 0; if (visibleCountDisplay) visibleCountDisplay.textContent = 0;}
+        } catch (error) { console.error('Error cargando eventos:', error); showAppFlashMessage('Error de conexión al cargar.', 'error'); if (totalCountDisplay) totalCountDisplay.textContent = 0; if (visibleCountDisplay) visibleCountDisplay.textContent = 0;}
     }
-
-    function renderEventsTable(eventsToRender) { // Recibe eventsToRender
-        eventsTableBody.innerHTML = '';
-        if (eventsToRender.length === 0) {
-            // Adjusted colspan to 6 due to new table structure
-            eventsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No hay eventos que coincidan con los filtros.</td></tr>';
-            // Actualizar contador de visibles a 0
-            if (visibleCountDisplay) visibleCountDisplay.textContent = 0;
-            return;
-        }
-        // Actualizar contador de visibles
+    function renderEventsTable(eventsToRender) { /* ... (igual, usa clases de Tailwind/main_theme) ... */
+        if(!eventsTableBody) return; eventsTableBody.innerHTML = '';
+        if (eventsToRender.length === 0) { eventsTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500"><i class="fas fa-ghost fa-2x mb-2"></i><p>No hay eventos que coincidan.</p></td></tr>'; if (visibleCountDisplay) visibleCountDisplay.textContent = 0; return; }
         if (visibleCountDisplay) visibleCountDisplay.textContent = eventsToRender.length;
-
         eventsToRender.forEach(event => {
             const row = eventsTableBody.insertRow();
-            // Asegurarse que la fecha se interprete como UTC para evitar desfases al usar toLocaleDateString
             const displayDate = event.event_date ? new Date(event.event_date + 'T00:00:00Z').toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' }) : 'N/A';
-
-            // Combine city and province for "Localización"
-            let location = 'N/A';
-            if (event.city && event.province) {
-                location = `${event.city}, ${event.province}`;
-            } else if (event.city) {
-                location = event.city;
-            } else if (event.province) {
-                location = event.province;
-            }
-
-            // Apply new classes to td elements and adjust structure
+            let location = 'N/A'; if (event.city && event.province) location = `${event.city}, ${event.province}`; else if (event.city) location = event.city; else if (event.province) location = event.province;
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${event.name}</div></td>
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-500">${displayDate}</div></td>
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-500">${location}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-dark">${event.name}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-600">${displayDate}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-600">${location}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">${event.discipline || 'N/A'}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-500">${event.distance || 'N/A'}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm text-gray-600">${event.distance || 'N/A'}</div></td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button onclick="triggerEditEvent(${event.id})" class="text-orange-600 hover:text-orange-900">Editar</button>
-                    <button onclick="deleteEventConfirmation(${event.id})" class="ml-4 text-red-600 hover:text-red-900">Eliminar</button>
-                </td>
-            `;
+                    <button onclick="triggerEditEvent(${event.id})" class="btn btn-link text-orange-primary hover:text-orange-dark p-1"><i class="fas fa-edit"></i> Editar</button>
+                    <button onclick="deleteEventConfirmation(${event.id})" class="btn btn-link text-red-accent hover:text-red-700 p-1 ml-2"><i class="fas fa-trash"></i> Eliminar</button>
+                </td>`;
         });
     }
-
-    // Renombrar la función global para evitar conflictos si `editEvent` se usa en otros scripts importados.
-    // Esta función se llamará desde el HTML (`onclick`).
-    window.triggerEditEvent = async function(id) {
+    window.triggerEditEvent = async function(id) { /* ... (igual, usa showAppFlashMessage) ... */
         try {
-            const response = await fetch(`${apiBaseUrl}/${id}`);
-            if (!response.ok) {
-                const errorResult = await response.json();
-                throw new Error(errorResult.message || 'Evento no encontrado o error al cargar');
-            }
-            const eventData = await response.json();
-            openModalForEdit(eventData); // Llama a la función que puebla y abre el modal
-        } catch (error) {
-            console.error('Error al cargar evento para editar:', error);
-            showFlashMessage(error.message || 'No se pudo cargar el evento para editar.', 'error');
-        }
+            const response = await fetch(eventApiUrl(id));
+            if (!response.ok) { const errorResult = await response.json(); throw new Error(errorResult.message || 'Evento no encontrado'); }
+            const eventData = await response.json(); openModalForEdit(eventData);
+        } catch (error) { console.error('Error al cargar evento para editar:', error); showAppFlashMessage(error.message || 'No se pudo cargar el evento.', 'error'); }
     }
-
-
-    window.deleteEventConfirmation = function(id) {
-        if (confirm('¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.')) {
-            deleteEvent(id);
-        }
+    window.deleteEventConfirmation = function(id) { /* ... (igual) ... */
+        if (confirm('¿Estás seguro de eliminar este evento? Esta acción no se puede deshacer.')) { deleteEvent(id); }
     }
-
-    // La función editEvent ya no es necesaria aquí ya que el modal fue eliminado.
-    // Si se necesita editar, se debería implementar una página separada o un mecanismo diferente.
-    // Por ahora, el botón "Editar" en la tabla simplemente no hará nada o podría eliminarse también.
-    // Vamos a comentar la función window.editEvent y la referencia a ella en la tabla.
-
-    // window.editEvent = function(id) { ... } // Comentado o eliminado
-
-    async function deleteEvent(id) {
+    async function deleteEvent(id) { /* ... (igual, usa showAppFlashMessage) ... */
         try {
-            const response = await fetch(`${apiBaseUrl}/${id}`, { method: 'DELETE' });
-            if (response.ok) {
-                const result = await response.json();
-                showFlashMessage(result.message || 'Evento eliminado con éxito', 'success');
-                loadEvents(); // Recargar eventos para reflejar la eliminación
-            } else {
-                const errorResult = await response.json();
-                showFlashMessage(errorResult.message || 'Error al eliminar el evento', 'error');
-            }
-        } catch (error) {
-            console.error('Error al eliminar evento:', error);
-            showFlashMessage('Error de conexión al eliminar el evento.', 'error');
-        }
+            const response = await fetch(eventApiUrl(id), { method: 'DELETE' });
+            const result = await response.json(); // Leer JSON siempre
+            if (response.ok) { showAppFlashMessage(result.message || 'Evento eliminado', 'success'); loadEvents(); }
+            else { showAppFlashMessage(result.message || 'Error al eliminar', 'error'); }
+        } catch (error) { console.error('Error al eliminar evento:', error); showAppFlashMessage('Error de conexión.', 'error'); }
     }
 
-    // function resetForm() { // Eliminado, ya no hay formulario principal de creación/edición
-    //     // eventForm.reset();
-    //     // eventIdInput.value = '';
-    // }
-
-    // --- Event Listeners para Filtros (adaptado de TriCal.html) ---
+    // --- Event Listeners para Filtros ---
     if (searchInput) searchInput.addEventListener('input', filterAndSortEvents);
-    if (disciplineFilter) disciplineFilter.addEventListener('change', filterAndSortEvents);
-    if (distanceFilter) distanceFilter.addEventListener('change', filterAndSortEvents);
-    if (provinceFilter) provinceFilter.addEventListener('change', filterAndSortEvents);
-    if (monthFilter) monthFilter.addEventListener('change', filterAndSortEvents);
+    if (tableHeaderFecha) { tableHeaderFecha.addEventListener('click', () => { currentSortAscending = !currentSortAscending; filterAndSortEvents(); }); }
+    if (clearFiltersBtn) { clearFiltersBtn.addEventListener('click', () => { /* ... (igual) ... */
+        if (searchInput) searchInput.value = '';
+        filterDataKeys.forEach(key => { const dropdown = filterDropdowns[key]; if (dropdown) { dropdown.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false); updateFilterButtonText(key);}});
+        currentSortAscending = true; updateFechaSortIndicator();
+        if (tagFiltersContainer) { tagFiltersContainer.querySelectorAll('button').forEach(button => { const tagKey = button.dataset.tagKey; const tagInfo = TAG_PROPERTIES[tagKey]; button.dataset.active = "false"; button.setAttribute('aria-pressed', 'false'); button.className = `btn btn-sm ${tagInfo.filterColor || 'btn-outline-secondary'} transition-all duration-200`; });}
+        filterAndSortEvents();
+    });}
 
-    if (tableHeaderFecha) {
-        tableHeaderFecha.addEventListener('click', () => {
-            fechaSortAscending = !fechaSortAscending;
-            // The main sort button `currentSortAscending` should align with this new sort direction
-            currentSortAscending = fechaSortAscending;
-            if (sortDateBtn) { // Update the main sort button's text/icon if it exists
-                 sortDateBtn.innerHTML = currentSortAscending ?
-                    '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
-                    '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
-            }
-            filterAndSortEvents(); // This will re-sort and re-render
-        });
-    }
+    // Inicializar
+    loadEvents();
+    updateFechaSortIndicator(); // Set initial indicator
 
-    if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener('click', () => {
-            if (searchInput) searchInput.value = '';
-
-            // For custom dropdowns, uncheck all checkboxes and update button text
-            filterDataKeys.forEach(key => {
-                const dropdown = filterDropdowns[key];
-                if (dropdown) {
-                    const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
-                    checkboxes.forEach(cb => cb.checked = false);
-                    updateFilterButtonText(key); // Reset button text to 'Todas'/'Todos'
-                }
-            });
-
-            currentSortAscending = true;
-            if (sortDateBtn) sortDateBtn.innerHTML = '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)';
-
-            if (tagFiltersContainer) {
-                tagFiltersContainer.querySelectorAll('button').forEach(button => {
-                    const tagKey = button.dataset.tagKey;
-                    const tagInfo = tagProperties[tagKey];
-                    button.dataset.active = "false";
-                    button.setAttribute('aria-pressed', 'false');
-                    button.className = `px-3 py-2 text-sm font-medium rounded-md transition-colors ${tagInfo.filterColor}`;
-                });
-            }
-            filterAndSortEvents();
-        });
-    }
-
-    if (sortDateBtn) {
-        sortDateBtn.addEventListener('click', (event) => {
-            event.preventDefault(); // Prevenir comportamiento del enlace
-            currentSortAscending = !currentSortAscending;
-            sortDateBtn.innerHTML = currentSortAscending ?
-                '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
-                '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
-            filterAndSortEvents();
-        });
-        // Initial sort button text and table header indicator
-        // Esta parte es segura porque sortDateBtn ya fue verificado arriba.
-        sortDateBtn.innerHTML = currentSortAscending ?
-            '<i class="fas fa-sort-amount-down mr-1"></i> Fecha (Antiguas primero)' :
-            '<i class="fas fa-sort-amount-up mr-1"></i> Fecha (Nuevas primero)';
-        updateFechaSortIndicator(); // Set initial indicator for table header
-    }
-    // --- Fin Event Listeners para Filtros ---
-
-    // Función para mostrar mensajes flash (simulada, ya que el header maneja los reales)
-    function showFlashMessage(message, category) {
-        // Esta es una simulación. En una app real, podrías redirigir o recargar
-        // para que los mensajes flash de Flask se muestren, o implementar un sistema de notificaciones JS.
-        // Por ahora, usaremos un simple alert y un console.log
-        console.log(`FLASH (${category}): ${message}`);
-        // alert(`${category.toUpperCase()}: ${message}`);
-
-        // Intentar crear un mensaje flash dinámico similar al del _header.html
-        const flashContainer = document.getElementById('flash-messages-container') || createFlashContainer();
-
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert-flash alert-${category} p-4 mb-3 text-sm rounded-lg shadow-md
-                        ${category === 'error' ? 'bg-red-100 border border-red-300 text-red-700' : ''}
-                        ${category === 'success' ? 'bg-green-100 border border-green-300 text-green-700' : ''}
-                        ${category === 'warning' ? 'bg-yellow-100 border border-yellow-300 text-yellow-700' : ''}
-                        ${!['error', 'success', 'warning'].includes(category) ? 'bg-blue-100 border border-blue-300 text-blue-700' : ''}`;
-        alertDiv.setAttribute('role', 'alert');
-
-        let iconClass = 'fas fa-info-circle';
-        let typeText = 'Info:';
-        if (category === 'error') { iconClass = 'fas fa-times-circle'; typeText = 'Error:'; }
-        else if (category === 'success') { iconClass = 'fas fa-check-circle'; typeText = 'Éxito:'; }
-        else if (category === 'warning') { iconClass = 'fas fa-exclamation-triangle'; typeText = 'Advertencia:'; }
-
-        alertDiv.innerHTML = `
-            <div class="flex items-center">
-                <span class="font-medium mr-2"><i class="${iconClass}"></i> ${typeText}</span>
-                <span>${message}</span>
-                <button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-transparent text-current rounded-lg focus:ring-2 p-1.5 inline-flex h-8 w-8 hover:bg-opacity-20
-                                            ${category === 'error' ? 'hover:bg-red-200 focus:ring-red-400' : ''}
-                                            ${category === 'success' ? 'hover:bg-green-200 focus:ring-green-400' : ''}
-                                            ${category === 'warning' ? 'hover:bg-yellow-200 focus:ring-yellow-400' : ''}
-                                            ${!['error', 'success', 'warning'].includes(category) ? 'hover:bg-blue-200 focus:ring-blue-400' : ''}"
-                        onclick="this.closest('.alert-flash').remove();" aria-label="Dismiss">
-                  <span class="sr-only">Dismiss</span>
-                  <svg aria-hidden="true" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
-                </button>
-            </div>`;
-
-        flashContainer.appendChild(alertDiv);
-
-        setTimeout(() => {
-            alertDiv.style.transition = 'opacity 0.5s ease-out';
-            alertDiv.style.opacity = '0';
-            setTimeout(() => alertDiv.remove(), 500);
-        }, 7000);
-    }
-
-    function createFlashContainer() {
-        let container = document.getElementById('flash-messages-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'flash-messages-container';
-            container.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 z-[1000] w-full max-w-xl px-4';
-            container.style.marginTop = '60px'; // Similar al _header.html
-            // Intentar insertar después del header o al inicio del body
-            const header = document.querySelector('header');
-            if (header && header.parentNode) {
-                header.parentNode.insertBefore(container, header.nextSibling);
-            } else {
-                document.body.prepend(container);
-            }
-        }
-        return container;
-    }
 });
 </script>
-{% endblock %} {# main_dashboard_content #}
-
-{% block additional_scripts %}
-    {{ super() }}
-    <!-- Puedes añadir scripts específicos para esta página aquí si es necesario -->
-{% endblock %}
+{% endblock scripts %}

@@ -1,25 +1,38 @@
-{% extends "admin_dashboard.html" %}
+{% extends "base.html" %}
 
-{% block title %}Gestionar Sugerencias de Eventos - Admin{% endblock %}
+{% block title %}Gestionar Sugerencias - {{ super() }}{% endblock %}
 
-{% block header_title %}Gestionar Sugerencias de Eventos{% endblock %}
-{% block header_subtitle %}Revisa, valida o descarta las sugerencias de eventos enviadas por los usuarios.{% endblock %}
+{% block head_extra %}
+    {# main_theme.css ya define .table-hover, pero podemos añadir estilos específicos si es necesario #}
+    <style>
+        /* Ajustes para la tabla si son necesarios más allá de Tailwind y main_theme.css */
+        thead.table-header-custom th { /* Aplicar a los th dentro de un thead con esta clase */
+            background-color: var(--orange-primary);
+            color: white;
+            font-weight: 600; /*semibold*/
+        }
+    </style>
+{% endblock %}
 
-{% block admin_dashboard_specific_scripts %}{% endblock %} {# Asegura que no se carguen scripts específicos del admin dashboard que no apliquen aquí #}
-{% block join_by_code_button %}{% endblock %} {# Oculta el botón de unirse por código si está en el layout base #}
-{% block official_answers_modal_if_any %}{% endblock %} {# Oculta el modal de respuestas oficiales si está en el layout base #}
+{% block hero %}
+    {% set hero_title = "Gestionar Sugerencias de Eventos" %}
+    {% set hero_subtitle = "Revisa, valida o descarta las sugerencias de eventos enviadas por los usuarios." %}
+    {% include '_hero_section.html' %}
+{% endblock hero %}
 
+{% block content %}
+<div class="px-6 py-8">
+    {# Contenedor para mensajes Flash - Asegúrate de que este ID sea único o que tu JS de mensajes flash lo maneje bien #}
+    <div id="flash-messages-container-sugerencias" class="mb-4"></div>
 
-{% block main_dashboard_content %} {# Usa el mismo bloque que admin_dashboard.html para consistencia si extiende de una base común, o un bloque específico si es necesario #}
-<div class="w-full px-4 py-0">
-    <div class="bg-white shadow-md rounded-lg overflow-hidden mt-8">
-        <div class="p-6">
-            <h2 class="text-2xl font-semibold text-gray-700">Sugerencias de Eventos Pendientes</h2>
+    <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-2xl font-semibold text-gray-dark brand-font">Sugerencias de Eventos Pendientes</h2>
         </div>
         {% if pending_events %}
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="!bg-orange-500 !text-white">
+            <table class="min-w-full divide-y divide-gray-200 table-hover">
+                <thead class="table-header-custom">
                     <tr>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre</th>
                         <th scope="col" class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
@@ -52,14 +65,16 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {% if event.source_url %}
-                            <a href="{{ event.source_url }}" target="_blank" class="text-orange-600 hover:text-orange-900 hover:underline">Ver enlace</a>
+                            <a href="{{ event.source_url }}" target="_blank" class="text-orange-primary hover:text-orange-dark hover:underline">Ver enlace</a>
                             {% else %}
                             N/A
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                            <button onclick="handleSuggestionAction('{{ url_for('admin_validate_event_suggestion', event_id=event.id) }}', 'Validar', {{ event.id }})" class="text-green-600 hover:text-green-900 hover:underline">Validar</button>
-                            <button onclick="handleSuggestionAction('{{ url_for('admin_discard_event_suggestion', event_id=event.id) }}', 'Descartar', {{ event.id }})" class="text-red-600 hover:text-red-900 hover:underline">Descartar</button>
+                            <button onclick="handleSuggestionAction('{{ url_for('admin_validate_event_suggestion', event_id=event.id) }}', 'Validar', {{ event.id }})"
+                                    class="text-green-600 hover:text-green-800 hover:underline focus:outline-none font-semibold">Validar</button>
+                            <button onclick="handleSuggestionAction('{{ url_for('admin_discard_event_suggestion', event_id=event.id) }}', 'Descartar', {{ event.id }})"
+                                    class="text-red-600 hover:text-red-800 hover:underline focus:outline-none font-semibold">Descartar</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -67,14 +82,70 @@
             </table>
         </div>
         {% else %}
-        <div class="p-6">
-            <p class="text-gray-500">No hay sugerencias pendientes en este momento.</p>
+        <div class="p-6 text-center">
+            <i class="fas fa-info-circle fa-3x text-gray-400 mb-4"></i>
+            <p class="text-gray-600 text-lg">No hay sugerencias pendientes en este momento.</p>
         </div>
         {% endif %}
     </div>
 </div>
+{% endblock content %}
 
+{% block scripts %}
+{{ super() }} {# Incluye scripts de base.html si los hay #}
 <script>
+// Función para mostrar mensajes flash (adaptada para este contexto)
+function showAppFlashMessage(message, category, containerId = 'flash-messages-container-sugerencias') {
+    const flashContainer = document.getElementById(containerId);
+    if (!flashContainer) {
+        console.error('Flash message container not found:', containerId);
+        alert(`${category.toUpperCase()}: ${message}`); // Fallback
+        return;
+    }
+
+    const alertDiv = document.createElement('div');
+    let bgColor, textColor, borderColor, iconHtml;
+
+    switch (category) {
+        case 'success':
+            bgColor = 'bg-green-100'; // Tailwind green-100
+            textColor = 'text-green-700'; // Tailwind green-700
+            borderColor = 'border-green-400'; // Tailwind green-400
+            iconHtml = '<i class="fas fa-check-circle mr-2"></i>';
+            break;
+        case 'error':
+            bgColor = 'bg-red-100'; // Tailwind red-100
+            textColor = 'text-red-700'; // Tailwind red-700
+            borderColor = 'border-red-400'; // Tailwind red-400
+            iconHtml = '<i class="fas fa-exclamation-triangle mr-2"></i>';
+            break;
+        default: // info or warning
+            bgColor = 'bg-blue-100';
+            textColor = 'text-blue-700';
+            borderColor = 'border-blue-400';
+            iconHtml = '<i class="fas fa-info-circle mr-2"></i>';
+            break;
+    }
+
+    alertDiv.className = `${bgColor} ${textColor} border-l-4 ${borderColor} p-4 mb-4 rounded-md shadow-sm flex items-center`;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `${iconHtml}<span>${message}</span><button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-transparent ${textColor} rounded-lg focus:ring-2 focus:ring-opacity-50 p-1.5 hover:bg-opacity-20 inline-flex h-8 w-8" onclick="this.parentElement.remove();"><span class="sr-only">Cerrar</span><i class="fas fa-times"></i></button>`;
+
+    // Limpiar mensajes anteriores antes de añadir uno nuevo para evitar acumulación
+    while (flashContainer.firstChild) {
+        flashContainer.removeChild(flashContainer.firstChild);
+    }
+    flashContainer.appendChild(alertDiv);
+
+    // Auto-dismiss after 7 seconds
+    setTimeout(() => {
+        if (alertDiv.parentElement) { // Check if still in DOM
+            alertDiv.remove();
+        }
+    }, 7000);
+}
+
+
 function handleSuggestionAction(url, actionName, eventId) {
     const row = document.getElementById(`suggestion-row-${eventId}`);
 
@@ -82,59 +153,44 @@ function handleSuggestionAction(url, actionName, eventId) {
         return;
     }
 
+    // Mostrar un indicador de carga visual si es posible
+    if (row) {
+        row.style.opacity = '0.5'; // Ejemplo simple
+    }
+
     fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-
+            // 'X-CSRFToken': '{{ csrf_token() }}' // Si CSRF está implementado globalmente y es necesario
         }
     })
     .then(response => {
-        // Guardar el status code para usarlo después si es necesario
         const statusCode = response.status;
-        // Siempre intentar parsear como JSON, ya que Flask puede devolver JSON incluso en errores
         return response.json().then(data => ({ ok: response.ok, status: statusCode, data: data }));
     })
     .then(result => {
         if (result.ok) {
-            showFlashMessage(result.data.message || `Sugerencia ${actionName.toLowerCase()}da correctamente.`, 'success');
+            showAppFlashMessage(result.data.message || `Sugerencia ${actionName.toLowerCase()}da correctamente.`, 'success');
             if (row) {
-                row.remove();
+                row.remove(); // Eliminar la fila de la tabla
             }
-            // Considerar actualizar contador de sugerencias si existe
-            // Opcional: Recargar la página si es más simple que actualizar dinámicamente todo
-            // location.reload();
+            // Opcional: actualizar un contador de sugerencias si existe en la UI
+            // Considerar recargar si la tabla necesita paginación o reordenamiento: location.reload();
         } else {
-            // Usar el mensaje del servidor si está disponible, sino un mensaje genérico
-            showFlashMessage(result.data.message || `Error al ${actionName.toLowerCase()} la sugerencia. Código: ${result.status}`, 'error');
+            showAppFlashMessage(result.data.message || `Error al ${actionName.toLowerCase()} la sugerencia. Código: ${result.status}`, 'error');
         }
     })
     .catch(error => {
-        // Este catch es para errores de red o si response.json() falla (ej. respuesta no es JSON)
         console.error(`Error en la acción '${actionName}' para el evento ${eventId}:`, error);
-        showFlashMessage(`Error de conexión o respuesta inesperada al ${actionName.toLowerCase()} la sugerencia. Por favor, revisa la consola.`, 'error');
+        showAppFlashMessage(`Error de conexión o respuesta inesperada al ${actionName.toLowerCase()} la sugerencia. Por favor, revisa la consola.`, 'error');
+    })
+    .finally(() => {
+        // Restaurar opacidad si no se eliminó la fila (en caso de error)
+        if (row && row.parentElement) {
+            row.style.opacity = '1';
+        }
     });
 }
-
-// Función para mostrar mensajes flash (debe estar definida globalmente o importada si es modular)
-// Se asume que showFlashMessage está disponible (ej. definida en el layout base o en script.js)
-// Si no, se debe incluir aquí una implementación básica o asegurar su disponibilidad.
-// Ejemplo básico de showFlashMessage (adaptar según el sistema de notificaciones de la app):
-/*
-function showFlashMessage(message, category) {
-    const flashContainer = document.getElementById('flash-messages-container') || createFlashContainer();
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert-flash alert-${category} p-4 mb-3 text-sm rounded-lg shadow-md ...`; // Clases de Tailwind
-    alertDiv.textContent = message;
-    flashContainer.appendChild(alertDiv);
-    setTimeout(() => alertDiv.remove(), 7000);
-}
-function createFlashContainer() { ... } // Lógica para crear el contenedor si no existe
-*/
 </script>
-{% endblock %}
-
-{% block additional_scripts %}
-{{ super() }}
-<!-- Puedes añadir scripts específicos para esta página aquí si es necesario -->
-{% endblock %}
+{% endblock scripts %}

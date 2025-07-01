@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Fantasy Triatlón{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main_theme.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="no-scroll"> {# 'no-scroll' viene de admin_dashboard, revisar si es necesario globalmente #}
+
+    {% include '_header.html' %}
+
+    <!-- Main Layout -->
+    <div class="flex flex-col min-h-screen">
+
+        <!-- Hero Section Block -->
+        {% block hero %}
+            {# Las páginas pueden opcionalmente definir una sección hero aquí.
+               Ejemplo de uso si se quiere el hero estándar:
+               {% block hero %}
+                   {% set hero_title = "Título de la Página" %}
+                   {% set hero_subtitle = "Subtítulo opcional" %}
+                   {% include '_hero_section.html' %}
+               {% endblock hero %}
+            #}
+        {% endblock hero %}
+
+        <!-- Main Content -->
+        <main class="flex-1">
+            {# El ID 'dashboard-content-wrapper' ha sido eliminado.
+               Las páginas que necesiten un contenedor de ancho máximo deben implementarlo
+               dentro de su bloque de contenido, usando la clase '.content-wrapper-max-width'.
+               Ejemplo en una página hija:
+               {% block content %}
+                 <div class="content-wrapper-max-width px-4 py-8"> <!-- Aplicar padding aquí o en elementos internos -->
+                   ... contenido de la página ...
+                 </div>
+               {% endblock %}
+            #}
+            {% block content %}
+            {# El contenido específico de cada página irá aquí.
+               Las páginas son responsables de su propio padding y layout interno. #}
+            {% endblock content %}
+        </main>
+
+    </div>
+
+    {% include '_footer.html' %}
+
+    <!-- Global Modals if any, e.g., Join by Code might be global -->
+    {% include '_join_by_code_modal.html' %}
+    {# Considerar si _official_answers_modal.html es global o específico de admin #}
+
+
+    <!-- Scripts -->
+    {# Scripts globales podrían ir aquí si es necesario #}
+    <script>
+        // Script global básico, por ejemplo, para manejar el modal de unirse por código si es global.
+        // La lógica específica de los modales de admin_dashboard.html (example-modal, joinRaceModal, etc.)
+        // probablemente debería ir en las páginas que los usan o en scripts específicos.
+
+        // --- Join Race By Code Modal Logic (Adaptado de admin_dashboard.html) ---
+        // Se asume que este modal puede ser accedido desde cualquier página que extienda base.html
+        const joinRaceByCodeBtnBase = document.getElementById('joinRaceByCodeBtn'); // Podría necesitar un ID más único si hay múltiples botones
+        const joinByCodeModalBase = document.getElementById('joinByCodeModal');
+        const closeJoinByCodeModalBtnBase = document.getElementById('closeJoinByCodeModalBtn');
+        const cancelJoinByCodeBtnBase = document.getElementById('cancelJoinByCodeBtn');
+        const joinByCodeFormBase = document.getElementById('joinByCodeForm');
+        const raceAccessCodeToJoinInputBase = document.getElementById('raceAccessCodeToJoin');
+        const joinByCodeErrorBase = document.getElementById('joinByCodeError');
+        const submitJoinByCodeBtnBase = document.getElementById('submitJoinByCodeBtn');
+
+        function openJoinByCodeDialogBase() {
+            if (joinByCodeModalBase) {
+                if(raceAccessCodeToJoinInputBase) raceAccessCodeToJoinInputBase.value = '';
+                if(joinByCodeErrorBase) joinByCodeErrorBase.style.display = 'none';
+                joinByCodeModalBase.style.display = 'flex';
+            }
+        }
+
+        function closeJoinByCodeDialogBase() {
+            if (joinByCodeModalBase) {
+                joinByCodeModalBase.style.display = 'none';
+            }
+        }
+
+        // Event listener para un botón genérico que podría estar en el header o en varias páginas
+        // Es importante que el botón que abre este modal tenga el ID 'joinRaceByCodeBtn' o se ajuste este selector.
+        if (joinRaceByCodeBtnBase) { // Este ID es el del botón en admin_dashboard. Si se mueve al header, debe mantener este ID.
+             joinRaceByCodeBtnBase.addEventListener('click', openJoinByCodeDialogBase);
+        }
+
+
+        if (closeJoinByCodeModalBtnBase) {
+            closeJoinByCodeModalBtnBase.addEventListener('click', closeJoinByCodeDialogBase);
+        }
+        if (cancelJoinByCodeBtnBase) {
+            cancelJoinByCodeBtnBase.addEventListener('click', closeJoinByCodeDialogBase);
+        }
+
+        if (joinByCodeFormBase && submitJoinByCodeBtnBase) {
+            joinByCodeFormBase.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const accessCode = raceAccessCodeToJoinInputBase.value.trim();
+                if (!accessCode) {
+                    if(joinByCodeErrorBase) {
+                        joinByCodeErrorBase.textContent = 'Por favor, ingresa un código de acceso.';
+                        joinByCodeErrorBase.style.display = 'block';
+                    }
+                    return;
+                }
+
+                submitJoinByCodeBtnBase.disabled = true;
+                submitJoinByCodeBtnBase.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uniéndose...';
+                if(joinByCodeErrorBase) joinByCodeErrorBase.style.display = 'none';
+
+                fetch("{{ url_for('join_race_by_code_api') }}", { // Usar url_for para la ruta de la API
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // 'X-CSRFToken': '{{ csrf_token() }}' // Si CSRF está implementado globalmente
+                    },
+                    body: JSON.stringify({ access_code: accessCode })
+                })
+                .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                .then(result => {
+                    if (result.ok) {
+                        closeJoinByCodeDialogBase();
+                        // Redirigir a la página de la carrera, añadiendo un parámetro para iniciar quiniela si es necesario
+                        window.location.href = `/race/${result.body.race_id}?action=start_quiniela`;
+                    } else {
+                        if(joinByCodeErrorBase) {
+                            joinByCodeErrorBase.textContent = result.body.message || `Error: ${result.status}. No se pudo unir a la carrera.`;
+                            joinByCodeErrorBase.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error joining race by code:', error);
+                    if(joinByCodeErrorBase) {
+                        joinByCodeErrorBase.textContent = 'Error de conexión o del servidor. Inténtalo de nuevo.';
+                        joinByCodeErrorBase.style.display = 'block';
+                    }
+                })
+                .finally(() => {
+                    submitJoinByCodeBtnBase.disabled = false;
+                    submitJoinByCodeBtnBase.innerHTML = 'Unirse a Carrera';
+                });
+            });
+        }
+
+        // Script para manejar el menú móvil y dropdown del perfil (asumiendo que está en _header.html)
+        document.addEventListener('DOMContentLoaded', function () {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const userMenuButton = document.getElementById('user-menu-button');
+            const userMenu = document.getElementById('user-menu');
+
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', () => {
+                    const isExpanded = mobileMenuButton.getAttribute('aria-expanded') === 'true';
+                    mobileMenuButton.setAttribute('aria-expanded', !isExpanded);
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+
+            if (userMenuButton && userMenu) {
+                userMenuButton.addEventListener('click', () => {
+                    const isExpanded = userMenuButton.getAttribute('aria-expanded') === 'true';
+                    userMenuButton.setAttribute('aria-expanded', !isExpanded);
+                    userMenu.classList.toggle('hidden');
+                    if (!isExpanded) {
+                        userMenu.focus(); // Para accesibilidad y manejo de cierre con Escape
+                    }
+                });
+
+                // Cerrar dropdown si se hace clic fuera
+                document.addEventListener('click', (event) => {
+                    if (!userMenuButton.contains(event.target) && !userMenu.contains(event.target)) {
+                        userMenu.classList.add('hidden');
+                        userMenuButton.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                // Cerrar con tecla Escape
+                 userMenu.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        userMenu.classList.add('hidden');
+                        userMenuButton.setAttribute('aria-expanded', 'false');
+                        userMenuButton.focus();
+                    }
+                });
+            }
+
+            // Lógica para "auto join race" y limpieza de URL de admin_dashboard
+            // Esta lógica es bastante específica y podría necesitar ser movida a un script que solo se cargue en páginas relevantes
+            // o ser condicionalmente incluida. Por ahora, la dejo aquí comentada para evaluación.
+            /*
+            const autoJoinRaceIdFromServer = {{ auto_join_race_id | default(none) | tojson }}; // Necesitaría que el backend pase esto a CUALQUIER página
+            const raceToJoinTitleFromServer = {{ race_to_join_title | default(none) | tojson }}; // Idem
+            // ... (resto de la lógica de auto_join_race_id de admin_dashboard.html)
+            // Esta parte es compleja de generalizar sin saber qué páginas necesitan esta funcionalidad.
+            // Podría ser mejor que las páginas que lo necesiten incluyan un script específico.
+            */
+        });
+
+    </script>
+
+    {% block scripts %}
+    {# Scripts específicos de cada página irán aquí #}
+    {% endblock scripts %}
+
+</body>
+</html>
