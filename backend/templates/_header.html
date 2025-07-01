@@ -80,32 +80,36 @@
                         <i class="fas fa-flag-checkered"></i>
                         <span>Buscar carreras</span>
                     </a>
-                    {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
-                    <a href="{{ url_for('list_leagues') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
-                        <i class="fas fa-trophy"></i>
-                        <span>Ligas</span>
-                    </a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
+                        <a href="{{ url_for('list_leagues') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                            <i class="fas fa-trophy"></i>
+                            <span>Ligas</span>
+                        </a>
+                        {% endif %}
                     {% endif %}
                     <a href="{{ url_for('tripredict_promo_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
                         <i class="fas fa-bullhorn"></i>
                         <span>TriPredict App</span>
                     </a>
-                    <!-- MODIFIED: Removed Profile Link -->
-                    {% if current_user.role.code == 'ADMIN' %}
-                    <a href="{{ url_for('serve_events_management_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
-                        <i class="fas fa-calendar-alt"></i> <!-- Icono sugerido para eventos -->
-                        <span>Eventos</span>
-                    </a>
-                    <a href="{{ url_for('admin_event_suggestions_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1"> {# MODIFICADO: Apunta a la nueva ruta #}
-                        <i class="fas fa-lightbulb"></i> <!-- Icono para sugerencias -->
-                        <span>Sugerencias</span>
-                    </a>
+                    {% if current_user.is_authenticated %}
+                        {% if current_user.role.code == 'ADMIN' %}
+                        <a href="{{ url_for('serve_events_management_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
+                            <i class="fas fa-calendar-alt"></i> <!-- Icono sugerido para eventos -->
+                            <span>Eventos</span>
+                        </a>
+                        <a href="{{ url_for('admin_event_suggestions_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1"> {# MODIFICADO: Apunta a la nueva ruta #}
+                            <i class="fas fa-lightbulb"></i> <!-- Icono para sugerencias -->
+                            <span>Sugerencias</span>
+                        </a>
+                        {% endif %}
                     {% endif %}
                 </nav>
             </div>
 
             <!-- User Info & Actions -->
             <div class="flex items-center space-x-4">
+                {% if current_user.is_authenticated %}
                 <div class="hidden md:flex items-center space-x-3">
                     <div class="text-right">
                         <p class="text-white font-medium">{{ current_user.username }}</p>
@@ -148,34 +152,47 @@
             <i class="fas fa-flag-checkered w-5"></i>
             <span>Races</span>
         </a>
-        {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
-        <a href="{{ url_for('list_leagues') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-            <i class="fas fa-trophy w-5"></i>
-            <span>Ligas</span>
-        </a>
+        {% if current_user.is_authenticated %}
+            {% if current_user.role.code == 'ADMIN' or current_user.role.code == 'LEAGUE_ADMIN' %}
+            <a href="{{ url_for('list_leagues') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-trophy w-5"></i>
+                <span>Ligas</span>
+            </a>
+            {% endif %}
         {% endif %}
         <a href="{{ url_for('tripredict_promo_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
             <i class="fas fa-bullhorn w-5"></i>
             <span>TriPredict App</span>
         </a>
-        {% if current_user.role.code == 'ADMIN' %}
-        <a href="{{ url_for('serve_events_management_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-            <i class="fas fa-calendar-alt w-5"></i>
-            <span>Eventos</span>
-        </a>
-        <a href="{{ url_for('admin_event_suggestions_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-            <i class="fas fa-lightbulb w-5"></i>
-            <span>Sugerencias</span>
-        </a>
+        {% if current_user.is_authenticated %}
+            {% if current_user.role.code == 'ADMIN' %}
+            <a href="{{ url_for('serve_events_management_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-calendar-alt w-5"></i>
+                <span>Eventos</span>
+            </a>
+            <a href="{{ url_for('admin_event_suggestions_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-lightbulb w-5"></i>
+                <span>Sugerencias</span>
+            </a>
+            {% endif %}
+            <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-user w-5"></i>
+                <span>Profile</span>
+            </a>
+            <a href="#" id="mobileLogoutLink" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-sign-out-alt w-5"></i>
+                <span>Logout</span>
+            </a>
+        {% else %}
+            <a href="{{ url_for('serve_login_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-sign-in-alt w-5"></i>
+                <span>Login</span>
+            </a>
+            <a href="{{ url_for('register_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
+                <i class="fas fa-user-plus w-5"></i>
+                <span>Registro</span>
+            </a>
         {% endif %}
-        <a href="#" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-            <i class="fas fa-user w-5"></i>
-            <span>Profile</span>
-        </a>
-        <a href="#" id="mobileLogoutLink" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-            <i class="fas fa-sign-out-alt w-5"></i>
-            <span>Logout</span>
-        </a>
     </div>
 </div>
 
