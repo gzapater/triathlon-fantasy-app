@@ -110,29 +110,35 @@
             <!-- User Info & Actions -->
             <div class="flex items-center space-x-4">
                 {% if current_user.is_authenticated %}
-                <div class="hidden md:flex items-center space-x-3">
-                    <div class="text-right">
-                        <p class="text-white font-medium">{{ current_user.username }}</p>
-                        {% set badge_class = 'badge-player' %} {# Default #}
-                        {% if current_user.role.code == 'ADMIN' %}
-                            {% set badge_class = 'badge-admin' %}
-                        {% elif current_user.role.code == 'LEAGUE_ADMIN' %}
-                            {% set badge_class = 'badge-league' %}
-                        {% endif %}
-                        <span class="{{ badge_class }} text-xs px-2 py-1 rounded-full text-white">{{ current_user.role.description }}</span>
-                    </div>
-                    <div class="relative">
-                        <button type="button" id="profileDropdownToggle" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-orange-600 focus:ring-white">
-                            <img src="https://d1le4h54pkkjcy.cloudfront.net/Goncabez%C3%B3n.jpeg" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white">
-                        </button>
-                        <div id="profileDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden">
-                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile (próxiamamente)</a>
-                            {# El enlace de Eventos se movió a la navegación principal #}
-                            <a href="#" id="logoutLink" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                    <div class="hidden md:flex items-center space-x-3">
+                        <div class="text-right">
+                            <p class="text-white font-medium">{{ current_user.username }}</p>
+                            {% set badge_class = 'badge-player' %} {# Default #}
+                            {% if current_user.role.code == 'ADMIN' %}
+                                {% set badge_class = 'badge-admin' %}
+                            {% elif current_user.role.code == 'LEAGUE_ADMIN' %}
+                                {% set badge_class = 'badge-league' %}
+                            {% endif %}
+                            <span class="{{ badge_class }} text-xs px-2 py-1 rounded-full text-white">{{ current_user.role.description }}</span>
+                        </div>
+                        <div class="relative">
+                            <button type="button" id="profileDropdownToggle" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-orange-600 focus:ring-white">
+                                <img src="https://d1le4h54pkkjcy.cloudfront.net/Goncabez%C3%B3n.jpeg" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white">
+                            </button>
+                            <div id="profileDropdown" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden">
+                                <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile (próxiamamente)</a>
+                                <a href="#" id="logoutLink" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <!-- The old Logout button is removed -->
+                {% else %}
+                    <!-- Login/Register buttons for desktop for anonymous users -->
+                    <div class="hidden md:flex items-center space-x-3">
+                        <a href="{{ url_for('serve_login_page') }}" class="text-gray-300 hover:text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Login</a>
+                        <a href="{{ url_for('register_page') }}" class="bg-orange-primary hover:bg-orange-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Registro</a>
+                    </div>
+                {% endif %}
+                <!-- Mobile menu button (visible for both authenticated and anonymous) -->
                 <button id="mobile-menu-btn" class="md:hidden text-white p-2">
                     <i class="fas fa-bars text-xl"></i>
                 </button>
