@@ -84,7 +84,7 @@
                                         </a>
                                         {# Asumiendo que el creador de la liga o un admin pueden editar/eliminar carreras de la liga #}
                                         {% if current_user_is_creator_or_admin %}
-                                        <a href="{{ url_for('edit_race_page', race_id=race.id) }}" class="text-blue-600 hover:text-blue-900 ml-3" title="Editar Carrera">
+                                        <a href="{{ url_for('serve_create_race_page', race_id=race.id) }}" class="text-blue-600 hover:text-blue-900 ml-3" title="Editar Carrera">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <form action="{{ url_for('remove_race_from_league', league_id=league.id, race_id=race.id) }}" method="POST" class="inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta carrera de la liga?');">
