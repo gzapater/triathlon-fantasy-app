@@ -4869,7 +4869,6 @@ def view_league_detail(league_id):
                            current_user_is_creator_or_admin=current_user_is_creator_or_admin,
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
-                           generated_code_message=generated_code_message,
                            league_standings=league_standings, # Pasar la clasificación a la plantilla
                            current_year=datetime.utcnow().year)
 
