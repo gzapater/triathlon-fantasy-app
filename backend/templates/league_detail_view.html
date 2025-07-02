@@ -208,6 +208,68 @@
         </div>
     </section>
 
+    <!-- 4. Sección de Clasificación de la Liga -->
+    <section class="mb-10">
+        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Clasificación de la Liga</h2>
+        {% if league_standings and league_standings|length > 0 %}
+            <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="!bg-orange-500 !text-white">
+                            <tr>
+                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16">Pos.</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Participante</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Puntos Totales</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for standing in league_standings %}
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        <div class="text-sm font-medium text-gray-900">{{ loop.index }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-700">{{ standing.username }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                                        <div class="text-sm font-bold text-gray-900">{{ standing.total_score }}</div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+             <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                         <thead class="!bg-orange-500 !text-white">
+                            <tr>
+                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16">Pos.</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Participante</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Puntos Totales</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="3" class="px-6 py-10 text-center">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <i class="fas fa-users-slash text-5xl text-gray-300 mb-4"></i>
+                                        <h3 class="text-xl font-bold text-gray-700 mb-2">Clasificación No Disponible</h3>
+                                        <p class="text-gray-500">
+                                            Aún no hay participantes en esta liga o no se han calculado puntuaciones.
+                                        </p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+    </section>
+
 </div>
 
 {# Modal para unirse a la liga con código (ejemplo, similar al de unirse a carrera) #}

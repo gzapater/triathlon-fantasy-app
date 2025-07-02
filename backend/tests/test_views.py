@@ -247,6 +247,158 @@ class TestEventsAPI:
         # Check that the promo page specific content is NOT there
         assert "El pique no debería acabar en la línea de meta." not in response_data_text
 
+class TestLeagueDetailView:
+    def test_league_detail_no_participants(self, client, new_league_admin_user, new_league):
+        """Test league detail page when league has no participants."""
+        db.session.add(new_league_admin_user)
+        new_league.creator_id = new_league_admin_user.id
+        db.session.add(new_league)
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_league_admin_user.username, 'password': 'testpassword'})
+
+        response = client.get(f'/league/{new_league.id}/view')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+        assert "Clasificación de la Liga" in response_data_text
+        assert "Aún no hay participantes en esta liga o no se han calculado puntuaciones." in response_data_text
+        assert f"Participantes (0)" in response_data_text
+
+
+    def test_league_detail_with_participants_no_scores(self, client, new_league_admin_user, new_player_user, new_league, sample_race):
+        """Test league detail page with participants but no scores."""
+        from backend.models import LeagueParticipant, league_races_table, UserScore
+
+        # Setup league, admin, player
+        db.session.add(new_league_admin_user)
+        new_league.creator_id = new_league_admin_user.id
+        db.session.add(new_league)
+        db.session.add(new_player_user)
+        db.session.commit()
+
+        # Add race to league
+        sample_race.user_id = new_league_admin_user.id # Race created by league admin
+        db.session.add(sample_race)
+        db.session.commit()
+        insert_league_race = league_races_table.insert().values(league_id=new_league.id, race_id=sample_race.id)
+        db.session.execute(insert_league_race)
+
+        # Add player as participant to league
+        lp = LeagueParticipant(user_id=new_player_user.id, league_id=new_league.id)
+        db.session.add(lp)
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_league_admin_user.username, 'password': 'testpassword'})
+        response = client.get(f'/league/{new_league.id}/view')
+
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+
+        assert "Clasificación de la Liga" in response_data_text
+        assert f'<td class="px-6 py-4 whitespace-nowrap text-center">\n                                        <div class="text-sm font-medium text-gray-900">1</div>\n                                    </td>' in response_data_text
+        assert f'<div class="text-sm text-gray-700">{new_player_user.username}</div>' in response_data_text
+        assert f'<div class="text-sm font-bold text-gray-900">0</div>' in response_data_text # Expect 0 points
+        assert f"Participantes (1)" in response_data_text
+
+    def test_league_detail_with_participants_and_scores(self, client, new_league_admin_user, new_player_user, another_player_user, new_league, sample_race, another_race):
+        """Test league detail page with participants and scores in multiple races."""
+        from backend.models import LeagueParticipant, league_races_table, UserScore
+
+        # Setup users and league
+        db.session.add_all([new_league_admin_user, new_player_user, another_player_user])
+        new_league.creator_id = new_league_admin_user.id
+        db.session.add(new_league)
+        db.session.commit()
+
+        # Setup races (created by league admin)
+        sample_race.user_id = new_league_admin_user.id
+        another_race.user_id = new_league_admin_user.id
+        db.session.add_all([sample_race, another_race])
+        db.session.commit()
+
+        # Add races to league
+        db.session.execute(league_races_table.insert().values(league_id=new_league.id, race_id=sample_race.id))
+        db.session.execute(league_races_table.insert().values(league_id=new_league.id, race_id=another_race.id))
+
+        # Add participants to league
+        lp1 = LeagueParticipant(user_id=new_player_user.id, league_id=new_league.id)
+        lp2 = LeagueParticipant(user_id=another_player_user.id, league_id=new_league.id)
+        db.session.add_all([lp1, lp2])
+
+        # Add scores for participants in races
+        # Player 1: Race 1 = 100 pts, Race 2 = 50 pts. Total = 150
+        score1_race1 = UserScore(user_id=new_player_user.id, race_id=sample_race.id, score=100)
+        score1_race2 = UserScore(user_id=new_player_user.id, race_id=another_race.id, score=50)
+        # Player 2: Race 1 = 70 pts, Race 2 = 120 pts. Total = 190
+        score2_race1 = UserScore(user_id=another_player_user.id, race_id=sample_race.id, score=70)
+        score2_race2 = UserScore(user_id=another_player_user.id, race_id=another_race.id, score=120)
+        db.session.add_all([score1_race1, score1_race2, score2_race1, score2_race2])
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_league_admin_user.username, 'password': 'testpassword'})
+        response = client.get(f'/league/{new_league.id}/view')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+
+        assert "Clasificación de la Liga" in response_data_text
+        # Player 2 should be first (190 points)
+        assert f'<div class="text-sm text-gray-700">{another_player_user.username}</div>' in response_data_text
+        assert f'<div class="text-sm font-bold text-gray-900">190</div>' in response_data_text
+        # Player 1 should be second (150 points)
+        assert f'<div class="text-sm text-gray-700">{new_player_user.username}</div>' in response_data_text
+        assert f'<div class="text-sm font-bold text-gray-900">150</div>' in response_data_text
+
+        # Check order (Player 2 then Player 1)
+        # This is a bit fragile, depends on exact HTML structure. A more robust way would be to parse HTML.
+        pos_player2 = response_data_text.find(f'<div class="text-sm text-gray-700">{another_player_user.username}</div>')
+        pos_player1 = response_data_text.find(f'<div class="text-sm text-gray-700">{new_player_user.username}</div>')
+        assert pos_player2 != -1 and pos_player1 != -1
+        assert pos_player2 < pos_player1 # Player 2 appears before Player 1 in the standings
+
+        assert f"Participantes (2)" in response_data_text
+
+
+    def test_league_detail_participant_with_no_scores_in_league_races(self, client, new_league_admin_user, new_player_user, new_league, sample_race):
+        """Test a participant in the league has scores for other races, but not for this league's races."""
+        from backend.models import LeagueParticipant, league_races_table, UserScore, Race as RaceModel
+
+        # Setup users and league
+        db.session.add_all([new_league_admin_user, new_player_user])
+        new_league.creator_id = new_league_admin_user.id
+        db.session.add(new_league)
+
+        # League's race
+        sample_race.user_id = new_league_admin_user.id
+        sample_race.title = "League Race With No Scores For Player"
+        db.session.add(sample_race)
+        db.session.commit()
+        db.session.execute(league_races_table.insert().values(league_id=new_league.id, race_id=sample_race.id))
+
+        # Another race, NOT in the league, where the player has a score
+        non_league_race = RaceModel(title="Non-League Race", race_format_id=sample_race.race_format_id, event_date=datetime.utcnow(), gender_category="MIXED", user_id=new_league_admin_user.id)
+        db.session.add(non_league_race)
+        db.session.commit()
+
+        # Player is participant in the league
+        lp = LeagueParticipant(user_id=new_player_user.id, league_id=new_league.id)
+        db.session.add(lp)
+
+        # Player has score in non-league race
+        score_in_other_race = UserScore(user_id=new_player_user.id, race_id=non_league_race.id, score=500)
+        db.session.add(score_in_other_race)
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_league_admin_user.username, 'password': 'testpassword'})
+        response = client.get(f'/league/{new_league.id}/view')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+
+        assert "Clasificación de la Liga" in response_data_text
+        assert f'<div class="text-sm text-gray-700">{new_player_user.username}</div>' in response_data_text
+        # Expect 0 points for this league, despite having scores elsewhere
+        assert f'<div class="text-sm font-bold text-gray-900">0</div>' in response_data_text
+        assert f"Participantes (1)" in response_data_text
+
     def test_tripredict_promo_page_no_longer_shows_events(self, client):
         """Test that the / promo page no longer directly embeds the events list script."""
         response = client.get('/')

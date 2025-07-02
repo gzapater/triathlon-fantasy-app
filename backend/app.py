@@ -4832,16 +4832,49 @@ def view_league_detail(league_id):
     # Propiedad para descripción con fallback (puedes añadirla al modelo League si prefieres)
     league.description_or_default = league.description if league.description and league.description.strip() else "Esta liga aún no tiene una descripción detallada."
 
+    # --- Calcular Clasificación de la Liga ---
+    league_standings = []
+    all_league_participants = LeagueParticipant.query.filter_by(league_id=league.id).all()
+
+    race_ids_in_league = [race.id for race in league_races_detailed]
+
+    for lp in all_league_participants:
+        user = User.query.get(lp.user_id)
+        if not user:
+            app.logger.warning(f"LeagueParticipant {lp.id} refers to a non-existent user {lp.user_id}.")
+            continue
+
+        total_league_score = 0
+        if race_ids_in_league: # Only query UserScore if there are races in the league
+            # Sum scores for this user across all races in this league
+            user_scores_for_league_races = db.session.query(func.sum(UserScore.score)).filter(
+                UserScore.user_id == user.id,
+                UserScore.race_id.in_(race_ids_in_league)
+            ).scalar()
+
+            if user_scores_for_league_races is not None:
+                total_league_score = user_scores_for_league_races
+
+        league_standings.append({
+            'user_id': user.id,
+            'username': user.username,
+            'total_score': total_league_score
+        })
+
+    # Ordenar la clasificación por puntuación total descendente
+    league_standings.sort(key=lambda x: x['total_score'], reverse=True)
+    # --- Fin Calcular Clasificación de la Liga ---
 
     return render_template('league_detail_view.html',
                            league=league,
                            league_races_detailed=league_races_detailed,
                            league_participants_count=league_participants_count,
-                           league_participants=league_participants_sample,
+                           league_participants=league_participants_sample, # This is just a sample for the participant list section
                            current_user_is_creator_or_admin=current_user_is_creator_or_admin,
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
                            generated_code_message=generated_code_message,
+                           league_standings=league_standings, # Pasar la clasificación a la plantilla
                            current_year=datetime.utcnow().year)
 
 
