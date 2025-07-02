@@ -29,40 +29,110 @@
 
     <!-- 2. Sección de Carreras de la Liga -->
     <section class="mb-10">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Carreras en esta Liga</h2>
-        {% if league.races and league.races.count() > 0 %}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for race in league_races_detailed %} {# Asumiendo que pasas una lista detallada de carreras #}
-                    <article class="bg-white rounded-xl shadow-md overflow-hidden card-hover flex flex-col">
-                        <div class="p-5 flex-grow flex flex-col">
-                            <div class="flex justify-between items-start mb-2">
-                                <h3 class="font-bold text-lg text-gray-800 truncate" title="{{ race.title }}">{{ race.title }}</h3>
-                                <span class="text-xs px-2 py-1 rounded-full
-                                    {% if race.status.value == 'PLANNED' %}bg-blue-100 text-blue-700
-                                    {% elif race.status.value == 'ACTIVE' %}bg-yellow-100 text-yellow-700
-                                    {% elif race.status.value == 'ARCHIVED' %}bg-gray-100 text-gray-600
-                                    {% else %}bg-gray-100 text-gray-500{% endif %}">
-                                    {{ race.status.value|capitalize }}
-                                </span>
-                            </div>
-                            <p class="text-sm text-gray-500 mb-1">Fecha: {{ race.event_date|format_date_filter }}</p>
-                            <p class="text-sm text-gray-500 mb-3">Formato: {{ race.race_format.name if race.race_format else 'N/A' }}</p>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-gray-700">Carreras en esta Liga</h2>
+            {# Posible botón para "Añadir Carrera a la Liga" si el usuario tiene permisos #}
+            {# {% if current_user_is_creator_or_admin %}
+                <a href="{{ url_for('add_race_to_league_page', league_id=league.id) }}" class="btn-primary text-sm">
+                    <i class="fas fa-plus mr-2"></i>Añadir Carrera Existente
+                </a>
+            {% endif %} #}
+        </div>
 
-                            <div class="mt-auto border-t pt-3">
-                                <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="btn-secondary-outline w-full text-center">
-                                    Ver Carrera y Clasificación
-                                </a>
-                            </div>
-                        </div>
-                    </article>
-                {% endfor %}
+        {% if league.races and league.races.count() > 0 %}
+            <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="!bg-orange-500 !text-white">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre de la Carrera</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Formato</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for race in league_races_detailed %}
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900 truncate" title="{{ race.title }}">
+                                            {{ race.title }}
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">{{ race.event_date|format_date_filter }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-500">{{ race.race_format.name if race.race_format else 'N/A' }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="text-xs px-2 py-1 rounded-full
+                                            {% if race.status.value == 'PLANNED' %}bg-blue-100 text-blue-700
+                                            {% elif race.status.value == 'ACTIVE' %}bg-yellow-100 text-yellow-700
+                                            {% elif race.status.value == 'ARCHIVED' %}bg-gray-100 text-gray-600
+                                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                                            {{ race.status.value|capitalize }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-600 hover:text-orange-900" title="Ver Clasificación">
+                                            <i class="fas fa-trophy"></i>
+                                        </a>
+                                        <a href="#participantes-race-{{race.id}}" class="text-orange-600 hover:text-orange-900 ml-3" title="Ver Participantes">
+                                            <i class="fas fa-users"></i>
+                                        </a>
+                                        {# Asumiendo que el creador de la liga o un admin pueden editar/eliminar carreras de la liga #}
+                                        {% if current_user_is_creator_or_admin %}
+                                        <a href="{{ url_for('edit_race_page', race_id=race.id) }}" class="text-blue-600 hover:text-blue-900 ml-3" title="Editar Carrera">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form action="{{ url_for('remove_race_from_league', league_id=league.id, race_id=race.id) }}" method="POST" class="inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta carrera de la liga?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> {# Asumiendo que tienes CSRF habilitado #}
+                                            <button type="submit" class="text-red-600 hover:text-red-900 ml-3" title="Eliminar Carrera de la Liga">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         {% else %}
-            <div class="text-center py-10 px-6 bg-white rounded-xl shadow-md mt-6">
-                <i class="fas fa-flag-checkered text-5xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-bold text-gray-700 mb-2">No hay Carreras en esta Liga</h3>
-                <p class="text-gray-500">Aún no se han añadido carreras a esta liga.</p>
-                {# Podrías añadir un botón para añadir carreras si el usuario es el creador #}
+            <div class="bg-white shadow-md rounded-lg overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="!bg-orange-500 !text-white">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre de la Carrera</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Formato</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="5" class="px-6 py-10 text-center">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <i class="fas fa-flag-checkered text-5xl text-gray-300 mb-4"></i>
+                                        <h3 class="text-xl font-bold text-gray-700 mb-2">No hay Carreras en esta Liga</h3>
+                                        <p class="text-gray-500">Aún no se han añadido carreras a esta liga.</p>
+                                        {# Podrías añadir un botón para añadir carreras si el usuario es el creador y la liga está activa #}
+                                        {# {% if current_user_is_creator_or_admin and league.is_active %}
+                                            <a href="{{ url_for('add_race_to_league_page', league_id=league.id) }}" class="mt-4 btn-secondary">
+                                                Añadir Carrera
+                                            </a>
+                                        {% endif %} #}
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         {% endif %}
     </section>
