@@ -4825,10 +4825,6 @@ def view_league_detail(league_id):
         is_active=True
     ).order_by(LeagueInvitationCode.created_at.desc()).first()
 
-    # Mensaje para código recién generado (si se pasa por flash o parámetro)
-    generated_code_message = request.args.get('generated_code', None)
-
-
     # Propiedad para descripción con fallback (puedes añadirla al modelo League si prefieres)
     league.description_or_default = league.description if league.description and league.description.strip() else "Esta liga aún no tiene una descripción detallada."
 
@@ -4877,36 +4873,7 @@ def view_league_detail(league_id):
                            league_standings=league_standings, # Pasar la clasificación a la plantilla
                            current_year=datetime.utcnow().year)
 
-
-@app.route('/league/<int:league_id>/generate_join_code', methods=['POST'])
-@login_required
-def generate_league_join_code(league_id):
-    league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
-
-    if not (league.creator_id == current_user.id or current_user.role.code == 'ADMIN'):
-        flash("No tienes permiso para generar códigos de invitación para esta liga.", "danger")
-        return redirect(url_for('view_league_detail', league_id=league.id))
-
-    # Opcional: invalidar códigos anteriores para esta liga
-    # LeagueInvitationCode.query.filter_by(league_id=league.id, is_active=True).update({"is_active": False})
-    # db.session.commit() # Si se descomenta la línea anterior
-
-    new_code = LeagueInvitationCode(
-        league_id=league.id,
-        # code se genera por defecto por el modelo
-        # expires_at podría establecerse aquí si se desea una expiración por defecto
-    )
-    try:
-        db.session.add(new_code)
-        db.session.commit()
-        flash(f"Nuevo código de invitación generado: {new_code.code}", "success")
-        # Redirigir de nuevo a la página de detalles, pasando el código como parámetro para mostrarlo
-        return redirect(url_for('view_league_detail', league_id=league.id, generated_code=new_code.code))
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"Error generando código de invitación para liga {league.id} por user {current_user.id}: {e}", exc_info=True)
-        flash("Error al generar el código de invitación.", "danger")
-        return redirect(url_for('view_league_detail', league_id=league.id))
+# The route /league/<int:league_id>/generate_join_code has been removed as per the plan.
 
 @app.route('/league/join_with_code', methods=['POST'])
 @login_required

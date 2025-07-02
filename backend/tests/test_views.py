@@ -299,6 +299,32 @@ class TestLeagueDetailView:
         assert f'<div class="text-sm text-gray-700">{new_player_user.username}</div>' in response_data_text
         assert f'<div class="text-sm font-bold text-gray-900">0</div>' in response_data_text # Expect 0 points
         assert f"Participantes (1)" in response_data_text
+        # Check that "Generar Nuevo Código" button is NOT present
+        assert "Generar Nuevo Código" not in response_data_text
+        # If an admin is viewing and a code exists, the "Ver Código de Invitación" button should be there.
+        # For this test, no code was explicitly created and associated, so the button might not be there.
+        # We can add a sub-test for when a code exists.
+
+    def test_league_detail_shows_view_code_button_for_admin_if_code_exists(self, client, new_league_admin_user, new_league):
+        from backend.models import LeagueInvitationCode
+        db.session.add(new_league_admin_user)
+        new_league.creator_id = new_league_admin_user.id
+        db.session.add(new_league)
+        db.session.commit() # Commit league to get its ID
+
+        # Create an active invitation code for the league
+        inv_code = LeagueInvitationCode(league_id=new_league.id, code="TESTCODE123", is_active=True)
+        db.session.add(inv_code)
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_league_admin_user.username, 'password': 'testpassword'})
+        response = client.get(f'/league/{new_league.id}/view')
+        assert response.status_code == 200
+        response_data_text = response.get_data(as_text=True)
+
+        assert "Ver Código de Invitación" in response_data_text
+        assert "TESTCODE123" in response_data_text # Code should be in the modal structure (hidden initially)
+        assert "Generar Nuevo Código" not in response_data_text # Button to generate should be gone
 
     def test_league_detail_with_participants_and_scores(self, client, new_league_admin_user, new_player_user, another_player_user, new_league, sample_race, another_race):
         """Test league detail page with participants and scores in multiple races."""

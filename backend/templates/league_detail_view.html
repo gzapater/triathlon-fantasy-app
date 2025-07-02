@@ -7,12 +7,18 @@
 
     <!-- 1. Cabecera de la Liga -->
     <header class="mb-8">
-        <div class="flex justify-between items-center">
-            <div>
+        <div class="flex flex-wrap justify-between items-start">
+            <div class="flex-grow">
                 <h1 class="brand-font text-3xl font-bold text-gray-800">{{ league.name }}</h1>
-                <p class="mt-1 text-gray-500">{{ league.description_or_default }}</p> {# Asumiendo que añades una propiedad/método para descripción con fallback #}
+                <p class="mt-1 text-gray-500">{{ league.description_or_default }}</p>
             </div>
-            <div>
+            <div class="flex items-center space-x-3 mt-2 md:mt-0">
+                {% if invitation_code and invitation_code.is_active and current_user_is_creator_or_admin %}
+                <button onclick="openShowLeagueCodeModal()"
+                        class="btn-secondary text-sm flex items-center">
+                    <i class="fas fa-key mr-2"></i>Ver Código de Invitación
+                </button>
+                {% endif %}
                 {% if league.is_active %}
                     <span class="text-xs bg-green-500 text-white px-3 py-1 rounded-full shadow-sm font-semibold">Activa</span>
                 {% else %}
@@ -137,9 +143,9 @@
         {% endif %}
     </section>
 
-    <!-- 3. Sección de Participantes y Código de Invitación -->
+    <!-- 3. Sección de Participantes y Unirse a la Liga (si no es participante) -->
     <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Columna de Participantes (Opcional, podría ser mucho si hay muchos) -->
+        <!-- Columna de Participantes -->
         <div class="md:col-span-1 bg-white p-6 rounded-xl shadow-md">
             <h3 class="text-xl font-semibold text-gray-700 mb-4">Participantes ({{ league_participants_count }})</h3>
             {% if league_participants and league_participants|length > 0 %}
@@ -156,54 +162,25 @@
             {% endif %}
         </div>
 
-        <!-- Columna de Código de Invitación y Unirse -->
-        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md">
-            {% if current_user_is_creator_or_admin %}
-                <h3 class="text-xl font-semibold text-gray-700 mb-3">Código de Invitación</h3>
-                <form action="{{ url_for('generate_league_join_code', league_id=league.id) }}" method="POST" class="mb-4">
-                    <button type="submit" class="btn-primary text-white px-5 py-2 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center">
-                        <i class="fas fa-plus-circle mr-2"></i>Generar Nuevo Código
-                    </button>
-                </form>
-                {% if invitation_code %}
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-md mb-3">
-                        <p class="text-sm text-blue-700">Comparte este código para que otros se unan a la liga:</p>
-                        <strong class="text-lg text-blue-800 font-mono bg-blue-100 px-2 py-1 rounded inline-block my-1">{{ invitation_code.code }}</strong>
-                        {% if invitation_code.expires_at %}
-                        <p class="text-xs text-blue-600">Expira: {{ invitation_code.expires_at|format_date_filter }}</p>
-                        {% else %}
-                        <p class="text-xs text-blue-600">Este código no expira.</p>
-                        {% endif %}
-                        {% if not invitation_code.is_active %}
-                        <p class="text-xs text-red-600 font-semibold mt-1">Este código ya no está activo.</p>
-                        {% endif %}
-                    </div>
-                {% elif generated_code_message %} {# Para mostrar el código recién generado si la página se recarga #}
-                     <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-md mb-3">
-                        <p class="text-sm text-green-700">Nuevo código generado:</p>
-                        <strong class="text-lg text-green-800 font-mono bg-green-100 px-2 py-1 rounded inline-block my-1">{{ generated_code_message }}</strong>
-                    </div>
-                {% endif %}
-            {% endif %}
-
+        <!-- Columna para Unirse a la Liga (si aplica) -->
+        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md flex flex-col justify-center">
             {% if league.is_active and not current_user_is_participant %}
-                <div class="mt-6 pt-4 border-t">
+                <div>
                     <h3 class="text-xl font-semibold text-gray-700 mb-3">Unirse a la Liga</h3>
-                    <form action="{{ url_for('process_join_league_with_code') }}" method="GET"> {# Asume una página intermedia o un modal para el código #}
-                        {# Este formulario podría ser más complejo si se introduce el código aquí directamente #}
-                        {# Por ahora, redirige a una página/modal para introducir el código de invitación #}
-                        <input type="hidden" name="league_id_to_join" value="{{ league.id }}">
-                        <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')" class="btn-success text-white w-full md:w-auto px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
-                            <i class="fas fa-user-plus mr-2"></i>Unirme con Código de Invitación
-                        </button>
-                    </form>
+                    <p class="text-sm text-gray-600 mb-4">Si tienes un código de invitación, puedes unirte a esta liga.</p>
+                    <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')"
+                            class="btn-success text-white w-full px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
+                        <i class="fas fa-user-plus mr-2"></i>Unirme con Código de Invitación
+                    </button>
                 </div>
             {% elif current_user_is_participant %}
-                 <div class="mt-6 pt-4 border-t">
-                    <p class="text-green-600 font-semibold flex items-center">
+                 <div>
+                    <p class="text-green-600 font-semibold flex items-center text-lg">
                         <i class="fas fa-check-circle mr-2 text-xl"></i>Ya eres participante de esta liga.
                     </p>
                 </div>
+            {% else %}
+                <p class="text-sm text-gray-500 italic">Esta liga no está activa actualmente o no puedes unirte.</p>
             {% endif %}
         </div>
     </section>
