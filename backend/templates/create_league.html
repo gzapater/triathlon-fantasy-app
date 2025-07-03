@@ -1,0 +1,129 @@
+{# ==================================================================
+   Plantilla: create_league.html
+   Propósito: Formulario para crear una nueva liga.
+   Hereda de: 'admin_dashboard.html' (o el nombre de tu plantilla base).
+   ================================================================== #}
+
+{% extends "admin_dashboard.html" %}
+
+{# Define el título específico para esta página #}
+{% block page_title %}Crear Nueva Liga - Tripredict{% endblock %}
+
+{# Contenido principal de la página #}
+{% block main_dashboard_content %}
+<div class="px-6 pt-6">
+
+    <!-- 1. Cabecera de la Sección -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h1 class="brand-font text-3xl font-bold text-gray-800">Crear Nueva Liga</h1>
+            <p class="mt-1 text-gray-500">Rellena los detalles para lanzar una nueva competición.</p>
+        </div>
+        <a href="{{ url_for('list_leagues') }}" class="btn-secondary mt-4 md:mt-0 text-gray-700 border border-gray-300 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-shadow flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Volver a Ligas
+        </a>
+    </header>
+
+    <!-- 2. Formulario de Creación -->
+    <form method="POST" action="{{ url_for('create_league') }}" class="bg-white rounded-xl shadow-lg p-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+
+            <!-- Columna Izquierda: Detalles de la Liga -->
+            <div class="space-y-6">
+                <div>
+                    <label for="league_name" class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Liga <span class="text-red-500">*</span></label>
+                    <input type="text" id="league_name" name="league_name" value="{{ league_name or '' }}" required
+                           class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                           placeholder="Ej: Liga de Verano del Club">
+                </div>
+                <div>
+                    <label for="league_description" class="block text-sm font-medium text-gray-700 mb-1">Descripción (Opcional)</label>
+                    <textarea id="league_description" name="league_description" rows="4"
+                              class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                              placeholder="Describe brevemente el propósito o las reglas especiales de esta liga.">{{ league_description or '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Selección de Carreras -->
+            <div class="bg-gray-50 p-6 rounded-lg border">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Seleccionar Carreras</h3>
+                <p class="text-sm text-gray-500 mb-4">Elige las carreras que formarán parte de esta liga. Solo se muestran las que has creado y están en estado "Planned".</p>
+
+                {% if available_races and available_races|length > 0 %}
+                    <div class="mb-4">
+                        <input type="text" id="raceSearchInput" placeholder="Buscar carrera por nombre..."
+                               class="w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm">
+                    </div>
+                    <div id="races-list-container" class="max-h-60 overflow-y-auto border rounded-md">
+                        {% for race in available_races %}
+                            <div class="race-item flex items-center p-3 border-b last:border-b-0 hover:bg-orange-50 transition-colors">
+                                <input type="checkbox" id="race_{{ race.id }}" name="race_ids" value="{{ race.id }}"
+                                       class="h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500 cursor-pointer">
+                                <label for="race_{{ race.id }}" class="ml-3 flex-grow cursor-pointer">
+                                    <span class="font-medium text-gray-800">{{ race.title }}</span>
+                                    <span class="block text-xs text-gray-500">{{ race.event_date|format_date_filter }}</span>
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div id="no-races-found-message" class="hidden text-center text-gray-500 py-4">No se encontraron carreras.</div>
+                {% else %}
+                    <div class="text-center py-8 px-4 border-2 border-dashed rounded-lg">
+                        <i class="fas fa-flag-checkered text-4xl text-gray-300 mb-3"></i>
+                        <p class="font-medium text-gray-700">No tienes carreras disponibles.</p>
+                        <p class="text-sm text-gray-500">Necesitas <a href="{{ url_for('serve_create_race_page') }}" class="text-orange-600 hover:underline font-semibold">crear una nueva carrera</a> en estado "Planned" antes de poder añadirla a una liga.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Acciones del Formulario -->
+        <div class="mt-8 pt-5 border-t">
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('list_leagues') }}" class="btn-secondary text-gray-700 bg-white border border-gray-300 px-6 py-2 rounded-lg font-semibold hover:bg-gray-50 transition-shadow">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn-primary text-white px-6 py-2 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow">
+                    <i class="fas fa-check mr-2"></i>
+                    Crear Liga
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block additional_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('raceSearchInput');
+    const listContainer = document.getElementById('races-list-container');
+    const noResultsMessage = document.getElementById('no-races-found-message');
+
+    if (searchInput && listContainer) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const raceItems = listContainer.querySelectorAll('.race-item');
+            let visibleCount = 0;
+
+            raceItems.forEach(item => {
+                const label = item.querySelector('label');
+                const raceName = label.textContent.toLowerCase();
+
+                if (raceName.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            if (noResultsMessage) {
+                noResultsMessage.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

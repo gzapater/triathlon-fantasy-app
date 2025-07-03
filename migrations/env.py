@@ -26,22 +26,8 @@ from backend.models import db
 config = context.config
 
 # Configurar el logging desde el fichero .ini
-# alembic.ini is in the project root, env.py is in migrations/
-# So, the path to alembic.ini from env.py is '../alembic.ini'
-alembic_ini_actual_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'alembic.ini'))
-
-if os.path.exists(alembic_ini_actual_path):
-    fileConfig(alembic_ini_actual_path)
-else:
-    # This case should ideally not happen if alembic.ini is present at the project root.
-    print(f"Error: alembic.ini not found at the expected path: {alembic_ini_actual_path}. Logging will not be configured from .ini.")
-    # Fallback to use config.config_file_name if provided, but this was problematic.
-    # if config.config_file_name:
-    #     try:
-    #         fileConfig(config.config_file_name)
-    #     except FileNotFoundError:
-    #         print(f"Error: Also failed to load alembic.ini from config.config_file_name: {config.config_file_name}")
-    #         pass
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 logger = logging.getLogger('alembic.env')
 
 # Establecer el target_metadata para que autogenerate detecte los cambios
@@ -89,8 +75,6 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     with app.app_context():
-        # db.create_all() # REMOVED: This was causing conflicts with migrations.
-
         def process_revision_directives(context, revision, directives):
             if getattr(config.cmd_opts, 'autogenerate', False):
                 script = directives[0]
