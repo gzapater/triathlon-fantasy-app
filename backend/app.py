@@ -4656,6 +4656,7 @@ def admin_discard_event_suggestion(event_id): # Renombrado de admin_rechazar_sug
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 from backend.models import League, LeagueParticipant, LeagueInvitationCode, RaceStatus # Asegurarse que League está importado y los nuevos modelos + RaceStatus
 import uuid # Para generar códigos de invitación
+from datetime import datetime, timedelta # Para la expiración del código y obtener datetime.utcnow()
 
 def check_league_permission(user):
     """Helper function to check if a user has league admin or admin permissions."""
@@ -5019,6 +5020,49 @@ def process_join_league_with_code():
         flash("Ocurrió un error al procesar tu solicitud para unirte a la liga.", "danger")
 
     return redirect(url_for('view_league_detail', league_id=league_to_join.id))
+
+@app.route('/league/<int:league_id>/generate_invitation_code', methods=['POST'])
+@login_required
+def generate_league_invitation_code(league_id):
+    league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
+
+    if not current_user.is_authenticated or \
+       (league.creator_id != current_user.id and current_user.role.code != 'ADMIN'):
+        flash("No tienes permiso para generar un código de invitación para esta liga.", "danger")
+        return redirect(url_for('view_league_detail', league_id=league.id))
+
+    # Buscar si ya existe un código (incluso inactivo)
+    invitation_code = LeagueInvitationCode.query.filter_by(league_id=league.id).order_by(LeagueInvitationCode.created_at.desc()).first()
+
+    if invitation_code:
+        # Si existe, reactivarlo y extender su validez (ej. 7 días desde ahora)
+        invitation_code.is_active = True
+        invitation_code.expires_at = datetime.utcnow() + timedelta(days=7) # Opcional: hacerlo no expirar con None
+        invitation_code.updated_at = datetime.utcnow()
+        action_message = "Código de invitación reactivado y válido por 7 días."
+        app.logger.info(f"Código de invitación reactivado para la liga {league.id}: {invitation_code.code}")
+    else:
+        # Si no existe, crear uno nuevo
+        new_code_value = uuid.uuid4().hex[:10].upper() # Código más corto y en mayúsculas
+        invitation_code = LeagueInvitationCode(
+            league_id=league.id,
+            code=new_code_value,
+            expires_at=datetime.utcnow() + timedelta(days=7), # Válido por 7 días
+            is_active=True
+        )
+        db.session.add(invitation_code)
+        action_message = "Nuevo código de invitación generado y válido por 7 días."
+        app.logger.info(f"Nuevo código de invitación generado para la liga {league.id}: {invitation_code.code}")
+
+    try:
+        db.session.commit()
+        flash(action_message, "success")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error al guardar el código de invitación para la liga {league.id}: {e}", exc_info=True)
+        flash("Error al generar/reactivar el código de invitación.", "danger")
+
+    return redirect(url_for('view_league_detail', league_id=league.id))
 
 
 @app.route('/leagues/<int:league_id>/edit', methods=['GET', 'POST'])
