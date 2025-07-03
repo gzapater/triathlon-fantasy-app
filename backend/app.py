@@ -5036,3 +5036,68 @@ def process_join_league_with_code():
 #         app.logger.error(f"Error eliminando (lógicamente) liga {league_id}: {e}", exc_info=True)
 #         flash("Error al eliminar la liga.", "danger")
 #     return redirect(url_for('list_leagues'))
+
+@app.route('/api/leagues/join_by_code', methods=['POST'])
+@login_required
+def join_league_by_code_api():
+    data = request.get_json()
+    if not data or 'league_access_code' not in data:
+        app.logger.warning(f"API join_league_by_code: Faltan datos o league_access_code. Payload: {data}")
+        return jsonify(message="El código de acceso de la liga es requerido."), 400
+
+    access_code_str = data['league_access_code'].strip()
+    if not access_code_str:
+        app.logger.warning("API join_league_by_code: Código de acceso vacío.")
+        return jsonify(message="El código de acceso de la liga no puede estar vacío."), 400
+
+    # Buscar el código de invitación activo
+    invitation_code = LeagueInvitationCode.query.filter_by(code=access_code_str, is_active=True).first()
+
+    if not invitation_code:
+        app.logger.info(f"API join_league_by_code: Código de invitación '{access_code_str}' no válido o inactivo.")
+        return jsonify(message="Código de invitación no válido o ha expirado."), 404
+
+    # Verificar la liga asociada
+    league_to_join = League.query.filter_by(id=invitation_code.league_id, is_deleted=False, is_active=True).first()
+    if not league_to_join:
+        app.logger.warning(f"API join_league_by_code: Liga ID {invitation_code.league_id} (desde código {access_code_str}) no encontrada, eliminada o inactiva.")
+        return jsonify(message="La liga asociada a este código no está disponible o no está activa."), 404
+
+    # Verificar si el usuario ya es participante
+    existing_participant = LeagueParticipant.query.filter_by(user_id=current_user.id, league_id=league_to_join.id).first()
+    if existing_participant:
+        app.logger.info(f"API join_league_by_code: Usuario {current_user.id} ya es participante de la liga {league_to_join.id}.")
+        return jsonify(message="Ya eres participante de esta liga.", league_id=league_to_join.id), 200 # 200 OK si ya está unido
+
+    # Añadir al usuario como participante de la liga
+    new_participant = LeagueParticipant(user_id=current_user.id, league_id=league_to_join.id)
+    db.session.add(new_participant)
+    app.logger.info(f"API join_league_by_code: Usuario {current_user.id} añadido como participante a la liga {league_to_join.id}.")
+
+    # Inscribir al usuario en todas las carreras PLANNED y ACTIVE de la liga
+    races_in_league = league_to_join.races.filter(
+        Race.is_deleted == False,
+        Race.status.in_([RaceStatus.PLANNED, RaceStatus.ACTIVE])
+    ).all()
+
+    races_joined_count = 0
+    for race_obj in races_in_league:
+        is_already_registered_for_race = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_obj.id).first()
+        if not is_already_registered_for_race:
+            registration = UserRaceRegistration(user_id=current_user.id, race_id=race_obj.id)
+            db.session.add(registration)
+            races_joined_count += 1
+            app.logger.info(f"API join_league_by_code: Usuario {current_user.id} inscrito en carrera {race_obj.id} de la liga {league_to_join.id}.")
+
+    try:
+        db.session.commit()
+        app.logger.info(f"API join_league_by_code: Commit exitoso. Usuario {current_user.id} unido a liga {league_to_join.id} e inscrito en {races_joined_count} carreras.")
+        return jsonify(message=f"¡Te has unido a la liga '{league_to_join.name}' exitosamente! Se te ha inscrito en {races_joined_count} carrera(s) de la liga.", league_id=league_to_join.id), 201 # 201 Created
+    except IntegrityError:
+        db.session.rollback()
+        app.logger.error(f"API join_league_by_code: IntegrityError al unirse a liga {league_to_join.id} por user {current_user.id} con código {access_code_str}.", exc_info=True)
+        return jsonify(message="Error al unirte a la liga. Es posible que ya seas participante o haya un problema de base de datos."), 409 # 409 Conflict
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"API join_league_by_code: Excepción al procesar unión a liga {league_to_join.id} con código {access_code_str} por user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="Ocurrió un error al procesar tu solicitud para unirte a la liga."), 500

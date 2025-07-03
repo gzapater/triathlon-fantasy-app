@@ -176,10 +176,15 @@
                 </div>
             </div>
 
-            <!-- Join Race by Code Button -->
-            <div class="my-6 text-center"> <!-- Added margin top and bottom, and centered the button -->
+            <!-- Join Buttons Container -->
+            <div class="my-6 text-center flex justify-center space-x-4">
+                <!-- Join Race by Code Button -->
                 <button id="joinRaceByCodeBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
                     <i class="fas fa-key mr-2"></i>Unirse a Carrera por Código
+                </button>
+                <!-- Join League by Code Button -->
+                <button id="joinLeagueByCodeBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5" style="background: linear-gradient(135deg, var(--green-run) 0%, #58D68D 100%);">
+                    <i class="fas fa-users mr-2"></i>Unirse a Liga por Código
                 </button>
             </div>
 
@@ -603,6 +608,7 @@
     </footer>
 
     {% include '_join_by_code_modal.html' %}
+    {% include '_join_league_by_code_modal.html' %}
 
     <script>
         // Sidebar toggle
@@ -735,6 +741,90 @@
         });
     }
     // --- End Join Race By Code Modal Logic ---
+
+    // --- Join League By Code Modal Logic ---
+    const joinLeagueByCodeBtn = document.getElementById('joinLeagueByCodeBtn');
+    const joinLeagueByCodeModal = document.getElementById('joinLeagueByCodeModal');
+    const closeJoinLeagueByCodeModalBtn = document.getElementById('closeJoinLeagueByCodeModalBtn');
+    const cancelJoinLeagueByCodeBtn = document.getElementById('cancelJoinLeagueByCodeBtn');
+    const joinLeagueByCodeForm = document.getElementById('joinLeagueByCodeForm');
+    const leagueAccessCodeToJoinInput = document.getElementById('leagueAccessCodeToJoin');
+    const joinLeagueByCodeError = document.getElementById('joinLeagueByCodeError');
+    const submitJoinLeagueByCodeBtn = document.getElementById('submitJoinLeagueByCodeBtn');
+
+    if (joinLeagueByCodeBtn) {
+        joinLeagueByCodeBtn.addEventListener('click', () => {
+            if (joinLeagueByCodeModal) {
+                if(leagueAccessCodeToJoinInput) leagueAccessCodeToJoinInput.value = ''; // Clear previous input
+                if(joinLeagueByCodeError) joinLeagueByCodeError.style.display = 'none'; // Clear previous errors
+                joinLeagueByCodeModal.style.display = 'flex';
+            }
+        });
+    }
+
+    function closeJoinLeagueByCodeDialog() {
+        if (joinLeagueByCodeModal) {
+            joinLeagueByCodeModal.style.display = 'none';
+        }
+    }
+
+    if (closeJoinLeagueByCodeModalBtn) {
+        closeJoinLeagueByCodeModalBtn.addEventListener('click', closeJoinLeagueByCodeDialog);
+    }
+    if (cancelJoinLeagueByCodeBtn) {
+        cancelJoinLeagueByCodeBtn.addEventListener('click', closeJoinLeagueByCodeDialog);
+    }
+
+    if (joinLeagueByCodeForm && submitJoinLeagueByCodeBtn) {
+        joinLeagueByCodeForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const accessCode = leagueAccessCodeToJoinInput.value.trim();
+            if (!accessCode) {
+                if(joinLeagueByCodeError) {
+                    joinLeagueByCodeError.textContent = 'Por favor, ingresa un código de acceso para la liga.';
+                    joinLeagueByCodeError.style.display = 'block';
+                }
+                return;
+            }
+
+            submitJoinLeagueByCodeBtn.disabled = true;
+            submitJoinLeagueByCodeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uniéndose a Liga...';
+            if(joinLeagueByCodeError) joinLeagueByCodeError.style.display = 'none';
+
+            fetch('/api/leagues/join_by_code', { // Esta es la URL del backend que implementaremos
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Añadir CSRF token si es necesario
+                },
+                body: JSON.stringify({ league_access_code: accessCode })
+            })
+            .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+            .then(result => {
+                if (result.ok) {
+                    closeJoinLeagueByCodeDialog();
+                    window.location.href = `/league/${result.body.league_id}/view`; // Redirigir a la página de la liga
+                } else {
+                    if(joinLeagueByCodeError) {
+                        joinLeagueByCodeError.textContent = result.body.message || `Error: ${result.status}. No se pudo unir a la liga.`;
+                        joinLeagueByCodeError.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error joining league by code:', error);
+                if(joinLeagueByCodeError) {
+                    joinLeagueByCodeError.textContent = 'Error de conexión o del servidor al unirse a la liga. Inténtalo de nuevo.';
+                    joinLeagueByCodeError.style.display = 'block';
+                }
+            })
+            .finally(() => {
+                submitJoinLeagueByCodeBtn.disabled = false;
+                submitJoinLeagueByCodeBtn.innerHTML = 'Unirse a Liga';
+            });
+        });
+    }
+    // --- End Join League By Code Modal Logic ---
     </script>
 </body>
 </html>
