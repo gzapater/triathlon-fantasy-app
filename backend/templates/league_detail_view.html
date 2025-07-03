@@ -4,67 +4,81 @@
 
 {% block join_by_code_button %}{% endblock %} {# Oculta el botón de unirse por código #}
 
+{% block page_header %}
+    {# This block is intentionally left empty to prevent the default page header from admin_dashboard.html from rendering,
+       as all header content is now consolidated into the orange hero section below. #}
+{% endblock %}
+
 {% block main_dashboard_content %}
 <!-- Contenido Principal -->
 <main class="p-4 sm:p-6 lg:p-8">
-    <!-- Hero Section de la Liga -->
+    <!-- Hero Section de la Liga (Consolidado) -->
     <div class="bg-orange-500 text-white shadow-md rounded-lg p-6 mb-8">
-        <div class="flex flex-col md:flex-row md:justify-between md:items-center">
-            <div>
+        {# Top part: League Name, Description, Creator, Dates #}
+        <div class="flex flex-col md:flex-row md:justify-between items-start mb-4">
+            <div class="flex-grow mb-4 md:mb-0">
                 <h1 class="text-3xl font-bold">{{ league.name }}</h1>
-                <p class="text-orange-100 mt-1">
-                    Creada por: <span class="font-semibold">{{ league.creator.username if league.creator else 'N/A' }}</span> |
+                <p class="text-orange-100 mt-1 text-sm">{{ league.description_or_default }}</p>
+                <p class="text-orange-200 mt-2 text-xs">
+                    Creada por: <span class="font-semibold">{{ league.creator.username if league.creator else 'N/A' }}</span>
+                    <span class="mx-1">|</span>
                     Fecha de creación: <span class="font-semibold">{{ league.created_at|format_date_filter }}</span>
                 </p>
             </div>
-            <div class="mt-4 md:mt-0 flex items-center space-x-6">
-                <div class="text-center">
-                    <p class="text-3xl font-bold">{{ league_races_detailed|length }}</p>
-                    <p class="text-sm text-orange-200">Carreras</p>
-                </div>
-                <div class="text-center">
-                    <p class="text-3xl font-bold">{{ league_participants_count }}</p>
-                    <p class="text-sm text-orange-200">Participantes</p>
-                </div>
-                {% if league.is_active %}
-                <span class="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">Activa</span>
+            <div class="flex-shrink-0">
+                 {% if league.is_active %}
+                    <span class="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">Activa</span>
                 {% else %}
-                <span class="px-3 py-1 text-sm font-semibold rounded-full bg-gray-100 text-gray-800">Inactiva</span>
+                    <span class="px-3 py-1 text-sm font-semibold rounded-full bg-gray-100 text-gray-800">Inactiva</span>
                 {% endif %}
             </div>
         </div>
-        {# Actions like invite code and edit league could go here or remain outside this block if preferred #}
-        <div class="mt-4 flex flex-wrap gap-2">
+
+        {# Middle part: Stats (Races, Participants) #}
+        <div class="flex items-center space-x-6 my-4 py-4 border-t border-b border-orange-400">
+            <div class="text-center">
+                <p class="text-3xl font-bold">{{ league_races_detailed|length }}</p>
+                <p class="text-sm text-orange-200">Carreras</p>
+            </div>
+            <div class="text-center">
+                <p class="text-3xl font-bold">{{ league_participants_count }}</p>
+                <p class="text-sm text-orange-200">Participantes</p>
+            </div>
+        </div>
+
+        {# Bottom part: Action Buttons #}
+        <div class="mt-4 flex flex-wrap gap-2 items-center">
             {% if current_user_is_creator_or_admin %}
                 {% if invitation_code and invitation_code.is_active %}
-                <button id="show-league-invitation-code-button" class="btn-secondary-outline text-sm flex items-center !bg-white !text-orange-600 hover:!bg-orange-50">
-                    <i class="fas fa-key mr-2"></i>Ver Código de Invitación
+                <button id="show-league-invitation-code-button" class="btn-secondary-outline text-xs sm:text-sm flex items-center !bg-white !text-orange-600 hover:!bg-orange-50 px-2 py-1 sm:px-3 sm:py-1.5">
+                    <i class="fas fa-key mr-1 sm:mr-2"></i>Ver Código
                 </button>
                 {% else %}
                  <form action="{{ url_for('generate_league_invitation_code', league_id=league.id) }}" method="POST" class="inline">
                     {% if not invitation_code %}
-                        <button type="submit" class="btn-primary-outline text-sm !bg-white !text-orange-600 hover:!bg-orange-50">
-                            <i class="fas fa-plus-circle mr-2"></i>Generar Código
+                        <button type="submit" class="btn-primary-outline text-xs sm:text-sm !bg-white !text-orange-600 hover:!bg-orange-50 px-2 py-1 sm:px-3 sm:py-1.5">
+                            <i class="fas fa-plus-circle mr-1 sm:mr-2"></i>Generar Código
                         </button>
                     {% elif invitation_code and not invitation_code.is_active %}
-                        <button type="submit" class="btn-warning-outline text-sm !bg-white !text-orange-600 hover:!bg-orange-50">
-                            <i class="fas fa-redo-alt mr-2"></i>Reactivar Código
+                        <button type="submit" class="btn-warning-outline text-xs sm:text-sm !bg-white !text-orange-600 hover:!bg-orange-50 px-2 py-1 sm:px-3 sm:py-1.5">
+                            <i class="fas fa-redo-alt mr-1 sm:mr-2"></i>Reactivar Código
                         </button>
                     {% endif %}
                 </form>
                 {% endif %}
-                <a href="{{ url_for('edit_league', league_id=league.id) }}" class="btn-secondary-outline text-sm !bg-white !text-orange-600 hover:!bg-orange-50 flex items-center">
-                    <i class="fas fa-edit mr-2"></i>Editar Liga
+                <a href="{{ url_for('edit_league', league_id=league.id) }}" class="btn-secondary-outline text-xs sm:text-sm !bg-white !text-orange-600 hover:!bg-orange-50 flex items-center px-2 py-1 sm:px-3 sm:py-1.5">
+                    <i class="fas fa-edit mr-1 sm:mr-2"></i>Editar Liga
                 </a>
             {% endif %}
+
             {% if league.is_active and not current_user_is_participant %}
                 <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')"
-                        class="btn-success-outline text-sm !bg-white !text-green-600 hover:!bg-green-50 flex items-center">
-                    <i class="fas fa-user-plus mr-2"></i>Unirme con Código
+                        class="btn-success-outline text-xs sm:text-sm !bg-white !text-green-600 hover:!bg-green-50 flex items-center px-2 py-1 sm:px-3 sm:py-1.5">
+                    <i class="fas fa-user-plus mr-1 sm:mr-2"></i>Unirme con Código
                 </button>
             {% elif current_user_is_participant %}
-                <span class="px-3 py-1 text-sm font-semibold rounded-full bg-blue-100 text-blue-800 flex items-center">
-                    <i class="fas fa-check-circle mr-2"></i>Ya eres participante
+                <span class="px-3 py-1 text-xs sm:text-sm font-semibold rounded-full bg-blue-100 text-blue-800 flex items-center">
+                    <i class="fas fa-check-circle mr-1 sm:mr-2"></i>Ya eres participante
                 </span>
             {% endif %}
         </div>
