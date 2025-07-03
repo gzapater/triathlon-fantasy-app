@@ -3027,10 +3027,32 @@ def serve_hello_world_page():
             race_dict['is_quiniela_actionable'] = is_quiniela_actionable
             destacadas_races_dicts.append(race_dict)
 
+        # Fetch Enrolled Leagues for Player
+        enrolled_leagues_dicts = []
+        try:
+            player_league_participations = LeagueParticipant.query.filter_by(user_id=current_user.id).all()
+            enrolled_league_ids = [lp.league_id for lp in player_league_participations]
+            if enrolled_league_ids:
+                leagues_query_result = League.query.filter(
+                    League.id.in_(enrolled_league_ids),
+                    League.is_deleted == False,
+                    League.is_active == True # Only show active leagues
+                ).order_by(League.name).all() # Order by name or creation date
+                enrolled_leagues_dicts = [league.to_dict() for league in leagues_query_result] # Assuming League model has to_dict()
+                # If no to_dict(), manually create dicts:
+                # enrolled_leagues_dicts = [{
+                #     'id': l.id, 'name': l.name, 'description': l.description,
+                #     # Add other fields as needed by the template
+                # } for l in leagues_query_result]
+        except Exception as e:
+            app.logger.error(f"Error fetching enrolled leagues for player {current_user.id}: {e}")
+
+
         return render_template('player.html',
                                registered_races=registered_races_dicts,
                                favorite_races=favorite_races_dicts, # Pass favorite races
                                races=destacadas_races_dicts, # Pass destacadas races as 'races' for the existing section
+                               enrolled_leagues=enrolled_leagues_dicts, # Pass enrolled leagues
                                all_race_formats=all_race_formats,
                                filter_date_from_str=filter_date_from_str,
                                filter_date_to_str=filter_date_to_str,

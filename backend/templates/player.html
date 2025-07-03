@@ -267,6 +267,56 @@
                 </div>
             </div>
 
+            <!-- Mis Ligas Inscritas Section -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="brand-font text-2xl font-bold text-gray-800">Mis Ligas Inscritas</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% if enrolled_leagues and enrolled_leagues|length > 0 %}
+                        {% for league in enrolled_leagues %}
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover flex flex-col">
+                            {# League Card Header - Can be simple or themed like races #}
+                            <div class="gradient-orange h-24 p-4 flex items-center space-x-4 text-white relative">
+                                <i class="fas fa-trophy text-3xl flex-shrink-0"></i> {# Example icon for leagues #}
+                                <div class="flex-grow overflow-hidden">
+                                    <h3 class="font-bold text-xl leading-tight truncate" title="{{ league.name }}">{{ league.name }}</h3>
+                                    {# You could add a subtitle if leagues have one, e.g., number of races or participants #}
+                                    {# <p class="text-sm font-semibold">Detalles de la liga...</p> #}
+                                </div>
+                                {# Status for leagues if applicable, e.g., ACTIVE/ARCHIVED #}
+                                {# {% if league.status %}
+                                <span class="absolute top-2 right-2 text-xs bg-blue-500 text-white px-2 py-1 rounded-full shadow">
+                                    {{ league.status|capitalize }}
+                                </span>
+                                {% endif %} #}
+                            </div>
+
+                            {# League Card Body #}
+                            <div class="p-6 flex-grow flex flex-col">
+                                {% if league.description %}
+                                    <p class="text-gray-600 text-sm mb-4 h-16 overflow-hidden">{{ league.description[:120] }}{% if league.description|length > 120 %}...{% endif %}</p>
+                                {% else %}
+                                    <p class="text-gray-500 text-sm mb-4 h-16 overflow-hidden italic">Esta liga no tiene una descripción detallada.</p>
+                                {% endif %}
+
+                                {# Button at the bottom #}
+                                <div class="mt-auto">
+                                    <a href="{{ url_for('view_league_detail', league_id=league.id) }}" class="btn-primary w-full text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center text-center">
+                                        Acceder a la Liga
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-span-1 md:col-span-2 lg:col-span-3">
+                            <p class="text-center text-gray-500 py-10">No estás inscrito en ninguna liga por el momento.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <!-- Section for "Carreras favoritas" -->
             <div class="mb-8">
                 <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras favoritas</h2>
