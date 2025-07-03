@@ -86,10 +86,6 @@
                         <span>Ligas</span>
                     </a>
                     {% endif %}
-                    <a href="{{ url_for('tripredict_promo_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
-                        <i class="fas fa-bullhorn"></i>
-                        <span>TriPredict App</span>
-                    </a>
                     <!-- MODIFIED: Removed Profile Link -->
                     {% if current_user.role.code == 'ADMIN' %}
                     <a href="{{ url_for('serve_events_management_page') }}" class="text-gray-300 hover:text-white transition-colors flex items-center space-x-1">
@@ -154,10 +150,6 @@
             <span>Ligas</span>
         </a>
         {% endif %}
-        <a href="{{ url_for('tripredict_promo_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
-            <i class="fas fa-bullhorn w-5"></i>
-            <span>TriPredict App</span>
-        </a>
         {% if current_user.role.code == 'ADMIN' %}
         <a href="{{ url_for('serve_events_management_page') }}" class="flex items-center space-x-3 text-gray-700 hover:text-orange-500 transition-colors">
             <i class="fas fa-calendar-alt w-5"></i>
