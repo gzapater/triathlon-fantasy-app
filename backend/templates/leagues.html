@@ -200,7 +200,7 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        // 'X-CSRFToken': '{{ csrf_token() }}' // Include CSRF token if needed
+                        {# 'X-CSRFToken': '{{ csrf_token() }}' // Include CSRF token if needed #}
                     },
                     body: JSON.stringify({ league_access_code: accessCode })
                 })
