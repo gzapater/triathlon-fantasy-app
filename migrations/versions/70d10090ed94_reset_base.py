@@ -26,7 +26,7 @@ def upgrade():
     except sa.exc.ProgrammingError as e:
         if "already exists" not in str(e):
             raise
-    
+
     # 2. Añadimos la columna 'status' a la tabla 'races', PERMITIENDO NULLS inicialmente.
     # Esto evita el error NotNullViolation si ya hay datos en la tabla.
     with op.batch_alter_table('races', schema=None) as batch_op:
@@ -45,7 +45,7 @@ def upgrade():
                               nullable=False,
                               existing_nullable=True,
                               postgresql_using="status::racestatus") # Asegura el casteo si es necesario
-    
+
     # ### end Alembic commands ###
 
 
@@ -61,7 +61,7 @@ def downgrade():
                               nullable=True,
                               existing_nullable=False)
         batch_op.drop_column('status')
-    
+
     # 2. Finalmente, eliminamos el tipo ENUM a nivel de esquema de base de datos.
     op.execute("DROP TYPE racestatus;")
 

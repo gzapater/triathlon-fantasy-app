@@ -28,7 +28,6 @@
     <!-- 2. Formulario de Creación -->
     <form method="POST" action="{{ url_for('create_league') }}" class="bg-white rounded-xl shadow-lg p-8">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            
             <!-- Columna Izquierda: Detalles de la Liga -->
             <div class="space-y-6">
                 <div>
@@ -49,7 +48,6 @@
             <div class="bg-gray-50 p-6 rounded-lg border">
                 <h3 class="text-lg font-semibold text-gray-800 mb-2">Seleccionar Carreras</h3>
                 <p class="text-sm text-gray-500 mb-4">Elige las carreras que formarán parte de esta liga. Solo se muestran las que has creado y están en estado "Planned".</p>
-                
                 {% if available_races and available_races|length > 0 %}
                     <div class="mb-4">
                         <input type="text" id="raceSearchInput" placeholder="Buscar carrera por nombre..."

@@ -327,14 +327,34 @@
                 <p class="text-xs text-gray-500 mt-2">Este código no expira.</p>
                 {% endif %}
             </div>
-            <div class="flex items-center justify-end">
-                <button type="button" onclick="closeShowLeagueCodeModal()"
-                        class="btn-secondary px-5 py-2">
+            <div class="flex items-center justify-between mt-6"> {# Changed justify-end to justify-between #}
+                {# Delete League Button - visible only to creator/admin #}
+                {% if current_user_is_creator_or_admin %}
+                <form action="{{ url_for('delete_league', league_id=league.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');" class="inline">
+                    {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
+                    <button type="submit" class="btn-danger-secondary text-sm">
+                        <i class="fas fa-trash-alt mr-2"></i>Eliminar Liga
+                    </button>
+                </form>
+                {% else %}
+                <div></div> {# Placeholder to keep "Cerrar" button to the right #}
+                {% endif %}
+
+                <button type="button" onclick="closeShowLeagueCodeModal()" class="btn-secondary px-5 py-2">
                     Cerrar
                 </button>
             </div>
         </div>
     </div>
+</div>
+
+{# Edit League Button - visible only to creator/admin - Placed outside the modal, perhaps in the header or a dedicated actions area #}
+<div id="edit-league-button-container" class="mt-4"> {# Example container, adjust placement as needed #}
+    {% if current_user_is_creator_or_admin %}
+    <a href="{{ url_for('edit_league', league_id=league.id) }}" class="btn-primary text-sm">
+        <i class="fas fa-edit mr-2"></i>Editar Liga
+    </a>
+    {% endif %}
 </div>
 
 
