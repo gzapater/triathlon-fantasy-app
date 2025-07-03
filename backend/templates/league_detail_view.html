@@ -14,8 +14,7 @@
             </div>
             <div class="flex items-center space-x-3 mt-2 md:mt-0">
                 {% if invitation_code and invitation_code.is_active and current_user_is_creator_or_admin %}
-                <button onclick="openShowLeagueCodeModal()"
-                        class="btn-secondary text-sm flex items-center">
+                <button id="show-league-invitation-code-button" class="btn-secondary text-sm flex items-center">
                     <i class="fas fa-key mr-2"></i>Ver Código de Invitación
                 </button>
                 {% endif %}
@@ -280,19 +279,53 @@
     </div>
 </div>
 
+<!-- Modal para MOSTRAR el código de invitación de la liga -->
+<div id="show-league-code-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Código de Invitación para "{{ league.name }}"</h3>
+                <button onclick="closeShowLeagueCodeModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="my-4">
+                <p class="text-sm text-gray-600 mb-2">Comparte este código para que otros se unan:</p>
+                <div class="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
+                    <span id="league-invitation-code-display" class="text-xl font-mono text-gray-800"></span>
+                    <button id="copy-league-code-button"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center">
+                        <i class="far fa-copy mr-2"></i>Copiar
+                    </button>
+                </div>
+                {% if invitation_code and invitation_code.expires_at %}
+                <p class="text-xs text-gray-500 mt-2">Expira: {{ invitation_code.expires_at|format_date_filter }}</p>
+                {% elif invitation_code %}
+                <p class="text-xs text-gray-500 mt-2">Este código no expira.</p>
+                {% endif %}
+            </div>
+            <div class="flex items-center justify-end">
+                <button type="button" onclick="closeShowLeagueCodeModal()"
+                        class="btn-secondary px-5 py-2">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 {% endblock %}
 
 {% block additional_scripts %}
 {{ super() }} {# Para incluir scripts del padre si los hay #}
 <script>
+    // Functions for "Join League" Modal
     function openJoinLeagueModal(leagueId) {
         const modal = document.getElementById('join-league-modal');
         const form = document.getElementById('join-league-form');
         if (modal && form) {
-            // La URL para unirse a la liga con código. Necesitarás una ruta como /league/join_with_code (POST)
-            // que tome el 'join_code' del formulario.
-            // El 'league_id' es solo para el título del modal o información adicional, el código debe ser suficiente.
-            form.action = "{{ url_for('process_join_league_with_code') }}"; // Asumiendo que la ruta se llama así
+            form.action = "{{ url_for('process_join_league_with_code') }}";
             modal.classList.remove('hidden');
             document.getElementById('league-join-code').focus();
         }
@@ -305,20 +338,81 @@
         }
     }
 
-    // Si tienes mensajes flash que quieres mostrar como pop-ups (ej. con SweetAlert2)
-    // document.addEventListener('DOMContentLoaded', function() {
-    //     {% with messages = get_flashed_messages(with_categories=true) %}
-    //         {% if messages %}
-    //             {% for category, message in messages %}
-    //                 Swal.fire({
-    //                     title: '{{ category|capitalize }}!',
-    //                     text: '{{ message }}',
-    //                     icon: '{{ category }}', // success, error, warning, info, question
-    //                     confirmButtonColor: '#F97316' // Naranja Tailwind
-    //                 });
-    //             {% endfor %}
-    //         {% endif %}
-    //     {% endwith %}
-    // });
+    // Functions for "Show League Invitation Code" Modal
+    function openShowLeagueCodeModal() {
+        const modal = document.getElementById('show-league-code-modal');
+        const codeDisplay = document.getElementById('league-invitation-code-display');
+        const rawCode = "{{ invitation_code.code if invitation_code and invitation_code.is_active else '' }}";
+        if (modal && codeDisplay && rawCode) {
+            codeDisplay.textContent = rawCode;
+            modal.classList.remove('hidden');
+        } else if (modal && codeDisplay) { // Code might be empty if not active or not present
+            codeDisplay.textContent = "No hay código activo.";
+             modal.classList.remove('hidden'); // Still show modal to indicate no code
+        }
+    }
+
+    function closeShowLeagueCodeModal() {
+        const modal = document.getElementById('show-league-code-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+
+    function copyLeagueInvitationCode() {
+        const codeToCopy = document.getElementById('league-invitation-code-display').textContent;
+        const copyButton = document.getElementById('copy-league-code-button');
+        if (!codeToCopy || codeToCopy === "No hay código activo.") {
+            return;
+        }
+
+        navigator.clipboard.writeText(codeToCopy).then(function() {
+            const originalButtonHtml = copyButton.innerHTML;
+            copyButton.innerHTML = '<i class="fas fa-check mr-2"></i>¡Copiado!';
+            copyButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            copyButton.classList.add('bg-green-500', 'hover:bg-green-600');
+
+            setTimeout(function() {
+                copyButton.innerHTML = originalButtonHtml;
+                copyButton.classList.remove('bg-green-500', 'hover:bg-green-600');
+                copyButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Error al copiar el código de invitación de la liga: ', err);
+            const originalButtonHtml = copyButton.innerHTML;
+            copyButton.innerHTML = '<i class="fas fa-times mr-2"></i>Error';
+            setTimeout(function() {
+                copyButton.innerHTML = originalButtonHtml;
+            }, 2000);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Attach listener for "Show Invitation Code" button
+        const showCodeButton = document.getElementById('show-league-invitation-code-button');
+        if (showCodeButton) {
+            showCodeButton.addEventListener('click', openShowLeagueCodeModal);
+        }
+
+        // Attach listener for "Copy Code" button inside the "Show Code" modal
+        const copyCodeButton = document.getElementById('copy-league-code-button');
+        if (copyCodeButton) {
+            copyCodeButton.addEventListener('click', copyLeagueInvitationCode);
+        }
+
+        // SweetAlert for flashed messages (optional)
+        // {% with messages = get_flashed_messages(with_categories=true) %}
+        //     {% if messages %}
+        //         {% for category, message in messages %}
+        //             Swal.fire({
+        //                 title: '{{ category|capitalize }}!',
+        //                 text: '{{ message }}',
+        //                 icon: '{{ category }}',
+        //                 confirmButtonColor: '#F97316'
+        //             });
+        //         {% endfor %}
+        //     {% endif %}
+        // {% endwith %}
+    });
 </script>
 {% endblock %}
