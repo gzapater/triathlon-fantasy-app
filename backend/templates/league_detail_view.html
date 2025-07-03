@@ -34,6 +34,24 @@
         </div>
     </header>
 
+    {% if current_user_is_creator_or_admin and (not invitation_code or not invitation_code.is_active) %}
+    <div class="my-6 text-center"> {# Margen vertical y centrado #}
+        <form action="{{ url_for('generate_league_invitation_code', league_id=league.id) }}" method="POST">
+            {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
+            {% if not invitation_code %}
+                <button type="submit" class="btn-primary text-lg px-8 py-3"> {# Botón más grande #}
+                    <i class="fas fa-plus-circle mr-2"></i>Generar Código de Invitación
+                </button>
+            {% elif invitation_code and not invitation_code.is_active %}
+                <button type="submit" class="btn-warning text-lg px-8 py-3"> {# Botón más grande, color para reactivar #}
+                    <i class="fas fa-redo-alt mr-2"></i>Reactivar Código de Invitación
+                </button>
+                <p class="text-sm text-gray-600 mt-2">El código anterior ({{ invitation_code.code }}) está inactivo o ha expirado.</p>
+            {% endif %}
+        </form>
+    </div>
+    {% endif %}
+
     <!-- 2. Sección de Carreras de la Liga -->
     <section class="mb-10">
         <div class="flex justify-between items-center mb-4">
