@@ -5180,6 +5180,69 @@ def delete_league(league_id):
         flash("Error al eliminar la liga.", "danger")
     return redirect(url_for('list_leagues'))
 
+@app.route('/api/leagues/<int:league_id>/generate_invitation_code', methods=['POST'])
+@login_required
+def generate_league_invitation_code_api(league_id):
+    app.logger.info(f"User {current_user.id} attempting to generate invitation code for league {league_id}")
+    league = League.query.filter_by(id=league_id, is_deleted=False).first_or_404()
+
+    if not (league.creator_id == current_user.id or current_user.role.code == 'ADMIN'):
+        app.logger.warning(f"User {current_user.id} forbidden to generate code for league {league_id}")
+        return jsonify(message="No tienes permiso para generar un código para esta liga."), 403
+
+    if not league.is_active:
+        app.logger.info(f"Attempt to generate code for inactive league {league_id}")
+        return jsonify(message="No se puede generar un código para una liga inactiva."), 400
+
+    # Buscar un código activo existente. Si se quiere siempre uno nuevo, se puede omitir esta parte
+    # y desactivar siempre los códigos antiguos.
+    active_code = LeagueInvitationCode.query.filter_by(
+        league_id=league.id,
+        is_active=True
+    ).order_by(LeagueInvitationCode.created_at.desc()).first()
+
+    if active_code:
+        # Podríamos añadir lógica para verificar si el código ha expirado aquí si tuvieran fecha de expiración.
+        app.logger.info(f"Active invitation code already exists for league {league_id}: {active_code.code}")
+        return jsonify(
+            message="Código de invitación ya existente.",
+            invitation_code={
+                "code": active_code.code,
+                "is_active": active_code.is_active,
+                "created_at": active_code.created_at.isoformat(),
+                "expires_at": active_code.expires_at.isoformat() if active_code.expires_at else None
+            }
+        ), 200
+
+    # No hay código activo, o se decidió generar uno nuevo.
+    # Opcional: Desactivar códigos antiguos para esta liga si solo se permite uno activo.
+    # LeagueInvitationCode.query.filter_by(league_id=league.id).update({"is_active": False})
+
+    new_code_str = str(uuid.uuid4())[:8].upper() # Código corto de 8 caracteres
+    new_invitation_code = LeagueInvitationCode(
+        league_id=league.id,
+        code=new_code_str,
+        creator_id=current_user.id
+        # expires_at se puede establecer aquí si se desea una expiración por defecto
+    )
+    try:
+        db.session.add(new_invitation_code)
+        db.session.commit()
+        app.logger.info(f"New invitation code '{new_invitation_code.code}' generated for league {league_id} by user {current_user.id}")
+        return jsonify(
+            message="Nuevo código de invitación generado exitosamente.",
+            invitation_code={
+                "code": new_invitation_code.code,
+                "is_active": new_invitation_code.is_active,
+                "created_at": new_invitation_code.created_at.isoformat(),
+                "expires_at": new_invitation_code.expires_at.isoformat() if new_invitation_code.expires_at else None
+            }
+        ), 201
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error generando código de invitación para liga {league_id}: {e}", exc_info=True)
+        return jsonify(message="Error al generar el código de invitación."), 500
+
 @app.route('/api/leagues/join_by_code', methods=['POST'])
 @login_required
 def join_league_by_code_api():

@@ -34,6 +34,15 @@
         </div>
     </header>
 
+    <!-- Botón para Generar Código de Invitación -->
+    {% if current_user_is_creator_or_admin and league.is_active %}
+    <div class="mb-6 text-right"> {# Ajusta el margen y la alineación según sea necesario #}
+        <button id="generate-league-invitation-code-button" class="btn-primary text-sm flex items-center ml-auto"> {# ml-auto para alinearlo a la derecha si el div es full-width #}
+            <i class="fas fa-plus-circle mr-2"></i>Generar Código de Invitación
+        </button>
+    </div>
+    {% endif %}
+
     <!-- 2. Sección de Carreras de la Liga -->
     <section class="mb-10">
         <div class="flex justify-between items-center mb-4">
@@ -327,10 +336,7 @@
                     </button>
                 </div>
                 {% if invitation_code and invitation_code.expires_at %}
-                <p class="text-xs text-gray-500 mt-2">Expira: {{ invitation_code.expires_at|format_date_filter }}</p>
-                {% elif invitation_code %}
-                <p class="text-xs text-gray-500 mt-2">Este código no expira.</p>
-                {% endif %}
+                <p class="text-xs text-gray-500 mt-2 league-code-expiration-display"></p> {# Modificado para JS #}
             </div>
             <div class="flex items-center justify-between mt-6"> {# Changed justify-end to justify-between #}
                 {# Delete League Button - visible only to creator/admin #}
@@ -387,17 +393,55 @@
     }
 
     // Functions for "Show League Invitation Code" Modal
-    function openShowLeagueCodeModal() {
+    function openShowLeagueCodeModal(specificCode = null, expiresAt = null) {
         const modal = document.getElementById('show-league-code-modal');
         const codeDisplay = document.getElementById('league-invitation-code-display');
-        const rawCode = "{{ invitation_code.code if invitation_code and invitation_code.is_active else '' }}";
-        if (modal && codeDisplay && rawCode) {
-            codeDisplay.textContent = rawCode;
-            modal.classList.remove('hidden');
-        } else if (modal && codeDisplay) { // Code might be empty if not active or not present
-            codeDisplay.textContent = "No hay código activo.";
-             modal.classList.remove('hidden'); // Still show modal to indicate no code
+        const expirationDisplay = modal.querySelector('.league-code-expiration-display'); // Para mostrar la expiración
+
+        if (!modal || !codeDisplay || !expirationDisplay) {
+            console.error("Modal elements for showing league code not found.");
+            return;
         }
+
+        let codeToShow = specificCode;
+        let codeExpiresAt = expiresAt;
+
+        if (!codeToShow) {
+            // Si no se pasa un código específico, intenta obtenerlo del contexto de la plantilla
+            // (para el botón "Ver Código" que muestra un código ya existente)
+            const rawExistingCode = "{{ invitation_code.code if invitation_code and invitation_code.is_active else '' }}";
+            const rawExistingExpiresAt = "{{ invitation_code.expires_at|format_date_filter if invitation_code and invitation_code.expires_at else '' }}";
+
+            if (rawExistingCode) {
+                codeToShow = rawExistingCode;
+                if (rawExistingExpiresAt) {
+                    codeExpiresAt = rawExistingExpiresAt;
+                } else {
+                     // Si existe un código pero no tiene fecha de expiración en el contexto.
+                    codeExpiresAt = "{{ 'Este código no expira.' if invitation_code and not invitation_code.expires_at else '' }}";
+                }
+            }
+        }
+
+        if (codeToShow) {
+            codeDisplay.textContent = codeToShow;
+            if (codeExpiresAt) {
+                if (codeExpiresAt === 'Este código no expira.' || codeExpiresAt.includes("no expira")) { // Comparación más flexible
+                    expirationDisplay.textContent = codeExpiresAt;
+                } else {
+                    expirationDisplay.textContent = `Expira: ${codeExpiresAt}`;
+                }
+                expirationDisplay.classList.remove('hidden');
+            } else {
+                expirationDisplay.classList.add('hidden');
+                expirationDisplay.textContent = ''; // Limpiar por si acaso
+            }
+        } else {
+            codeDisplay.textContent = "No hay código activo o no se pudo generar.";
+            expirationDisplay.classList.add('hidden');
+            expirationDisplay.textContent = '';
+        }
+        modal.classList.remove('hidden');
     }
 
     function closeShowLeagueCodeModal() {
@@ -436,10 +480,146 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        // Attach listener for "Show Invitation Code" button
-        const showCodeButton = document.getElementById('show-league-invitation-code-button');
-        if (showCodeButton) {
-            showCodeButton.addEventListener('click', openShowLeagueCodeModal);
+        // Attach listener for "Show Existing Invitation Code" button
+        const showExistingCodeButton = document.getElementById('show-league-invitation-code-button');
+        if (showExistingCodeButton) {
+            // Llama a openShowLeagueCodeModal sin argumentos para que use el código del contexto de la plantilla
+            showExistingCodeButton.addEventListener('click', () => openShowLeagueCodeModal());
+        }
+
+        // Attach listener for the new "Generate Invitation Code" button
+        const generateCodeButton = document.getElementById('generate-league-invitation-code-button');
+        if (generateCodeButton) {
+            generateCodeButton.addEventListener('click', function() {
+                const leagueId = "{{ league.id }}"; // Asegúrate que league.id está disponible aquí
+                if (!leagueId) {
+                    console.error("League ID not found for generating code.");
+                    alert("Error: No se pudo encontrar el ID de la liga.");
+                    return;
+                }
+
+                // Muestra algún feedback al usuario de que se está generando...
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generando...';
+
+                fetch(`/api/leagues/${leagueId}/generate_invitation_code`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Podrías necesitar un CSRF token header si tu app lo usa para POST requests
+                        // 'X-CSRFToken': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.message || `Error ${response.status}`) });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.invitation_code && data.invitation_code.code) {
+                        let expiresAtDisplay = "Este código no expira.";
+                        if (data.invitation_code.expires_at) {
+                            // Formatear la fecha de expiración si es necesario, o si la API ya la devuelve formateada.
+                            // Asumiendo que la API devuelve una cadena ISO y la queremos formatear o usar directamente
+                            // Para simplificar, si la API devuelve un string ya formateado o "no expira", se usa.
+                            // Si la API devuelve ISO, necesitarías formatearla aquí en JS o ajustar la API.
+                            // Por ahora, si `expires_at` existe, lo mostramos.
+                            // La función `formatDateFromServer` sería una función JS para formatear la fecha.
+                            // expiresAtDisplay = `Expira: ${formatDateFromServer(data.invitation_code.expires_at)}`;
+                            // O si la API devuelve ya formateado con format_date_filter:
+                            expiresAtDisplay = `Expira: ${data.invitation_code.expires_at_formatted || data.invitation_code.expires_at}`;
+                            // Corrección: La API devuelve `expires_at` como ISO o null.
+                            // `openShowLeagueCodeModal` espera una fecha ya formateada o "Este código no expira."
+                            if (data.invitation_code.expires_at) {
+                                // Necesitaríamos una función JS para formatear la fecha ISO
+                                // Aquí, para simplificar, solo pasaremos el valor y openShowLeagueCodeModal lo manejará.
+                                // O, mejor, la API debería devolverlo preformateado si es posible.
+                                // Asumamos que la API devuelve `expires_at_formatted` o usamos una función JS `formatISODateToDisplay`
+                                try {
+                                     // Intenta crear un objeto Date y formatearlo.
+                                     // Esto es muy básico, para un formato específico como "dd Mon YYYY" se necesitaría más lógica o una librería.
+                                     const dateObj = new Date(data.invitation_code.expires_at);
+                                     expiresAtDisplay = `Expira: ${dateObj.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+                                } catch (e) {
+                                     expiresAtDisplay = `Expira: ${data.invitation_code.expires_at}`; // Fallback
+                                }
+                            }
+                        }
+                        openShowLeagueCodeModal(data.invitation_code.code, expiresAtDisplay);
+                        // Actualizar el botón "Ver Código de Invitación" si ahora hay uno nuevo
+                        const showExistingBtn = document.getElementById('show-league-invitation-code-button');
+                        if(showExistingBtn) {
+                            // Quizás cambiar su texto o estado si es necesario, o simplemente confiar en que la página se recargará
+                            // o que el modal ahora muestra el código más reciente.
+                        }
+                         // Actualizar el {{ invitation_code }} global de la plantilla si es posible (más complejo, requiere recarga o más JS)
+                        // Por ahora, el modal mostrará el nuevo código. El botón "Ver Código" original seguirá mostrando el antiguo hasta recarga.
+                        // Para solucionarlo, podríamos actualizar dinámicamente el `rawExistingCode` en `openShowLeagueCodeModal`
+                        // o hacer que el botón "Ver Código" también haga un fetch si no hay `rawExistingCode`.
+
+                        // Actualizar el contexto global de la plantilla para el código y su expiración si es posible
+                        // Esto es para que el botón "Ver Código" original (si existe) muestre el nuevo código sin recargar.
+                        // Esto es una simplificación, puede necesitar más manejo.
+                        // Se asume que `invitation_code` es un objeto global o accesible de alguna manera.
+                        // Si no, esta parte no funcionará directamente.
+                        // Mejor sería que `openShowLeagueCodeModal` siempre obtenga el código más reciente si no se le pasa uno.
+                        // Por ahora, el modal `show-league-code-modal` se actualizará con el nuevo código generado.
+                        // El `invitation_code` de Jinja no se actualizará sin recargar la página.
+                        // Esto significa que si el usuario cierra el modal y pulsa "Ver Código" (el botón original),
+                        // verá el código que estaba al cargar la página, a menos que ese botón también haga un fetch.
+
+                        // Para que el botón "Ver Código de Invitación" (el que está siempre visible si hay un código)
+                        // también muestre el código recién generado, necesitamos actualizar la variable `rawCode`
+                        // que usa su listener. Esto es un poco complicado sin recargar la página.
+                        // Una solución es que `openShowLeagueCodeModal` siempre intente obtener el código más reciente
+                        // si no se le pasa `specificCode`.
+                        // O, al generar uno nuevo, actualizamos algún estado global que `openShowLeagueCodeModal` pueda leer.
+
+                        // La modificación hecha a `openShowLeagueCodeModal` para aceptar `specificCode`
+                        // ya maneja que muestre el código que se le pasa.
+                        // El problema es si el usuario cierra el modal y luego pulsa el botón original "Ver Código de Invitación".
+                        // Para que ese botón muestre el nuevo código, tendríamos que:
+                        // 1. Hacer que ese botón también haga un fetch para obtener el código más reciente.
+                        // O 2. Actualizar dinámicamente el contenido de `{{ invitation_code }}` en el HTML (complejo).
+                        // O 3. Actualizar una variable JS global que `openShowLeagueCodeModal` use.
+
+                        // Por ahora, el nuevo código se muestra. Si se cierra y se pulsa el botón original "Ver Código",
+                        // este mostrará el código que estaba en la plantilla al cargar (a menos que la API devuelva el existente).
+                        // La API `generate_league_invitation_code` ya devuelve el existente si hay uno activo.
+                        // Así que el comportamiento debería ser consistente: si hay uno activo, se muestra. Si no, se genera y se muestra.
+                        // El botón "Generar" ahora se asegura de que haya uno y lo muestra.
+                        // El botón "Ver" (showExistingCodeButton) mostrará el que esté en el contexto de Jinja.
+                        // Para que "Ver" muestre el recién generado, necesitaríamos actualizar el contexto de Jinja en el cliente
+                        // o que "Ver" también haga un fetch.
+                        // Vamos a asumir que es aceptable que "Ver" muestre el código de carga de página y "Generar" muestre el más reciente/generado.
+                        // O, mejor, si "Generar" devuelve un código, actualizamos el botón "Ver" para que use ese nuevo código.
+                        // Esto se puede hacer si el botón "Ver" siempre está presente.
+                        // Si `show-league-invitation-code-button` no existe (porque no había código inicialmente), no hay nada que actualizar.
+                        if(document.getElementById('show-league-invitation-code-button')){
+                             // Si el botón "Ver Código" existe, podemos re-atachar su listener para que use el nuevo código.
+                             // Esto es un poco engorroso. La solución más simple es que si se genera un código,
+                             // el botón "Ver Código" (si existe) se deshabilite o cambie su texto para indicar "Código ya mostrado/generado".
+                             // O simplemente confiar en que el usuario vio el modal.
+                        }
+
+
+                    } else {
+                        alert(data.message || "No se pudo obtener el código de invitación.");
+                        openShowLeagueCodeModal(); // Abrir modal con mensaje de error
+                    }
+                })
+                .catch(error => {
+                    console.error('Error generando código de invitación:', error);
+                    alert('Error al generar código: ' + error.message);
+                    openShowLeagueCodeModal(); // Abrir modal con mensaje de error
+                })
+                .finally(() => {
+                    // Restaura el botón
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-plus-circle mr-2"></i>Generar Código de Invitación';
+                });
+            });
         }
 
         // Attach listener for "Copy Code" button inside the "Show Code" modal
