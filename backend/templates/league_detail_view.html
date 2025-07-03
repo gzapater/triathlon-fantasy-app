@@ -7,27 +7,30 @@
 
     <!-- 1. Cabecera de la Liga -->
     <header class="mb-8">
-        <div class="flex flex-wrap justify-between items-start">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div class="flex-grow">
-                <h1 class="brand-font text-3xl font-bold text-gray-800">{{ league.name }}</h1>
-                <p class="mt-1 text-gray-500">{{ league.description_or_default }}</p>
+                <h1 class="brand-font text-2xl sm:text-3xl font-bold text-gray-800">{{ league.name }}</h1>
+                <p class="mt-1 text-sm text-gray-500">{{ league.description_or_default }}</p> <!-- Ajustado text-sm para móviles -->
             </div>
-            <div class="flex items-center space-x-3 mt-2 md:mt-0">
+            <!-- Contenedor para botones y badges -->
+            <div class="flex flex-col items-stretch sm:flex-row sm:items-center gap-3 mt-3 sm:mt-0 w-full sm:w-auto">
                 {% if invitation_code and invitation_code.is_active and current_user_is_creator_or_admin %}
-                <button id="show-league-invitation-code-button" class="btn-secondary text-sm flex items-center">
+                <button id="show-league-invitation-code-button"
+                        class="btn-secondary text-sm flex items-center justify-center px-4 py-2"> <!-- py-2 para consistencia, justify-center por defecto (w-full) -->
                     <i class="fas fa-key mr-2"></i>Ver Código de Invitación
                 </button>
                 {% endif %}
                 {% if league.is_active %}
-                    <span class="text-xs bg-green-500 text-white px-3 py-1 rounded-full shadow-sm font-semibold">Activa</span>
+                    <span class="text-xs bg-green-500 text-white px-3 py-1.5 rounded-full shadow-sm font-semibold text-center">Activa</span> <!-- py-1.5 y text-center por defecto (w-full) -->
                 {% else %}
-                    <span class="text-xs bg-gray-500 text-white px-3 py-1 rounded-full shadow-sm font-semibold">Inactiva</span>
+                    <span class="text-xs bg-gray-500 text-white px-3 py-1.5 rounded-full shadow-sm font-semibold text-center">Inactiva</span> <!-- py-1.5 y text-center por defecto (w-full) -->
                 {% endif %}
             </div>
         </div>
-        <div class="mt-3 text-sm text-gray-500">
-            <span>Creada por: <strong class="text-gray-700">{{ league.creator.username if league.creator else 'N/A' }}</strong></span>
-            <span class="mx-2">|</span>
+        <!-- Información de creación -->
+        <div class="mt-4 text-xs sm:text-sm text-gray-500 flex flex-col sm:flex-row sm:flex-wrap gap-x-2"> <!-- gap-x-2 para espacio horizontal cuando en fila -->
+            <span class="mb-1 sm:mb-0">Creada por: <strong class="text-gray-700">{{ league.creator.username if league.creator else 'N/A' }}</strong></span>
+            <span class="hidden sm:inline">|</span> <!-- El mx-2 anterior se gestiona con gap-x-2 en el padre -->
             <span>Fecha de creación: <strong class="text-gray-700">{{ league.created_at|format_date_filter }}</strong></span>
         </div>
     </header>
@@ -35,7 +38,7 @@
     <!-- 2. Sección de Carreras de la Liga -->
     <section class="mb-10">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-semibold text-gray-700">Carreras en esta Liga</h2>
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-700">Carreras en esta Liga</h2>
             {# Posible botón para "Añadir Carrera a la Liga" si el usuario tiene permisos #}
             {# {% if current_user_is_creator_or_admin %}
                 <a href="{{ url_for('add_race_to_league_page', league_id=league.id) }}" class="btn-primary text-sm">
@@ -50,28 +53,28 @@
                     <table class="w-full">
                         <thead class="!bg-orange-500 !text-white">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre de la Carrera</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Formato</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
+                                <th class="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre de la Carrera</th>
+                                <th class="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
+                                <th class="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-semibold uppercase tracking-wider">Formato</th>
+                                <th class="px-2 py-2 sm:px-4 sm:py-3 text-left text-xs font-semibold uppercase tracking-wider">Estado</th>
+                                <th class="px-2 py-2 sm:px-4 sm:py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for race in league_races_detailed %}
                                 <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-2 py-3 sm:px-4 sm:py-4 whitespace-nowrap">
                                         <div class="text-sm font-medium text-gray-900 truncate" title="{{ race.title }}">
                                             {{ race.title }}
                                         </div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-2 py-3 sm:px-4 sm:py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-500">{{ race.event_date|format_date_filter }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-2 py-3 sm:px-4 sm:py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-500">{{ race.race_format.name if race.race_format else 'N/A' }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-2 py-3 sm:px-4 sm:py-4 whitespace-nowrap">
                                         <span class="text-xs px-2 py-1 rounded-full
                                             {% if race.status.value == 'PLANNED' %}bg-blue-100 text-blue-700
                                             {% elif race.status.value == 'ACTIVE' %}bg-yellow-100 text-yellow-700
@@ -80,7 +83,7 @@
                                             {{ race.status.value|capitalize }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <td class="px-2 py-3 sm:px-4 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-600 hover:text-orange-900" title="Ver Clasificación">
                                             <i class="fas fa-trophy"></i>
                                         </a>
@@ -145,8 +148,8 @@
     <!-- 3. Sección de Participantes y Unirse a la Liga (si no es participante) -->
     <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Columna de Participantes -->
-        <div class="md:col-span-1 bg-white p-6 rounded-xl shadow-md">
-            <h3 class="text-xl font-semibold text-gray-700 mb-4">Participantes ({{ league_participants_count }})</h3>
+        <div class="md:col-span-1 bg-white p-4 sm:p-6 rounded-xl shadow-md">
+            <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-4">Participantes ({{ league_participants_count }})</h3>
             {% if league_participants and league_participants|length > 0 %}
                 <ul class="space-y-2 max-h-60 overflow-y-auto">
                     {% for participant in league_participants %}
@@ -162,19 +165,19 @@
         </div>
 
         <!-- Columna para Unirse a la Liga (si aplica) -->
-        <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-md flex flex-col justify-center">
+        <div class="md:col-span-2 bg-white p-4 sm:p-6 rounded-xl shadow-md flex flex-col justify-center">
             {% if league.is_active and not current_user_is_participant %}
                 <div>
-                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Unirse a la Liga</h3>
+                    <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">Unirse a la Liga</h3>
                     <p class="text-sm text-gray-600 mb-4">Si tienes un código de invitación, puedes unirte a esta liga.</p>
                     <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')"
-                            class="btn-success text-white w-full px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
+                            class="btn-success text-white w-full px-4 py-2.5 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
                         <i class="fas fa-user-plus mr-2"></i>Unirme con Código de Invitación
                     </button>
                 </div>
             {% elif current_user_is_participant %}
                  <div>
-                    <p class="text-green-600 font-semibold flex items-center text-lg">
+                    <p class="text-green-600 font-semibold flex items-center text-base sm:text-lg">
                         <i class="fas fa-check-circle mr-2 text-xl"></i>Ya eres participante de esta liga.
                     </p>
                 </div>
@@ -186,24 +189,24 @@
 
     <!-- 4. Sección de Clasificación de la Liga -->
     <section class="mb-10">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Clasificación de la Liga</h2>
+        <h2 class="text-xl sm:text-2xl font-semibold text-gray-700 mb-4">Clasificación de la Liga</h2>
         {% if league_standings and league_standings|length > 0 %}
             <div class="bg-white shadow-md rounded-lg overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead class="!bg-orange-500 !text-white">
                             <tr>
-                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16 align-middle">Pos.</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle">Participante</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider align-middle">Puntos Totales</th>
+                                <th class="px-2 py-2 sm:px-3 md:px-6 sm:py-3 text-center text-xs font-semibold uppercase tracking-wider w-16 align-middle">Pos.</th>
+                                <th class="px-2 py-2 sm:px-3 md:px-6 sm:py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle">Participante</th>
+                                <th class="px-2 py-2 sm:px-3 md:px-6 sm:py-3 text-right text-xs font-semibold uppercase tracking-wider align-middle">Puntos Totales</th>
                                 {% for race in league_races_detailed %}
                                     {% set color_index = loop.index0 % race_background_colors|length %}
                                     {% set current_race_color = race_background_colors[color_index] %}
-                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 120px;">
-                                        {{ race.title }}<br>Puesto
+                                    <th class="px-1 py-2 sm:px-2 md:px-4 sm:py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 100px;">
+                                        {{ race.title }}<br><span class="sm:hidden">Pst.</span><span class="hidden sm:inline">Puesto</span>
                                     </th>
-                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 120px;">
-                                        {{ race.title }}<br>Puntos
+                                    <th class="px-1 py-2 sm:px-2 md:px-4 sm:py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 100px;">
+                                        {{ race.title }}<br><span class="sm:hidden">Pts.</span><span class="hidden sm:inline">Puntos</span>
                                     </th>
                                 {% endfor %}
                             </tr>
@@ -211,23 +214,23 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for standing in league_standings %}
                                 <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <td class="px-2 py-3 sm:px-3 md:px-6 sm:py-4 whitespace-nowrap text-center">
                                         <div class="text-sm font-medium text-gray-900">{{ loop.index }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-2 py-3 sm:px-3 md:px-6 sm:py-4 whitespace-nowrap">
                                         <div class="text-sm text-gray-700">{{ standing.username }}</div>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    <td class="px-2 py-3 sm:px-3 md:px-6 sm:py-4 whitespace-nowrap text-right">
                                         <div class="text-sm font-bold text-gray-900">{{ standing.total_score }}</div>
                                     </td>
                                     {% for race in league_races_detailed %}
                                         {% set color_index = loop.index0 % race_background_colors|length %}
                                         {% set current_race_color = race_background_colors[color_index] %}
                                         {% set details = participant_race_details.get(standing.user_id, {}).get(race.id, {'points': 0, 'rank': '-'}) %}
-                                        <td class="px-4 py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
+                                        <td class="px-1 py-3 sm:px-2 md:px-4 sm:py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
                                             <div class="text-sm text-gray-700">{{ details.rank }}</div>
                                         </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
+                                        <td class="px-1 py-3 sm:px-2 md:px-4 sm:py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
                                             <div class="text-sm text-gray-700">{{ details.points }}</div>
                                         </td>
                                     {% endfor %}
@@ -275,7 +278,7 @@
 {# Este modal podría estar en la plantilla base o ser incluido aquí #}
 <div id="join-league-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-medium text-gray-900">Unirse a la Liga "{{ league.name }}"</h3>
                 <button onclick="closeJoinLeagueModal()" class="text-gray-400 hover:text-gray-600">
@@ -289,11 +292,13 @@
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
                            placeholder="Introduce el código de invitación">
                 </div>
-                <div class="flex items-center justify-end space-x-3">
-                    <button type="button" onclick="closeJoinLeagueModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                <div class="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                    <button type="button" onclick="closeJoinLeagueModal()"
+                            class="btn-secondary w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
                         Cancelar
                     </button>
-                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
+                    <button type="submit"
+                            class="btn-success bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto px-5 py-2 rounded-lg font-medium transition-colors">
                         Unirme a la Liga
                     </button>
                 </div>
@@ -305,7 +310,7 @@
 <!-- Modal para MOSTRAR el código de invitación de la liga -->
 <div id="show-league-code-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-medium text-gray-900">Código de Invitación para "{{ league.name }}"</h3>
                 <button onclick="closeShowLeagueCodeModal()" class="text-gray-400 hover:text-gray-600">
@@ -314,10 +319,10 @@
             </div>
             <div class="my-4">
                 <p class="text-sm text-gray-600 mb-2">Comparte este código para que otros se unan:</p>
-                <div class="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
-                    <span id="league-invitation-code-display" class="text-xl font-mono text-gray-800"></span>
+                <div class="bg-gray-100 p-3 rounded-lg flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span id="league-invitation-code-display" class="text-xl font-mono text-gray-800 text-center sm:text-left"></span>
                     <button id="copy-league-code-button"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center">
+                            class="btn-primary bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center w-full sm:w-auto">
                         <i class="far fa-copy mr-2"></i>Copiar
                     </button>
                 </div>
