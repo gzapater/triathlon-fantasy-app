@@ -162,12 +162,16 @@
                                             {# Check if user has made prediction for this race in this league #}
                                             {% set user_prediction_exists = user_predictions_map.get(race.id) %}
                                             {% if not user_prediction_exists %}
-                                                <a href="{{ url_for('make_prediction_page', league_id=league.id, race_id=race.id) }}" class="text-orange-600 hover:text-orange-800 font-bold" title="Hacer Pronóstico"><i class="fas fa-poll-h"></i></a>
+                                                {# Asumiendo que 'make_prediction_page' es el endpoint correcto para hacer una predicción.
+                                                   Si este también da error, necesitará ser investigado. #}
+                                                <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion" class="text-orange-600 hover:text-orange-800 font-bold" title="Hacer Pronóstico"><i class="fas fa-poll-h"></i></a>
                                             {% else %}
-                                                 <a href="{{ url_for('view_prediction_page', league_id=league.id, race_id=race.id) }}" class="text-orange-600 hover:text-orange-800 font-bold" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
+                                                 {# Apuntar a la página de detalle de la carrera para ver la quiniela.
+                                                    La página de detalle debería mostrar las respuestas del usuario. #}
+                                                 <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-600 hover:text-orange-800 font-bold" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
                                             {% endif %}
-                                        {% else %}
-                                             <a href="{{ url_for('view_prediction_page', league_id=league.id, race_id=race.id) }}" class="text-gray-400 hover:text-orange-600" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
+                                        {% else %} {# Si el estado no es PLANNED o ACTIVE (ej. CLOSED) #}
+                                             <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-gray-400 hover:text-orange-600" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
                                         {% endif %}
                                         <a href="#participantes-race-{{race.id}}" class="text-gray-400 hover:text-orange-600" title="Ver Participantes de Carrera (dummy)"><i class="fas fa-users"></i></a>
                                     </td>
