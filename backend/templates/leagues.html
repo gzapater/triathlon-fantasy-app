@@ -19,10 +19,16 @@
             <h1 class="brand-font text-3xl font-bold text-gray-800">Gestión de Ligas</h1>
             <p class="mt-1 text-gray-500">Crea, edita y gestiona las competiciones de la temporada.</p>
         </div>
-        <a href="{{ url_for('create_league') }}" class="btn-primary mt-4 md:mt-0 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow flex items-center">
-            <i class="fas fa-plus mr-2"></i>
-            Crear Nueva Liga
-        </a>
+        <div class="flex flex-col md:flex-row md:space-x-2">
+            <a href="#" id="joinLeagueByCodeBtn" class="btn-secondary mt-4 md:mt-0 text-gray-700 px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow flex items-center">
+                <i class="fas fa-sign-in-alt mr-2"></i>
+                Unirse por Código
+            </a>
+            <a href="{{ url_for('create_league') }}" class="btn-primary mt-4 md:mt-0 text-white px-6 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow flex items-center">
+                <i class="fas fa-plus mr-2"></i>
+                Crear Nueva Liga
+            </a>
+        </div>
     </header>
 
     <!-- 2. Contenedor de las Tarjetas de Ligas -->
@@ -127,10 +133,115 @@
         </div>
     </div>
 </div>
+
+{% include '_join_league_by_code_modal.html' %}
+
 {% endblock %}
 
 {% block additional_scripts %}
 <script>
+    // Script for Join League By Code Modal
+    document.addEventListener('DOMContentLoaded', function () {
+        const joinLeagueModal = document.getElementById('joinLeagueByCodeModal');
+        const openJoinLeagueBtn = document.getElementById('joinLeagueByCodeBtn');
+        const closeJoinLeagueBtn = document.getElementById('closeJoinLeagueByCodeModalBtn');
+        const cancelJoinLeagueBtn = document.getElementById('cancelJoinLeagueByCodeBtn');
+        const joinLeagueForm = document.getElementById('joinLeagueByCodeForm');
+        const joinLeagueErrorDiv = document.getElementById('joinLeagueByCodeError');
+
+        if (openJoinLeagueBtn) {
+            openJoinLeagueBtn.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent default anchor behavior
+                joinLeagueModal.style.display = 'flex';
+            });
+        }
+
+        if (closeJoinLeagueBtn) {
+            closeJoinLeagueBtn.addEventListener('click', function() {
+                joinLeagueModal.style.display = 'none';
+                joinLeagueErrorDiv.style.display = 'none'; // Hide error on close
+                joinLeagueErrorDiv.textContent = '';
+                joinLeagueForm.reset(); // Reset form
+            });
+        }
+
+        if (cancelJoinLeagueBtn) {
+            cancelJoinLeagueBtn.addEventListener('click', function() {
+                joinLeagueModal.style.display = 'none';
+                joinLeagueErrorDiv.style.display = 'none'; // Hide error on cancel
+                joinLeagueErrorDiv.textContent = '';
+                joinLeagueForm.reset(); // Reset form
+            });
+        }
+
+        // Close modal if clicked outside of it
+        window.addEventListener('click', function(event) {
+            if (event.target === joinLeagueModal) {
+                joinLeagueModal.style.display = 'none';
+                joinLeagueErrorDiv.style.display = 'none'; // Hide error on click outside
+                joinLeagueErrorDiv.textContent = '';
+                joinLeagueForm.reset(); // Reset form
+            }
+        });
+
+        if (joinLeagueForm) {
+            joinLeagueForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const accessCode = document.getElementById('leagueAccessCodeToJoin').value;
+                const submitBtn = document.getElementById('submitJoinLeagueByCodeBtn');
+                const originalButtonText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Uniendo...';
+                submitBtn.disabled = true;
+
+
+                // TODO: Replace with actual API endpoint from Flask
+                // For now, this is a placeholder for fetch
+                fetch("{{ url_for('join_league_by_code') }}", { // Assuming you have a route 'join_league_by_code'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // 'X-CSRFToken': '{{ csrf_token() }}' // Include CSRF token if needed
+                    },
+                    body: JSON.stringify({ league_access_code: accessCode })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        joinLeagueModal.style.display = 'none';
+                        joinLeagueForm.reset();
+                        // Optionally, redirect or show a success message on the page
+                        // Example: window.location.href = data.redirect_url;
+                        // Or use a more sophisticated notification system like SweetAlert
+                        Swal.fire({
+                            title: '¡Éxito!',
+                            text: data.message || 'Te has unido a la liga correctamente.',
+                            icon: 'success',
+                            confirmButtonColor: '#F97316'
+                        }).then(() => {
+                            if (data.redirect_url) {
+                                window.location.href = data.redirect_url;
+                            } else {
+                                window.location.reload(); // Or refresh the part of the page showing leagues
+                            }
+                        });
+                    } else {
+                        joinLeagueErrorDiv.textContent = data.error || 'Error al unirse a la liga. Verifica el código.';
+                        joinLeagueErrorDiv.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error joining league:', error);
+                    joinLeagueErrorDiv.textContent = 'Ocurrió un error inesperado. Inténtalo de nuevo.';
+                    joinLeagueErrorDiv.style.display = 'block';
+                })
+                .finally(() => {
+                    submitBtn.innerHTML = originalButtonText;
+                    submitBtn.disabled = false;
+                });
+            });
+        }
+    });
+
     function openDeleteConfirmationModal(leagueId, leagueName) {
         const modal = document.getElementById('delete-league-modal');
         const form = document.getElementById('delete-league-form');
