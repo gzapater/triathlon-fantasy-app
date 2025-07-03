@@ -29,6 +29,7 @@
         body {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             min-height: 100vh;
+            overflow-x: hidden; /* Evitar scroll horizontal general */
         }
 
         .hero-bg {
@@ -154,6 +155,33 @@
             .segment-card { /* Remove margin for mobile timeline */
                 margin-left: 0 !important;
             }
+
+            /* Ajustes para tablas responsivas si se necesitaran */
+            .table-responsive-stack table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .table-responsive-stack th,
+            .table-responsive-stack td {
+                display: block;
+                width: 100%;
+                text-align: right; /* Alinea el contenido a la derecha */
+                padding-left: 50%; /* Espacio para la etiqueta del "encabezado" */
+                position: relative;
+                border-bottom: 1px solid #eee;
+            }
+            .table-responsive-stack td::before {
+                content: attr(data-label); /* Usa el atributo data-label como "encabezado" */
+                position: absolute;
+                left: 0;
+                width: 45%; /* Ancho de la etiqueta del "encabezado" */
+                padding-left: 10px; /* Espacio dentro de la etiqueta */
+                font-weight: bold;
+                text-align: left; /* Alinea la etiqueta a la izquierda */
+            }
+            .table-responsive-stack th { /* Ocultar encabezados originales en móvil */
+                display: none;
+            }
         }
 
 
@@ -214,7 +242,7 @@
 
     <!-- Hero Section -->
     <div class="hero-bg text-white py-6 md:py-8 lg:py-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="w-full mx-auto px-4 sm:px-6 lg:px-8"> {/* MODIFICADO: cambiado max-w-7xl por w-full */}
             <div class="flex flex-col lg:flex-row items-center justify-between">
                 <div class="flex-1 text-center lg:text-left mb-6 lg:mb-0">
                     <div class="flex flex-wrap justify-center lg:justify-start gap-2 mb-3">
@@ -408,7 +436,7 @@
                 {% if race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
                 <div id="quinielaLeaderboardSection" class="bg-white rounded-xl p-6 shadow-lg">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Clasificación de la Quiniela</h2>
-                    <div id="quinielaLeaderboardListContainer">
+                    <div id="quinielaLeaderboardListContainer" class="overflow-x-auto"> {/* AGREGADO: overflow-x-auto para tablas/listas anchas */}
                         <p id="loadingLeaderboardMsg" class="text-gray-600">Cargando clasificación...</p>
                         <!-- Leaderboard items will be populated here by JavaScript -->
                     </div>
@@ -424,7 +452,7 @@
                 {% if currentUserRole == 'ADMIN' or currentUserRole == 'LEAGUE_ADMIN' %}
                 <div id="raceParticipantsSection" class="bg-white rounded-xl p-6 shadow-lg">
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Participantes de la Carrera</h2>
-                    <div id="raceParticipantsListContainer">
+                    <div id="raceParticipantsListContainer" class="overflow-x-auto"> {/* AGREGADO: overflow-x-auto */}
                         <div id="loadingParticipantsMessage" style="display: none;">
                             <p class="text-gray-600">Cargando participantes...</p>
                         </div>
@@ -499,7 +527,7 @@
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-8 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div class="w-full mx-auto px-4 sm:px-6 lg:px-8 text-center"> {/* MODIFICADO: cambiado max-w-7xl por w-full */}
             <p>&copy; {{ current_year }} Fantasy Tri. Todos los derechos reservados.</p>
         </div>
     </footer>
