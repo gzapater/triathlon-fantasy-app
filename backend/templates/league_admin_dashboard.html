@@ -269,37 +269,63 @@
                 </form>
             </div>
 
-            <!-- Race Cards Section -->
+            <!-- Ligas Section (Moved Up) -->
             <div class="mb-8">
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="brand-font text-2xl font-bold text-gray-800">Carreras Destacadas</h2>
+                    <h2 class="brand-font text-2xl font-bold text-gray-800">Mis Ligas</h2>
+                    {# Add button or link to create/manage leagues if applicable for LEAGUE_ADMIN #}
+                     <a href="{{ url_for('serve_create_league_page') }}" class="btn-primary text-white px-6 py-2 rounded-lg font-medium">
+                        <i class="fas fa-plus mr-2"></i>Nueva Liga
+                    </a>
+                </div>
+                {# Placeholder for league listing - adapt as needed based on available data #}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% if leagues and leagues|length > 0 %}
+                        {% for league in leagues %}
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover flex flex-col">
+                            <div class="gradient-bike h-24 p-4 flex items-center space-x-4 text-white">
+                                <i class="fas fa-trophy text-3xl flex-shrink-0"></i>
+                                <div class="flex-grow overflow-hidden">
+                                    <h3 class="font-bold text-xl leading-tight truncate" title="{{ league.name }}">{{ league.name }}</h3>
+                                    <p class="text-sm font-semibold">{{ league.description[:50] if league.description else 'Sin descripción' }}...</p>
+                                </div>
+                            </div>
+                            <div class="p-6 flex-grow flex flex-col">
+                                <div class="mt-auto">
+                                    <a href="{{ url_for('view_league_detail', league_id=league.id) }}" class="btn-primary w-full text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center text-center">
+                                        Ver Liga
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="col-span-full text-center text-gray-500 py-10">No administras ninguna liga actualmente.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Carreras Section -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="brand-font text-2xl font-bold text-gray-800">Mis Carreras</h2>
                     {% if current_user.is_authenticated and (current_user.role.code == 'LEAGUE_ADMIN' or current_user.role.code == 'ADMIN') %}
                     <a href="{{ url_for('serve_create_race_page') }}" class="btn-primary text-white px-6 py-2 rounded-lg font-medium">
                         <i class="fas fa-plus mr-2"></i>Nueva Carrera
                     </a>
                     {% endif %}
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {% if races and races|length > 0 %}
                         {% for race in races %}
                         <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover flex flex-col">
-                            {# Determine card header gradient and icon based on race_format #}
                             {% set race_format_name = race.race_format.name %}
-                            {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
-                            {% set race_icon = 'fas fa-flag-checkered' %} {# Default icon #}
+                            {% set card_gradient_class = 'gradient-water' %}
+                            {% set race_icon = 'fas fa-flag-checkered' %}
+                            {% if race_format_name == 'Duatlón' %}{% set card_gradient_class = 'gradient-run' %}{% set race_icon = 'fas fa-road' %}
+                            {% elif race_format_name == 'Acuatlón' %}{% set card_gradient_class = 'gradient-bike' %}{% set race_icon = 'fas fa-swimmer' %}
+                            {% elif race_format_name == 'Triatlón' %}{% set race_icon = 'fas fa-water' %}{% endif %}
 
-                            {% if race_format_name == 'Duatlón' %}
-                                {% set card_gradient_class = 'gradient-run' %}
-                                {% set race_icon = 'fas fa-road' %}
-                            {% elif race_format_name == 'Acuatlón' %}
-                                {% set card_gradient_class = 'gradient-bike' %} {# Using bike gradient as placeholder #}
-                                {% set race_icon = 'fas fa-swimmer' %}
-                            {% elif race_format_name == 'Triatlón' %}
-                                {% set race_icon = 'fas fa-water' %}
-                            {% endif %}
-
-                            {# Header: Icon, Title, Format Name - Left Aligned #}
                             <div class="{{ card_gradient_class }} h-24 p-4 flex items-center space-x-4 text-white">
                                 <i class="{{ race_icon }} text-3xl flex-shrink-0"></i>
                                 <div class="flex-grow overflow-hidden">
@@ -307,28 +333,13 @@
                                     <p class="text-sm font-semibold">{{ race_format_name }}</p>
                                 </div>
                             </div>
-
-                            {# Card Body #}
                             <div class="p-6 flex-grow flex flex-col">
-                                <div class="flex items-center justify-end mb-3"> {# Date aligned to the right, badge removed #}
-                                    <span class="text-sm text-gray-500">{{ race.event_date.strftime('%d %b %Y') if race.event_date else 'Fecha no disp.' }}</span>
-                                </div>
-
-                                {% if race.description %}
-                                    <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden">{{ race.description[:100] }}{% if race.description|length > 100 %}...{% endif %}</p>
-                                {% else %}
-                                    {# If no description, show location here, but it will be shown again below. Consider conditional display or merging. #}
-                                    {# For now, keeping structure similar to races_list, showing a placeholder if no description #}
-                                    <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden italic">No hay descripción disponible.</p>
-                                {% endif %}
-
-                                {# Location info moved here, directly after description #}
+                                <span class="text-sm text-gray-500 mb-3">{{ race.event_date.strftime('%d %b %Y') if race.event_date else 'Fecha no disp.' }}</span>
+                                <p class="text-gray-600 text-sm mb-1 h-16 overflow-hidden">{{ race.description[:100] if race.description else 'No hay descripción disponible.' }}{% if race.description and race.description|length > 100 %}...{% endif %}</p>
                                 <div class="flex items-center space-x-2 text-sm text-gray-600 mb-4">
                                     <i class="fas fa-map-marker-alt text-gray-400"></i>
                                     <span>{{ race.location if race.location else 'N/A' }}</span>
                                 </div>
-
-                                {# Button at the bottom #}
                                 <div class="mt-auto">
                                     <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="btn-primary w-full text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center text-center">
                                         Acceder a la carrera
@@ -338,9 +349,7 @@
                         </div>
                         {% endfor %}
                     {% else %}
-                        <div class="col-span-1 md:col-span-2 lg:col-span-3">
-                            <p class="text-center text-gray-500 py-10">No hay carreras destacadas por el momento.</p>
-                        </div>
+                        <p class="col-span-full text-center text-gray-500 py-10">No hay carreras disponibles.</p>
                     {% endif %}
                 </div>
             </div>

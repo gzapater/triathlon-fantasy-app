@@ -247,6 +247,13 @@
             </div>
 
 {% if current_user.role.code == 'ADMIN' %}
+    <!-- Section for "Ligas" (Moved Up) -->
+    <div class="mb-8">
+        <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Ligas</h2>
+        {# Add league listing logic here if needed for ADMIN, or remove if not applicable #}
+        <p class="text-center text-gray-500 py-10">La gestión de ligas se realiza en la sección de Ligas.</p>
+    </div>
+
     <!-- Section for "Carreras Generales" for ADMIN -->
     <div class="mb-8">
         <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras Generales Disponibles</h2>
@@ -386,163 +393,6 @@
         {% endif %}
     </div>
 
-    <!-- Section for "Carreras en las que participo" -->
-    <div class="mb-8">
-        <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras en las que participo</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% if participating_races and participating_races|length > 0 %}
-                {% for race in participating_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 3 %}hidden initially-hidden-participating{% endif %} flex flex-col">
-                        {# Determine card header gradient and icon based on race_format #}
-                        {% set race_format_name = race['race_format']['name'] %}
-                        {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
-                        {% set race_icon = 'fas fa-flag-checkered' %} {# Default icon #}
-
-                        {% if race_format_name == 'Duatlón' %}
-                            {% set card_gradient_class = 'gradient-run' %}
-                            {% set race_icon = 'fas fa-road' %}
-                        {% elif race_format_name == 'Acuatlón' %}
-                            {% set card_gradient_class = 'gradient-bike' %} {# Using bike gradient as placeholder #}
-                            {% set race_icon = 'fas fa-swimmer' %}
-                        {% elif race_format_name == 'Triatlón' %}
-                             {% set race_icon = 'fas fa-water' %}
-                        {% endif %}
-
-                        {# Header: Icon, Title, Format Name - Left Aligned, Compact #}
-                        <div class="{{ card_gradient_class }} h-20 p-3 flex items-center space-x-3 text-white relative">
-                            <i class="{{ race_icon }} text-2xl flex-shrink-0"></i> {# Icon size adjusted for h-20 header #}
-                            <div class="flex-grow overflow-hidden">
-                                <h3 class="font-bold text-base leading-tight truncate" title="{{ race['title'] }}">{{ race['title'] }}</h3>
-                                <p class="text-xs font-semibold">{{ race_format_name }}</p> {# Text size adjusted #}
-                            </div>
-                            {% if race.status %}
-                                {% set status_bg_color = 'bg-gray-500' %}
-                                {% if race.status == 'PLANNED' %}{% set status_bg_color = 'bg-blue-500' %}{% endif %}
-                                {% if race.status == 'ACTIVE' %}{% set status_bg_color = 'bg-green-500' %}{% endif %}
-                                {% if race.status == 'ARCHIVED' %}{% set status_bg_color = 'bg-gray-700' %}{% endif %}
-                                <span class="absolute top-1 right-1 text-xs {{ status_bg_color }} text-white px-1.5 py-0.5 rounded-full shadow-sm">
-                                    {{ race.status|capitalize }}
-                                </span>
-                            {% endif %}
-                        </div>
-
-                        {# Card Body - Compact #}
-                        <div class="p-3 flex-grow flex flex-col">
-                            <div class="flex items-center justify-between mb-2"> {# Date and status #}
-                                <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
-                                {# Alt: <span class="text-xs {{ status_bg_color }} text-white px-1.5 py-0.5 rounded-full">{{ race.status|capitalize }}</span> #}
-                            </div>
-
-                            {% if race['description'] %}
-                                <p class="text-gray-600 text-sm mb-1 h-12 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
-                            {% else %}
-                                <p class="text-gray-600 text-sm mb-1 h-12 overflow-hidden italic">No hay descripción disponible.</p>
-                            {% endif %}
-
-                            {# Location info moved here, directly after description #}
-                            <div class="flex items-center space-x-2 text-sm text-gray-600 mb-3">
-                                <i class="fas fa-map-marker-alt text-gray-400"></i>
-                                <span>{{ race['location'] if race['location'] else 'N/A' }}</span>
-                            </div>
-
-                            {# Button at the bottom - Compact #}
-                            <div class="mt-auto">
-                                <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="btn-primary w-full text-white px-3 py-1.5 rounded-md font-medium flex items-center justify-center text-center text-sm"> {# Button padding and text size adjusted #}
-                                    Acceder a la carrera
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <p class="col-span-full text-center text-gray-500 py-10">No estás participando en ninguna carrera.</p>
-            {% endif %}
-        </div>
-        {% if participating_races|length > 3 %}
-            <div class="mt-4 text-center">
-                <button id="viewMoreParticipatingBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras en participación</button>
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Section for "Carreras favoritas" -->
-    <div class="mb-8">
-        <h2 class="brand-font text-2xl font-bold text-gray-800 mb-6">Carreras favoritas</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% if favorite_races and favorite_races|length > 0 %}
-                {% for race in favorite_races %}
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover {% if loop.index > 3 %}hidden initially-hidden-favorite{% endif %} flex flex-col">
-                        {# Determine card header gradient and icon based on race_format #}
-                        {% set race_format_name = race['race_format']['name'] %}
-                        {% set card_gradient_class = 'gradient-water' %} {# Default: blue for general triathlons #}
-                        {% set race_icon = 'fas fa-flag-checkered' %} {# Default icon #}
-
-                        {% if race_format_name == 'Duatlón' %}
-                            {% set card_gradient_class = 'gradient-run' %}
-                            {% set race_icon = 'fas fa-road' %}
-                        {% elif race_format_name == 'Acuatlón' %}
-                            {% set card_gradient_class = 'gradient-bike' %} {# Using bike gradient as placeholder #}
-                            {% set race_icon = 'fas fa-swimmer' %}
-                        {% elif race_format_name == 'Triatlón' %}
-                             {% set race_icon = 'fas fa-water' %}
-                        {% endif %}
-
-                        {# Header: Icon, Title, Format Name - Left Aligned, Compact #}
-                        <div class="{{ card_gradient_class }} h-20 p-3 flex items-center space-x-3 text-white relative">
-                            <i class="{{ race_icon }} text-2xl flex-shrink-0"></i> {# Icon size adjusted for h-20 header #}
-                            <div class="flex-grow overflow-hidden">
-                                <h3 class="font-bold text-base leading-tight truncate" title="{{ race['title'] }}">{{ race['title'] }}</h3>
-                                <p class="text-xs font-semibold">{{ race_format_name }}</p> {# Text size adjusted #}
-                            </div>
-                            {% if race.status %}
-                                {% set status_bg_color = 'bg-gray-500' %}
-                                {% if race.status == 'PLANNED' %}{% set status_bg_color = 'bg-blue-500' %}{% endif %}
-                                {% if race.status == 'ACTIVE' %}{% set status_bg_color = 'bg-green-500' %}{% endif %}
-                                {% if race.status == 'ARCHIVED' %}{% set status_bg_color = 'bg-gray-700' %}{% endif %}
-                                <span class="absolute top-1 right-1 text-xs {{ status_bg_color }} text-white px-1.5 py-0.5 rounded-full shadow-sm">
-                                    {{ race.status|capitalize }}
-                                </span>
-                            {% endif %}
-                        </div>
-
-                        {# Card Body - Compact #}
-                        <div class="p-3 flex-grow flex flex-col">
-                            <div class="flex items-center justify-between mb-2"> {# Date and status #}
-                                <span class="text-sm text-gray-500">{{ race['event_date_formatted'] }}</span>
-                                {# Alt: <span class="text-xs {{ status_bg_color }} text-white px-1.5 py-0.5 rounded-full">{{ race.status|capitalize }}</span> #}
-                            </div>
-
-                            {% if race['description'] %}
-                                <p class="text-gray-600 text-sm mb-1 h-12 overflow-hidden">{{ race['description'][:100] }}{% if race['description']|length > 100 %}...{% endif %}</p>
-                            {% else %}
-                                <p class="text-gray-600 text-sm mb-1 h-12 overflow-hidden italic">No hay descripción disponible.</p>
-                            {% endif %}
-
-                            {# Location info moved here, directly after description #}
-                            <div class="flex items-center space-x-2 text-sm text-gray-600 mb-3">
-                                <i class="fas fa-map-marker-alt text-gray-400"></i>
-                                <span>{{ race['location'] if race['location'] else 'N/A' }}</span>
-                            </div>
-
-                            {# Button at the bottom - Compact #}
-                            <div class="mt-auto">
-                                <a href="{{ url_for('serve_race_detail_page', race_id=race['id']) }}" class="btn-primary w-full text-white px-3 py-1.5 rounded-md font-medium flex items-center justify-center text-center text-sm"> {# Button padding and text size adjusted #}
-                                    Acceder a la carrera
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <p class="col-span-full text-center text-gray-500 py-10">No tienes ninguna carrera marcada como favorita.</p>
-            {% endif %}
-        </div>
-        {% if favorite_races|length > 3 %}
-            <div class="mt-4 text-center">
-                <button id="viewMoreFavoriteBtn" class="btn-primary text-white px-4 py-2 rounded-lg font-medium">Ver más carreras favoritas</button>
-            </div>
-        {% endif %}
-    </div>
 {% endif %}
             <!-- Modal Example (Hidden by default) -->
             <div id="example-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
