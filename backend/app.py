@@ -4828,28 +4828,68 @@ def view_league_detail(league_id):
     # Propiedad para descripción con fallback (puedes añadirla al modelo League si prefieres)
     league.description_or_default = league.description if league.description and league.description.strip() else "Esta liga aún no tiene una descripción detallada."
 
-    # --- Calcular Clasificación de la Liga ---
+    # --- Calcular Clasificación de la Liga y Detalles por Carrera ---
     league_standings = []
+    participant_race_details = {} # Nueva estructura: {user_id: {race_id: {'points': X, 'rank': Y}}}
     all_league_participants = LeagueParticipant.query.filter_by(league_id=league.id).all()
-
     race_ids_in_league = [race.id for race in league_races_detailed]
 
-    for lp in all_league_participants:
+    # Para calcular el puesto, necesitamos los puntajes de todos los participantes por carrera
+    scores_by_race = {} # {race_id: [(user_id, score), ...]}
+    if race_ids_in_league:
+        for race_id_for_scores in race_ids_in_league:
+            # Obtener todos los UserScore para esta carrera específica
+            race_scores = UserScore.query.filter_by(race_id=race_id_for_scores).all()
+            # Guardar solo los participantes de la liga actual
+            scores_by_race[race_id_for_scores] = []
+            for score_entry in race_scores:
+                # Verificar si el usuario del UserScore es participante de ESTA liga
+                is_participant_of_this_league = any(lp.user_id == score_entry.user_id for lp in all_league_participants)
+                if is_participant_of_this_league:
+                    scores_by_race[race_id_for_scores].append({'user_id': score_entry.user_id, 'score': score_entry.score})
+
+            # Ordenar los puntajes para esta carrera para determinar el ranking
+            scores_by_race[race_id_for_scores].sort(key=lambda x: x['score'], reverse=True)
+
+    for lp_index, lp in enumerate(all_league_participants):
         user = User.query.get(lp.user_id)
         if not user:
             app.logger.warning(f"LeagueParticipant {lp.id} refers to a non-existent user {lp.user_id}.")
             continue
 
+        participant_race_details[user.id] = {}
         total_league_score = 0
-        if race_ids_in_league: # Only query UserScore if there are races in the league
-            # Sum scores for this user across all races in this league
-            user_scores_for_league_races = db.session.query(func.sum(UserScore.score)).filter(
-                UserScore.user_id == user.id,
-                UserScore.race_id.in_(race_ids_in_league)
-            ).scalar()
 
-            if user_scores_for_league_races is not None:
-                total_league_score = user_scores_for_league_races
+        for race_detail_obj in league_races_detailed: # Iterar sobre el objeto Race, no solo el ID
+            race_id = race_detail_obj.id
+            user_score_for_race = 0
+            user_rank_for_race = "-" # Default si no participa o no hay puntaje
+
+            # Obtener puntos del UserScore
+            user_score_obj = UserScore.query.filter_by(user_id=user.id, race_id=race_id).first()
+            if user_score_obj:
+                user_score_for_race = user_score_obj.score
+                total_league_score += user_score_for_race
+
+                # Calcular puesto en la carrera
+                if race_id in scores_by_race:
+                    race_specific_scores = scores_by_race[race_id]
+                    # Encontrar el puesto del usuario actual
+                    # Manejo de empates: varios usuarios pueden tener el mismo puesto
+                    rank = 0
+                    last_score = -1 # Asumir que los puntajes no son negativos
+                    for i, score_info in enumerate(race_specific_scores):
+                        if score_info['score'] != last_score:
+                            rank = i + 1
+                            last_score = score_info['score']
+                        if score_info['user_id'] == user.id:
+                            user_rank_for_race = rank
+                            break
+
+            participant_race_details[user.id][race_id] = {
+                'points': user_score_for_race,
+                'rank': user_rank_for_race
+            }
 
         league_standings.append({
             'user_id': user.id,
@@ -4857,19 +4897,35 @@ def view_league_detail(league_id):
             'total_score': total_league_score
         })
 
-    # Ordenar la clasificación por puntuación total descendente
+    # Ordenar la clasificación general de la liga por puntuación total descendente
     league_standings.sort(key=lambda x: x['total_score'], reverse=True)
-    # --- Fin Calcular Clasificación de la Liga ---
+    # --- Fin Calcular Clasificación y Detalles ---
+
+    # Definir una lista de colores pálidos para el sombreado
+    # Estos se pueden pasar a la plantilla o generar allí con un ciclo
+    race_background_colors = [
+        "#f0f8ff",  # AliceBlue
+        "#faebd7",  # AntiqueWhite
+        "#ffefd5",  # PapayaWhip
+        "#ffe4e1",  # MistyRose
+        "#e6e6fa",  # Lavender
+        "#fff0f5",  # LavenderBlush
+        "#f5fffa",  # MintCream
+        "#fffacd",  # LemonChiffon
+    ]
+
 
     return render_template('league_detail_view.html',
                            league=league,
                            league_races_detailed=league_races_detailed,
                            league_participants_count=league_participants_count,
-                           league_participants=league_participants_sample, # This is just a sample for the participant list section
+                           league_participants=league_participants_sample,
                            current_user_is_creator_or_admin=current_user_is_creator_or_admin,
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
-                           league_standings=league_standings, # Pasar la clasificación a la plantilla
+                           league_standings=league_standings,
+                           participant_race_details=participant_race_details, # Pasar los nuevos datos
+                           race_background_colors=race_background_colors, # Pasar colores
                            current_year=datetime.utcnow().year)
 
 # The route /league/<int:league_id>/generate_join_code has been removed as per the plan.

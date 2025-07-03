@@ -193,9 +193,19 @@
                     <table class="w-full">
                         <thead class="!bg-orange-500 !text-white">
                             <tr>
-                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16">Pos.</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Participante</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Puntos Totales</th>
+                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16 align-middle">Pos.</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle">Participante</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider align-middle">Puntos Totales</th>
+                                {% for race in league_races_detailed %}
+                                    {% set color_index = loop.index0 % race_background_colors|length %}
+                                    {% set current_race_color = race_background_colors[color_index] %}
+                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 120px;">
+                                        {{ race.title }}<br>Puesto
+                                    </th>
+                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 120px;">
+                                        {{ race.title }}<br>Puntos
+                                    </th>
+                                {% endfor %}
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -210,6 +220,17 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-right">
                                         <div class="text-sm font-bold text-gray-900">{{ standing.total_score }}</div>
                                     </td>
+                                    {% for race in league_races_detailed %}
+                                        {% set color_index = loop.index0 % race_background_colors|length %}
+                                        {% set current_race_color = race_background_colors[color_index] %}
+                                        {% set details = participant_race_details.get(standing.user_id, {}).get(race.id, {'points': 0, 'rank': '-'}) %}
+                                        <td class="px-4 py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
+                                            <div class="text-sm text-gray-700">{{ details.rank }}</div>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
+                                            <div class="text-sm text-gray-700">{{ details.points }}</div>
+                                        </td>
+                                    {% endfor %}
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -222,14 +243,16 @@
                     <table class="w-full">
                          <thead class="!bg-orange-500 !text-white">
                             <tr>
-                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16">Pos.</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Participante</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Puntos Totales</th>
+                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16 align-middle">Pos.</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle">Participante</th>
+                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider align-middle">Puntos Totales</th>
+                                <!-- No hay carreras, así que no se añaden cabeceras de carrera aquí -->
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr>
-                                <td colspan="3" class="px-6 py-10 text-center">
+                                <!-- Ajustar colspan si se espera que haya carreras pero no hay standings -->
+                                <td colspan="{{ 3 + (league_races_detailed|length * 2 if league_races_detailed else 0) }}" class="px-6 py-10 text-center">
                                     <div class="flex flex-col items-center justify-center">
                                         <i class="fas fa-users-slash text-5xl text-gray-300 mb-4"></i>
                                         <h3 class="text-xl font-bold text-gray-700 mb-2">Clasificación No Disponible</h3>
