@@ -4825,11 +4825,10 @@ def view_league_detail(league_id):
     # Ordenar por fecha de evento, por ejemplo
     league_races_detailed = league.races.filter_by(is_deleted=False).order_by(Race.event_date.asc()).all()
 
-    # Participantes de la liga
-    # Podríamos paginar esto si son muchos. Por ahora, tomamos una muestra.
-    league_participants_query = league.participants.order_by(LeagueParticipant.joined_at.desc())
-    league_participants_count = league_participants_query.count()
-    league_participants_sample = league_participants_query.limit(10).all() # Muestra los últimos 10
+    # Participantes de la liga - Data fetching for this section is no longer needed as the section is removed.
+    # league_participants_query = league.participants.order_by(LeagueParticipant.joined_at.desc())
+    # league_participants_count = league_participants_query.count()
+    # league_participants_sample = league_participants_query.limit(10).all()
 
     current_user_is_creator_or_admin = False
     if current_user.is_authenticated:
@@ -4940,8 +4939,8 @@ def view_league_detail(league_id):
     return render_template('league_detail_view.html',
                            league=league,
                            league_races_detailed=league_races_detailed,
-                           league_participants_count=league_participants_count,
-                           league_participants=league_participants_sample,
+                           # league_participants_count=league_participants_count, # Removed
+                           # league_participants=league_participants_sample, # Removed
                            current_user_is_creator_or_admin=current_user_is_creator_or_admin,
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
