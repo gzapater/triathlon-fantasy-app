@@ -1,0 +1,58 @@
+{# Partial template for displaying user's predictions within a modal #}
+
+{% if questions_and_answers and questions_and_answers|length > 0 %}
+    <div class="space-y-4">
+        {% for item in questions_and_answers %}
+            <div class="p-3 bg-gray-50 rounded-lg shadow-sm">
+                <p class="font-semibold text-gray-700">{{ loop.index }}. {{ item.question_text }}</p>
+                <p class="text-sm text-gray-500 italic mb-1">Tipo: {{ item.question_type_display }}</p>
+
+                {% if item.user_answer_formatted is not none and item.user_answer_formatted != "" %}
+                    <div class="pl-4 mt-1">
+                        {% if item.question_type == 'MULTIPLE_CHOICE' and item.is_mc_multiple_correct %}
+                            <p class="text-sm text-gray-600">Tu selección:</p>
+                            <ul class="list-disc list-inside ml-2 text-sm text-orange-700">
+                                {% for selected_opt in item.user_answer_formatted %}
+                                    <li>{{ selected_opt.text }}</li>
+                                {% else %}
+                                    <li class="text-gray-500 italic">No has seleccionado ninguna opción.</li>
+                                {% endfor %}
+                            </ul>
+                        {% elif item.question_type == 'MULTIPLE_CHOICE' and not item.is_mc_multiple_correct %}
+                            <p class="text-sm text-gray-600">Tu selección: <strong class="text-orange-700">{{ item.user_answer_formatted.text if item.user_answer_formatted else "No respondida" }}</strong></p>
+                        {% elif item.question_type == 'ORDERING' %}
+                            <p class="text-sm text-gray-600">Tu orden:</p>
+                            {% if item.user_answer_formatted %}
+                                <ol class="list-decimal list-inside ml-2 text-sm text-orange-700">
+                                    {% for ordered_item_text in item.user_answer_formatted.split(',') %}
+                                        <li>{{ ordered_item_text.strip() }}</li>
+                                    {% endfor %}
+                                </ol>
+                            {% else %}
+                                <p class="text-sm text-gray-500 italic">No has proporcionado un orden.</p>
+                            {% endif %}
+                        {% elif item.question_type == 'SLIDER' %}
+                             <p class="text-sm text-gray-600">Tu respuesta: <strong class="text-orange-700">{{ item.user_answer_formatted }}{{ item.slider_unit if item.slider_unit else "" }}</strong></p>
+                        {% else %} {# FREE_TEXT and any other types not specifically handled above #}
+                            <p class="text-sm text-gray-600">Tu respuesta: <strong class="text-orange-700">{{ item.user_answer_formatted }}</strong></p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <p class="text-sm text-gray-500 italic pl-4 mt-1">No has respondido a esta pregunta.</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% elif race_title %}
+    <div class="p-4 text-center">
+        <i class="fas fa-question-circle text-3xl text-gray-400 mb-2"></i>
+        <p class="text-gray-600">Aún no has realizado tus predicciones para la carrera "{{ race_title }}".</p>
+        <p class="text-xs text-gray-400 mt-1">Puedes hacer tus predicciones desde la <a href="{{ url_for('serve_race_detail_page', race_id=race_id) }}#hacer-prediccion" class="text-orange-500 hover:underline">página de detalle de la carrera</a>.</p>
+    </div>
+{% else %}
+    <div class="p-4 text-center">
+        <i class="fas fa-exclamation-triangle text-3xl text-yellow-400 mb-2"></i>
+        <p class="text-gray-600">No se pudieron cargar las predicciones.</p>
+        <p class="text-xs text-gray-400 mt-1">Por favor, inténtalo de nuevo más tarde.</p>
+    </div>
+{% endif %}

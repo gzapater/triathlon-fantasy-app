@@ -138,18 +138,29 @@
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
                                             {# Check if user has made prediction for this race in this league #}
                                             {% set user_prediction_exists = user_predictions_map.get(race.id) %}
-                                            {% if not user_prediction_exists %}
-                                                {# Asumiendo que 'make_prediction_page' es el endpoint correcto para hacer una predicción.
-                                                   Si este también da error, necesitará ser investigado. #}
-                                                <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion" class="text-orange-600 hover:text-orange-800 font-bold" title="Hacer Pronóstico"><i class="fas fa-poll-h"></i></a>
+                                            {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
+
+                                            {% if user_prediction_exists %}
+                                                {# User has made predictions, button is to view them via modal #}
+                                                <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
+                                                        class="font-bold hover:text-orange-800
+                                                               {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}text-orange-600{% else %}text-gray-400{% endif %}"
+                                                        title="Ver mi Quiniela{% if quiniela_is_closed %} (Cerrada){% endif %}">
+                                                    <i class="fas fa-poll-h"></i>
+                                                </button>
+                                            {% elif race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
+                                                {# Quiniela is open, user has NOT made predictions, button is a link to make them #}
+                                                <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion"
+                                                   class="text-orange-600 hover:text-orange-800 font-bold"
+                                                   title="Hacer Pronóstico">
+                                                    <i class="fas fa-poll-h"></i>
+                                                </a>
                                             {% else %}
-                                                 {# Apuntar a la página de detalle de la carrera para ver la quiniela.
-                                                    La página de detalle debería mostrar las respuestas del usuario. #}
-                                                 <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-600 hover:text-orange-800 font-bold" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
+                                                {# Quiniela is CLOSED, user has NOT made predictions #}
+                                                <span class="text-gray-400 cursor-not-allowed" title="Quiniela cerrada y no participaste">
+                                                    <i class="fas fa-poll-h"></i>
+                                                </span>
                                             {% endif %}
-                                        {% else %} {# Si el estado no es PLANNED o ACTIVE (ej. CLOSED) #}
-                                             <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-gray-400 hover:text-orange-600" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
-                                        {% endif %}
                                         <a href="#participantes-race-{{race.id}}" class="text-gray-400 hover:text-orange-600" title="Ver Participantes de Carrera (dummy)"><i class="fas fa-users"></i></a>
                                     </td>
                                 </tr>
@@ -239,6 +250,8 @@
 
     <!-- Include the race results modal -->
     {% include '_race_results_modal.html' %}
+    <!-- Include the user predictions modal -->
+    {% include '_user_predictions_modal.html' %}
 
     {# Modal para unirse a la liga con código (similar al original) #}
     <div id="join-league-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
@@ -546,6 +559,66 @@
                 const modalContent = document.getElementById('raceResultsModalContent');
                 if (modalContent) {
                     modalContent.innerHTML = '';
+                }
+            }
+        }
+
+        // Functions for User Predictions Modal
+        function openUserPredictionsModal(raceId, raceName, isQuinielaClosed) {
+            const modal = document.getElementById('userPredictionsModal');
+            const modalTitle = document.getElementById('userPredictionsModalTitle');
+            const modalContent = document.getElementById('userPredictionsModalContent');
+            const editButton = document.getElementById('editPredictionsButton');
+
+            if (modalTitle) {
+                modalTitle.textContent = `Mis Predicciones para: ${raceName}`;
+            }
+            if (modalContent) {
+                modalContent.innerHTML = '<p class="text-center text-gray-500">Cargando tus predicciones...</p>';
+                fetch(`/race/${raceId}/user_predictions_modal_content`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        modalContent.innerHTML = html;
+                        // Show edit button only if quiniela is not closed
+                        if (editButton) {
+                            if (!isQuinielaClosed) {
+                                editButton.href = `/race/${raceId}#hacer-prediccion`; // Or specific edit URL
+                                editButton.classList.remove('hidden');
+                            } else {
+                                editButton.classList.add('hidden');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching user predictions:', error);
+                        modalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar tus predicciones. ${error.message}</p>`;
+                        if (editButton) {
+                            editButton.classList.add('hidden');
+                        }
+                    });
+            }
+
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeUserPredictionsModal() {
+            const modal = document.getElementById('userPredictionsModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                const modalContent = document.getElementById('userPredictionsModalContent');
+                if (modalContent) {
+                    modalContent.innerHTML = '<p class="text-center text-gray-500">Cargando tus predicciones...</p>'; // Reset
+                }
+                const editButton = document.getElementById('editPredictionsButton');
+                if (editButton) {
+                    editButton.classList.add('hidden'); // Ensure edit button is hidden on close
                 }
             }
         }

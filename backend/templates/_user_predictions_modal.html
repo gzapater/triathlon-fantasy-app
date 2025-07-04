@@ -1,0 +1,48 @@
+<!-- Modal structure for displaying user's predictions -->
+<div id="userPredictionsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full transform transition-all">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="userPredictionsModalTitle" class="text-lg font-medium text-gray-900">Mis Predicciones</h3>
+                <button onclick="closeUserPredictionsModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="userPredictionsModalContent" class="my-4 max-h-[60vh] overflow-y-auto pr-2">
+                {# Content will be loaded here by JavaScript #}
+                <p class="text-center text-gray-500">Cargando tus predicciones...</p>
+            </div>
+            <div class="flex items-center justify-end mt-6 space-x-3">
+                <a id="editPredictionsButton" href="#" class="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-medium transition-colors hidden">
+                    <i class="fas fa-edit mr-2"></i>Editar Predicciones
+                </a>
+                <button type="button" onclick="closeUserPredictionsModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition-colors">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# JavaScript functions for this modal will be in the parent page (league_detail_view.html) #}
+{# But, as a fallback or for isolated inclusion, basic close function can be here #}
+<script>
+if (typeof closeUserPredictionsModal === 'undefined') {
+    function closeUserPredictionsModal() {
+        const modal = document.getElementById('userPredictionsModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            // Optional: Clear content
+            const modalContent = document.getElementById('userPredictionsModalContent');
+            if (modalContent) {
+                modalContent.innerHTML = '<p class="text-center text-gray-500">Cargando tus predicciones...</p>';
+            }
+            // Hide edit button again
+            const editButton = document.getElementById('editPredictionsButton');
+            if (editButton) {
+                editButton.classList.add('hidden');
+            }
+        }
+    }
+}
+</script>

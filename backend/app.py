@@ -5114,6 +5114,71 @@ def get_race_results_modal_content(race_id):
     return render_template('_race_results_modal_content.html', race=race, results=race_results)
 
 
+@app.route('/race/<int:race_id>/user_predictions_modal_content', methods=['GET'])
+@login_required
+def get_user_predictions_modal_content(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first_or_404()
+
+    user_answers_data = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race_id).all()
+
+    questions_in_race = Question.query.filter_by(race_id=race_id, is_active=True).order_by(Question.id).all()
+
+    questions_and_answers_list = []
+    user_answers_map = {ua.question_id: ua for ua in user_answers_data}
+
+    question_type_display_map = {
+        'FREE_TEXT': 'Texto Libre',
+        'MULTIPLE_CHOICE': 'Opción Múltiple',
+        'ORDERING': 'Ordenar',
+        'SLIDER': 'Deslizador'
+    }
+
+    for q in questions_in_race:
+        user_answer_obj = user_answers_map.get(q.id)
+        user_answer_formatted = None
+        is_mc_multiple_correct_val = None # For passing to template if question is MC
+
+        if user_answer_obj:
+            if q.question_type.name == 'MULTIPLE_CHOICE':
+                is_mc_multiple_correct_val = q.is_mc_multiple_correct
+                if q.is_mc_multiple_correct:
+                    # Fetch selected options text
+                    selected_options = []
+                    for sel_opt_assoc in user_answer_obj.selected_mc_options:
+                        option_obj = QuestionOption.query.get(sel_opt_assoc.question_option_id)
+                        if option_obj:
+                            selected_options.append({"id": option_obj.id, "text": option_obj.option_text})
+                    user_answer_formatted = selected_options # List of dicts
+                else: # Single choice
+                    if user_answer_obj.selected_option_id:
+                        option_obj = QuestionOption.query.get(user_answer_obj.selected_option_id)
+                        if option_obj:
+                            user_answer_formatted = {"id": option_obj.id, "text": option_obj.option_text} # Dict
+            elif q.question_type.name == 'ORDERING':
+                user_answer_formatted = user_answer_obj.answer_text # Comma-separated string of texts
+            elif q.question_type.name == 'SLIDER':
+                user_answer_formatted = user_answer_obj.slider_answer_value # Float or None
+            else: # FREE_TEXT
+                user_answer_formatted = user_answer_obj.answer_text
+
+        questions_and_answers_list.append({
+            "question_id": q.id,
+            "question_text": q.text,
+            "question_type": q.question_type.name,
+            "question_type_display": question_type_display_map.get(q.question_type.name, q.question_type.name),
+            "user_answer_formatted": user_answer_formatted,
+            "is_mc_multiple_correct": is_mc_multiple_correct_val,
+            "slider_unit": q.slider_unit if q.question_type.name == 'SLIDER' else None
+        })
+
+    return render_template('_user_predictions_modal_content.html',
+                           questions_and_answers=questions_and_answers_list,
+                           race_title=race.title,
+                           race_id=race.id,
+                           quiniela_closed=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
+                           )
+
+
 # The route /league/<int:league_id>/generate_join_code has been removed as per the plan.
 
 @app.route('/league/join_with_code', methods=['POST'])
