@@ -5086,7 +5086,8 @@ def view_league_detail(league_id):
                            # participant_race_details=participant_race_details, # Ya no se pasa directamente
                            race_analysis_details=race_analysis_details_for_js, # Nueva variable para el JS
                            race_background_colors=race_background_colors,
-                           current_year=datetime.utcnow().year)
+                           current_year=datetime.utcnow().year, # This was already here
+                           current_time_utc=now) # Use 'now' which was defined as datetime.utcnow()
 
 
 @app.route('/race/<int:race_id>/results_modal_content', methods=['GET'])
