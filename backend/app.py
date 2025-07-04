@@ -5100,7 +5100,6 @@ def get_race_results_modal_content(race_id):
     leaderboard_data = db.session.query(
         UserScore.user_id,
         User.username,
-        User.avatar_url, # Added avatar_url
         UserScore.score
     ).join(User, UserScore.user_id == User.id)\
      .filter(UserScore.race_id == race_id)\
@@ -5108,7 +5107,7 @@ def get_race_results_modal_content(race_id):
      .all()
 
     race_results = [
-        {"user_id": item.user_id, "username": item.username, "score": item.score, "avatar_url": item.avatar_url}
+        {"user_id": item.user_id, "username": item.username, "score": item.score}
         for item in leaderboard_data
     ]
     # Render a PARTIAL template that only contains the content for the modal's body
