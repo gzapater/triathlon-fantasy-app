@@ -89,24 +89,6 @@
 
     <!-- Contenido Principal (ahora solo contiene lo que no es Hero) -->
     <main class="p-4 sm:p-6 lg:p-8">
-        {# Section for non-admins to join league if not participant #}
-        {% if league.is_active and not current_user_is_participant and not current_user_is_creator_or_admin %}
-        <div class="my-6 bg-white p-6 rounded-xl shadow-md flex flex-col justify-center items-center">
-            <h3 class="text-xl font-semibold text-gray-700 mb-3">Unirse a la Liga</h3>
-            <p class="text-sm text-gray-600 mb-4">Si tienes un código de invitación, puedes unirte a esta liga.</p>
-            <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')"
-                    class="btn-success text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
-                <i class="fas fa-user-plus mr-2"></i>Unirme con Código de Invitación
-            </button>
-        </div>
-        {% elif current_user_is_participant %}
-        <div class="my-6 bg-green-50 p-4 rounded-lg shadow">
-            <p class="text-green-700 font-semibold flex items-center text-center justify-center">
-                <i class="fas fa-check-circle mr-2 text-xl"></i>Ya eres participante de esta liga.
-            </p>
-        </div>
-        {% endif %}
-
 
         <!-- Carreras y Clasificación en un grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
