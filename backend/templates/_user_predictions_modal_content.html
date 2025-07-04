@@ -4,8 +4,21 @@
     <div class="space-y-4">
         {% for item in questions_and_answers %}
             <div class="p-3 bg-gray-50 rounded-lg shadow-sm">
-                <p class="font-semibold text-gray-700">{{ loop.index }}. {{ item.question_text }}</p>
-                <p class="text-sm text-gray-500 italic mb-1">Tipo: {{ item.question_type_display }}</p>
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="font-semibold text-gray-700">{{ loop.index }}. {{ item.question_text }}</p>
+                        <p class="text-sm text-gray-500 italic mb-1">Tipo: {{ item.question_type_display }}</p>
+                    </div>
+                    {% if not quiniela_is_closed %}
+                    <button class="ml-2 text-xs bg-orange-500 hover:bg-orange-600 text-white py-1 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-400 edit-single-question-button"
+                            data-question-id="{{ item.question_id }}"
+                            data-race-id="{{ race_id }}"
+                            data-race-name="{{ race_title }}"
+                            title="Editar/Responder esta pregunta">
+                        <i class="fas fa-edit mr-1"></i> {{ "Editar" if item.user_answer_formatted else "Responder" }}
+                    </button>
+                    {% endif %}
+                </div>
 
                 {% if item.user_answer_formatted is not none and item.user_answer_formatted != "" %}
                     <div class="pl-4 mt-1">

@@ -598,6 +598,8 @@
                                 editButton.classList.add('hidden');
                             }
                         }
+                        // Add event listeners for the new "Edit/Answer" buttons within the modal
+                        attachEditSingleQuestionButtonListeners(isQuinielaClosed);
                     })
                     .catch(error => {
                         console.error('Error fetching user predictions:', error);
@@ -611,6 +613,28 @@
             if (modal) {
                 modal.classList.remove('hidden');
             }
+        }
+
+        function attachEditSingleQuestionButtonListeners(isQuinielaClosed) {
+            if (isQuinielaClosed) return; // Don't attach if quiniela is closed
+
+            const buttons = document.querySelectorAll('.edit-single-question-button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const raceId = this.dataset.raceId;
+                    const raceName = this.dataset.raceName;
+                    const questionId = this.dataset.questionId;
+
+                    // Close the current "UserPredictionsModal"
+                    closeUserPredictionsModal();
+
+                    // Open the "AnswerQuinielaModal" and scroll to the question
+                    // The 'hasPredictions' and 'pendingCount' arguments for openAnswerQuinielaModal
+                    // are not strictly necessary for this direct jump, but we can pass defaults or fetch.
+                    // For simplicity, using true for hasPredictions (as we are editing) and 0 for pending.
+                    openAnswerQuinielaModal(raceId, raceName, true, 0, questionId);
+                });
+            });
         }
 
         function closeUserPredictionsModal() {
@@ -635,9 +659,11 @@
         const answerQuinielaForm = document.getElementById('answerQuinielaForm');
         const answerQuinielaModalError = document.getElementById('answerQuinielaModalError');
         let currentAnsweringRaceId = null;
+        let questionToFocus = null; // Variable to store the ID of the question to focus/scroll to
 
-        function openAnswerQuinielaModal(raceId, raceName, hasPredictions, pendingCount) {
+        function openAnswerQuinielaModal(raceId, raceName, hasPredictions, pendingCount, targetQuestionId = null) {
             currentAnsweringRaceId = raceId;
+            questionToFocus = targetQuestionId; // Store the target question ID
             answerQuinielaModalTitle.textContent = `${hasPredictions ? 'Editar' : 'Responder'} Quiniela: ${raceName}`;
             answerQuinielaModalContent.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando preguntas...</p></div>';
             answerQuinielaModalError.classList.add('hidden');
@@ -655,10 +681,11 @@
                         return;
                     }
                     document.getElementById('saveQuinielaPredictionsButton').classList.remove('hidden');
-                    renderQuinielaForm(data.questions);
+                    renderQuinielaForm(data.questions, questionToFocus); // Pass questionToFocus
                 })
                 .catch(error => {
                     console.error('Error fetching quiniela form content:', error);
+                    questionToFocus = null; // Reset on error
                     answerQuinielaModalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar el formulario de la quiniela: ${error.message}</p>`;
                     document.getElementById('saveQuinielaPredictionsButton').classList.add('hidden');
                 });
@@ -666,7 +693,7 @@
             answerQuinielaModal.classList.remove('hidden');
         }
 
-        function renderQuinielaForm(questions) {
+        function renderQuinielaForm(questions, targetQuestionId) {
             answerQuinielaModalContent.innerHTML = ''; // Clear loading spinner
             if (!questions || questions.length === 0) {
                 answerQuinielaModalContent.innerHTML = '<p class="text-gray-600">No hay preguntas disponibles para esta quiniela.</p>';
@@ -759,17 +786,34 @@
                     optionsList.innerHTML = '<strong>Opciones disponibles:</strong> ' + q.options.map(opt => opt.option_text).join(', ');
                     questionDiv.appendChild(optionsList);
                 }
+                questionDiv.setAttribute('data-question-form-id', q.id); // Add data attribute for scrolling
                 answerQuinielaModalContent.appendChild(questionDiv);
             });
+
+            if (targetQuestionId) {
+                // Scroll to the target question if specified
+                const targetQuestionElement = answerQuinielaModalContent.querySelector(`[data-question-form-id="${targetQuestionId}"]`);
+                if (targetQuestionElement) {
+                    // Delay slightly to ensure modal is fully rendered and visible before scrolling
+                    setTimeout(() => {
+                        targetQuestionElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Optionally, add a visual highlight
+                        targetQuestionElement.classList.add('ring-2', 'ring-orange-500', 'transition-all', 'duration-300');
+                        setTimeout(() => targetQuestionElement.classList.remove('ring-2', 'ring-orange-500'), 2000);
+                    }, 100);
+                }
+                questionToFocus = null; // Reset after attempting to focus
+            }
         }
 
         function closeAnswerQuinielaModal() {
             answerQuinielaModal.classList.add('hidden');
-            answerQuinielaModalContent.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando preguntas...</p></div>';
+            answerQuinielaModalContent.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando preguntas...</p></div>'; // Reset content
             answerQuinielaModalError.classList.add('hidden');
             answerQuinielaModalError.textContent = '';
             currentAnsweringRaceId = null;
-            document.getElementById('saveQuinielaPredictionsButton').classList.remove('hidden'); // Ensure button is visible for next opening
+            questionToFocus = null; // Reset focused question on close
+            document.getElementById('saveQuinielaPredictionsButton').classList.remove('hidden');
         }
 
         if (answerQuinielaForm) {
