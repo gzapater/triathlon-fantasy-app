@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>{% block title %}TriPredict{% endblock %}</title>
+
+    <!-- Enlaces a CSS y Fuentes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+    </style>
+
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- 1. HEADER GLOBAL (Fijo) -->
+    <header class="bg-gray-800 text-white shadow-lg sticky top-0 z-30">
+        <nav class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="#">
+                        <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g><path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+                            <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text>
+                        </svg>
+                    </a>
+                    <div class="hidden md:flex items-baseline space-x-6">
+                         <a href="#" class="text-white bg-gray-900 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                         <a href="#" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Buscar Carreras</a>
+                         <a href="#" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Ligas</a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <div class="text-right">
+                        <p class="text-white font-medium">goroplayer</p>
+                        <span class="text-xs text-orange-300">Jugador</span>
+                    </div>
+                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=500" alt="Avatar" class="w-10 h-10 rounded-full ml-4 border-2 border-orange-500">
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Contenedor principal que envuelve el contenido dinámico -->
+    <div class="flex-grow">
+        <!-- ================================================================== -->
+        <!-- 2. HERO SECTION (Estructura Fija)                                -->
+        <!-- La franja naranja siempre estará presente.                       -->
+        <!-- ================================================================== -->
+        <div class="bg-orange-500 text-white shadow-md">
+           <div class="max-w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+                <!-- El contenido específico del hero se inserta aquí -->
+                {% block hero_content %}{% endblock %}
+           </div>
+        </div>
+
+        <!-- ================================================================== -->
+        <!-- 3. CONTENIDO PRINCIPAL                                             -->
+        <!-- Este es el bloque principal que cada página DEBE rellenar.        -->
+        <!-- ================================================================== -->
+        <main class="p-4 sm:p-6 lg:p-8">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- 4. FOOTER GLOBAL (Fijo) -->
+    <footer class="bg-gray-800 text-white">
+        <!-- ... contenido del footer ... -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="text-center text-sm text-gray-400">
+                <p>&copy; 2025 TriPredict. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bloque para añadir scripts al final del body -->
+    {% block scripts %}{% endblock %}
+
+</body>
+</html>
