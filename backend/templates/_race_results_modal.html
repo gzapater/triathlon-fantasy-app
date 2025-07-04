@@ -1,0 +1,65 @@
+<!-- Modal structure for displaying race results -->
+<div id="raceResultsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full transform transition-all">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="raceResultsModalTitle" class="text-lg font-medium text-gray-900">Clasificación de la Carrera</h3>
+                <button onclick="closeRaceResultsModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div id="raceResultsModalContent" class="my-4">
+                <!-- Race results will be loaded here -->
+                <p class="text-center text-gray-500">Cargando resultados...</p>
+            </div>
+            <div class="flex items-center justify-end mt-6">
+                <button type="button" onclick="closeRaceResultsModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg font-medium transition-colors">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// JavaScript function to close the modal - will be defined globally or in the parent page
+// For now, this is a placeholder if this partial is included directly and needs its own script.
+// Ideally, the parent page including this would manage the open/close functions.
+if (typeof closeRaceResultsModal === 'undefined') {
+    function closeRaceResultsModal() {
+        const modal = document.getElementById('raceResultsModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+    }
+}
+if (typeof openRaceResultsModal === 'undefined') {
+    function openRaceResultsModal(raceId, raceName) { // raceId and raceName can be used to fetch/display specific data
+        const modal = document.getElementById('raceResultsModal');
+        const modalTitle = document.getElementById('raceResultsModalTitle');
+        const modalContent = document.getElementById('raceResultsModalContent');
+
+        if (modalTitle) {
+            modalTitle.textContent = `Clasificación de: ${raceName}`;
+        }
+        if (modalContent) {
+            // Placeholder: Indicate loading. Actual content fetching will be handled by the parent page's JS
+            modalContent.innerHTML = '<p class="text-center text-gray-500">Cargando resultados...</p>';
+            // Example: Fetch content (this part will be more complex and handled by league_detail_view.html's JS)
+            // fetch(`/race/${raceId}/results_modal_content`) // This URL is just an example
+            //     .then(response => response.text())
+            //     .then(html => {
+            //         modalContent.innerHTML = html;
+            //     })
+            //     .catch(error => {
+            //         console.error('Error fetching race results:', error);
+            //         modalContent.innerHTML = '<p class="text-center text-red-500">Error al cargar los resultados.</p>';
+            //     });
+        }
+
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+}
+</script>

@@ -5059,6 +5059,19 @@ def view_league_detail(league_id):
         "#fffacd",  # LemonChiffon
     ]
 
+    # Fetch user predictions map for the current user in this league
+    user_predictions_map = {}
+    if current_user.is_authenticated:
+        for race_in_league in league_races_detailed:
+            # Check if UserAnswer exists for this user, for this race
+            # This assumes UserAnswer implies a prediction. Adjust if prediction is stored differently.
+            prediction_exists = UserAnswer.query.filter_by(
+                user_id=current_user.id,
+                race_id=race_in_league.id
+            ).first()
+            if prediction_exists:
+                user_predictions_map[race_in_league.id] = True
+
 
     return render_template('league_detail_view.html',
                            league=league,
@@ -5069,10 +5082,38 @@ def view_league_detail(league_id):
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
                            league_standings=league_standings,
+                           user_predictions_map=user_predictions_map, # Pass this to the template
                            # participant_race_details=participant_race_details, # Ya no se pasa directamente
                            race_analysis_details=race_analysis_details_for_js, # Nueva variable para el JS
                            race_background_colors=race_background_colors,
                            current_year=datetime.utcnow().year)
+
+
+@app.route('/race/<int:race_id>/results_modal_content', methods=['GET'])
+@login_required
+def get_race_results_modal_content(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first_or_404()
+    # Similar logic to get_quiniela_leaderboard, but might need more details or different formatting
+    # For now, let's assume it's the same as the leaderboard structure.
+    # You might want to pass the race object to the template as well if needed.
+
+    leaderboard_data = db.session.query(
+        UserScore.user_id,
+        User.username,
+        User.avatar_url, # Added avatar_url
+        UserScore.score
+    ).join(User, UserScore.user_id == User.id)\
+     .filter(UserScore.race_id == race_id)\
+     .order_by(UserScore.score.desc(), User.username.asc())\
+     .all()
+
+    race_results = [
+        {"user_id": item.user_id, "username": item.username, "score": item.score, "avatar_url": item.avatar_url}
+        for item in leaderboard_data
+    ]
+    # Render a PARTIAL template that only contains the content for the modal's body
+    return render_template('_race_results_modal_content.html', race=race, results=race_results)
+
 
 # The route /league/<int:league_id>/generate_join_code has been removed as per the plan.
 

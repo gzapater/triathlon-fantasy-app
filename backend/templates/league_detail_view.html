@@ -133,7 +133,7 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
-                                        <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></a>
+                                        <button onclick="openRaceResultsModal('{{ race.id }}', '{{ race.title }}')" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></button>
                                         {# Assuming 'make_prediction_page' and 'view_prediction_page' routes exist #}
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
                                             {# Check if user has made prediction for this race in this league #}
@@ -236,6 +236,9 @@
             </div>
         </div>
     </main>
+
+    <!-- Include the race results modal -->
+    {% include '_race_results_modal.html' %}
 
     {# Modal para unirse a la liga con código (similar al original) #}
     <div id="join-league-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
@@ -500,6 +503,51 @@
             countdownInterval = setInterval(updateCountdown, 60000); // Update every minute
         } else {
              countdownElement.textContent = "N/A"; // Default if no date
+        }
+
+        // Functions for Race Results Modal
+        function openRaceResultsModal(raceId, raceName) {
+            const modal = document.getElementById('raceResultsModal');
+            const modalTitle = document.getElementById('raceResultsModalTitle');
+            const modalContent = document.getElementById('raceResultsModalContent');
+
+            if (modalTitle) {
+                modalTitle.textContent = `Clasificación de: ${raceName}`;
+            }
+            if (modalContent) {
+                modalContent.innerHTML = '<p class="text-center text-gray-500">Cargando resultados...</p>';
+                // Fetch results from the backend
+                fetch(`/race/${raceId}/results_modal_content`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(html => {
+                        modalContent.innerHTML = html;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching race results:', error);
+                        modalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar los resultados. ${error.message}</p>`;
+                    });
+            }
+
+            if (modal) {
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeRaceResultsModal() {
+            const modal = document.getElementById('raceResultsModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                // Optional: Clear content when closing
+                const modalContent = document.getElementById('raceResultsModalContent');
+                if (modalContent) {
+                    modalContent.innerHTML = '';
+                }
+            }
         }
 
     </script>
