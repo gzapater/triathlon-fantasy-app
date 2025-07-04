@@ -320,7 +320,7 @@
                         </button>
                     </div>
                     {% if invitation_code.expires_at %}
-                    <p class="text-xs text-gray-500 mt-2">Expira: {{ invitation_code.expires_at|format_datetime_filter }}</p>
+                    <p class="text-xs text-gray-500 mt-2">Expira: {{ invitation_code.expires_at|format_date_filter('%d %b %Y %H:%M') }}</p>
                     {% else %}
                     <p class="text-xs text-gray-500 mt-2">Este código no expira.</p>
                     {% endif %}
