@@ -172,10 +172,53 @@
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
                                             {# Only show if the race is open for participation and quiniela is not closed #}
                                             {% if not quiniela_is_closed %}
-                                            <button onclick="openParticipateWizardModal('{{ race.id }}', '{{ race.title }}')"
-                                                    class="text-blue-600 hover:text-blue-800 font-bold"
-                                                    title="Participar en esta Carrera">
-                                                <i class="fas fa-pencil-alt"></i> {# Icon for participation #}
+                                            {# Button to open the quiniela modal for participation/editing #}
+                                            {# This replaces the previous "Participar en esta Carrera" button and uses the existing quiniela modal #}
+                                            {# The existing "Responder/Editar Quiniela" button already serves this purpose.
+                                               If a distinct "Participar" button is still desired despite having an "Responder/Editar" button,
+                                               it would also call openAnswerQuinielaModal.
+                                               For now, I assume the existing button is sufficient.
+                                               The original request was to "add a new action button".
+                                               The existing "Responder/Editar Quiniela" button is already an action button.
+                                               If the user wants a *second, visually distinct* button that does essentially the same,
+                                               we can add it. Otherwise, the existing button should cover the use case.
+
+                                               Let's assume for now the existing "Responder/Editar Quiniela" button (with fa-edit icon)
+                                               is the primary action button for participation. The request was to add a *new* button.
+                                               This new button will also call openAnswerQuinielaModal.
+                                               The user might want this if the "fa-edit" icon is confusing for initial participation.
+                                            #}
+                                            {# The existing button is:
+                                            <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})"
+                                                    class="text-orange-600 hover:text-orange-800 font-bold relative"
+                                                    title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
+                                                <i class="fas fa-edit"></i>
+                                                ...
+                                            </button>
+                                            We are adding a NEW button. This new button can simply be a duplicate of the above,
+                                            or styled differently. The request specified "un nuevo boton de accion".
+                                            Let's make it visually distinct if it's truly a *new* button.
+                                            However, the core functionality (opening the quiniela modal) will be the same.
+                                            Given the prompt, it seems the user wants a clear "Participate" call to action.
+                                            The existing button's title changes based on context. A new button can be static.
+
+                                            Re-evaluating: The request is "añadas un nuevo boton de accion".
+                                            The simplest interpretation is to ensure *a* button exists that allows participation,
+                                            and that it opens a modal for the wizard.
+                                            The existing "Responder/Editar Quiniela" button already does this.
+                                            If the goal is to change *that* button or add a *different* one, clarification would be good.
+
+                                            Let's assume the previous "pencil-alt" button for "Participar" should now call
+                                            the correct modal.
+                                            The original request: "en la pagina league_detail_view en la seccion de carreras en esta liga necesito que añadas un nuevo boton de accion que al pulsarlo abra un modal que te lleve al wizard de participar en una carrera."
+                                            The modal `answerQuinielaModal` IS the wizard.
+                                            So, the button I added previously was correct in intent, but called the wrong JS function.
+                                            I will correct its onclick.
+                                            #}
+                                            <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_predictions_status.get(race.id).exists else 'false' }}, {{ user_predictions_status.get(race.id).pending_count if user_predictions_status.get(race.id).exists else 0 }})"
+                                                    class="text-blue-600 hover:text-blue-800 font-bold ml-2" {# Added ml-2 for spacing from other buttons #}
+                                                    title="Participar en Quiniela">
+                                                <i class="fas fa-pencil-alt"></i> {# Icon for participation / wizard #}
                                             </button>
                                             {% endif %}
                                         {% endif %}
@@ -269,45 +312,8 @@
     {% include '_race_results_modal.html' %}
     <!-- Include the user predictions modal -->
     {% include '_user_predictions_modal.html' %}
-
-    <!-- Modal for Race Participation Wizard -->
-    <div id="participateWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4 transition-opacity duration-300 ease-in-out">
-        <div class="bg-white rounded-lg shadow-xl transform transition-all sm:max-w-lg sm:w-full opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-             id="participateWizardModalDialog">
-            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 rounded-t-lg">
-                <div class="sm:flex sm:items-start">
-                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <i class="fas fa-question-circle text-xl text-blue-600"></i>
-                    </div>
-                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="participateWizardModalTitle">
-                            Participar en Carrera
-                        </h3>
-                        <div class="mt-4" id="participateWizardModalContent">
-                            <!-- Question content will be loaded here by JavaScript -->
-                            <p class="text-sm text-gray-500">Cargando pregunta...</p>
-                        </div>
-                        <div class="mt-2 hidden" id="participateWizardModalError">
-                            <p class="text-sm text-red-600"></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg">
-                <button type="button"
-                        id="participateWizardNextButton"
-                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                    Siguiente
-                </button>
-                <button type="button"
-                        onclick="closeParticipateWizardModal()"
-                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
-                    Cerrar
-                </button>
-            </div>
-        </div>
-    </div>
-    <!-- End Modal for Race Participation Wizard -->
+    <!-- Include the answer quiniela modal -->
+    {% include '_answer_quiniela_modal.html' %}
 
     {# Modal para unirse a la liga con código (similar al original) #}
     <div id="join-league-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
