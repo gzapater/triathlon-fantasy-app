@@ -5193,6 +5193,76 @@ def get_user_predictions_modal_content(race_id):
                            quiniela_closed=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
                            )
 
+@app.route('/race/<int:race_id>/quiniela_form_content', methods=['GET'])
+@login_required
+def get_quiniela_form_content(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first_or_404()
+
+    if not (race.status == RaceStatus.PLANNED or race.status == RaceStatus.ACTIVE):
+        # Or if quiniela is past close date, though client-side should also prevent opening
+        if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+             return jsonify(message="La quiniela para esta carrera está cerrada."), 403
+        # For other statuses like ARCHIVED, also deny.
+        return jsonify(message="La quiniela para esta carrera no está activa o planificada."), 403
+
+
+    questions_query = Question.query.filter_by(race_id=race.id, is_active=True).order_by(Question.id).all()
+
+    user_answers_query = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race.id).all()
+    user_answers_map = {ua.question_id: ua for ua in user_answers_query}
+
+    questions_data_for_form = []
+    for q in questions_query:
+        question_info = {
+            "id": q.id,
+            "text": q.text,
+            "question_type": q.question_type.name,
+            "options": [],
+            "user_answer": None, # Will hold the user's specific answer for this question
+            # Add type-specific attributes needed for rendering the form (e.g., slider params)
+            "slider_unit": q.slider_unit,
+            "slider_min_value": q.slider_min_value,
+            "slider_max_value": q.slider_max_value,
+            "slider_step": q.slider_step,
+            "is_mc_multiple_correct": q.is_mc_multiple_correct
+        }
+
+        # Add options if MC or Ordering
+        if q.question_type.name == "MULTIPLE_CHOICE" or q.question_type.name == "ORDERING":
+            # For ordering, options are the items to be ordered. For MC, they are choices.
+            # Order options by ID for consistent rendering, or by a specific order if available.
+            # For Ordering questions, `correct_order_index` is for the *official* answer, not user display order.
+            # We'll just present options by their ID or creation order for the user to interact with.
+            q_options = QuestionOption.query.filter_by(question_id=q.id).order_by(QuestionOption.id).all()
+            question_info["options"] = [{"id": opt.id, "option_text": opt.option_text} for opt in q_options]
+
+        # Populate user's existing answer for this question
+        user_answer_obj = user_answers_map.get(q.id)
+        if user_answer_obj:
+            if q.question_type.name == 'FREE_TEXT':
+                question_info["user_answer"] = user_answer_obj.answer_text
+            elif q.question_type.name == 'MULTIPLE_CHOICE':
+                if q.is_mc_multiple_correct:
+                    question_info["user_answer"] = [sel_opt.question_option_id for sel_opt in user_answer_obj.selected_mc_options]
+                else:
+                    question_info["user_answer"] = user_answer_obj.selected_option_id
+            elif q.question_type.name == 'ORDERING':
+                # User's answer_text for ordering is a comma-separated string of option *texts*.
+                # The form will need to handle this, perhaps by re-matching texts to option IDs if IDs are submitted.
+                # Or, the form could submit texts directly as per current UserAnswer model for ordering.
+                question_info["user_answer"] = user_answer_obj.answer_text
+            elif q.question_type.name == 'SLIDER':
+                question_info["user_answer"] = user_answer_obj.slider_answer_value
+
+        questions_data_for_form.append(question_info)
+
+    return jsonify({
+        "race_id": race.id,
+        "race_title": race.title,
+        "questions": questions_data_for_form,
+        "quiniela_closed": (race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
+    })
+
 
 # The route /league/<int:league_id>/generate_join_code has been removed as per the plan.
 

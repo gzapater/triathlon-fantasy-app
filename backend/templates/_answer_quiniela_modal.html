@@ -1,0 +1,61 @@
+<!-- Modal structure for Answering/Editing Quiniela -->
+<div id="answerQuinielaModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full transform transition-all"> {# Increased max-width for more space #}
+        <form id="answerQuinielaForm">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 id="answerQuinielaModalTitle" class="text-xl font-semibold text-gray-900">Responder Quiniela</h3>
+                    <button type="button" onclick="closeAnswerQuinielaModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <div id="answerQuinielaModalContent" class="my-4 max-h-[60vh] overflow-y-auto pr-2 space-y-6">
+                    {# Form content (questions and inputs) will be dynamically loaded here by JavaScript #}
+                    <div class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i>
+                        <p class="mt-2 text-gray-600">Cargando preguntas...</p>
+                    </div>
+                </div>
+
+                <div id="answerQuinielaModalError" class="text-red-500 text-sm my-2 hidden"></div>
+
+                <div class="flex items-center justify-end mt-6 space-x-3 border-t pt-4">
+                    <button type="button" onclick="closeAnswerQuinielaModal()" class="px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="saveQuinielaPredictionsButton" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium transition-colors flex items-center">
+                        <i class="fas fa-save mr-2"></i>Guardar Predicciones
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{#
+JavaScript functions for this modal (openAnswerQuinielaModal, closeAnswerQuinielaModal, form submission)
+will be primarily in league_detail_view.html.
+A basic close function might be defined here only as a fallback if this partial were ever included standalone,
+but for this project, it's not strictly necessary as league_detail_view.html will manage it.
+#}
+<script>
+if (typeof closeAnswerQuinielaModal === 'undefined') {
+    function closeAnswerQuinielaModal() {
+        const modal = document.getElementById('answerQuinielaModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            const modalContent = document.getElementById('answerQuinielaModalContent');
+            if (modalContent) {
+                // Reset to loading state for next open
+                modalContent.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando preguntas...</p></div>';
+            }
+            const errorDiv = document.getElementById('answerQuinielaModalError');
+            if (errorDiv) {
+                errorDiv.classList.add('hidden');
+                errorDiv.textContent = '';
+            }
+        }
+    }
+}
+</script>

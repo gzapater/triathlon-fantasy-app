@@ -137,43 +137,36 @@
                                         {# Assuming 'make_prediction_page' and 'view_prediction_page' routes exist #}
                                         {% set prediction_status = user_predictions_status.get(race.id) %}
                                         {% set user_prediction_exists = prediction_status.exists if prediction_status else false %}
+                                        {% set prediction_status = user_predictions_status.get(race.id) %}
+                                        {% set user_prediction_exists = prediction_status.exists if prediction_status else false %}
                                         {% set pending_count = prediction_status.pending_count if prediction_status and user_prediction_exists else 0 %}
                                         {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
 
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                                            {# Quiniela is Open (Planned or Active) #}
-                                            {% if user_prediction_exists %}
-                                                <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', false)"
-                                                        class="text-orange-600 hover:text-orange-800 font-bold relative"
-                                                        title="Ver mi Quiniela">
-                                                    <i class="fas fa-poll-h"></i>
-                                                    {% if pending_count > 0 %}
-                                                        <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full">{{ pending_count }}</span>
-                                                    {% endif %}
-                                                </button>
-                                            {% else %}
-                                                <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion"
-                                                   class="text-orange-600 hover:text-orange-800 font-bold relative"
-                                                   title="Hacer Pronóstico">
-                                                    <i class="fas fa-poll-h"></i>
-                                                </a>
-                                            {% endif %}
+                                            {# Quiniela is Open: Show "Responder/Editar Quiniela" button #}
+                                            <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})"
+                                                    class="text-orange-600 hover:text-orange-800 font-bold relative"
+                                                    title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
+                                                <i class="fas fa-edit"></i> {# Using fa-edit icon #}
+                                                {% if user_prediction_exists and pending_count > 0 %}
+                                                    <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
+                                                {% endif %}
+                                            </button>
+                                        {% elif user_prediction_exists %}
+                                            {# Quiniela is Closed, but user made predictions: Show "Ver mi Quiniela" (read-only) #}
+                                            {# This now uses the openUserPredictionsModal to show already submitted answers, edit button will be hidden by JS #}
+                                            <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', true)"
+                                                    class="text-gray-400 hover:text-orange-600 font-bold"
+                                                    title="Ver mi Quiniela (Cerrada)">
+                                                <i class="fas fa-eye"></i> {# Changed icon to fa-eye for clarity #}
+                                            </button>
                                         {% else %}
-                                            {# Quiniela is Closed (or other status) #}
-                                            {% if user_prediction_exists %}
-                                                <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', true)"
-                                                        class="text-gray-400 hover:text-orange-600 font-bold"
-                                                        title="Ver mi Quiniela (Cerrada)">
-                                                    <i class="fas fa-poll-h"></i>
-                                                </button>
-                                            {% else %}
-                                                <span class="text-gray-400 cursor-not-allowed" title="Quiniela cerrada y no participaste">
-                                                    <i class="fas fa-poll-h"></i>
-                                                </span>
-                                            {% endif %}
-                                        {% endif %} {# Closes the main if on race.status.value #}
-
-                                        <a href="#participantes-race-{{race.id}}" class="text-gray-400 hover:text-orange-600" title="Ver Participantes de Carrera (dummy)"><i class="fas fa-users"></i></a>
+                                            {# Quiniela is Closed, and user did NOT make predictions #}
+                                            <span class="text-gray-400 cursor-not-allowed" title="Quiniela cerrada y no participaste">
+                                                <i class="fas fa-times-circle"></i> {# Changed icon #}
+                                            </span>
+                                        {% endif %}
+                                        {# The "Ver Participantes" link is removed as per the new requirement #}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -634,6 +627,234 @@
                 }
             }
         }
+
+        // --- Answer/Edit Quiniela Modal JavaScript ---
+        const answerQuinielaModal = document.getElementById('answerQuinielaModal');
+        const answerQuinielaModalTitle = document.getElementById('answerQuinielaModalTitle');
+        const answerQuinielaModalContent = document.getElementById('answerQuinielaModalContent');
+        const answerQuinielaForm = document.getElementById('answerQuinielaForm');
+        const answerQuinielaModalError = document.getElementById('answerQuinielaModalError');
+        let currentAnsweringRaceId = null;
+
+        function openAnswerQuinielaModal(raceId, raceName, hasPredictions, pendingCount) {
+            currentAnsweringRaceId = raceId;
+            answerQuinielaModalTitle.textContent = `${hasPredictions ? 'Editar' : 'Responder'} Quiniela: ${raceName}`;
+            answerQuinielaModalContent.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando preguntas...</p></div>';
+            answerQuinielaModalError.classList.add('hidden');
+            answerQuinielaModalError.textContent = '';
+
+            fetch(`/race/${raceId}/quiniela_form_content`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.quiniela_closed) {
+                        answerQuinielaModalContent.innerHTML = '<p class="text-center text-red-500">La quiniela para esta carrera ya está cerrada. No puedes modificar tus respuestas.</p>';
+                        document.getElementById('saveQuinielaPredictionsButton').classList.add('hidden');
+                        return;
+                    }
+                    document.getElementById('saveQuinielaPredictionsButton').classList.remove('hidden');
+                    renderQuinielaForm(data.questions);
+                })
+                .catch(error => {
+                    console.error('Error fetching quiniela form content:', error);
+                    answerQuinielaModalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar el formulario de la quiniela: ${error.message}</p>`;
+                    document.getElementById('saveQuinielaPredictionsButton').classList.add('hidden');
+                });
+
+            answerQuinielaModal.classList.remove('hidden');
+        }
+
+        function renderQuinielaForm(questions) {
+            answerQuinielaModalContent.innerHTML = ''; // Clear loading spinner
+            if (!questions || questions.length === 0) {
+                answerQuinielaModalContent.innerHTML = '<p class="text-gray-600">No hay preguntas disponibles para esta quiniela.</p>';
+                document.getElementById('saveQuinielaPredictionsButton').classList.add('hidden');
+                return;
+            }
+
+            questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('mb-6', 'p-4', 'border', 'rounded-md', 'shadow-sm');
+                questionDiv.innerHTML = `<label class="block text-md font-semibold text-gray-800 mb-2">${index + 1}. ${q.text}</label>`;
+
+                if (q.question_type === 'FREE_TEXT') {
+                    const input = document.createElement('textarea');
+                    input.name = `q_${q.id}`;
+                    input.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
+                    input.rows = 2;
+                    input.value = q.user_answer || '';
+                    questionDiv.appendChild(input);
+                } else if (q.question_type === 'MULTIPLE_CHOICE') {
+                    const optionsContainer = document.createElement('div');
+                    optionsContainer.classList.add('space-y-2', 'mt-2');
+                    q.options.forEach(opt => {
+                        const optionDiv = document.createElement('div');
+                        optionDiv.classList.add('flex', 'items-center');
+                        const input = document.createElement('input');
+                        input.type = q.is_mc_multiple_correct ? 'checkbox' : 'radio';
+                        input.name = `q_${q.id}`;
+                        input.value = opt.id;
+                        input.id = `q_${q.id}_opt_${opt.id}`;
+                        input.classList.add('h-4', 'w-4', 'text-orange-600', 'border-gray-300', 'focus:ring-orange-500');
+
+                        if (q.is_mc_multiple_correct) {
+                            if (Array.isArray(q.user_answer) && q.user_answer.includes(opt.id)) {
+                                input.checked = true;
+                            }
+                        } else {
+                            if (q.user_answer === opt.id) {
+                                input.checked = true;
+                            }
+                        }
+
+                        const label = document.createElement('label');
+                        label.htmlFor = input.id;
+                        label.textContent = opt.option_text;
+                        label.classList.add('ml-2', 'block', 'text-sm', 'text-gray-700');
+
+                        optionDiv.appendChild(input);
+                        optionDiv.appendChild(label);
+                        optionsContainer.appendChild(optionDiv);
+                    });
+                    questionDiv.appendChild(optionsContainer);
+                } else if (q.question_type === 'SLIDER') {
+                    const sliderContainer = document.createElement('div');
+                    sliderContainer.classList.add('mt-2');
+                    const input = document.createElement('input');
+                    input.type = 'range';
+                    input.name = `q_${q.id}`;
+                    input.min = q.slider_min_value;
+                    input.max = q.slider_max_value;
+                    input.step = q.slider_step;
+                    input.value = q.user_answer !== null ? q.user_answer : (q.slider_min_value + q.slider_max_value) / 2; // Default to middle if no answer
+                    input.classList.add('w-full', 'h-2', 'bg-gray-200', 'rounded-lg', 'appearance-none', 'cursor-pointer', 'focus:outline-none', 'focus:ring-2', 'focus:ring-orange-500');
+
+                    const valueDisplay = document.createElement('span');
+                    valueDisplay.classList.add('ml-2', 'text-sm', 'text-gray-600');
+                    valueDisplay.textContent = `${input.value}${q.slider_unit || ''}`;
+                    input.oninput = () => { valueDisplay.textContent = `${input.value}${q.slider_unit || ''}`; };
+
+                    sliderContainer.appendChild(input);
+                    sliderContainer.appendChild(valueDisplay);
+                    questionDiv.appendChild(sliderContainer);
+                } else if (q.question_type === 'ORDERING') {
+                    // Basic text area for comma-separated values for now
+                    // A drag-and-drop UI would be more complex and is out of scope for this quick implementation.
+                    const helpText = document.createElement('p');
+                    helpText.textContent = 'Introduce los elementos en orden, separados por comas.';
+                    helpText.classList.add('text-xs', 'text-gray-500', 'mb-1');
+                    questionDiv.appendChild(helpText);
+
+                    const textarea = document.createElement('textarea');
+                    textarea.name = `q_${q.id}`;
+                    textarea.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
+                    textarea.rows = 3;
+                    textarea.value = q.user_answer || ''; // User answer is comma-separated string of texts
+                    questionDiv.appendChild(textarea);
+
+                    const optionsList = document.createElement('div');
+                    optionsList.classList.add('mt-2', 'text-xs', 'text-gray-500');
+                    optionsList.innerHTML = '<strong>Opciones disponibles:</strong> ' + q.options.map(opt => opt.option_text).join(', ');
+                    questionDiv.appendChild(optionsList);
+                }
+                answerQuinielaModalContent.appendChild(questionDiv);
+            });
+        }
+
+        function closeAnswerQuinielaModal() {
+            answerQuinielaModal.classList.add('hidden');
+            answerQuinielaModalContent.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando preguntas...</p></div>';
+            answerQuinielaModalError.classList.add('hidden');
+            answerQuinielaModalError.textContent = '';
+            currentAnsweringRaceId = null;
+            document.getElementById('saveQuinielaPredictionsButton').classList.remove('hidden'); // Ensure button is visible for next opening
+        }
+
+        if (answerQuinielaForm) {
+            answerQuinielaForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                if (!currentAnsweringRaceId) return;
+
+                const formData = new FormData(answerQuinielaForm);
+                const answersPayload = {};
+
+                // Iterate over questions that were rendered (present in modal content)
+                // to ensure we only collect data for displayed questions.
+                const renderedQuestions = answerQuinielaModalContent.querySelectorAll('[name^="q_"]');
+                const questionIdsProcessed = new Set();
+
+                renderedQuestions.forEach(inputElement => {
+                    const name = inputElement.name; // e.g., "q_123"
+                    const questionId = name.substring(2); // "123"
+
+                    if (questionIdsProcessed.has(questionId)) return; // Skip if already processed (for radio/checkbox groups)
+
+                    const questionDiv = inputElement.closest('.mb-6'); // Find parent question div to get type if needed
+                    // This is a simplified way; ideally, we'd iterate through the original `questions` data used for rendering.
+                    // For robust type checking, one might need to re-fetch question types or store them.
+                    // Here, we infer based on input types or rely on how data is structured.
+
+                    if (inputElement.type === 'radio') {
+                        const checkedRadio = answerQuinielaForm.querySelector(`input[name="${name}"]:checked`);
+                        answersPayload[questionId] = { selected_option_id: checkedRadio ? parseInt(checkedRadio.value) : null };
+                        questionIdsProcessed.add(questionId);
+                    } else if (inputElement.type === 'checkbox') {
+                        const checkedCheckboxes = Array.from(answerQuinielaForm.querySelectorAll(`input[name="${name}"]:checked`))
+                                                     .map(cb => parseInt(cb.value));
+                        answersPayload[questionId] = { selected_option_ids: checkedCheckboxes };
+                        questionIdsProcessed.add(questionId);
+                    } else if (inputElement.type === 'range') { // Slider
+                        answersPayload[questionId] = { slider_answer_value: parseFloat(inputElement.value) };
+                        questionIdsProcessed.add(questionId);
+                    } else if (inputElement.tagName === 'TEXTAREA') { // Free Text or Ordering (as textarea)
+                        // Need to differentiate if Ordering was rendered as textarea
+                        // For now, assume if it's textarea, it could be free_text or ordering's comma-separated text
+                        // This part needs to align with how `renderQuinielaForm` names Ordering textareas.
+                        // Let's assume Ordering also uses `q_{id}`
+                        answersPayload[questionId] = { answer_text: inputElement.value.trim() }; // For Free Text
+                        // If it's an ordering question, the backend expects 'ordered_options_text' in some cases,
+                        // but the generic save endpoint uses 'answer_text' for this.
+                        questionIdsProcessed.add(questionId);
+                    }
+                });
+
+                const saveButton = document.getElementById('saveQuinielaPredictionsButton');
+                saveButton.disabled = true;
+                saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+                answerQuinielaModalError.classList.add('hidden');
+
+                fetch(`/api/races/${currentAnsweringRaceId}/answers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', "X-CSRFToken": "{{ csrf_token() }}" }, // Assuming CSRF token if needed by Flask-WTF
+                    body: JSON.stringify(answersPayload)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => { throw new Error(err.message || `Error ${response.status}`) });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    closeAnswerQuinielaModal();
+                    Swal.fire({ title: '¡Éxito!', text: data.message || 'Predicciones guardadas correctamente.', icon: 'success', confirmButtonColor: '#F97316' });
+                    // TODO: Update client-side state (e.g., pending count badge) or reload. For now, suggest reload.
+                    // Simple reload for now to reflect changes.
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error saving predictions:', error);
+                    answerQuinielaModalError.textContent = `Error: ${error.message}`;
+                    answerQuinielaModalError.classList.remove('hidden');
+                })
+                .finally(() => {
+                    saveButton.disabled = false;
+                    saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>Guardar Predicciones';
+                });
+            });
+        }
+        // --- End Answer/Edit Quiniela Modal JavaScript ---
 
     </script>
     <!-- Script para SweetAlert (mensajes flash) - Movido fuera de los bloques Jinja eliminados -->
