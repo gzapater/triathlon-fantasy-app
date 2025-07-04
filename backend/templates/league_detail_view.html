@@ -135,32 +135,39 @@
                                     <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
                                         <button onclick="openRaceResultsModal('{{ race.id }}', '{{ race.title }}')" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></button>
                                         {# Assuming 'make_prediction_page' and 'view_prediction_page' routes exist #}
-                                        {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                                            {# Check if user has made prediction for this race in this league #}
-                                            {% set user_prediction_exists = user_predictions_map.get(race.id) %}
-                                            {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
+                                        {% set user_prediction_exists = user_predictions_map.get(race.id) %}
+                                        {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
 
+                                        {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
+                                            {# Quiniela is Open (Planned or Active) #}
                                             {% if user_prediction_exists %}
-                                                {# User has made predictions, button is to view them via modal #}
-                                                <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
-                                                        class="font-bold hover:text-orange-800
-                                                               {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}text-orange-600{% else %}text-gray-400{% endif %}"
-                                                        title="Ver mi Quiniela{% if quiniela_is_closed %} (Cerrada){% endif %}">
+                                                <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', false)"
+                                                        class="text-orange-600 hover:text-orange-800 font-bold"
+                                                        title="Ver mi Quiniela">
                                                     <i class="fas fa-poll-h"></i>
                                                 </button>
-                                            {% elif race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                                                {# Quiniela is open, user has NOT made predictions, button is a link to make them #}
+                                            {% else %}
                                                 <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion"
                                                    class="text-orange-600 hover:text-orange-800 font-bold"
                                                    title="Hacer Pronóstico">
                                                     <i class="fas fa-poll-h"></i>
                                                 </a>
+                                            {% endif %}
+                                        {% else %}
+                                            {# Quiniela is Closed (or other status) #}
+                                            {% if user_prediction_exists %}
+                                                <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', true)"
+                                                        class="text-gray-400 hover:text-orange-600 font-bold"
+                                                        title="Ver mi Quiniela (Cerrada)">
+                                                    <i class="fas fa-poll-h"></i>
+                                                </button>
                                             {% else %}
-                                                {# Quiniela is CLOSED, user has NOT made predictions #}
                                                 <span class="text-gray-400 cursor-not-allowed" title="Quiniela cerrada y no participaste">
                                                     <i class="fas fa-poll-h"></i>
                                                 </span>
                                             {% endif %}
+                                        {% endif %} {# Closes the main if on race.status.value #}
+
                                         <a href="#participantes-race-{{race.id}}" class="text-gray-400 hover:text-orange-600" title="Ver Participantes de Carrera (dummy)"><i class="fas fa-users"></i></a>
                                     </td>
                                 </tr>
