@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from backend.models import User, Race, RaceFormat, Role, db # Adjusted import path
+from backend.models import User, Race, RaceFormat, Role, db, UserRaceRegistration # Adjusted import path, Added UserRaceRegistration
 
 class TestDashboardView:
 
@@ -436,3 +436,206 @@ class TestLeagueDetailView:
         assert 'id="events-container"' not in response_data_text
         assert 'id="events-loading"' not in response_data_text
         assert "Cargando eventos..." not in response_data_text
+
+
+class TestRaceParticipationWizardAPI:
+    def test_wizard_start_unauthenticated(self, client, sample_race):
+        db.session.add(sample_race)
+        db.session.commit()
+        response = client.get(f'/api/race/{sample_race.id}/wizard/start')
+        assert response.status_code == 401 # Expect unauthorized
+
+    def test_wizard_start_race_not_found(self, client, new_player_user):
+        db.session.add(new_player_user)
+        db.session.commit()
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.get('/api/race/9999/wizard/start') # Non-existent race
+        assert response.status_code == 404
+        assert "Race not found" in response.get_json()['message']
+
+    def test_wizard_start_user_not_registered(self, client, new_player_user, sample_race):
+        db.session.add_all([new_player_user, sample_race])
+        db.session.commit()
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.get(f'/api/race/{sample_race.id}/wizard/start')
+        assert response.status_code == 403
+        assert "not registered for this race" in response.get_json()['message']
+
+    def test_wizard_start_quiniela_closed(self, client, new_player_user, sample_race_with_registration):
+        # sample_race_with_registration already has user registered
+        race = sample_race_with_registration.race
+        race.quiniela_close_date = datetime.utcnow() - timedelta(hours=1) # Quiniela closed
+        db.session.add(race)
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.get(f'/api/race/{race.id}/wizard/start')
+        assert response.status_code == 403
+        assert "quiniela for this race is closed" in response.get_json()['message']
+
+        # Reset quiniela_close_date for other tests if race object is reused
+        race.quiniela_close_date = datetime.utcnow() + timedelta(days=1)
+        db.session.commit()
+
+
+    def test_wizard_start_no_questions(self, client, new_player_user, sample_race_with_registration):
+        race = sample_race_with_registration.race
+        # Ensure no questions for this race
+        Question.query.filter_by(race_id=race.id).delete()
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.get(f'/api/race/{race.id}/wizard/start')
+        assert response.status_code == 404
+        assert "No questions found" in response.get_json()['message']
+
+    def test_wizard_start_success_one_question(self, client, new_player_user, sample_race_with_registration_and_question):
+        race = sample_race_with_registration_and_question.race
+        question = sample_race_with_registration_and_question.question # The single question
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.get(f'/api/race/{race.id}/wizard/start')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['question']['id'] == question.id
+        assert data['question']['text'] == question.text
+        assert data['is_final_step'] is True # Only one question
+
+    def test_wizard_start_success_multiple_questions(self, client, new_player_user, sample_race_with_registration_and_questions):
+        race = sample_race_with_registration_and_questions.race
+        first_question = sample_race_with_registration_and_questions.questions[0]
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.get(f'/api/race/{race.id}/wizard/start')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['question']['id'] == first_question.id
+        assert data['is_final_step'] is False # Multiple questions
+
+    def test_wizard_next_save_answer_and_get_next_q(self, client, new_player_user, sample_race_with_registration_and_questions):
+        race = sample_race_with_registration_and_questions.race
+        questions = sample_race_with_registration_and_questions.questions # List of 2 questions
+        q1 = questions[0]
+        q2 = questions[1]
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+
+        # Answer Q1
+        payload_q1 = {
+            "current_question_id": q1.id,
+            "answer": {"answer_text": "Answer for Q1"} # Assuming Q1 is FREE_TEXT
+        }
+        response_q1_submit = client.post(f'/api/race/{race.id}/wizard/next', json=payload_q1)
+        assert response_q1_submit.status_code == 200
+        data_q1_submit = response_q1_submit.get_json()
+
+        assert data_q1_submit['is_final_step'] is True # Because q2 will be the last one presented
+        assert data_q1_submit['next_question']['id'] == q2.id
+
+        # Verify Q1 answer was saved
+        ua_q1 = UserAnswer.query.filter_by(user_id=new_player_user.id, question_id=q1.id).first()
+        assert ua_q1 is not None
+        assert ua_q1.answer_text == "Answer for Q1"
+
+        # Answer Q2 (the last one)
+        payload_q2 = {
+            "current_question_id": q2.id,
+            "answer": {"answer_text": "Final Answer for Q2"} # Assuming Q2 is FREE_TEXT
+        }
+        response_q2_submit = client.post(f'/api/race/{race.id}/wizard/next', json=payload_q2)
+        assert response_q2_submit.status_code == 200
+        data_q2_submit = response_q2_submit.get_json()
+
+        assert data_q2_submit['is_final_step'] is True
+        assert "answered all questions" in data_q2_submit['completion_message']
+        assert 'next_question' not in data_q2_submit # No next question
+
+        # Verify Q2 answer was saved
+        ua_q2 = UserAnswer.query.filter_by(user_id=new_player_user.id, question_id=q2.id).first()
+        assert ua_q2 is not None
+        assert ua_q2.answer_text == "Final Answer for Q2"
+
+    def test_wizard_next_quiniela_closed(self, client, new_player_user, sample_race_with_registration_and_question):
+        race = sample_race_with_registration_and_question.race
+        question = sample_race_with_registration_and_question.question
+        race.quiniela_close_date = datetime.utcnow() - timedelta(hours=1) # Quiniela closed
+        db.session.add(race)
+        db.session.commit()
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        payload = {"current_question_id": question.id, "answer": {"answer_text": "Too late"}}
+        response = client.post(f'/api/race/{race.id}/wizard/next', json=payload)
+        assert response.status_code == 403
+        assert "quiniela for this race is closed" in response.get_json()['message']
+
+        # Reset quiniela_close_date
+        race.quiniela_close_date = datetime.utcnow() + timedelta(days=1)
+        db.session.commit()
+
+
+    def test_wizard_finish_success(self, client, new_player_user, sample_race_with_registration):
+        race = sample_race_with_registration.race
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+        response = client.post(f'/api/race/{race.id}/wizard/finish')
+        assert response.status_code == 200
+        assert "Participation successfully recorded" in response.get_json()['message']
+
+    def test_wizard_next_save_mc_single_answer(self, client, new_player_user, sample_race_with_registration_and_mc_question):
+        race = sample_race_with_registration_and_mc_question.race
+        question = sample_race_with_registration_and_mc_question.question # MC Single
+        option_to_select = question.options.first() # Select the first option
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+
+        payload = {
+            "current_question_id": question.id,
+            "answer": {"selected_option_id": option_to_select.id}
+        }
+        response = client.post(f'/api/race/{race.id}/wizard/next', json=payload)
+        assert response.status_code == 200 # Assuming this is the last/only question
+
+        ua = UserAnswer.query.filter_by(user_id=new_player_user.id, question_id=question.id).first()
+        assert ua is not None
+        assert ua.selected_option_id == option_to_select.id
+
+    def test_wizard_next_save_mc_multiple_answer(self, client, new_player_user, sample_race_with_registration_and_mc_multi_question):
+        race = sample_race_with_registration_and_mc_multi_question.race
+        question = sample_race_with_registration_and_mc_multi_question.question # MC Multi
+        options_to_select = [opt.id for opt in question.options.limit(2).all()] # Select first two options
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+
+        payload = {
+            "current_question_id": question.id,
+            "answer": {"selected_option_ids": options_to_select}
+        }
+        response = client.post(f'/api/race/{race.id}/wizard/next', json=payload)
+        assert response.status_code == 200
+
+        ua = UserAnswer.query.filter_by(user_id=new_player_user.id, question_id=question.id).first()
+        assert ua is not None
+        assert len(ua.selected_mc_options) == len(options_to_select)
+        selected_ids_in_db = {mc_opt.question_option_id for mc_opt in ua.selected_mc_options}
+        assert selected_ids_in_db == set(options_to_select)
+
+    def test_wizard_next_save_slider_answer(self, client, new_player_user, sample_race_with_registration_and_slider_question):
+        race = sample_race_with_registration_and_slider_question.race
+        question = sample_race_with_registration_and_slider_question.question # Slider
+
+        client.post('/api/login', json={'username': new_player_user.username, 'password': 'testpassword'})
+
+        slider_value_to_save = (question.slider_min_value + question.slider_max_value) / 2
+        payload = {
+            "current_question_id": question.id,
+            "answer": {"slider_answer_value": slider_value_to_save}
+        }
+        response = client.post(f'/api/race/{race.id}/wizard/next', json=payload)
+        assert response.status_code == 200
+
+        ua = UserAnswer.query.filter_by(user_id=new_player_user.id, question_id=question.id).first()
+        assert ua is not None
+        assert ua.slider_answer_value == slider_value_to_save
+
+# Make sure to import timedelta and Question, UserAnswer if not already imported at the top
+from datetime import timedelta
+from backend.models import Question, UserAnswer

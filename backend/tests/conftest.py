@@ -222,5 +222,172 @@ def sample_slider_question(db_session, sample_race, admin_user):
         slider_points_partial=20
     )
     db_session.add(question)
-    db_session.commit()
+    db.session.commit()
     return question
+
+# Fixtures for Race Participation Wizard Tests
+from backend.models import UserRaceRegistration, Question, QuestionType, QuestionOption, UserAnswer
+
+@pytest.fixture
+def sample_race_with_registration(db_session, sample_race, player_user):
+    """A sample race with a player_user already registered."""
+    registration = UserRaceRegistration.query.filter_by(user_id=player_user.id, race_id=sample_race.id).first()
+    if not registration:
+        registration = UserRaceRegistration(user_id=player_user.id, race_id=sample_race.id)
+        db_session.add(registration)
+        db_session.commit()
+    # Return an object or dict that gives access to race, user, and registration if needed
+    class TestContext:
+        def __init__(self, race, user, registration):
+            self.race = race
+            self.user = user
+            self.registration = registration
+    return TestContext(sample_race, player_user, registration)
+
+
+@pytest.fixture
+def free_text_question_type(db_session):
+    qt = QuestionType.query.filter_by(name="FREE_TEXT").first()
+    if not qt:
+        qt = QuestionType(name="FREE_TEXT")
+        db_session.add(qt)
+        db_session.commit()
+    return qt
+
+@pytest.fixture
+def mc_question_type(db_session):
+    qt = QuestionType.query.filter_by(name="MULTIPLE_CHOICE").first()
+    if not qt:
+        qt = QuestionType(name="MULTIPLE_CHOICE")
+        db_session.add(qt)
+        db_session.commit()
+    return qt
+
+@pytest.fixture
+def slider_question_type(db_session): # Renamed from sample_slider_question_type to avoid confusion
+    qt = QuestionType.query.filter_by(name="SLIDER").first()
+    if not qt:
+        qt = QuestionType(name="SLIDER")
+        db_session.add(qt)
+        db_session.commit()
+    return qt
+
+
+@pytest.fixture
+def sample_race_with_registration_and_question(db_session, sample_race_with_registration, free_text_question_type):
+    """Sample race, user registered, and one FREE_TEXT question."""
+    race = sample_race_with_registration.race
+    question = Question.query.filter_by(race_id=race.id, text="Test Free Text Question 1").first()
+    if not question:
+        question = Question(
+            race_id=race.id,
+            question_type_id=free_text_question_type.id,
+            text="Test Free Text Question 1",
+            is_active=True,
+            max_score_free_text=10
+        )
+        db_session.add(question)
+        db_session.commit()
+
+    class TestContextWithQuestion(type(sample_race_with_registration)): # Inherit from the previous context class structure
+        def __init__(self, race, user, registration, question):
+            super().__init__(race, user, registration)
+            self.question = question
+    return TestContextWithQuestion(race, sample_race_with_registration.user, sample_race_with_registration.registration, question)
+
+
+@pytest.fixture
+def sample_race_with_registration_and_questions(db_session, sample_race_with_registration, free_text_question_type):
+    """Sample race, user registered, and two FREE_TEXT questions."""
+    race = sample_race_with_registration.race
+    q1_text = "Test Free Text Question A"
+    q2_text = "Test Free Text Question B"
+
+    q1 = Question.query.filter_by(race_id=race.id, text=q1_text).first()
+    if not q1:
+        q1 = Question(race_id=race.id, question_type_id=free_text_question_type.id, text=q1_text, is_active=True, max_score_free_text=5)
+        db_session.add(q1)
+
+    q2 = Question.query.filter_by(race_id=race.id, text=q2_text).first()
+    if not q2:
+        q2 = Question(race_id=race.id, question_type_id=free_text_question_type.id, text=q2_text, is_active=True, max_score_free_text=5)
+        db_session.add(q2)
+    db_session.commit()
+
+    questions = sorted([q1, q2], key=lambda q: q.id) # Ensure order by ID
+
+    class TestContextWithQuestions(type(sample_race_with_registration)):
+        def __init__(self, race, user, registration, questions):
+            super().__init__(race, user, registration)
+            self.questions = questions # List of questions
+    return TestContextWithQuestions(race, sample_race_with_registration.user, sample_race_with_registration.registration, questions)
+
+
+@pytest.fixture
+def sample_race_with_registration_and_mc_question(db_session, sample_race_with_registration, mc_question_type):
+    """Sample race, user registered, and one MC-Single question with options."""
+    race = sample_race_with_registration.race
+    q_text = "Test MC Single Question"
+    question = Question.query.filter_by(race_id=race.id, text=q_text).first()
+    if not question:
+        question = Question(
+            race_id=race.id, question_type_id=mc_question_type.id, text=q_text,
+            is_active=True, is_mc_multiple_correct=False, total_score_mc_single=10
+        )
+        db_session.add(question)
+        db_session.flush() # Get ID for options
+        opt1 = QuestionOption(question_id=question.id, option_text="Option 1 MC Single")
+        opt2 = QuestionOption(question_id=question.id, option_text="Option 2 MC Single")
+        db_session.add_all([opt1, opt2])
+        db_session.commit()
+
+    class TestContextWithMCQuestion(type(sample_race_with_registration)):
+        def __init__(self, race, user, registration, question):
+            super().__init__(race, user, registration)
+            self.question = question
+    return TestContextWithMCQuestion(race, sample_race_with_registration.user, sample_race_with_registration.registration, question)
+
+@pytest.fixture
+def sample_race_with_registration_and_mc_multi_question(db_session, sample_race_with_registration, mc_question_type):
+    """Sample race, user registered, and one MC-Multi question with options."""
+    race = sample_race_with_registration.race
+    q_text = "Test MC Multi Question"
+    question = Question.query.filter_by(race_id=race.id, text=q_text).first()
+    if not question:
+        question = Question(
+            race_id=race.id, question_type_id=mc_question_type.id, text=q_text,
+            is_active=True, is_mc_multiple_correct=True, points_per_correct_mc=5
+        )
+        db_session.add(question)
+        db_session.flush()
+        opt1 = QuestionOption(question_id=question.id, option_text="Option A MC Multi")
+        opt2 = QuestionOption(question_id=question.id, option_text="Option B MC Multi")
+        opt3 = QuestionOption(question_id=question.id, option_text="Option C MC Multi")
+        db_session.add_all([opt1, opt2, opt3])
+        db_session.commit()
+
+    class TestContextWithMCMultiQuestion(type(sample_race_with_registration)):
+        def __init__(self, race, user, registration, question):
+            super().__init__(race, user, registration)
+            self.question = question
+    return TestContextWithMCMultiQuestion(race, sample_race_with_registration.user, sample_race_with_registration.registration, question)
+
+@pytest.fixture
+def sample_race_with_registration_and_slider_question(db_session, sample_race_with_registration, slider_question_type):
+    """Sample race, user registered, and one Slider question."""
+    race = sample_race_with_registration.race
+    q_text = "Test Slider Question"
+    question = Question.query.filter_by(race_id=race.id, text=q_text).first()
+    if not question:
+        question = Question(
+            race_id=race.id, question_type_id=slider_question_type.id, text=q_text,
+            is_active=True, slider_min_value=0, slider_max_value=100, slider_step=1, slider_points_exact=20
+        )
+        db_session.add(question)
+        db_session.commit()
+
+    class TestContextWithSliderQuestion(type(sample_race_with_registration)):
+        def __init__(self, race, user, registration, question):
+            super().__init__(race, user, registration)
+            self.question = question
+    return TestContextWithSliderQuestion(race, sample_race_with_registration.user, sample_race_with_registration.registration, question)

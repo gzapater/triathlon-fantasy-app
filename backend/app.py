@@ -5602,3 +5602,157 @@ def join_league_by_code_api():
         db.session.rollback()
         app.logger.error(f"API join_league_by_code: Excepción al procesar unión a liga {league_to_join.id} con código {access_code_str} por user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="Ocurrió un error al procesar tu solicitud para unirte a la liga."), 500
+
+# --- Race Participation Wizard API Endpoints ---
+
+@app.route('/api/race/<int:race_id>/wizard/start', methods=['GET'])
+@login_required
+def race_participation_wizard_start(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
+    if not race:
+        return jsonify(message="Race not found or has been deleted"), 404
+
+    # Check if user is registered for the race (or auto-register if applicable)
+    # For now, assume user must be registered.
+    registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race.id).first()
+    if not registration:
+        # Or, you could auto-register them here if that's the desired flow
+        return jsonify(message="You are not registered for this race. Please register first."), 403
+
+    # Check if quiniela is open
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        return jsonify(message="The quiniela for this race is closed."), 403
+
+    # Fetch the first active question for the race, ordered by ID (or another field if defined for order)
+    first_question_obj = Question.query.filter_by(race_id=race.id, is_active=True).order_by(Question.id.asc()).first()
+
+    if not first_question_obj:
+        return jsonify(message="No questions found for this race's participation wizard."), 404
+
+    # Serialize the question
+    # You might want a more specific serializer for wizard questions if it differs from _serialize_question
+    question_data = _serialize_question(first_question_obj) # Assuming _serialize_question is suitable
+
+    # Check if this is the only question (final step)
+    total_questions_count = Question.query.filter_by(race_id=race.id, is_active=True).count()
+    is_final = (total_questions_count == 1)
+
+    return jsonify(question=question_data, is_final_step=is_final), 200
+
+
+@app.route('/api/race/<int:race_id>/wizard/next', methods=['POST'])
+@login_required
+def race_participation_wizard_next(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
+    if not race:
+        return jsonify(message="Race not found or has been deleted"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        return jsonify(message="The quiniela for this race is closed. Cannot submit answers."), 403
+
+    data = request.get_json()
+    if not data or 'answer' not in data or 'current_question_id' not in data:
+        return jsonify(message="Answer data and current_question_id are required."), 400
+
+    user_answer_payload = data['answer'] # This is the actual answer value/object for the question
+    current_question_id = data['current_question_id']
+
+    question = Question.query.get(current_question_id)
+    if not question or question.race_id != race_id:
+        return jsonify(message="Invalid current_question_id."), 400
+
+    # --- Save the answer ---
+    # This logic is similar to save_user_answers but adapted for single answer submission
+    existing_answer = UserAnswer.query.filter_by(user_id=current_user.id, question_id=question.id).first()
+    if existing_answer:
+        UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=existing_answer.id).delete()
+        db.session.delete(existing_answer)
+        db.session.flush()
+
+    new_user_answer = UserAnswer(
+        user_id=current_user.id,
+        race_id=race_id,
+        question_id=question.id
+    )
+
+    question_type_name = question.question_type.name
+    if question_type_name == 'FREE_TEXT':
+        new_user_answer.answer_text = user_answer_payload.get('answer_text')
+    elif question_type_name == 'MULTIPLE_CHOICE':
+        if question.is_mc_multiple_correct:
+            selected_ids = user_answer_payload.get('selected_option_ids', [])
+            for opt_id in selected_ids:
+                if QuestionOption.query.filter_by(id=opt_id, question_id=question.id).first():
+                    new_user_answer.selected_mc_options.append(UserAnswerMultipleChoiceOption(question_option_id=opt_id))
+        else:
+            selected_id = user_answer_payload.get('selected_option_id')
+            if selected_id and QuestionOption.query.filter_by(id=selected_id, question_id=question.id).first():
+                new_user_answer.selected_option_id = selected_id
+    elif question_type_name == 'ORDERING':
+        new_user_answer.answer_text = user_answer_payload.get('ordered_options_text')
+    elif question_type_name == 'SLIDER':
+        slider_val = user_answer_payload.get('slider_answer_value')
+        if slider_val is not None:
+            try:
+                new_user_answer.slider_answer_value = float(slider_val)
+            except (ValueError, TypeError):
+                new_user_answer.slider_answer_value = None
+    else:
+        db.session.rollback()
+        return jsonify(message=f"Unsupported question type for saving answer: {question_type_name}"), 400
+
+    try:
+        db.session.add(new_user_answer)
+        db.session.commit()
+    except IntegrityError as ie:
+        db.session.rollback()
+        app.logger.error(f"Wizard next: IntegrityError saving answer for QID {question.id}, User {current_user.id}: {ie}")
+        return jsonify(message="Error saving answer due to database conflict."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Wizard next: Exception saving answer for QID {question.id}, User {current_user.id}: {e}")
+        return jsonify(message="An error occurred while saving your answer."), 500
+    # --- End Save Answer ---
+
+    # --- Determine next question ---
+    next_question_obj = Question.query.filter(
+        Question.race_id == race_id,
+        Question.is_active == True,
+        Question.id > current_question_id # Assuming IDs are ordered correctly for sequence
+    ).order_by(Question.id.asc()).first()
+
+    if not next_question_obj:
+        # This was the last question
+        return jsonify(
+            is_final_step=True,
+            completion_message="You have answered all questions for this race!"
+        ), 200
+    else:
+        question_data = _serialize_question(next_question_obj)
+        # Check if this *newly fetched* next_question_obj is the very last one
+        is_truly_final_after_this = Question.query.filter(
+            Question.race_id == race_id,
+            Question.is_active == True,
+            Question.id > next_question_obj.id
+        ).first() is None
+
+        return jsonify(next_question=question_data, is_final_step=is_truly_final_after_this), 200
+
+
+@app.route('/api/race/<int:race_id>/wizard/finish', methods=['POST'])
+@login_required
+def race_participation_wizard_finish(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
+    if not race:
+        return jsonify(message="Race not found or has been deleted"), 404
+
+    # TODO:
+    # 1. Perform any final validation or processing.
+    # 2. Mark participation as complete for the user for this race.
+    # 3. This might involve updating UserRaceRegistration status or similar.
+
+    # For now, just a success message
+    app.logger.info(f"User {current_user.id} finalized participation wizard for race {race_id}.")
+    return jsonify(message="Participation successfully recorded!"), 200
+
+# --- End Race Participation Wizard API Endpoints ---
