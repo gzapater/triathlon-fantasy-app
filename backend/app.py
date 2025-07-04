@@ -4923,6 +4923,23 @@ def view_league_detail(league_id):
     league_standings.sort(key=lambda x: x['total_score'], reverse=True)
     # --- Fin Calcular Clasificación y Detalles ---
 
+    # --- Calcular Próximo Cierre de Quiniela y Número de Participantes ---
+    league_participants_count = league.participants.count() # Contar participantes
+
+    next_race_close_date_isoformat = None
+    now = datetime.utcnow()
+
+    # Filtrar carreras de la liga que tienen una fecha de cierre de quiniela futura
+    future_closing_races = sorted(
+        [race for race in league_races_detailed if race.quiniela_close_date and race.quiniela_close_date > now],
+        key=lambda r: r.quiniela_close_date
+    )
+
+    if future_closing_races:
+        next_race_close_date_isoformat = future_closing_races[0].quiniela_close_date.isoformat()
+    # --- Fin Calcular Próximo Cierre ---
+
+
     # Definir una lista de colores pálidos para el sombreado
     # Estos se pueden pasar a la plantilla o generar allí con un ciclo
     race_background_colors = [
@@ -4940,14 +4957,14 @@ def view_league_detail(league_id):
     return render_template('league_detail_view.html',
                            league=league,
                            league_races_detailed=league_races_detailed,
-                           # league_participants_count=league_participants_count, # Removed
-                           # league_participants=league_participants_sample, # Removed
+                           league_participants_count=league_participants_count, # Añadido
+                           next_race_close_date_isoformat=next_race_close_date_isoformat, # Añadido
                            current_user_is_creator_or_admin=current_user_is_creator_or_admin,
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
                            league_standings=league_standings,
-                           participant_race_details=participant_race_details, # Pasar los nuevos datos
-                           race_background_colors=race_background_colors, # Pasar colores
+                           participant_race_details=participant_race_details,
+                           race_background_colors=race_background_colors,
                            current_year=datetime.utcnow().year)
 
 # The route /league/<int:league_id>/generate_join_code has been removed as per the plan.

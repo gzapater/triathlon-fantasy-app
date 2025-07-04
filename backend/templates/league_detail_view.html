@@ -70,16 +70,21 @@
 
                 </div>
                 <div class="mt-4 md:mt-0 flex items-center space-x-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                     <div class="text-center">
+                    <div class="text-center">
                         <p class="text-sm text-orange-200 uppercase tracking-wider">Próximo Cierre</p>
-                        <div class="text-2xl font-bold" id="countdown">00d 00h 00m</div> {# Placeholder, JS will update if possible #}
+                        {# El data attribute se poblará desde Flask/Jinja2 con la variable next_race_close_date_isoformat #}
+                        <div class="text-2xl font-bold" id="countdown" data-next-close-date="{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}">
+                            {# El contenido inicial será actualizado por JavaScript. Puede ser un loader o N/A #}
+                            Calculando...
+                        </div>
                     </div>
                     <div class="text-center border-l border-orange-400 pl-6">
                         <p class="text-3xl font-bold">{{ league_races_detailed|length }}</p>
                         <p class="text-sm text-orange-200">Carreras</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-3xl font-bold">{{ league_participants_count }}</p>
+                        {# Mostrar el número de participantes de la liga #}
+                        <p class="text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
                         <p class="text-sm text-orange-200">Participantes</p>
                     </div>
                 </div>
@@ -436,14 +441,13 @@
 
         // Countdown timer
         const countdownElement = document.getElementById('countdown');
-        // Attempt to get the next closing date from a data attribute or a Flask variable
-        // This assumes you might pass `next_race_close_date_isoformat` to your template
-        // Or set it as a data attribute on the countdown element if that's easier with your backend.
-        let nextCloseDateISO = countdownElement.dataset.nextCloseDate || "{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}";
+        // Get the next closing date from the data attribute
+        let nextCloseDateISO = countdownElement.dataset.nextCloseDate;
 
         function updateCountdown() {
-            if (!nextCloseDateISO) {
-                countdownElement.textContent = "N/A"; // Or "No hay cierres"
+            if (!nextCloseDateISO || nextCloseDateISO === '') { // Check if empty or not set
+                countdownElement.textContent = "N/A";
+                if (countdownInterval) clearInterval(countdownInterval); // Stop interval if no date
                 return;
             }
 
@@ -453,8 +457,7 @@
 
             if (diff <= 0) {
                 countdownElement.textContent = "Cerrado";
-                // Optionally, stop the interval if you have one running for this
-                // clearInterval(countdownInterval);
+                if (countdownInterval) clearInterval(countdownInterval); // Stop interval
                 return;
             }
 
@@ -466,11 +469,12 @@
             countdownElement.textContent = `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
         }
 
-        if (nextCloseDateISO) {
+        let countdownInterval; // Declare interval variable outside
+        if (nextCloseDateISO && nextCloseDateISO !== '') {
             updateCountdown(); // Initial call
-            const countdownInterval = setInterval(updateCountdown, 60000); // Update every minute
+            countdownInterval = setInterval(updateCountdown, 60000); // Update every minute
         } else {
-             countdownElement.textContent = "00d 00h 00m"; // Default if no date
+             countdownElement.textContent = "N/A"; // Default if no date
         }
 
     </script>
