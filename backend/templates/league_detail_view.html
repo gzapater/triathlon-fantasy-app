@@ -119,7 +119,7 @@
                                 {% for race in league_races_detailed %}
                                 <tr class="{% if loop.index is odd %}bg-white{% else %}bg-gray-50{% endif %}">
                                     <td class="px-6 py-4">
-                                        <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="font-medium text-gray-800 hover:text-orange-600">{{ race.title }}</a>
+                                        <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="font-medium text-gray-800 hover:text-orange-500 hover:underline">{{ race.title }}</a>
                                         <p class="text-sm text-gray-500">{{ race.event_date|format_date_filter }}</p>
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">{{ race.quiniela_close_date|format_date_filter if race.quiniela_close_date else 'N/A' }}</td>
