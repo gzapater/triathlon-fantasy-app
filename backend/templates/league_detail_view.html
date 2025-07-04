@@ -450,19 +450,45 @@
         const countdownElement = document.getElementById('countdown');
         // Get the next closing date from the data attribute
         let nextCloseDateISO = countdownElement.dataset.nextCloseDate;
+        console.log("[Countdown] Initial nextCloseDateISO from data attribute: ", nextCloseDateISO);
 
         function updateCountdown() {
             if (!nextCloseDateISO || nextCloseDateISO === '') { // Check if empty or not set
+                console.log("[Countdown] No nextCloseDateISO or empty. Setting to N/A.");
                 countdownElement.textContent = "N/A";
                 if (countdownInterval) clearInterval(countdownInterval); // Stop interval if no date
                 return;
             }
 
-            const targetDate = new Date(nextCloseDateISO);
-            const now = new Date();
-            const diff = targetDate - now;
+            // Asegurar que la fecha se interprete como UTC si no tiene 'Z'
+            let dateStringToParse = nextCloseDateISO;
+            if (!dateStringToParse.endsWith('Z') && dateStringToParse.includes('T')) {
+                // Si es un formato ISO sin Z, asumimos UTC y lo añadimos para consistencia.
+                // Esto es importante porque new Date("YYYY-MM-DDTHH:MM:SS") puede ser local o UTC según el navegador.
+                // new Date("YYYY-MM-DDTHH:MM:SSZ") es explícitamente UTC.
+                // No añadimos 'Z' si ya está o si no es un formato con 'T' (ej. solo fecha YYYY-MM-DD)
+                // aunque el backend debería enviar con T.
+                dateStringToParse += 'Z';
+                console.log("[Countdown] Appended 'Z' for UTC parsing. String to parse: ", dateStringToParse);
+            } else {
+                console.log("[Countdown] Using original date string (already has Z or not a T-format): ", dateStringToParse);
+            }
+
+            const targetDate = new Date(dateStringToParse);
+            const now = new Date(); // Esto es la hora local del navegador
+
+            console.log("[Countdown] Target Date Object (parsed as UTC): ", targetDate.toISOString(), targetDate);
+            console.log("[Countdown] Current Browser Local Date Object: ", now.toISOString(), now);
+
+            // Para una comparación correcta, ambas fechas deben estar en la misma base (UTC o local).
+            // targetDate ya es UTC (o se parseó como tal). `now.getTime()` da ms desde epoch UTC.
+            // `targetDate.getTime()` también da ms desde epoch UTC.
+            const diff = targetDate.getTime() - now.getTime();
+            console.log("[Countdown] Difference in milliseconds: ", diff);
+
 
             if (diff <= 0) {
+                console.log("[Countdown] Difference is zero or negative. Setting to Cerrado.");
                 countdownElement.textContent = "Cerrado";
                 if (countdownInterval) clearInterval(countdownInterval); // Stop interval
                 return;
