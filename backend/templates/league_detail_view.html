@@ -1,484 +1,543 @@
-{% extends "admin_dashboard.html" %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- El título se tomará de la variable 'league' si está disponible, sino un default -->
+    <title>{{ league.name if league else "Detalle de Liga" }} - TriPredict</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <!-- Favicon link -->
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        /* Estilos para el modal de SweetAlert2 (si se usa para mensajes flash) */
+        .swal2-popup {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-100">
 
-{% block page_title %}{{ league.name }} - Detalles de la Liga{% endblock %}
-
-{% block join_by_code_button %}{% endblock %} {# Oculta el botón de unirse por código #}
-
-{% block main_dashboard_content %}
-<div class="px-6 pt-6">
-
-    <!-- 1. Cabecera de la Liga -->
-    <header class="mb-8">
-        <div class="flex flex-wrap justify-between items-start">
-            <div class="flex-grow">
-                <h1 class="brand-font text-3xl font-bold text-gray-800">{{ league.name }}</h1>
-                <p class="mt-1 text-gray-500">{{ league.description_or_default }}</p>
-            </div>
-            <div class="flex items-center space-x-3 mt-2 md:mt-0">
-                {% if invitation_code and invitation_code.is_active and current_user_is_creator_or_admin %}
-                <button id="show-league-invitation-code-button" class="btn-secondary text-sm flex items-center">
-                    <i class="fas fa-key mr-2"></i>Ver Código de Invitación
-                </button>
-                {% endif %}
-                {% if league.is_active %}
-                    <span class="text-xs bg-green-500 text-white px-3 py-1 rounded-full shadow-sm font-semibold">Activa</span>
+    <!-- Header Global (copiado del diseño proporcionado) -->
+    <header class="bg-gray-800 text-white shadow-lg sticky top-0 z-30">
+        <nav class="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-8">
+                    <a href="{{ url_for('serve_hello_world_page') }}"> <!-- Enlace al dashboard/home -->
+                        <svg width="140" height="40" viewBox="0 0 170 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g><path d="M1 29L16 14L1 0" stroke="white" stroke-opacity="0.6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 29L31 14L16 0" stroke="white" stroke-opacity="0.8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M31 29L46 14L31 0" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g>
+                            <text x="60" y="29" font-family="Inter, sans-serif" font-size="24" fill="#E5E7EB" font-weight="300">Tri<tspan font-weight="700" fill="white">Predict</tspan></text>
+                        </svg>
+                    </a>
+                    <div class="hidden md:flex items-baseline space-x-6">
+                         <a href="{{ url_for('serve_hello_world_page') }}" class="text-white bg-gray-900 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                         <a href="{{ url_for('serve_races_list_page') }}" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Buscar Carreras</a>
+                         <a href="{{ url_for('list_leagues') }}" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Ligas</a>
+                    </div>
+                </div>
+                {% if current_user.is_authenticated %}
+                <div class="flex items-center">
+                    <div class="text-right">
+                        <p class="text-white font-medium">{{ current_user.username }}</p>
+                        <span class="text-xs text-orange-300">{{ current_user.role.value|capitalize if current_user.role else 'Jugador' }}</span>
+                    </div>
+                    <img src="{{ current_user.avatar_url or url_for('static', filename='img/favicon_promo.svg') }}" alt="Avatar" class="w-10 h-10 rounded-full ml-4 border-2 border-orange-500">
+                </div>
                 {% else %}
-                    <span class="text-xs bg-gray-500 text-white px-3 py-1 rounded-full shadow-sm font-semibold">Inactiva</span>
+                <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('serve_login_page') }}" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                    <a href="{{ url_for('register_page') }}" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-md text-sm font-medium">Registro</a>
+                </div>
                 {% endif %}
             </div>
-        </div>
-        <div class="mt-3 text-sm text-gray-500">
-            <span>Creada por: <strong class="text-gray-700">{{ league.creator.username if league.creator else 'N/A' }}</strong></span>
-            <span class="mx-2">|</span>
-            <span>Fecha de creación: <strong class="text-gray-700">{{ league.created_at|format_date_filter }}</strong></span>
-        </div>
+        </nav>
     </header>
 
-    {% if current_user_is_creator_or_admin and (not invitation_code or not invitation_code.is_active) %}
-    <div class="my-6 text-center"> {# Margen vertical y centrado #}
-        <form action="{{ url_for('generate_league_invitation_code', league_id=league.id) }}" method="POST">
-            {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
-            {% if not invitation_code %}
-                <button type="submit" class="btn-primary text-lg px-8 py-3"> {# Botón más grande #}
-                    <i class="fas fa-plus-circle mr-2"></i>Generar Código de Invitación
-                </button>
-            {% elif invitation_code and not invitation_code.is_active %}
-                <button type="submit" class="btn-warning text-lg px-8 py-3"> {# Botón más grande, color para reactivar #}
-                    <i class="fas fa-redo-alt mr-2"></i>Reactivar Código de Invitación
-                </button>
-                <p class="text-sm text-gray-600 mt-2">El código anterior ({{ invitation_code.code }}) está inactivo o ha expirado.</p>
-            {% endif %}
-        </form>
-    </div>
-    {% endif %}
+    <!-- Contenido Principal -->
+    <main class="p-4 sm:p-6 lg:p-8">
+        <!-- Hero Section de la Liga con Acciones de Admin -->
+        <div class="bg-orange-500 text-white shadow-md rounded-lg p-6 mb-8">
+            <div class="flex flex-col md:flex-row md:justify-between md:items-start">
+                <div>
+                    <h1 class="text-3xl font-bold">{{ league.name }}</h1>
+                    <p class="text-orange-100 mt-1">
+                        Creada por: <span class="font-semibold">{{ league.creator.username if league.creator else 'N/A' }}</span> |
+                        Fecha de creación: <span class="font-semibold">{{ league.created_at|format_date_filter }}</span>
+                    </p>
+                     <!-- Botones de Acción para el Admin de la Liga -->
+                    {% if current_user_is_creator_or_admin %}
+                    <div class="mt-4 flex items-center space-x-2">
+                        <a href="{{ url_for('edit_league', league_id=league.id) }}" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-edit mr-2"></i>Editar Liga</a>
+                        {% if invitation_code and invitation_code.is_active %}
+                        <button id="show-league-invitation-code-button" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-share-alt mr-2"></i>Compartir Código</button>
+                        {% elif not invitation_code or not invitation_code.is_active %}
+                        {# Button to generate/reactivate code could go here or elsewhere as per original logic #}
+                        {# For now, matching the new static HTML, it's not shown if no active code #}
+                        {% endif %}
+                        <form action="{{ url_for('delete_league', league_id=league.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');" class="inline">
+                            <button type="submit" class="bg-red-500/50 hover:bg-red-500 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-trash-alt mr-2"></i>Eliminar Liga</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                    {# Button to generate invitation code if none exists or is inactive, for admins #}
+                    {% if current_user_is_creator_or_admin and (not invitation_code or not invitation_code.is_active) %}
+                    <div class="mt-4">
+                        <form action="{{ url_for('generate_league_invitation_code', league_id=league.id) }}" method="POST">
+                            {% if not invitation_code %}
+                                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center">
+                                    <i class="fas fa-plus-circle mr-2"></i>Generar Código de Invitación
+                                </button>
+                            {% elif invitation_code and not invitation_code.is_active %}
+                                <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center">
+                                    <i class="fas fa-redo-alt mr-2"></i>Reactivar Código
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
+                    {% endif %}
 
-    <!-- 2. Sección de Carreras de la Liga -->
-    <section class="mb-10">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-2xl font-semibold text-gray-700">Carreras en esta Liga</h2>
-            {# Posible botón para "Añadir Carrera a la Liga" si el usuario tiene permisos #}
-            {# {% if current_user_is_creator_or_admin %}
-                <a href="{{ url_for('add_race_to_league_page', league_id=league.id) }}" class="btn-primary text-sm">
-                    <i class="fas fa-plus mr-2"></i>Añadir Carrera Existente
-                </a>
-            {% endif %} #}
+                </div>
+                <div class="mt-4 md:mt-0 flex items-center space-x-6 bg-black bg-opacity-20 p-4 rounded-lg">
+                     <div class="text-center">
+                        <p class="text-sm text-orange-200 uppercase tracking-wider">Próximo Cierre</p>
+                        <div class="text-2xl font-bold" id="countdown">00d 00h 00m</div> {# Placeholder, JS will update if possible #}
+                    </div>
+                    <div class="text-center border-l border-orange-400 pl-6">
+                        <p class="text-3xl font-bold">{{ league_races_detailed|length }}</p>
+                        <p class="text-sm text-orange-200">Carreras</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-3xl font-bold">{{ league_participants_count }}</p>
+                        <p class="text-sm text-orange-200">Participantes</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        {% if league.races and league.races.count() > 0 %}
-            <div class="bg-white shadow-md rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="!bg-orange-500 !text-white">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre de la Carrera</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Formato</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            {% for race in league_races_detailed %}
+        {# Section for non-admins to join league if not participant #}
+        {% if league.is_active and not current_user_is_participant and not current_user_is_creator_or_admin %}
+        <div class="my-6 bg-white p-6 rounded-xl shadow-md flex flex-col justify-center items-center">
+            <h3 class="text-xl font-semibold text-gray-700 mb-3">Unirse a la Liga</h3>
+            <p class="text-sm text-gray-600 mb-4">Si tienes un código de invitación, puedes unirte a esta liga.</p>
+            <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')"
+                    class="btn-success text-white px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
+                <i class="fas fa-user-plus mr-2"></i>Unirme con Código de Invitación
+            </button>
+        </div>
+        {% elif current_user_is_participant %}
+        <div class="my-6 bg-green-50 p-4 rounded-lg shadow">
+            <p class="text-green-700 font-semibold flex items-center text-center justify-center">
+                <i class="fas fa-check-circle mr-2 text-xl"></i>Ya eres participante de esta liga.
+            </p>
+        </div>
+        {% endif %}
+
+
+        <!-- Carreras y Clasificación en un grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Columna Izquierda: Carreras y Análisis -->
+            <div class="lg:col-span-2 space-y-8">
+                 <!-- Carreras en esta Liga -->
+                <div class="bg-white shadow-md rounded-lg">
+                    <div class="p-6 border-b">
+                        <h2 class="text-xl font-bold text-gray-900">Carreras en esta Liga</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        {% if league_races_detailed and league_races_detailed|length > 0 %}
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
                                 <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm font-medium text-gray-900 truncate" title="{{ race.title }}">
-                                            {{ race.title }}
-                                        </div>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cierre Pronósticos</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for race in league_races_detailed %}
+                                <tr class="{% if loop.index is odd %}bg-white{% else %}bg-gray-50{% endif %}">
+                                    <td class="px-6 py-4">
+                                        <p class="font-medium text-gray-800">{{ race.title }}</p>
+                                        <p class="text-sm text-gray-500">{{ race.event_date|format_date_filter }}</p>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-500">{{ race.event_date|format_date_filter }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-500">{{ race.race_format.name if race.race_format else 'N/A' }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="text-xs px-2 py-1 rounded-full
-                                            {% if race.status.value == 'PLANNED' %}bg-blue-100 text-blue-700
-                                            {% elif race.status.value == 'ACTIVE' %}bg-yellow-100 text-yellow-700
-                                            {% elif race.status.value == 'ARCHIVED' %}bg-gray-100 text-gray-600
-                                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                                    <td class="px-6 py-4 text-sm text-gray-500">{{ race.predictions_close_date|format_date_filter if race.predictions_close_date else 'N/A' }}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                        {% if race.status.value == 'CLOSED' %}bg-red-100 text-red-800
+                                        {% elif race.status.value == 'PLANNED' %}bg-gray-100 text-gray-800
+                                        {% elif race.status.value == 'ACTIVE' %}bg-green-100 text-green-800
+                                        {% else %}bg-blue-100 text-blue-800{% endif %}">
                                             {{ race.status.value|capitalize }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-600 hover:text-orange-900" title="Ver Clasificación">
-                                            <i class="fas fa-trophy"></i>
-                                        </a>
-                                        <a href="#participantes-race-{{race.id}}" class="text-orange-600 hover:text-orange-900 ml-3" title="Ver Participantes">
-                                            <i class="fas fa-users"></i>
-                                        </a>
-                                        {# Asumiendo que el creador de la liga o un admin pueden editar/eliminar carreras de la liga #}
-                                        {% if current_user_is_creator_or_admin %}
-                                        <a href="{{ url_for('serve_create_race_page', race_id=race.id) }}" class="text-blue-600 hover:text-blue-900 ml-3" title="Editar Carrera">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        {# <form action="{{ url_for('remove_race_from_league', league_id=league.id, race_id=race.id) }}" method="POST" class="inline" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta carrera de la liga?');">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="text-red-600 hover:text-red-900 ml-3" title="Eliminar Carrera de la Liga">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </form> #}
+                                    <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
+                                        <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></a>
+                                        {# Assuming 'make_prediction_page' and 'view_prediction_page' routes exist #}
+                                        {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
+                                            {# Check if user has made prediction for this race in this league #}
+                                            {% set user_prediction_exists = user_predictions_map.get(race.id) %}
+                                            {% if not user_prediction_exists %}
+                                                {# Asumiendo que 'make_prediction_page' es el endpoint correcto para hacer una predicción.
+                                                   Si este también da error, necesitará ser investigado. #}
+                                                <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion" class="text-orange-600 hover:text-orange-800 font-bold" title="Hacer Pronóstico"><i class="fas fa-poll-h"></i></a>
+                                            {% else %}
+                                                 {# Apuntar a la página de detalle de la carrera para ver la quiniela.
+                                                    La página de detalle debería mostrar las respuestas del usuario. #}
+                                                 <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-orange-600 hover:text-orange-800 font-bold" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
+                                            {% endif %}
+                                        {% else %} {# Si el estado no es PLANNED o ACTIVE (ej. CLOSED) #}
+                                             <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="text-gray-400 hover:text-orange-600" title="Ver mi Quiniela"><i class="fas fa-poll-h"></i></a>
                                         {% endif %}
+                                        <a href="#participantes-race-{{race.id}}" class="text-gray-400 hover:text-orange-600" title="Ver Participantes de Carrera (dummy)"><i class="fas fa-users"></i></a>
                                     </td>
                                 </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% else %}
-            <div class="bg-white shadow-md rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="!bg-orange-500 !text-white">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nombre de la Carrera</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Fecha</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Formato</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td colspan="5" class="px-6 py-10 text-center">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <i class="fas fa-flag-checkered text-5xl text-gray-300 mb-4"></i>
-                                        <h3 class="text-xl font-bold text-gray-700 mb-2">No hay Carreras en esta Liga</h3>
-                                        <p class="text-gray-500">Aún no se han añadido carreras a esta liga.</p>
-                                        {# Podrías añadir un botón para añadir carreras si el usuario es el creador y la liga está activa #}
-                                        {# {% if current_user_is_creator_or_admin and league.is_active %}
-                                            <a href="{{ url_for('add_race_to_league_page', league_id=league.id) }}" class="mt-4 btn-secondary">
-                                                Añadir Carrera
-                                            </a>
-                                        {% endif %} #}
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% endif %}
-    </section>
-
-    <!-- 3. Sección de Participantes y Unirse a la Liga (si no es participante) -->
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Columna de Participantes REMOVED -->
-        <!-- <div class="md:col-span-1 bg-white p-6 rounded-xl shadow-md">
-            <h3 class="text-xl font-semibold text-gray-700 mb-4">Participantes ({{ league_participants_count }})</h3>
-            {% if league_participants and league_participants|length > 0 %}
-                <ul class="space-y-2 max-h-60 overflow-y-auto">
-                    {% for participant in league_participants %}
-                        <li class="text-sm text-gray-600 p-2 bg-gray-50 rounded-md">{{ participant.user.username }}</li>
-                    {% endfor %}
-                </ul>
-                {% if league_participants_count > league_participants|length %}
-                     <p class="text-xs text-gray-400 mt-2">Mostrando {{ league_participants|length }} de {{ league_participants_count }}...</p>
-                {% endif %}
-            {% else %}
-                <p class="text-sm text-gray-500 italic">Aún no hay participantes unidos a esta liga.</p>
-            {% endif %}
-        </div> -->
-
-        <!-- Columna para Unirse a la Liga (si aplica) - Ocupa todo el ancho si la de participantes se quita -->
-        <div class="md:col-span-3 bg-white p-6 rounded-xl shadow-md flex flex-col justify-center">
-            {% if league.is_active and not current_user_is_participant %}
-                <div>
-                    <h3 class="text-xl font-semibold text-gray-700 mb-3">Unirse a la Liga</h3>
-                    <p class="text-sm text-gray-600 mb-4">Si tienes un código de invitación, puedes unirte a esta liga.</p>
-                    <button type="button" onclick="openJoinLeagueModal('{{ league.id }}')"
-                            class="btn-success text-white w-full px-6 py-3 rounded-lg font-semibold shadow-sm hover:shadow-md transition-shadow flex items-center justify-center">
-                        <i class="fas fa-user-plus mr-2"></i>Unirme con Código de Invitación
-                    </button>
-                </div>
-            {% elif current_user_is_participant %}
-                 <div>
-                    {# "Ya eres participante" notification REMOVED #}
-                    {# <p class="text-green-600 font-semibold flex items-center text-lg">
-                        <i class="fas fa-check-circle mr-2 text-xl"></i>Ya eres participante de esta liga.
-                    </p> #}
-                    {# Puede que quieras dejar un espacio o algún otro contenido aquí si el usuario ya es participante #}
-                    {# O simplemente no mostrar nada si la notificación se elimina por completo #}
-                 </div>
-            {% else %}
-                <p class="text-sm text-gray-500 italic">Esta liga no está activa actualmente o no puedes unirte.</p>
-            {% endif %}
-        </div>
-    </section>
-
-    <!-- 4. Sección de Clasificación de la Liga -->
-    <section class="mb-10">
-        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Clasificación de la Liga</h2>
-        {% if league_standings and league_standings|length > 0 %}
-            <div class="bg-white shadow-md rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="!bg-orange-500 !text-white">
-                            <tr>
-                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16 align-middle">Pos.</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle">Participante</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider align-middle">Puntos Totales</th>
-                                {% for race in league_races_detailed %}
-                                    {% set color_index = loop.index0 % race_background_colors|length %}
-                                    {% set current_race_color = race_background_colors[color_index] %}
-                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 120px;">
-                                        {{ race.title }}<br>Puesto
-                                    </th>
-                                    <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle" style="background-color: {{ current_race_color }}; min-width: 120px;">
-                                        {{ race.title }}<br>Puntos
-                                    </th>
                                 {% endfor %}
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            {% for standing in league_standings %}
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <div class="text-sm font-medium text-gray-900">{{ loop.index }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <div class="text-sm text-gray-700">{{ standing.username }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                                        <div class="text-sm font-bold text-gray-900">{{ standing.total_score }}</div>
-                                    </td>
-                                    {% for race in league_races_detailed %}
-                                        {% set color_index = loop.index0 % race_background_colors|length %}
-                                        {% set current_race_color = race_background_colors[color_index] %}
-                                        {% set details = participant_race_details.get(standing.user_id, {}).get(race.id, {'points': 0, 'rank': '-'}) %}
-                                        <td class="px-4 py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
-                                            <div class="text-sm text-gray-700">{{ details.rank }}</div>
-                                        </td>
-                                        <td class="px-4 py-4 whitespace-nowrap text-center" style="background-color: {{ current_race_color }};">
-                                            <div class="text-sm text-gray-700">{{ details.points }}</div>
-                                        </td>
-                                    {% endfor %}
-                                </tr>
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="p-6 text-center text-gray-500">
+                            <i class="fas fa-flag-checkered text-4xl mb-2"></i>
+                            <p>No hay carreras en esta liga todavía.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                 <!-- Análisis por Carrera -->
+                <div class="bg-white shadow-md rounded-lg">
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-900">Análisis por Carrera</h2>
+                        {% if league_races_detailed and league_races_detailed|length > 0 %}
+                        <select id="race-selector" class="text-sm border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                            {% for race in league_races_detailed %}
+                            <option value="{{ race.id }}">{{ race.title }}</option>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </select>
+                        {% else %}
+                        <p class="text-sm text-gray-500">No hay carreras para analizar.</p>
+                        {% endif %}
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Pos.</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Puntos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="race-details-body" class="bg-white divide-y divide-gray-200">
+                                <!-- JS will populate this -->
+                                 <tr><td colspan="3" class="text-center p-4 text-gray-500">Selecciona una carrera para ver el análisis.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        {% else %}
-             <div class="bg-white shadow-md rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                         <thead class="!bg-orange-500 !text-white">
-                            <tr>
-                                <th class="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider w-16 align-middle">Pos.</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle">Participante</th>
-                                <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider align-middle">Puntos Totales</th>
-                                <!-- No hay carreras, así que no se añaden cabeceras de carrera aquí -->
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <!-- Ajustar colspan si se espera que haya carreras pero no hay standings -->
-                                <td colspan="{{ 3 + (league_races_detailed|length * 2 if league_races_detailed else 0) }}" class="px-6 py-10 text-center">
-                                    <div class="flex flex-col items-center justify-center">
-                                        <i class="fas fa-users-slash text-5xl text-gray-300 mb-4"></i>
-                                        <h3 class="text-xl font-bold text-gray-700 mb-2">Clasificación No Disponible</h3>
-                                        <p class="text-gray-500">
-                                            Aún no hay participantes en esta liga o no se han calculado puntuaciones.
-                                        </p>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% endif %}
-    </section>
 
-</div>
-
-{# Modal para unirse a la liga con código (ejemplo, similar al de unirse a carrera) #}
-{# Este modal podría estar en la plantilla base o ser incluido aquí #}
-<div id="join-league-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Unirse a la Liga "{{ league.name }}"</h3>
-                <button onclick="closeJoinLeagueModal()" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
+            <!-- Columna Derecha: Clasificación General y Actividad -->
+            <div class="lg:col-span-1 space-y-8">
+                 <!-- Clasificación General con Avatares -->
+                <div class="bg-white shadow-md rounded-lg">
+                     <div class="p-6 border-b"><h2 class="text-xl font-bold text-gray-900">Clasificación General</h2></div>
+                    <div class="overflow-x-auto">
+                        {% if league_standings and league_standings|length > 0 %}
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Pos.</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participante</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Puntos</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for standing in league_standings %}
+                                <tr class="{% if loop.index is odd %}bg-white{% else %}bg-gray-50{% endif %}">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{{ loop.index }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center">
+                                        <img src="{{ standing.avatar_url or url_for('static', filename='img/favicon_promo.svg') }}" class="w-8 h-8 rounded-full mr-3" alt="Avatar">
+                                        {{ standing.username }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-orange-600">{{ standing.total_score }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="p-6 text-center text-gray-500">
+                             <i class="fas fa-users-slash text-4xl mb-2"></i>
+                            <p>Aún no hay clasificación disponible.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Feed de Actividad de la Liga (Dummy) -->
+                <div class="bg-white shadow-md rounded-lg">
+                    <div class="p-6 border-b"><h2 class="text-xl font-bold text-gray-900">Actividad Reciente</h2></div>
+                    <div class="p-6 space-y-4">
+                        <div class="flex items-start"><i class="fas fa-check-circle text-green-500 mt-1 mr-3"></i><div><p class="text-sm text-gray-800"><span class="font-semibold">usuario_ejemplo1</span> ha enviado sus pronósticos para <span class="font-semibold">Carrera Ejemplo A</span>.</p><p class="text-xs text-gray-400">Hace 5 minutos</p></div></div>
+                        <div class="flex items-start border-t pt-4"><i class="fas fa-user-plus text-blue-500 mt-1 mr-3"></i><div><p class="text-sm text-gray-800"><span class="font-semibold">nuevo_participante</span> se ha unido a la liga.</p><p class="text-xs text-gray-400">Hace 2 horas</p></div></div>
+                        <p class="text-sm text-gray-400 italic text-center pt-4">Más actividad próximamente...</p>
+                    </div>
+                </div>
             </div>
-            <form id="join-league-form" action="" method="POST"> {# La acción se establecerá dinámicamente #}
-                <div class="mb-4">
-                    <label for="league-join-code" class="block text-sm font-medium text-gray-700 mb-1">Código de Invitación</label>
-                    <input type="text" name="join_code" id="league-join-code" required
-                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
-                           placeholder="Introduce el código de invitación">
-                </div>
-                <div class="flex items-center justify-end space-x-3">
-                    <button type="button" onclick="closeJoinLeagueModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
-                        Unirme a la Liga
-                    </button>
-                </div>
-            </form>
         </div>
-    </div>
-</div>
+    </main>
 
-<!-- Modal para MOSTRAR el código de invitación de la liga -->
-<div id="show-league-code-modal" class="fixed inset-0 modal-backdrop hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Código de Invitación para "{{ league.name }}"</h3>
-                <button onclick="closeShowLeagueCodeModal()" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="my-4">
-                <p class="text-sm text-gray-600 mb-2">Comparte este código para que otros se unan:</p>
-                <div class="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
-                    <span id="league-invitation-code-display" class="text-xl font-mono text-gray-800"></span>
-                    <button id="copy-league-code-button"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center">
-                        <i class="far fa-copy mr-2"></i>Copiar
+    {# Modal para unirse a la liga con código (similar al original) #}
+    <div id="join-league-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Unirse a la Liga "{{ league.name }}"</h3>
+                    <button onclick="closeJoinLeagueModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
-                {% if invitation_code and invitation_code.expires_at %}
-                <p class="text-xs text-gray-500 mt-2">Expira: {{ invitation_code.expires_at|format_date_filter }}</p>
-                {% elif invitation_code %}
-                <p class="text-xs text-gray-500 mt-2">Este código no expira.</p>
-                {% endif %}
-            </div>
-            <div class="flex items-center justify-between mt-6"> {# Changed justify-end to justify-between #}
-                {# Delete League Button - visible only to creator/admin #}
-                {% if current_user_is_creator_or_admin %}
-                <form action="{{ url_for('delete_league', league_id=league.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');" class="inline">
-                    {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
-                    <button type="submit" class="btn-danger-secondary text-sm">
-                        <i class="fas fa-trash-alt mr-2"></i>Eliminar Liga
-                    </button>
+                <form id="join-league-form" action="{{ url_for('process_join_league_with_code') }}" method="POST">
+                    <div class="mb-4">
+                        <label for="league-join-code" class="block text-sm font-medium text-gray-700 mb-1">Código de Invitación</label>
+                        <input type="text" name="join_code" id="league-join-code" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                               placeholder="Introduce el código de invitación">
+                        <input type="hidden" name="league_id" value="{{ league.id }}">
+                    </div>
+                    <div class="flex items-center justify-end space-x-3">
+                        <button type="button" onclick="closeJoinLeagueModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
+                            Unirme a la Liga
+                        </button>
+                    </div>
                 </form>
-                {% else %}
-                <div></div> {# Placeholder to keep "Cerrar" button to the right #}
-                {% endif %}
-
-                <button type="button" onclick="closeShowLeagueCodeModal()" class="btn-secondary px-5 py-2">
-                    Cerrar
-                </button>
             </div>
         </div>
     </div>
-</div>
 
-{# Edit League Button - visible only to creator/admin - Placed outside the modal, perhaps in the header or a dedicated actions area #}
-<div id="edit-league-button-container" class="mt-4"> {# Example container, adjust placement as needed #}
-    {% if current_user_is_creator_or_admin %}
-    <a href="{{ url_for('edit_league', league_id=league.id) }}" class="btn-primary text-sm">
-        <i class="fas fa-edit mr-2"></i>Editar Liga
-    </a>
+    <!-- Modal para MOSTRAR el código de invitación de la liga (similar al original) -->
+    {% if invitation_code %}
+    <div id="show-league-code-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Código de Invitación para "{{ league.name }}"</h3>
+                    <button onclick="closeShowLeagueCodeModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="my-4">
+                    <p class="text-sm text-gray-600 mb-2">Comparte este código para que otros se unan:</p>
+                    <div class="bg-gray-100 p-3 rounded-lg flex items-center justify-between">
+                        <span id="league-invitation-code-display" class="text-xl font-mono text-gray-800">{{ invitation_code.code }}</span>
+                        <button id="copy-league-code-button"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center">
+                            <i class="far fa-copy mr-2"></i>Copiar
+                        </button>
+                    </div>
+                    {% if invitation_code.expires_at %}
+                    <p class="text-xs text-gray-500 mt-2">Expira: {{ invitation_code.expires_at|format_date_filter('%d %b %Y %H:%M') }}</p>
+                    {% else %}
+                    <p class="text-xs text-gray-500 mt-2">Este código no expira.</p>
+                    {% endif %}
+                </div>
+                <div class="flex items-center justify-end mt-6">
+                    <button type="button" onclick="closeShowLeagueCodeModal()" class="btn-secondary px-5 py-2">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
-</div>
 
+    <script>
+        // Data for race analysis - this would ideally come from Flask/backend
+        // For now, using a structure that can be populated by Flask if needed
+        // The keys for raceData should be race IDs.
+        const raceAnalysisData = {
+            {% for race in league_races_detailed %}
+                "{{ race.id }}": [
+                    // This part needs to be populated with actual participant scores for each race.
+                    // Example: { pos: 1, name: 'Participant A', points: 50, avatar_url: '...' },
+                    // For now, it will be empty or use dummy data if available from backend.
+                    // Let's assume a variable `race_analysis_details` is passed from Flask
+                    // `race_analysis_details` would be a dict like: { race_id: [ {details}, ... ], ... }
+                    {% if race_analysis_details and race_analysis_details[race.id] %}
+                        {% for detail in race_analysis_details[race.id] %}
+                            { pos: {{ detail.rank if detail.rank is not none else "'-'" }}, name: '{{ detail.username }}', points: {{ detail.points if detail.points is not none else 0 }} },
+                        {% endfor %}
+                    {% else %}
+                         // Dummy data if not provided by backend for this specific race
+                        { pos: '-', name: 'Participante Ejemplo', points: 0 },
+                    {% endif %}
+                ],
+            {% endfor %}
+        };
 
-{% endblock %}
+        const raceSelector = document.getElementById('race-selector');
+        const raceDetailsBody = document.getElementById('race-details-body');
 
-{% block additional_scripts %}
-{{ super() }} {# Para incluir scripts del padre si los hay #}
-<script>
-    // Functions for "Join League" Modal
-    function openJoinLeagueModal(leagueId) {
-        const modal = document.getElementById('join-league-modal');
-        const form = document.getElementById('join-league-form');
-        if (modal && form) {
-            form.action = "{{ url_for('process_join_league_with_code') }}";
-            modal.classList.remove('hidden');
-            document.getElementById('league-join-code').focus();
+        function renderRaceDetails(raceId) {
+            const data = raceAnalysisData[raceId] || [];
+            raceDetailsBody.innerHTML = ''; // Clear previous entries
+
+            if (data.length === 0) {
+                raceDetailsBody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-gray-500">No hay datos de análisis para esta carrera.</td></tr>';
+                return;
+            }
+
+            // Sort data by position, handling '-'
+            data.sort((a, b) => {
+                if (a.pos === '-' && b.pos === '-') return 0;
+                if (a.pos === '-') return 1;
+                if (b.pos === '-') return -1;
+                return a.pos - b.pos;
+            });
+
+            data.forEach((player, index) => {
+                const row = document.createElement('tr');
+                if (index % 2 !== 0) { row.classList.add('bg-gray-50'); } // Alternate row color
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">${player.pos}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${player.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-gray-700">${player.points}</td>
+                `;
+                raceDetailsBody.appendChild(row);
+            });
         }
-    }
 
-    function closeJoinLeagueModal() {
-        const modal = document.getElementById('join-league-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-        }
-    }
-
-    // Functions for "Show League Invitation Code" Modal
-    function openShowLeagueCodeModal() {
-        const modal = document.getElementById('show-league-code-modal');
-        const codeDisplay = document.getElementById('league-invitation-code-display');
-        const rawCode = "{{ invitation_code.code if invitation_code and invitation_code.is_active else '' }}";
-        if (modal && codeDisplay && rawCode) {
-            codeDisplay.textContent = rawCode;
-            modal.classList.remove('hidden');
-        } else if (modal && codeDisplay) { // Code might be empty if not active or not present
-            codeDisplay.textContent = "No hay código activo.";
-             modal.classList.remove('hidden'); // Still show modal to indicate no code
-        }
-    }
-
-    function closeShowLeagueCodeModal() {
-        const modal = document.getElementById('show-league-code-modal');
-        if (modal) {
-            modal.classList.add('hidden');
-        }
-    }
-
-    function copyLeagueInvitationCode() {
-        const codeToCopy = document.getElementById('league-invitation-code-display').textContent;
-        const copyButton = document.getElementById('copy-league-code-button');
-        if (!codeToCopy || codeToCopy === "No hay código activo.") {
-            return;
+        if (raceSelector) {
+            raceSelector.addEventListener('change', (event) => {
+                renderRaceDetails(event.target.value);
+            });
+            // Initial load for the first selected race (if any)
+            if (raceSelector.value) {
+                renderRaceDetails(raceSelector.value);
+            } else if (raceDetailsBody) {
+                 raceDetailsBody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-gray-500">No hay carreras seleccionadas o disponibles para análisis.</td></tr>';
+            }
+        } else if (raceDetailsBody) {
+            // If no selector, means no races, so show message in table
+            raceDetailsBody.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-gray-500">No hay carreras disponibles para análisis.</td></tr>';
         }
 
-        navigator.clipboard.writeText(codeToCopy).then(function() {
-            const originalButtonHtml = copyButton.innerHTML;
-            copyButton.innerHTML = '<i class="fas fa-check mr-2"></i>¡Copiado!';
-            copyButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
-            copyButton.classList.add('bg-green-500', 'hover:bg-green-600');
 
-            setTimeout(function() {
-                copyButton.innerHTML = originalButtonHtml;
-                copyButton.classList.remove('bg-green-500', 'hover:bg-green-600');
-                copyButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
-            }, 2000);
-        }).catch(function(err) {
-            console.error('Error al copiar el código de invitación de la liga: ', err);
-            const originalButtonHtml = copyButton.innerHTML;
-            copyButton.innerHTML = '<i class="fas fa-times mr-2"></i>Error';
-            setTimeout(function() {
-                copyButton.innerHTML = originalButtonHtml;
-            }, 2000);
-        });
-    }
+        // Modal functions (similar to original, adapted for current structure)
+        function openJoinLeagueModal(leagueId) {
+            const modal = document.getElementById('join-league-modal');
+            // const form = document.getElementById('join-league-form'); // Action is already set in HTML
+            if (modal) {
+                // If you need to dynamically set league_id in the form, do it here
+                // For example, if you have a hidden input:
+                // modal.querySelector('input[name="league_id"]').value = leagueId;
+                modal.classList.remove('hidden');
+                document.getElementById('league-join-code').focus();
+            }
+        }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // Attach listener for "Show Invitation Code" button
+        function closeJoinLeagueModal() {
+            const modal = document.getElementById('join-league-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
         const showCodeButton = document.getElementById('show-league-invitation-code-button');
-        if (showCodeButton) {
-            showCodeButton.addEventListener('click', openShowLeagueCodeModal);
+        const showLeagueCodeModalElem = document.getElementById('show-league-code-modal');
+
+        if (showCodeButton && showLeagueCodeModalElem) {
+            showCodeButton.addEventListener('click', () => {
+                showLeagueCodeModalElem.classList.remove('hidden');
+            });
         }
 
-        // Attach listener for "Copy Code" button inside the "Show Code" modal
+        function closeShowLeagueCodeModal() {
+            if (showLeagueCodeModalElem) {
+                showLeagueCodeModalElem.classList.add('hidden');
+            }
+        }
+
         const copyCodeButton = document.getElementById('copy-league-code-button');
         if (copyCodeButton) {
-            copyCodeButton.addEventListener('click', copyLeagueInvitationCode);
+            copyCodeButton.addEventListener('click', () => {
+                const codeToCopy = document.getElementById('league-invitation-code-display').textContent;
+                navigator.clipboard.writeText(codeToCopy).then(() => {
+                    const originalButtonHtml = copyCodeButton.innerHTML;
+                    copyCodeButton.innerHTML = '<i class="fas fa-check mr-2"></i>¡Copiado!';
+                    copyCodeButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                    copyCodeButton.classList.add('bg-green-500');
+                    setTimeout(() => {
+                        copyCodeButton.innerHTML = originalButtonHtml;
+                        copyCodeButton.classList.remove('bg-green-500');
+                        copyCodeButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar código: ', err);
+                });
+            });
         }
 
-        // SweetAlert for flashed messages (optional)
-        // {% with messages = get_flashed_messages(with_categories=true) %}
-        //     {% if messages %}
-        //         {% for category, message in messages %}
-        //             Swal.fire({
-        //                 title: '{{ category|capitalize }}!',
-        //                 text: '{{ message }}',
-        //                 icon: '{{ category }}',
-        //                 confirmButtonColor: '#F97316'
-        //             });
-        //         {% endfor %}
-        //     {% endif %}
-        // {% endwith %}
-    });
-</script>
-{% endblock %}
+        // Countdown timer
+        const countdownElement = document.getElementById('countdown');
+        // Attempt to get the next closing date from a data attribute or a Flask variable
+        // This assumes you might pass `next_race_close_date_isoformat` to your template
+        // Or set it as a data attribute on the countdown element if that's easier with your backend.
+        let nextCloseDateISO = countdownElement.dataset.nextCloseDate || "{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}";
+
+        function updateCountdown() {
+            if (!nextCloseDateISO) {
+                countdownElement.textContent = "N/A"; // Or "No hay cierres"
+                return;
+            }
+
+            const targetDate = new Date(nextCloseDateISO);
+            const now = new Date();
+            const diff = targetDate - now;
+
+            if (diff <= 0) {
+                countdownElement.textContent = "Cerrado";
+                // Optionally, stop the interval if you have one running for this
+                // clearInterval(countdownInterval);
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            // const seconds = Math.floor((diff % (1000 * 60)) / 1000); // Uncomment if you want seconds
+
+            countdownElement.textContent = `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+        }
+
+        if (nextCloseDateISO) {
+            updateCountdown(); // Initial call
+            const countdownInterval = setInterval(updateCountdown, 60000); // Update every minute
+        } else {
+             countdownElement.textContent = "00d 00h 00m"; // Default if no date
+        }
+
+    </script>
+    <!-- Script para SweetAlert (mensajes flash) - Movido fuera de los bloques Jinja eliminados -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        Swal.fire({
+                            title: '{{ category|capitalize }}!',
+                            text: '{{ message }}',
+                            icon: '{{ "success" if category == "message" or category == "success" else ("error" if category == "danger" or category == "error" else category) }}',
+                            confirmButtonColor: '#F97316' // Orange color for confirm button
+                        });
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        });
+    </script>
+</body>
+</html>
