@@ -135,20 +135,25 @@
                                     <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
                                         <button onclick="openRaceResultsModal('{{ race.id }}', '{{ race.title }}')" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></button>
                                         {# Assuming 'make_prediction_page' and 'view_prediction_page' routes exist #}
-                                        {% set user_prediction_exists = user_predictions_map.get(race.id) %}
+                                        {% set prediction_status = user_predictions_status.get(race.id) %}
+                                        {% set user_prediction_exists = prediction_status.exists if prediction_status else false %}
+                                        {% set pending_count = prediction_status.pending_count if prediction_status and user_prediction_exists else 0 %}
                                         {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
 
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
                                             {# Quiniela is Open (Planned or Active) #}
                                             {% if user_prediction_exists %}
                                                 <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', false)"
-                                                        class="text-orange-600 hover:text-orange-800 font-bold"
+                                                        class="text-orange-600 hover:text-orange-800 font-bold relative"
                                                         title="Ver mi Quiniela">
                                                     <i class="fas fa-poll-h"></i>
+                                                    {% if pending_count > 0 %}
+                                                        <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full">{{ pending_count }}</span>
+                                                    {% endif %}
                                                 </button>
                                             {% else %}
                                                 <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}#hacer-prediccion"
-                                                   class="text-orange-600 hover:text-orange-800 font-bold"
+                                                   class="text-orange-600 hover:text-orange-800 font-bold relative"
                                                    title="Hacer Pronóstico">
                                                     <i class="fas fa-poll-h"></i>
                                                 </a>

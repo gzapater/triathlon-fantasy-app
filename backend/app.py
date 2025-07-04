@@ -5059,18 +5059,32 @@ def view_league_detail(league_id):
         "#fffacd",  # LemonChiffon
     ]
 
-    # Fetch user predictions map for the current user in this league
-    user_predictions_map = {}
+    # Fetch user predictions map and pending question counts for the current user in this league
+    user_predictions_status = {} # New map: race.id -> {'exists': bool, 'pending_count': int}
     if current_user.is_authenticated:
         for race_in_league in league_races_detailed:
-            # Check if UserAnswer exists for this user, for this race
-            # This assumes UserAnswer implies a prediction. Adjust if prediction is stored differently.
-            prediction_exists = UserAnswer.query.filter_by(
+            answered_count = UserAnswer.query.filter_by(
                 user_id=current_user.id,
                 race_id=race_in_league.id
-            ).first()
+            ).count()
+
+            prediction_exists = answered_count > 0
+
             if prediction_exists:
-                user_predictions_map[race_in_league.id] = True
+                total_questions = Question.query.filter_by(
+                    race_id=race_in_league.id,
+                    is_active=True
+                ).count()
+                pending_count = total_questions - answered_count
+                user_predictions_status[race_in_league.id] = {
+                    'exists': True,
+                    'pending_count': pending_count if pending_count > 0 else 0 # Ensure non-negative
+                }
+            else:
+                user_predictions_status[race_in_league.id] = {
+                    'exists': False,
+                    'pending_count': 0
+                }
 
 
     return render_template('league_detail_view.html',
@@ -5082,7 +5096,7 @@ def view_league_detail(league_id):
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
                            league_standings=league_standings,
-                           user_predictions_map=user_predictions_map, # Pass this to the template
+                           user_predictions_status=user_predictions_status, # Pass new map to the template
                            # participant_race_details=participant_race_details, # Ya no se pasa directamente
                            race_analysis_details=race_analysis_details_for_js, # Nueva variable para el JS
                            race_background_colors=race_background_colors,
