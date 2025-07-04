@@ -316,25 +316,32 @@
         // Data for race analysis - this would ideally come from Flask/backend
         // For now, using a structure that can be populated by Flask if needed
         // The keys for raceData should be race IDs.
-        const raceAnalysisData = {
-            {% for race in league_races_detailed %}
-                "{{ race.id }}": [
-                    // This part needs to be populated with actual participant scores for each race.
-                    // Example: { pos: 1, name: 'Participant A', points: 50, avatar_url: '...' },
-                    // For now, it will be empty or use dummy data if available from backend.
-                    // Let's assume a variable `race_analysis_details` is passed from Flask
-                    // `race_analysis_details` would be a dict like: { race_id: [ {details}, ... ], ... }
-                    {% if race_analysis_details and race_analysis_details[race.id] %}
-                        {% for detail in race_analysis_details[race.id] %}
-                            { pos: {{ detail.rank if detail.rank is not none else "'-'" }}, name: '{{ detail.username }}', points: {{ detail.points if detail.points is not none else 0 }} },
-                        {% endfor %}
-                    {% else %}
-                         // Dummy data if not provided by backend for this specific race
-                        { pos: '-', name: 'Participante Ejemplo', points: 0 },
-                    {% endif %}
-                ],
-            {% endfor %}
-        };
+        // Data for race analysis - this would ideally come from Flask/backend
+        // For now, using a structure that can be populated by Flask if needed
+        // The keys for raceData should be race IDs.
+        // const raceAnalysisData = {
+        //     {% for race in league_races_detailed %}
+        //         "{{ race.id }}": [
+        //             // This part needs to be populated with actual participant scores for each race.
+        //             // Example: { pos: 1, name: 'Participant A', points: 50, avatar_url: '...' },
+        //             // For now, it will be empty or use dummy data if available from backend.
+        //             // Let's assume a variable `race_analysis_details` is passed from Flask
+        //             // `race_analysis_details` would be a dict like: { race_id: [ {details}, ... ], ... }
+        //             {% if race_analysis_details and race_analysis_details[race.id|string] %}
+        //                 {% for detail in race_analysis_details[race.id|string] %}
+        //                     { pos: {{ detail.pos if detail.pos is not none else "'-'" }}, name: '{{ detail.name }}', points: {{ detail.points if detail.points is not none else 0 }} },
+        //                 {% endfor %}
+        //             {% else %}
+        //                  // Dummy data if not provided by backend for this specific race
+        //                 // { pos: '-', name: 'Participante Ejemplo Desde JS', points: 0 },
+        //             {% endif %}
+        //         ],
+        //     {% endfor %}
+        // };
+        // Convertir los datos de Flask/Jinja2 a un objeto JavaScript
+        // Asegúrate que `race_analysis_details` se pasa correctamente desde Flask y tiene la estructura:
+        // { "race_id_str": [ { "pos": X, "name": "Y", "points": Z }, ... ], ... }
+        const raceAnalysisData = {{ race_analysis_details | tojson | safe }};
 
         const raceSelector = document.getElementById('race-selector');
         const raceDetailsBody = document.getElementById('race-details-body');

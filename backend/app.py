@@ -4923,6 +4923,53 @@ def view_league_detail(league_id):
     league_standings.sort(key=lambda x: x['total_score'], reverse=True)
     # --- Fin Calcular Clasificación y Detalles ---
 
+    # --- Transformar participant_race_details para el JS ---
+    race_analysis_details_for_js = {}
+    for race_in_league in league_races_detailed:
+        race_id_key = str(race_in_league.id) # Asegurar que la clave sea string para JS
+        race_analysis_details_for_js[race_id_key] = []
+        # Obtener los scores para esta carrera específica, ya ordenados por score desc.
+        current_race_scores = scores_by_race.get(race_in_league.id, [])
+
+        # Crear la lista de participantes con su ranking y puntos para esta carrera
+        # La lógica de ranking ya se aplicó al crear participant_race_details
+        # Ahora necesitamos mapear user_id a username y obtener los datos correctos
+
+        # Primero, obtener todos los participantes de la liga para mapear user_id a username
+        league_participant_users = {lp.user_id: User.query.get(lp.user_id) for lp in all_league_participants}
+
+        temp_race_participants_data = []
+        for user_id_in_league, details_by_race in participant_race_details.items():
+            user_obj = league_participant_users.get(user_id_in_league)
+            if not user_obj:
+                continue # Skip si el usuario no se encuentra (debería ser raro)
+
+            if race_in_league.id in details_by_race:
+                race_specific_detail = details_by_race[race_in_league.id]
+                temp_race_participants_data.append({
+                    'user_id': user_obj.id, # Podría ser útil para el futuro
+                    'username': user_obj.username,
+                    'points': race_specific_detail['points'],
+                    'rank': race_specific_detail['rank']
+                    # 'avatar_url': user_obj.avatar_url # Descomentar si se quiere usar en JS
+                })
+
+        # Ordenar por ranking (ascendente, '-' al final) y luego por puntos (descendente) como desempate
+        temp_race_participants_data.sort(key=lambda x: (float('inf') if x['rank'] == '-' else x['rank'], -x['points']))
+
+        # Reasignar 'pos' basado en el ordenamiento final
+        final_ranked_data = []
+        for i, participant_data in enumerate(temp_race_participants_data):
+            final_ranked_data.append({
+                'pos': participant_data['rank'], # Usamos el rank calculado previamente
+                'name': participant_data['username'],
+                'points': participant_data['points']
+                # 'avatar_url': participant_data['avatar_url'] # Descomentar si se usa
+            })
+        race_analysis_details_for_js[race_id_key] = final_ranked_data
+    # --- Fin Transformación ---
+
+
     # --- Calcular Próximo Cierre de Quiniela y Número de Participantes ---
     league_participants_count = league.participants.count() # Contar participantes
 
@@ -4963,7 +5010,8 @@ def view_league_detail(league_id):
                            current_user_is_participant=current_user_is_participant,
                            invitation_code=active_invitation_code,
                            league_standings=league_standings,
-                           participant_race_details=participant_race_details,
+                           # participant_race_details=participant_race_details, # Ya no se pasa directamente
+                           race_analysis_details=race_analysis_details_for_js, # Nueva variable para el JS
                            race_background_colors=race_background_colors,
                            current_year=datetime.utcnow().year)
 
