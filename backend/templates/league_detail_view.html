@@ -827,7 +827,7 @@
 
                 fetch(`/api/races/${currentAnsweringRaceId}/answers`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', "X-CSRFToken": "{{ csrf_token() }}" }, // Assuming CSRF token if needed by Flask-WTF
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(answersPayload)
                 })
                 .then(response => {
