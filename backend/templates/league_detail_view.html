@@ -599,7 +599,8 @@
                             }
                         }
                         // Add event listeners for the new "Edit/Answer" buttons within the modal
-                        attachEditSingleQuestionButtonListeners(isQuinielaClosed);
+                        const modalContentElement = document.getElementById('userPredictionsModalContent');
+                        attachEditSingleQuestionButtonListeners(isQuinielaClosed, modalContentElement);
                     })
                     .catch(error => {
                         console.error('Error fetching user predictions:', error);
@@ -615,15 +616,22 @@
             }
         }
 
-        function attachEditSingleQuestionButtonListeners(isQuinielaClosed) {
-            if (isQuinielaClosed) return; // Don't attach if quiniela is closed
+        function attachEditSingleQuestionButtonListeners(isQuinielaClosed, modalContentElement) {
+            if (isQuinielaClosed || !modalContentElement) return; // Don't attach if quiniela is closed or element is missing
 
-            const buttons = document.querySelectorAll('.edit-single-question-button');
+            const buttons = modalContentElement.querySelectorAll('.edit-single-question-button');
             buttons.forEach(button => {
                 button.addEventListener('click', function() {
                     const raceId = this.dataset.raceId;
                     const raceName = this.dataset.raceName;
                     const questionId = this.dataset.questionId;
+
+                    // Basic validation for critical data
+                    if (!raceId || !questionId) {
+                        console.error("Error: Missing raceId or questionId from button data attributes. Cannot proceed.", { raceId, questionId });
+                        // Optionally, provide user feedback here e.g. an alert or a small message
+                        return;
+                    }
 
                     // Close the current "UserPredictionsModal"
                     closeUserPredictionsModal();
@@ -631,7 +639,8 @@
                     // Open the "AnswerQuinielaModal" and scroll to the question
                     // The 'hasPredictions' and 'pendingCount' arguments for openAnswerQuinielaModal
                     // are not strictly necessary for this direct jump, but we can pass defaults or fetch.
-                    // For simplicity, using true for hasPredictions (as we are editing) and 0 for pending.
+                    // Using true for hasPredictions (as we are likely editing or intend to answer)
+                    // and 0 for pending, as these don't affect the core logic of opening to a question.
                     openAnswerQuinielaModal(raceId, raceName, true, 0, questionId);
                 });
             });
