@@ -522,26 +522,22 @@
         }
 
     </script>
+    <!-- Script para SweetAlert (mensajes flash) - Movido fuera de los bloques Jinja eliminados -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        Swal.fire({
+                            title: '{{ category|capitalize }}!',
+                            text: '{{ message }}',
+                            icon: '{{ "success" if category == "message" or category == "success" else ("error" if category == "danger" or category == "error" else category) }}',
+                            confirmButtonColor: '#F97316' // Orange color for confirm button
+                        });
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        });
+    </script>
 </body>
-{% endblock %}
-
-{% block additional_scripts %}
-{{ super() }}
-{# SweetAlert for flashed messages #}
- <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    Swal.fire({
-                        title: '{{ category|capitalize }}!',
-                        text: '{{ message }}',
-                        icon: '{{ "success" if category == "message" or category == "success" else ("error" if category == "danger" or category == "error" else category) }}',
-                        confirmButtonColor: '#F97316' // Orange color for confirm button
-                    });
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    });
-</script>
-{% endblock %}
+</html>
