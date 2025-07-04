@@ -4975,15 +4975,74 @@ def view_league_detail(league_id):
 
     next_race_close_date_isoformat = None
     now = datetime.utcnow()
+    app.logger.info(f"[ViewLeagueDetail] Current UTC time (now): {now}, type: {type(now)}")
+
+    processed_races_for_future_check = []
+    for race in league_races_detailed:
+        is_future = False
+        quiniela_date_valid = False
+        if race.quiniela_close_date:
+            quiniela_date_valid = True
+            current_race_quiniela_close_date = None # Inicializar como None
+
+            if isinstance(race.quiniela_close_date, datetime):
+                current_race_quiniela_close_date = race.quiniela_close_date
+                app.logger.info(f"[ViewLeagueDetail] Race ID {race.id}, quiniela_close_date is already datetime: {current_race_quiniela_close_date}")
+            elif isinstance(race.quiniela_close_date, str):
+                app.logger.info(f"[ViewLeagueDetail] Race ID {race.id}, quiniela_close_date is string: '{race.quiniela_close_date}'. Attempting to parse.")
+                # Intentar parsear el formato "YYYY-MM-DD HH:MM:SS.mmm" o "YYYY-MM-DD HH:MM:SS"
+                # Python's %f puede manejar de 1 a 6 dígitos para microsegundos.
+                parsed_date_success = False
+                for fmt in ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S'):
+                    try:
+                        current_race_quiniela_close_date = datetime.strptime(race.quiniela_close_date, fmt)
+                        app.logger.info(f"[ViewLeagueDetail] Race ID {race.id} quiniela_close_date (string) successfully parsed with format '{fmt}' to: {current_race_quiniela_close_date}, type: {type(current_race_quiniela_close_date)}")
+                        parsed_date_success = True
+                        break
+                    except ValueError:
+                        # Intentar el siguiente formato si el actual falla
+                        app.logger.debug(f"[ViewLeagueDetail] Race ID {race.id} failed to parse with format '{fmt}'.")
+                        pass # Continuar al siguiente formato
+
+                if not parsed_date_success:
+                    app.logger.error(f"[ViewLeagueDetail] Race ID {race.id} quiniela_close_date is a string ('{race.quiniela_close_date}') but failed to parse with all attempted formats.")
+                    # current_race_quiniela_close_date permanece None
+            else:
+                app.logger.warning(f"[ViewLeagueDetail] Race ID {race.id}, quiniela_close_date is neither string nor datetime: {race.quiniela_close_date} (type: {type(race.quiniela_close_date)})")
+
+            # Ahora current_race_quiniela_close_date es un objeto datetime si el parseo fue exitoso, o None.
+            if current_race_quiniela_close_date: # Si es un datetime válido (original o parseado)
+                 # Asumimos que current_race_quiniela_close_date es naive UTC si se parseó de un string sin zona.
+                 # now también es naive UTC.
+                try:
+                    is_future = current_race_quiniela_close_date > now
+                except TypeError as te:
+                    app.logger.error(f"[ViewLeagueDetail] TypeError comparing dates for Race ID {race.id}: {current_race_quiniela_close_date} (type: {type(current_race_quiniela_close_date)}) vs {now} (type: {type(now)}). Error: {te}")
+                    is_future = False # No se puede comparar
+
+                if is_future:
+                    processed_races_for_future_check.append(race)
+
+        app.logger.info(f"[ViewLeagueDetail] Race Check: ID={race.id}, Title='{race.title}', quiniela_close_date='{race.quiniela_close_date}' (type: {type(race.quiniela_close_date)}), quiniela_date_valid={quiniela_date_valid}, is_future={is_future}")
 
     # Filtrar carreras de la liga que tienen una fecha de cierre de quiniela futura
+    # future_closing_races = sorted(
+    #     [race for race in league_races_detailed if race.quiniela_close_date and race.quiniela_close_date > now],
+    #     key=lambda r: r.quiniela_close_date
+    # )
+    # Usar la lista procesada que ya filtró las futuras
     future_closing_races = sorted(
-        [race for race in league_races_detailed if race.quiniela_close_date and race.quiniela_close_date > now],
-        key=lambda r: r.quiniela_close_date
+        processed_races_for_future_check,
+        key=lambda r: r.quiniela_close_date # Asumiendo que r.quiniela_close_date es datetime aquí
     )
+    app.logger.info(f"[ViewLeagueDetail] Found {len(future_closing_races)} future closing races.")
 
     if future_closing_races:
-        next_race_close_date_isoformat = future_closing_races[0].quiniela_close_date.isoformat()
+        next_closing_race = future_closing_races[0]
+        app.logger.info(f"[ViewLeagueDetail] Next closing race: ID={next_closing_race.id}, Title='{next_closing_race.title}', CloseDate='{next_closing_race.quiniela_close_date}'")
+        next_race_close_date_isoformat = next_closing_race.quiniela_close_date.isoformat()
+
+    app.logger.info(f"[ViewLeagueDetail] Final next_race_close_date_isoformat: {next_race_close_date_isoformat}")
     # --- Fin Calcular Próximo Cierre ---
 
 
