@@ -152,6 +152,9 @@
                                                     <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
                                                 {% endif %}
                                             </button>
+                                            <button class="open-wizard-btn text-orange-600 hover:text-orange-800 font-bold" data-race-id="{{ race.id }}" title="Responder Preguntas">
+                                                <i class="fas fa-poll-h"></i>
+                                            </button>
                                         {% elif user_prediction_exists %}
                                             {# Quiniela is Closed, but user made predictions: Show "Ver mi Quiniela" (read-only) #}
                                             {# This now uses the openUserPredictionsModal to show already submitted answers, edit button will be hidden by JS #}
