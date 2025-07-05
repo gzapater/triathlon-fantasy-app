@@ -144,16 +144,20 @@
                                         {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
 
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                                            {# Quiniela is Open: Show "Responder/Editar Quiniela" button using the new wizard #}
-                                            <button onclick="openWizardForRace('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
-                                                    class="text-blue-600 hover:text-blue-800 font-bold relative"
-                                                    title="Participar en Quiniela (Wizard)">
-                                                <i class="fas fa-magic"></i> {# Using fa-magic icon for wizard #}
+                                            {# Quiniela is Open: Show "Responder/Editar Quiniela" button #}
+                                            <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})"
+                                                    class="text-orange-600 hover:text-orange-800 font-bold relative"
+                                                    title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
+                                                <i class="fas fa-edit"></i> {# Using fa-edit icon #}
                                                 {% if user_prediction_exists and pending_count > 0 %}
                                                     <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
-                                                {% elif not user_prediction_exists and not quiniela_is_closed %}
-                                                    {# Optionally, add a different indicator or text if user hasn't participated #}
                                                 {% endif %}
+                                            </button>
+                                            {# New Button for Question Wizard #}
+                                            <button onclick="openWizardForRace('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
+                                                    class="text-purple-600 hover:text-purple-800 font-bold relative" {# Changed color for distinction #}
+                                                    title="Participar con Wizard">
+                                                <i class="fas fa-magic"></i>
                                             </button>
                                         {% elif user_prediction_exists %}
                                             {# Quiniela is Closed, but user made predictions: Show "Ver mi Quiniela" (read-only) #}
