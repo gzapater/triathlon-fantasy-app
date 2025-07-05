@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script> {# SweetAlert2 for notifications #}
     <!-- Favicon link -->
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.svg') }}" type="image/svg+xml">
     <style>
@@ -143,13 +144,15 @@
                                         {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
 
                                         {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                                            {# Quiniela is Open: Show "Responder/Editar Quiniela" button #}
-                                            <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})"
-                                                    class="text-orange-600 hover:text-orange-800 font-bold relative"
-                                                    title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
-                                                <i class="fas fa-edit"></i> {# Using fa-edit icon #}
+                                            {# Quiniela is Open: Show "Responder/Editar Quiniela" button using the new wizard #}
+                                            <button onclick="openWizardForRace('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
+                                                    class="text-blue-600 hover:text-blue-800 font-bold relative"
+                                                    title="Participar en Quiniela (Wizard)">
+                                                <i class="fas fa-magic"></i> {# Using fa-magic icon for wizard #}
                                                 {% if user_prediction_exists and pending_count > 0 %}
                                                     <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
+                                                {% elif not user_prediction_exists and not quiniela_is_closed %}
+                                                    {# Optionally, add a different indicator or text if user hasn't participated #}
                                                 {% endif %}
                                             </button>
                                         {% elif user_prediction_exists %}
@@ -856,10 +859,470 @@
         }
         // --- End Answer/Edit Quiniela Modal JavaScript ---
 
+        // --- Question Wizard Logic (Adapted for league_detail_view.html) ---
+        let wizardCurrentRaceId = null;
+        let wizardAllRaceQuestions = [];
+        let wizardCurrentQuestionIndex = 0;
+        let wizardUserAnswers = {}; // Stores answers as { question_id: { ...answer_data } }
+
+        // Wizard Modal DOM Elements (ensure these are unique or scoped if multiple modals exist)
+        const leagueDetailQuestionWizardModal = document.getElementById('questionWizardModal'); // Already exists from copied HTML
+        const leagueDetailWizardQuestionProgress = document.getElementById('wizardQuestionProgress');
+        const leagueDetailCloseWizardModalBtn = document.getElementById('closeWizardModalBtn');
+        const leagueDetailWizardQuestionText = document.getElementById('wizardQuestionText');
+        const leagueDetailWizardAnswerOptions = document.getElementById('wizardAnswerOptions');
+        const leagueDetailWizardPrevBtn = document.getElementById('wizardPrevBtn');
+        const leagueDetailWizardNextBtn = document.getElementById('wizardNextBtn');
+        const leagueDetailWizardFinishBtn = document.getElementById('wizardFinishBtn');
+
+        // Helper function to update enabled/disabled state of move buttons in wizard ordering list
+        // This function is specific to the wizard's ordering question type.
+        function updateWizardOrderingButtonStatesLeagueDetail(ulElement) {
+            if (!ulElement) return;
+            const listItems = ulElement.querySelectorAll('li[data-option-id]');
+            listItems.forEach((li, index) => {
+                const upButton = li.querySelector('.wizard-move-up-btn-league-detail'); // Use unique class if needed
+                const downButton = li.querySelector('.wizard-move-down-btn-league-detail'); // Use unique class if needed
+
+                if (upButton) {
+                    upButton.disabled = (index === 0);
+                    upButton.classList.toggle('opacity-50', upButton.disabled);
+                    upButton.classList.toggle('cursor-not-allowed', upButton.disabled);
+                }
+                if (downButton) {
+                    downButton.disabled = (index === listItems.length - 1);
+                    downButton.classList.toggle('opacity-50', downButton.disabled);
+                    downButton.classList.toggle('cursor-not-allowed', downButton.disabled);
+                }
+            });
+        }
+
+
+        function openWizardForRace(raceId, raceTitle, isQuinielaClosed) {
+            if (isQuinielaClosed) {
+                Swal.fire({ title: 'Quiniela Cerrada', text: `La quiniela para "${raceTitle}" ya está cerrada.`, icon: 'info', confirmButtonColor: '#F97316' });
+                return;
+            }
+
+            wizardCurrentRaceId = raceId;
+            // Update modal title or other elements if needed, e.g., include raceTitle
+            // For now, the existing wizardQuestionProgress will show "Pregunta X de Y"
+
+            // Show a loading state in the modal while fetching questions
+            if(leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i><p class="mt-2 text-gray-600">Cargando quiniela...</p></div>';
+            if(leagueDetailQuestionWizardModal) leagueDetailQuestionWizardModal.style.display = 'flex';
+
+
+            fetch(`/api/races/${wizardCurrentRaceId}/questions`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+                    return response.json();
+                })
+                .then(questions => {
+                    wizardAllRaceQuestions = questions;
+                    if (!wizardAllRaceQuestions || wizardAllRaceQuestions.length === 0) {
+                        if(leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = '<p class="text-gray-600 text-center py-4">No hay preguntas disponibles para esta carrera.</p>';
+                        // Hide nav buttons if no questions
+                        if(leagueDetailWizardNextBtn) leagueDetailWizardNextBtn.style.display = 'none';
+                        if(leagueDetailWizardFinishBtn) leagueDetailWizardFinishBtn.style.display = 'none';
+                        if(leagueDetailWizardPrevBtn) leagueDetailWizardPrevBtn.style.display = 'none';
+                        return;
+                    }
+                    wizardCurrentQuestionIndex = 0;
+                    wizardUserAnswers = {}; // Reset previous answers for a new race
+                    displayWizardQuestionLeagueDetail(wizardCurrentQuestionIndex);
+                })
+                .catch(error => {
+                    console.error('Error fetching questions for wizard:', error);
+                    if(leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = `<p class="text-red-500 text-center py-4">Error al cargar la quiniela: ${error.message}. Inténtalo de nuevo.</p>`;
+                     // Hide nav buttons on error
+                    if(leagueDetailWizardNextBtn) leagueDetailWizardNextBtn.style.display = 'none';
+                    if(leagueDetailWizardFinishBtn) leagueDetailWizardFinishBtn.style.display = 'none';
+                    if(leagueDetailWizardPrevBtn) leagueDetailWizardPrevBtn.style.display = 'none';
+                });
+        }
+
+        function closeWizardLeagueDetail() {
+            if(leagueDetailQuestionWizardModal) leagueDetailQuestionWizardModal.style.display = 'none';
+            // Reset state if needed
+            wizardCurrentRaceId = null;
+            wizardAllRaceQuestions = [];
+            wizardUserAnswers = {};
+        }
+
+        function displayWizardQuestionLeagueDetail(index) {
+            if (!wizardAllRaceQuestions || wizardAllRaceQuestions.length === 0) {
+                // This case should be handled by the loader, but as a safeguard:
+                if(leagueDetailWizardQuestionText) leagueDetailWizardQuestionText.textContent = 'Error';
+                if(leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center py-4">No hay preguntas cargadas.</p>';
+                if(leagueDetailWizardNextBtn) leagueDetailWizardNextBtn.style.display = 'none';
+                if(leagueDetailWizardFinishBtn) leagueDetailWizardFinishBtn.style.display = 'none';
+                if(leagueDetailWizardPrevBtn) leagueDetailWizardPrevBtn.style.display = 'none';
+                return;
+            }
+             if (index < 0 || index >= wizardAllRaceQuestions.length) {
+                console.error("Invalid question index for wizard:", index);
+                // Potentially show an error in the modal or close it
+                return;
+            }
+
+            const question = wizardAllRaceQuestions[index];
+            const existingAnswer = wizardUserAnswers[question.id];
+
+            if(leagueDetailWizardQuestionProgress) leagueDetailWizardQuestionProgress.textContent = `Pregunta ${index + 1} de ${wizardAllRaceQuestions.length}`;
+            if(leagueDetailWizardQuestionText) leagueDetailWizardQuestionText.textContent = `${index + 1}. ${question.text}`;
+            if(leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = ''; // Clear previous
+
+            try {
+                switch (question.question_type) {
+                    case 'FREE_TEXT':
+                        const textarea = document.createElement('textarea');
+                        textarea.id = `wizardFreeTextAnswer_ld_${question.id}`; // Suffix ld for league_detail
+                        textarea.className = 'w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+                        textarea.rows = 4;
+                        textarea.placeholder = 'Escribe tu respuesta...';
+                        textarea.value = existingAnswer?.answer_text || '';
+                        if (leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.appendChild(textarea);
+                        break;
+                    case 'MULTIPLE_CHOICE':
+                        if (!question.options || !Array.isArray(question.options)) {
+                            throw new Error('Datos de opciones de Opción Múltiple no válidos o ausentes.');
+                        }
+                        question.options.forEach(opt => {
+                            const label = document.createElement('label');
+                            label.className = 'flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300';
+                            const input = document.createElement('input');
+                            input.type = question.is_mc_multiple_correct ? 'checkbox' : 'radio';
+                            input.name = `wizard_q_ld_${question.id}`; // Suffix ld
+                            input.value = opt.id;
+                            input.className = 'text-orange-500 focus:ring-orange-400 focus:ring-offset-0';
+                            if (question.is_mc_multiple_correct) {
+                                input.classList.add('rounded');
+                                if (existingAnswer?.selected_option_ids?.includes(opt.id)) input.checked = true;
+                            } else {
+                                if (existingAnswer?.selected_option_id == opt.id) input.checked = true;
+                            }
+                            const span = document.createElement('span');
+                            span.className = 'text-gray-700';
+                            span.textContent = opt.option_text;
+                            label.appendChild(input);
+                            label.appendChild(span);
+                            if (leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.appendChild(label);
+                        });
+                        break;
+                    case 'ORDERING':
+                        const orderingListContainer = document.createElement('ul');
+                        orderingListContainer.id = `wizardOrderingList_ld_${question.id}`;
+                        orderingListContainer.className = 'list-none p-0 m-0 space-y-2';
+
+                        if (question.options && question.options.length > 0) {
+                            let orderedOptions = [...question.options];
+                            if (existingAnswer && existingAnswer.ordered_options_text) {
+                                const savedOrderIds = existingAnswer.ordered_options_text.split(',').map(id => parseInt(id.trim(), 10));
+                                const optionsMap = new Map(question.options.map(opt => [opt.id, opt]));
+                                const newOrderedOptions = [];
+                                const addedOptionIds = new Set();
+                                savedOrderIds.forEach(id => {
+                                    if (optionsMap.has(id)) {
+                                        newOrderedOptions.push(optionsMap.get(id));
+                                        addedOptionIds.add(id);
+                                    }
+                                });
+                                question.options.forEach(opt => {
+                                    if (!addedOptionIds.has(opt.id)) newOrderedOptions.push(opt);
+                                });
+                                orderedOptions = newOrderedOptions;
+                            }
+                            orderedOptions.forEach(opt => {
+                                const listItem = document.createElement('li');
+                                listItem.dataset.optionId = opt.id;
+                                listItem.className = 'p-3 border rounded-md bg-gray-50 flex justify-between items-center shadow-sm cursor-move'; // Added cursor-move
+                                const textSpan = document.createElement('span');
+                                textSpan.className = 'text-gray-700';
+                                textSpan.textContent = opt.option_text;
+                                listItem.appendChild(textSpan);
+                                const buttonContainer = document.createElement('div');
+                                buttonContainer.className = 'space-x-1';
+                                const moveUpBtn = document.createElement('button');
+                                moveUpBtn.innerHTML = '↑';
+                                moveUpBtn.type = 'button';
+                                moveUpBtn.className = 'wizard-move-up-btn-league-detail px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveUpBtn.addEventListener('click', () => {
+                                    const currentLi = moveUpBtn.closest('li');
+                                    if (currentLi && currentLi.previousElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                                        updateWizardOrderingButtonStatesLeagueDetail(orderingListContainer);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveUpBtn);
+                                const moveDownBtn = document.createElement('button');
+                                moveDownBtn.innerHTML = '↓';
+                                moveDownBtn.type = 'button';
+                                moveDownBtn.className = 'wizard-move-down-btn-league-detail px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveDownBtn.addEventListener('click', () => {
+                                    const currentLi = moveDownBtn.closest('li');
+                                    if (currentLi && currentLi.nextElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling);
+                                        updateWizardOrderingButtonStatesLeagueDetail(orderingListContainer);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveDownBtn);
+                                listItem.appendChild(buttonContainer);
+                                orderingListContainer.appendChild(listItem);
+                            });
+                        } else {
+                            orderingListContainer.innerHTML = '<p class="text-sm text-gray-500">No hay opciones para ordenar.</p>';
+                        }
+                        if (leagueDetailWizardAnswerOptions) {
+                            leagueDetailWizardAnswerOptions.appendChild(orderingListContainer);
+                            if (orderingListContainer.firstChild) updateWizardOrderingButtonStatesLeagueDetail(orderingListContainer);
+                        }
+                        break;
+                    case 'SLIDER':
+                         if (!leagueDetailWizardAnswerOptions) break;
+                        leagueDetailWizardAnswerOptions.innerHTML = ''; // Clear previous content
+
+                        const minValue = parseFloat(question.slider_min_value);
+                        const maxValue = parseFloat(question.slider_max_value);
+                        const unit = question.slider_unit || "";
+                        let parsedStep = parseFloat(question.slider_step);
+                        let stepValue = (isNaN(parsedStep) || parsedStep <= 0) ? 1 : parsedStep;
+
+                        let errorMessage = "";
+                        if (isNaN(minValue)) errorMessage = "Min no numérico.";
+                        else if (isNaN(maxValue)) errorMessage = "Max no numérico.";
+                        else if (maxValue <= minValue) errorMessage = "Max <= Min.";
+
+                        if (errorMessage) {
+                            leagueDetailWizardAnswerOptions.innerHTML = `<p class="text-red-500 text-center py-4">Error Slider: ${errorMessage}</p>`;
+                            break;
+                        }
+                        const sliderContainer = document.createElement('div');
+                        sliderContainer.className = 'custom-slider-container w-full pt-8 pb-4 relative select-none';
+                        const trackBackground = document.createElement('div');
+                        trackBackground.className = 'slider-track-background h-2 bg-gray-300 rounded-full absolute top-1/2 left-0 right-0 -translate-y-1/2';
+                        sliderContainer.appendChild(trackBackground);
+                        const thumb = document.createElement('div');
+                        thumb.className = 'slider-thumb absolute top-1/2 -translate-y-1/2 flex items-stretch h-6 rounded shadow-md border border-gray-400';
+                        thumb.style.cursor = 'grab';
+                        thumb.id = `sliderThumb_ld_${question.id}`;
+                        const yellowZoneLeft = document.createElement('div');
+                        yellowZoneLeft.className = 'slider-yellow-zone-left bg-yellow-300 border-r border-yellow-400';
+                        thumb.appendChild(yellowZoneLeft);
+                        const greenZone = document.createElement('div');
+                        greenZone.className = 'slider-green-zone bg-green-500 border-l border-r border-green-600';
+                        thumb.appendChild(greenZone);
+                        const yellowZoneRight = document.createElement('div');
+                        yellowZoneRight.className = 'slider-yellow-zone-right bg-yellow-300 border-l border-yellow-400';
+                        thumb.appendChild(yellowZoneRight);
+                        sliderContainer.appendChild(thumb);
+                        const valueDisplay = document.createElement('div');
+                        valueDisplay.id = `wizardSliderValueDisplay_ld_${question.id}`;
+                        valueDisplay.className = 'slider-value-display text-center text-lg font-semibold text-gray-700 mt-3 mb-1';
+                        sliderContainer.appendChild(valueDisplay);
+                        const labelsContainerElement = document.createElement('div');
+                        labelsContainerElement.className = 'slider-labels flex justify-between text-xs text-gray-500';
+                        const minLabel = document.createElement('span'); minLabel.id = `wizardSliderMinLabel_ld_${question.id}`;
+                        const maxLabel = document.createElement('span'); maxLabel.id = `wizardSliderMaxLabel_ld_${question.id}`;
+                        labelsContainerElement.appendChild(minLabel); labelsContainerElement.appendChild(maxLabel);
+                        sliderContainer.appendChild(labelsContainerElement);
+                        const hiddenInput = document.createElement('input'); hiddenInput.type = 'hidden'; hiddenInput.id = `hiddenSliderValue_ld_${question.id}`;
+                        sliderContainer.appendChild(hiddenInput);
+                        leagueDetailWizardAnswerOptions.appendChild(sliderContainer);
+
+                        requestAnimationFrame(() => {
+                            const trackWidthPx = trackBackground.offsetWidth;
+                            const valueRange = maxValue - minValue;
+                            if (valueRange <= 0 || trackWidthPx === 0) {
+                                leagueDetailWizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center">Error: Slider inválido o contenedor no visible.</p>';
+                                return;
+                            }
+                            const pixelsPerUnit = trackWidthPx / valueRange;
+                            const greenZoneUnitWidth = 1; // Smallest unit the green zone represents
+                            const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0;
+
+                            const greenZonePxWidth = Math.max(2, greenZoneUnitWidth * pixelsPerUnit);
+                            const yellowZonePxWidth = Math.max(0, thresholdPartial * pixelsPerUnit);
+                            greenZone.style.width = `${greenZonePxWidth}px`;
+                            yellowZoneLeft.style.width = `${yellowZonePxWidth}px`;
+                            yellowZoneRight.style.width = `${yellowZonePxWidth}px`;
+                            const thumbWidthPx = greenZonePxWidth + (2 * yellowZonePxWidth);
+                            thumb.style.width = `${thumbWidthPx}px`;
+                            minLabel.textContent = `${minValue} ${unit}`; maxLabel.textContent = `${maxValue} ${unit}`;
+
+                            let initialValue = parseFloat(existingAnswer?.slider_answer_value ?? minValue);
+                            initialValue = Math.max(minValue, Math.min(maxValue, initialValue));
+                            let numDecimalPlaces = stepValue.toString().includes('.') ? (stepValue.toString().split('.')[1].length || 0) : 0;
+                            initialValue = parseFloat((Math.round((initialValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlaces));
+                            hiddenInput.value = initialValue;
+                            valueDisplay.textContent = `${initialValue} ${unit}`;
+                            const valuePointOffsetWithinThumbPx = yellowZonePxWidth + (greenZonePxWidth / 2);
+                            let initialValuePointOnTrackPx = ((initialValue - minValue) / valueRange) * trackWidthPx;
+                            initialValuePointOnTrackPx = Math.max(0, Math.min(initialValuePointOnTrackPx, trackWidthPx));
+                            thumb.style.left = (initialValuePointOnTrackPx - valuePointOffsetWithinThumbPx) + 'px';
+
+                            let isDragging = false, dragStartX, thumbInitialLeftPx;
+                            thumb.addEventListener('pointerdown', (e) => {
+                                if (e.button !== 0) return; isDragging = true; dragStartX = e.clientX; thumbInitialLeftPx = thumb.offsetLeft;
+                                thumb.setPointerCapture(e.pointerId); thumb.style.cursor = 'grabbing'; document.body.style.userSelect = 'none';
+                                document.addEventListener('pointermove', onPointerMove); document.addEventListener('pointerup', onPointerUp);
+                            });
+                            function onPointerMove(e) {
+                                if (!isDragging) return; let dx = e.clientX - dragStartX; let desiredThumbLeftPx = thumbInitialLeftPx + dx;
+                                const valuePointOffsetWithinThumbPxLocal = parseFloat(yellowZoneLeft.style.width) + (parseFloat(greenZone.style.width) / 2);
+                                let desiredValuePointOnTrackPx = desiredThumbLeftPx + valuePointOffsetWithinThumbPxLocal;
+                                let clampedValuePointOnTrackPx = Math.max(0, Math.min(desiredValuePointOnTrackPx, trackWidthPx));
+                                let currentValue = (clampedValuePointOnTrackPx / trackWidthPx) * valueRange + minValue;
+                                currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+                                let numDecimalPlacesLocal = stepValue.toString().includes('.') ? (stepValue.toString().split('.')[1].length || 0) : 0;
+                                currentValue = parseFloat((Math.round((currentValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlacesLocal));
+                                currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+                                hiddenInput.value = currentValue; valueDisplay.textContent = `${currentValue} ${unit}`;
+                                let finalValuePointOnTrackPx = ((currentValue - minValue) / valueRange) * trackWidthPx;
+                                finalValuePointOnTrackPx = Math.max(0, Math.min(finalValuePointOnTrackPx, trackWidthPx));
+                                thumb.style.left = (finalValuePointOnTrackPx - valuePointOffsetWithinThumbPxLocal) + 'px';
+                            }
+                            function onPointerUp(e) {
+                                if (!isDragging) return; isDragging = false; thumb.releasePointerCapture(e.pointerId);
+                                thumb.style.cursor = 'grab'; document.body.style.userSelect = '';
+                                document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp);
+                            }
+                            const scoringInfoContainer = document.createElement('div');
+                            scoringInfoContainer.className = 'slider-scoring-info mt-3 pt-3 border-t border-gray-200 text-sm text-gray-600';
+                            const exactPointsP = document.createElement('p'); exactPointsP.className = 'mb-1';
+                            exactPointsP.innerHTML = `Puntos exactos: <strong class="text-green-600">${question.slider_points_exact !== null ? question.slider_points_exact : 'N/A'}</strong>`;
+                            scoringInfoContainer.appendChild(exactPointsP);
+                            if (question.slider_points_partial !== null && question.slider_points_partial > 0 && question.slider_threshold_partial !== null) {
+                                const partialPointsP = document.createElement('p');
+                                partialPointsP.innerHTML = `Puntos parciales (+/- ${question.slider_threshold_partial} ${unit}): <strong class="text-yellow-600">${question.slider_points_partial}</strong>`;
+                                scoringInfoContainer.appendChild(partialPointsP);
+                            }
+                            leagueDetailWizardAnswerOptions.appendChild(scoringInfoContainer);
+                        });
+                        break;
+                    default:
+                        if (leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = `<p class="text-red-500">Tipo de pregunta '${question.question_type}' no soportado.</p>`;
+                }
+            } catch (e) {
+                console.error('Error renderizando pregunta en wizard (league_detail):', e, 'Pregunta:', question);
+                if(leagueDetailWizardQuestionText) leagueDetailWizardQuestionText.textContent = 'Error de Visualización';
+                if(leagueDetailWizardAnswerOptions) leagueDetailWizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center py-4">Error al mostrar esta pregunta.</p>';
+            }
+
+            if(leagueDetailWizardPrevBtn) leagueDetailWizardPrevBtn.style.display = index > 0 ? 'inline-flex' : 'none';
+            if(leagueDetailWizardNextBtn) leagueDetailWizardNextBtn.style.display = index < wizardAllRaceQuestions.length - 1 ? 'inline-flex' : 'none';
+            if(leagueDetailWizardFinishBtn) leagueDetailWizardFinishBtn.style.display = index === wizardAllRaceQuestions.length - 1 ? 'inline-flex' : 'none';
+        }
+
+        function saveCurrentWizardAnswerLeagueDetail() {
+            if (!wizardAllRaceQuestions || wizardCurrentQuestionIndex < 0 || wizardCurrentQuestionIndex >= wizardAllRaceQuestions.length) return;
+            const question = wizardAllRaceQuestions[wizardCurrentQuestionIndex];
+            if (!question) return;
+
+            switch (question.question_type) {
+                case 'FREE_TEXT':
+                    const textarea = document.getElementById(`wizardFreeTextAnswer_ld_${question.id}`);
+                    if (textarea) wizardUserAnswers[question.id] = { question_id: question.id, answer_text: textarea.value.trim() };
+                    break;
+                case 'MULTIPLE_CHOICE':
+                    if (question.is_mc_multiple_correct) {
+                        const ids = [];
+                        document.querySelectorAll(`input[name="wizard_q_ld_${question.id}"]:checked`).forEach(cb => ids.push(parseInt(cb.value)));
+                        wizardUserAnswers[question.id] = { question_id: question.id, selected_option_ids: ids };
+                    } else {
+                        const radio = document.querySelector(`input[name="wizard_q_ld_${question.id}"]:checked`);
+                        wizardUserAnswers[question.id] = { question_id: question.id, selected_option_id: radio ? parseInt(radio.value) : null };
+                    }
+                    break;
+                case 'ORDERING':
+                    const listContainer = document.getElementById(`wizardOrderingList_ld_${question.id}`);
+                    if (listContainer) {
+                        const ids = Array.from(listContainer.querySelectorAll('li[data-option-id]')).map(li => li.dataset.optionId);
+                        wizardUserAnswers[question.id] = { question_id: question.id, ordered_options_text: ids.join(',') };
+                    }
+                    break;
+                case 'SLIDER':
+                    const hiddenInput = document.getElementById(`hiddenSliderValue_ld_${question.id}`);
+                    if (hiddenInput) {
+                        const val = parseFloat(hiddenInput.value);
+                        wizardUserAnswers[question.id] = { question_id: question.id, slider_answer_value: isNaN(val) ? null : val };
+                    }
+                    break;
+            }
+        }
+
+        function handleNextWizardQuestionLeagueDetail() {
+            saveCurrentWizardAnswerLeagueDetail();
+            if (wizardCurrentQuestionIndex < wizardAllRaceQuestions.length - 1) {
+                wizardCurrentQuestionIndex++;
+                displayWizardQuestionLeagueDetail(wizardCurrentQuestionIndex);
+            }
+        }
+
+        function handlePreviousWizardQuestionLeagueDetail() {
+            saveCurrentWizardAnswerLeagueDetail();
+            if (wizardCurrentQuestionIndex > 0) {
+                wizardCurrentQuestionIndex--;
+                displayWizardQuestionLeagueDetail(wizardCurrentQuestionIndex);
+            }
+        }
+
+        // Event Listeners for Wizard in league_detail_view
+        if (leagueDetailCloseWizardModalBtn) leagueDetailCloseWizardModalBtn.addEventListener('click', closeWizardLeagueDetail);
+        if (leagueDetailWizardNextBtn) leagueDetailWizardNextBtn.addEventListener('click', handleNextWizardQuestionLeagueDetail);
+        if (leagueDetailWizardPrevBtn) leagueDetailWizardPrevBtn.addEventListener('click', handlePreviousWizardQuestionLeagueDetail);
+
+        if (leagueDetailWizardFinishBtn) {
+            leagueDetailWizardFinishBtn.addEventListener('click', () => {
+                saveCurrentWizardAnswerLeagueDetail();
+                if (Object.keys(wizardUserAnswers).length === 0) {
+                    Swal.fire({ title: 'Sin Respuestas', text: 'No has respondido ninguna pregunta.', icon: 'info', confirmButtonColor: '#F97316' });
+                    return;
+                }
+                leagueDetailWizardFinishBtn.disabled = true;
+                leagueDetailWizardFinishBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+                fetch(`/api/races/${wizardCurrentRaceId}/answers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(wizardUserAnswers)
+                })
+                .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+                .then(result => {
+                    if (result.ok) {
+                        closeWizardLeagueDetail();
+                        Swal.fire({ title: '¡Éxito!', text: result.body.message || 'Respuestas guardadas.', icon: 'success', confirmButtonColor: '#F97316' })
+                            .then(() => window.location.reload()); // Reload to update user prediction status
+                    } else {
+                        Swal.fire({ title: 'Error', text: `Error: ${result.body.message || `Estatus ${result.status}`}`, icon: 'error', confirmButtonColor: '#F97316' });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving wizard answers:', error);
+                    Swal.fire({ title: 'Error de Conexión', text: 'Inténtalo de nuevo.', icon: 'error', confirmButtonColor: '#F97316' });
+                })
+                .finally(() => {
+                    if(leagueDetailWizardFinishBtn) { // Check again in case it was removed from DOM
+                        leagueDetailWizardFinishBtn.disabled = false;
+                        leagueDetailWizardFinishBtn.innerHTML = '<i class="fas fa-check mr-2"></i>Finalizar y Guardar';
+                    }
+                });
+            });
+        }
+        // --- End Question Wizard Logic ---
+
     </script>
     <!-- Script para SweetAlert (mensajes flash) - Movido fuera de los bloques Jinja eliminados -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Ensure wizard close button has its listener if not covered by general setup
+            // This is a fallback, ideally the main script block handles this.
+            // const specificCloseBtn = document.getElementById('closeWizardModalBtn');
+            // if (specificCloseBtn && !specificCloseBtn.getAttribute('listener_set_by_league_detail')) {
+            //     specificCloseBtn.addEventListener('click', closeWizardLeagueDetail);
+            //     specificCloseBtn.setAttribute('listener_set_by_league_detail', 'true');
+            // }
+
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
