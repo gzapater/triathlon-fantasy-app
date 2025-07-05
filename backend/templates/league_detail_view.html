@@ -106,7 +106,7 @@
                     </div>
                     <div class="overflow-x-auto">
                         {% if league_races_detailed and league_races_detailed|length > 0 %}
-                       <table class="w-full">
+                      <table class="w-full">
     <thead class="bg-gray-50">
         <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
@@ -134,20 +134,25 @@
             </td>
             <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
                 
+                <!-- Acción NUEVA: Responder Preguntas (siempre visible) -->
+                <button class="open-wizard-btn text-orange-600 hover:text-orange-900" data-race-id="{{ race.id }}" title="Responder Preguntas">
+                    <i class="fas fa-poll-h"></i>
+                </button>
+
                 <!-- Acción 1: Ver Clasificación -->
                 <button onclick="openRaceResultsModal('{{ race.id }}', '{{ race.title }}')" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></button>
 
-                <!-- Acción 2: Lógica de Quiniela (CON EL NUEVO BOTÓN) -->
+                <!-- Acción 2: Lógica de Quiniela (Botón antiguo) -->
                 {% set prediction_status = user_predictions_status.get(race.id) %}
                 {% set user_prediction_exists = prediction_status.exists if prediction_status else false %}
                 {% set pending_count = prediction_status.pending_count if prediction_status and user_prediction_exists else 0 %}
                 
                 {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                    <!-- QUINIELA ABIERTA: El botón ahora abre el wizard -->
-                    <button class="open-wizard-btn text-orange-600 hover:text-orange-800 font-bold relative" 
-                            data-race-id="{{ race.id }}" 
+                    <!-- QUINIELA ABIERTA: Botón para editar predicciones -->
+                    <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})" 
+                            class="text-orange-600 hover:text-orange-800 font-bold relative" 
                             title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
-                        <i class="fas fa-poll-h"></i>
+                        <i class="fas fa-edit"></i>
                         {% if user_prediction_exists and pending_count > 0 %}
                             <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
                         {% endif %}
@@ -175,6 +180,7 @@
         {% endfor %}
     </tbody>
 </table>
+
                         {% else %}
                         <div class="p-6 text-center text-gray-500">
                             <i class="fas fa-flag-checkered text-4xl mb-2"></i>
