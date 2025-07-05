@@ -12,27 +12,7 @@
             <div id="wizardQuestionArea" class="mb-6">
                 <h3 id="wizardQuestionText" class="text-lg sm:text-xl font-semibold text-gray-700 mb-4"></h3>
                 <div id="wizardAnswerOptions" class="space-y-3">
-                    <!-- Input fields will be dynamically inserted here by JavaScript -->
-                    <!-- Example for Free Text (to be controlled by JS) -->
-                    <!-- <textarea id="wizardFreeTextAnswer" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" rows="4" placeholder="Escribe tu respuesta..."></textarea> -->
-
-                    <!-- Example for MC Single (to be controlled by JS) -->
-                    <!-- <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300">
-                        <input type="radio" name="wizardMcOption" value="option1" class="text-orange-500 focus:ring-orange-400 focus:ring-offset-0">
-                        <span class="text-gray-700">Option 1</span>
-                    </label> -->
-
-                    <!-- Example for MC Multiple (to be controlled by JS) -->
-                    <!-- <label class="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-md border border-gray-200 hover:border-orange-300">
-                        <input type="checkbox" name="wizardMcOption_multi" value="optionA" class="text-orange-500 focus:ring-orange-400 focus:ring-offset-0 rounded">
-                        <span class="text-gray-700">Option A</span>
-                    </label> -->
-
-                    <!-- Example for Ordering (placeholder, actual implementation might differ) -->
-                    <!-- <div id="wizardOrderingOptionsContainer" class="space-y-2">
-                         <div class="bg-gray-100 p-2 rounded border">Item A (Drag me)</div>
-                         <div class="bg-gray-100 p-2 rounded border">Item B (Drag me)</div>
-                    </div> -->
+                 
                 </div>
             </div>
 
@@ -50,3 +30,83 @@
             </div>
         </div>
     </div
+<script>
+    // Este script debe estar disponible en la página que incluye este parcial.
+    // Es mejor moverlo a un archivo .js global en un proyecto real.
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Lógica del Asistente de Preguntas (Question Wizard) ---
+        let currentQuestionIndex = 0;
+        let userWizardAnswers = {}; // Almacena las respuestas como { question_id: { ...answer_data } }
+
+        // Elementos del DOM del Wizard
+        const questionWizardModal = document.getElementById('questionWizardModal');
+        const wizardQuestionProgress = document.getElementById('wizardQuestionProgress');
+        const closeWizardModalBtn = document.getElementById('closeWizardModalBtn');
+        const wizardQuestionText = document.getElementById('wizardQuestionText');
+        const wizardAnswerOptions = document.getElementById('wizardAnswerOptions');
+        const wizardPrevBtn = document.getElementById('wizardPrevBtn');
+        const wizardNextBtn = document.getElementById('wizardNextBtn');
+        const wizardFinishBtn = document.getElementById('wizardFinishBtn');
+        
+        // El botón que abre el wizard (debe existir en la página principal)
+        const openWizardButton = document.getElementById('participateInPoolBtn'); 
+
+        function openWizard() {
+            // Lógica para abrir el wizard (comprobar si la quiniela está cerrada, cargar preguntas si es necesario, etc.)
+            // ... (código de la función openWizard de tu archivo original) ...
+            if(questionWizardModal) questionWizardModal.style.display = 'flex';
+            displayWizardQuestion(0);
+        }
+
+        function closeWizard() {
+            if(questionWizardModal) questionWizardModal.style.display = 'none';
+        }
+
+        function displayWizardQuestion(index) {
+            // Lógica para mostrar la pregunta actual en el wizard
+            // ... (código de la función displayWizardQuestion de tu archivo original) ...
+        }
+
+        function saveCurrentWizardAnswer() {
+            // Lógica para guardar la respuesta del paso actual del wizard
+            // ... (código de la función saveCurrentWizardAnswer de tu archivo original) ...
+        }
+
+        function handleNextWizardQuestion() {
+            saveCurrentWizardAnswer();
+            if (currentQuestionIndex < allRaceQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayWizardQuestion(currentQuestionIndex);
+            }
+        }
+
+        function handlePreviousWizardQuestion() {
+            saveCurrentWizardAnswer();
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayWizardQuestion(currentQuestionIndex);
+            }
+        }
+
+        // Asignación de eventos
+        if (openWizardButton) {
+            openWizardButton.addEventListener('click', openWizard);
+        }
+        if (closeWizardModalBtn) {
+            closeWizardModalBtn.addEventListener('click', closeWizard);
+        }
+        if (wizardNextBtn) {
+            wizardNextBtn.addEventListener('click', handleNextWizardQuestion);
+        }
+        if (wizardPrevBtn) {
+            wizardPrevBtn.addEventListener('click', handlePreviousWizardQuestion);
+        }
+        if (wizardFinishBtn) {
+            wizardFinishBtn.addEventListener('click', () => {
+                saveCurrentWizardAnswer();
+                // Lógica para enviar todas las respuestas al servidor
+                // ... (código del fetch para guardar respuestas) ...
+            });
+        }
+    });
+</script>
