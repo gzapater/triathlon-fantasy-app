@@ -143,37 +143,36 @@
                                         {% set pending_count = prediction_status.pending_count if prediction_status and user_prediction_exists else 0 %}
                                         {% set quiniela_is_closed = race.quiniela_close_date and race.quiniela_close_date < current_time_utc %}
 
-                                        {% if race.status.value == 'PLANNED' or race.status.value == 'ACTIVE' %}
-                                            {# Quiniela is Open: Show "Responder/Editar Quiniela" button #}
-                                            <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})"
-                                                    class="text-orange-600 hover:text-orange-800 font-bold relative"
-                                                    title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
-                                                <i class="fas fa-edit"></i> {# Using fa-edit icon #}
-                                                {% if user_prediction_exists and pending_count > 0 %}
-                                                    <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
-                                                {% endif %}
-                                            </button>
-                                            {# New Button for Question Wizard #}
-                                            <button onclick="openWizardForRace('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
-                                                    class="text-purple-600 hover:text-purple-800 font-bold relative" {# Changed color for distinction #}
-                                                    title="Participar con Wizard">
-                                                <i class="fas fa-magic"></i>
-                                            </button>
-                                        {% elif user_prediction_exists %}
-                                            {# Quiniela is Closed, but user made predictions: Show "Ver mi Quiniela" (read-only) #}
-                                            {# This now uses the openUserPredictionsModal to show already submitted answers, edit button will be hidden by JS #}
-                                            <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', true)"
-                                                    class="text-gray-400 hover:text-orange-600 font-bold"
-                                                    title="Ver mi Quiniela (Cerrada)">
-                                                <i class="fas fa-eye"></i> {# Changed icon to fa-eye for clarity #}
-                                            </button>
-                                        {% else %}
-                                            {# Quiniela is Closed, and user did NOT make predictions #}
-                                            <span class="text-gray-400 cursor-not-allowed" title="Quiniela cerrada y no participaste">
-                                                <i class="fas fa-times-circle"></i> {# Changed icon #}
-                                            </span>
-                                        {% endif %}
-                                        {# The "Ver Participantes" link is removed as per the new requirement #}
+                                        {# Temporarily showing all buttons to debug visibility #}
+                                        {# Original "Responder/Editar Quiniela" button #}
+                                        <button onclick="openAnswerQuinielaModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if user_prediction_exists else 'false' }}, {{ pending_count }})"
+                                                class="text-orange-600 hover:text-orange-800 font-bold relative"
+                                                title="{{ 'Editar mis Predicciones' if user_prediction_exists else 'Responder Quiniela' }}">
+                                            <i class="fas fa-edit"></i>
+                                            {% if user_prediction_exists and pending_count > 0 %}
+                                                <span class="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full" title="{{pending_count}} pregunta(s) pendiente(s)">{{ pending_count }}</span>
+                                            {% endif %}
+                                        </button>
+
+                                        {# New Button for Question Wizard #}
+                                        <button onclick="openWizardForRace('{{ race.id }}', '{{ race.title }}', {{ 'true' if quiniela_is_closed else 'false' }})"
+                                                class="text-purple-600 hover:text-purple-800 font-bold relative"
+                                                title="Participar con Wizard">
+                                            <i class="fas fa-magic"></i>
+                                        </button>
+
+                                        {# Button for "Ver mi Quiniela" (if quiniela closed and user participated) #}
+                                        <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', true)"
+                                                class="text-gray-400 hover:text-orange-600 font-bold"
+                                                title="Ver mi Quiniela (Cerrada)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+
+                                        {# Indicator for "Quiniela cerrada y no participaste" #}
+                                        <span class="text-gray-400 cursor-not-allowed" title="Quiniela cerrada y no participaste">
+                                            <i class="fas fa-times-circle"></i>
+                                        </span>
+                                        {# End of temporarily showing all buttons #}
                                     </td>
                                 </tr>
                                 {% endfor %}
