@@ -167,6 +167,13 @@
                                             </span>
                                         {% endif %}
                                         {# The "Ver Participantes" link is removed as per the new requirement #}
+
+                                        <!-- New Question Wizard Button -->
+                                        <button onclick="openQuestionWizard('{{ race.id }}', '{{ race.quiniela_close_date.isoformat() if race.quiniela_close_date else '' }}', '{{ race.title | e }}')"
+                                                class="text-blue-500 hover:text-blue-700"
+                                                title="Abrir Quiniela Wizard">
+                                            <i class="fas fa-poll-h"></i>
+                                        </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -257,6 +264,8 @@
     {% include '_race_results_modal.html' %}
     <!-- Include the user predictions modal -->
     {% include '_user_predictions_modal.html' %}
+    <!-- Include the Question Wizard Modal -->
+    {% include '_Wizard_questions.html' %}
 
     {# Modal para unirse a la liga con código (similar al original) #}
     <div id="join-league-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
@@ -874,5 +883,6 @@
             {% endwith %}
         });
     </script>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
