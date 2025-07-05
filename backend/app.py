@@ -48,18 +48,22 @@ def format_date_filter(value, format='%d %b %Y'):
     # Para asegurar español, se podría usar Babel u otra librería, o un mapeo manual.
     # Por simplicidad, usamos strftime y luego ajustamos el mes si es necesario.
     # Esta es una aproximación simple y podría no ser perfecta para todos los locales.
-    formatted_date = dt_obj.strftime(format) # ej. "01 Jan 2025" # pragma: no cover
-    # Reemplazo simple de meses en inglés a español (abreviado)
-    month_map = {
-        'Jan': 'Ene', 'Feb': 'Feb', 'Mar': 'Mar', 'Apr': 'Abr', # pragma: no cover
-        'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Aug': 'Ago',
-        'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dec': 'Dic'
-    }
-    for en, es in month_map.items():
-        if en in formatted_date:
-            formatted_date = formatted_date.replace(en, es)
-            break
-    return formatted_date
+    try:
+        formatted_date = dt_obj.strftime(format) # ej. "01 Jan 2025"
+        # Reemplazo simple de meses en inglés a español (abreviado)
+        month_map = {
+            'Jan': 'Ene', 'Feb': 'Feb', 'Mar': 'Mar', 'Apr': 'Abr',
+            'May': 'May', 'Jun': 'Jun', 'Jul': 'Jul', 'Aug': 'Ago',
+            'Sep': 'Sep', 'Oct': 'Oct', 'Nov': 'Nov', 'Dec': 'Dic'
+        }
+        for en, es in month_map.items():
+            if en in formatted_date:
+                formatted_date = formatted_date.replace(en, es)
+                break
+        return formatted_date
+    except Exception as e:
+        app.logger.error(f"Error in format_date_filter for value '{value}' with format '{format}': {e}")
+        return str(value) # Fallback to string representation of original value
 
 app.jinja_env.filters['format_date_filter'] = format_date_filter
 
@@ -3527,6 +3531,161 @@ def get_user_answers(race_id):
         "num_total_questions": num_total_questions_pool,
         "num_answered_questions": num_answered_questions_pool
     }), 200
+
+
+@app.route('/api/races/<int:race_id>/questions_for_wizard', methods=['GET'])
+@login_required
+def get_questions_for_wizard_api(race_id):
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first_or_404()
+    # Similar to /quiniela_form_content but specifically for the wizard
+    # Check if quiniela is closed
+    quiniela_closed = race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow()
+    if quiniela_closed:
+        # If closed, still return questions but indicate it's closed.
+        # The frontend wizard logic can then decide to show answers read-only or prevent submission.
+        # For now, aligning with how `quiniela_form_content` indicates closure.
+        pass # Let it proceed to send questions but with quiniela_closed = True
+
+    questions_query = Question.query.filter_by(race_id=race.id, is_active=True).order_by(Question.id).all()
+    user_answers_query = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race.id).all()
+    user_answers_map = {ua.question_id: ua for ua in user_answers_query}
+
+    questions_data_for_wizard = []
+    for q in questions_query:
+        question_info = {
+            "id": q.id,
+            "text": q.text,
+            "question_type": q.question_type.name,
+            "options": [],
+            "user_answer": None,
+            "slider_unit": q.slider_unit,
+            "slider_min_value": q.slider_min_value,
+            "slider_max_value": q.slider_max_value,
+            "slider_step": q.slider_step,
+            "is_mc_multiple_correct": q.is_mc_multiple_correct
+        }
+        if q.question_type.name == "MULTIPLE_CHOICE" or q.question_type.name == "ORDERING":
+            q_options = QuestionOption.query.filter_by(question_id=q.id).order_by(QuestionOption.id).all()
+            question_info["options"] = [{"id": opt.id, "option_text": opt.option_text} for opt in q_options]
+
+        user_answer_obj = user_answers_map.get(q.id)
+        if user_answer_obj:
+            if q.question_type.name == 'FREE_TEXT':
+                question_info["user_answer"] = user_answer_obj.answer_text
+            elif q.question_type.name == 'MULTIPLE_CHOICE':
+                if q.is_mc_multiple_correct:
+                    question_info["user_answer"] = [sel_opt.question_option_id for sel_opt in user_answer_obj.selected_mc_options]
+                else:
+                    question_info["user_answer"] = user_answer_obj.selected_option_id
+            elif q.question_type.name == 'ORDERING':
+                question_info["user_answer"] = user_answer_obj.answer_text
+            elif q.question_type.name == 'SLIDER':
+                question_info["user_answer"] = user_answer_obj.slider_answer_value
+
+        questions_data_for_wizard.append(question_info)
+
+    return jsonify({
+        "race_id": race.id,
+        "race_title": race.title,
+        "questions": questions_data_for_wizard,
+        "quiniela_closed": quiniela_closed
+    }), 200
+
+
+@app.route('/api/races/<int:race_id>/answers_wizard', methods=['POST'])
+@login_required
+def save_user_answers_from_wizard_api(race_id):
+    # This is very similar to save_user_answers, but named for the wizard context
+    # It might have slightly different payload structure or response needs in the future.
+    # For now, let's assume it's largely the same logic.
+    app.logger.info(f"Wizard answers submission for race {race_id} by user {current_user.id}")
+
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
+    if not race:
+        return jsonify(message="Race not found or has been deleted"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        return jsonify(message="La quiniela ya está cerrada y no se pueden guardar respuestas."), 403
+
+    registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
+    if not registration and current_user.role.code != 'LEAGUE_ADMIN': # LEAGUE_ADMIN can be auto-registered
+        return jsonify(message="User not registered for this race"), 403
+
+    if current_user.role.code == 'LEAGUE_ADMIN' and not registration:
+        new_registration = UserRaceRegistration(user_id=current_user.id, race_id=race.id)
+        db.session.add(new_registration)
+        # Commit will happen later if all answers are processed successfully
+
+    answers_payload = request.get_json()
+    if not answers_payload:
+        return jsonify(message="No data provided"), 400
+
+    app.logger.debug(f"Wizard answers payload for race {race_id} from user {current_user.id}: {answers_payload}")
+
+    try:
+        for question_id_str, answer_data in answers_payload.items():
+            try:
+                question_id = int(question_id_str)
+            except ValueError:
+                app.logger.warning(f"Invalid question_id format '{question_id_str}' in wizard payload for race {race_id}.")
+                continue
+
+            question = Question.query.get(question_id)
+            if not question or question.race_id != race_id:
+                app.logger.warning(f"Question {question_id} not found or does not belong to race {race_id} in wizard submission.")
+                continue
+
+            existing_answer = UserAnswer.query.filter_by(user_id=current_user.id, question_id=question.id).first()
+            if existing_answer:
+                UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=existing_answer.id).delete()
+                db.session.delete(existing_answer)
+                db.session.flush()
+
+            new_user_answer = UserAnswer(user_id=current_user.id, race_id=race_id, question_id=question.id)
+            question_type_name = question.question_type.name
+
+            if question_type_name == 'FREE_TEXT':
+                new_user_answer.answer_text = answer_data.get('answer_text')
+            elif question_type_name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    selected_ids = answer_data.get('selected_option_ids', [])
+                    if isinstance(selected_ids, list):
+                        for opt_id in selected_ids:
+                            if QuestionOption.query.filter_by(id=opt_id, question_id=question.id).first():
+                                new_user_answer.selected_mc_options.append(UserAnswerMultipleChoiceOption(question_option_id=opt_id))
+                else: # Single correct
+                    selected_id = answer_data.get('selected_option_id')
+                    if selected_id is not None and QuestionOption.query.filter_by(id=selected_id, question_id=question.id).first():
+                        new_user_answer.selected_option_id = selected_id
+            elif question_type_name == 'ORDERING':
+                # Wizard saves 'answer_text' for ordering which is comma-separated option texts
+                new_user_answer.answer_text = answer_data.get('answer_text')
+            elif question_type_name == 'SLIDER':
+                slider_value = answer_data.get('slider_answer_value')
+                if slider_value is not None:
+                    try:
+                        new_user_answer.slider_answer_value = float(slider_value)
+                    except (ValueError, TypeError):
+                        new_user_answer.slider_answer_value = None
+            else:
+                app.logger.warning(f"Unsupported question type '{question_type_name}' in wizard submission for question {question.id}")
+                continue
+
+            db.session.add(new_user_answer)
+
+        db.session.commit()
+        app.logger.info(f"Wizard answers successfully saved for race {race_id} by user {current_user.id}")
+        return jsonify(message="Respuestas guardadas correctamente desde el asistente."), 201
+
+    except IntegrityError as ie:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError saving wizard answers for race {race_id}, user {current_user.id}: {ie}", exc_info=True)
+        return jsonify(message="Error de base de datos al guardar respuestas del asistente."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception saving wizard answers for race {race_id}, user {current_user.id}: {e}", exc_info=True)
+        return jsonify(message="Ocurrió un error al guardar las respuestas del asistente."), 500
+
 
 @app.route('/api/user_answers/<int:user_answer_id>', methods=['PUT'])
 @login_required

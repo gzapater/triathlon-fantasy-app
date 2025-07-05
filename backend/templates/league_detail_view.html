@@ -134,15 +134,15 @@
             </td>
             <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
                 
-                <!-- Botón NUEVO para abrir el wizard (siempre visible) -->
-                <button class="open-wizard-btn text-orange-600 hover:text-orange-900" data-race-id="{{ race.id }}" title="Responder Preguntas">
-                    <i class="fas fa-poll-h"></i>
+                <!-- Botón para abrir el wizard de preguntas -->
+                <button class="open-wizard-btn text-blue-600 hover:text-blue-900" data-race-id="{{ race.id }}" data-race-title="{{ race.title }}" title="Asistente de Quiniela">
+                    <i class="fas fa-magic"></i> <!-- Icono de varita mágica -->
                 </button>
 
                 <!-- Acción 1: Ver Clasificación -->
                 <button onclick="openRaceResultsModal('{{ race.id }}', '{{ race.title }}')" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></button>
 
-                <!-- Acción 2: Lógica de Quiniela (Botón antiguo) -->
+                <!-- Acción 2: Lógica de Quiniela (Botón Modal Existente) -->
                 {% set prediction_status = user_predictions_status.get(race.id) %}
                 {% set user_prediction_exists = prediction_status.exists if prediction_status else false %}
                 {% set pending_count = prediction_status.pending_count if prediction_status and user_prediction_exists else 0 %}
@@ -259,6 +259,8 @@
         </div>
     </main>
 
+    <!-- Include the Wizard questions modal -->
+    {% include '_Wizard_questions.html' %}
     <!-- Include the race results modal -->
     {% include '_race_results_modal.html' %}
     <!-- Include the user predictions modal -->
@@ -861,6 +863,91 @@
             });
         }
         // --- End Answer/Edit Quiniela Modal JavaScript ---
+
+        // --- Question Wizard Modal JavaScript ---
+        let allRaceQuestions = []; // Holds questions for the currently selected race wizard
+        let currentWizardRaceId = null;
+        let currentWizardRaceTitle = null;
+
+        // Function to open the wizard (will be more developed in _Wizard_questions.html script)
+        // For now, this is a placeholder to link the button click to opening the modal
+        function initializeAndOpenWizard(raceId, raceTitle, questionsData) {
+            console.log(`Initializing wizard for Race ID: ${raceId}, Title: ${raceTitle}`);
+            allRaceQuestions = questionsData; // Populate global/shared questions variable
+            currentWizardRaceId = raceId;
+            currentWizardRaceTitle = raceTitle;
+
+            // Attempt to call the wizard's own open function if defined globally by its script
+            // This assumes _Wizard_questions.html's script exposes a global openWizard function
+            if (typeof window.openQuestionWizard === 'function') {
+                window.openQuestionWizard(raceId, raceTitle, questionsData);
+            } else {
+                // Fallback: directly show modal if the function isn't exposed or script hasn't run
+                // This might be the case if _Wizard_questions.html script is self-contained and runs on its own DOMContentLoaded
+                const wizardModal = document.getElementById('questionWizardModal');
+                if (wizardModal) {
+                    wizardModal.style.display = 'flex';
+                    // Manually trigger display of the first question if possible, or let its own script handle it.
+                    // This part will be refined when adapting _Wizard_questions.html script.
+                    if (typeof window.displayWizardQuestion === 'function') {
+                         window.displayWizardQuestion(0); // Assuming 0 is the first question index
+                    }
+                     // Update wizard title (example, actual update logic will be in wizard's script)
+                    const wizardProgressTitle = document.getElementById('wizardQuestionProgress');
+                    if (wizardProgressTitle) {
+                        wizardProgressTitle.textContent = `Preguntas para: ${raceTitle}`;
+                    }
+                } else {
+                    console.error("Question wizard modal element not found.");
+                    Swal.fire('Error', 'No se pudo abrir el asistente de preguntas.', 'error');
+                }
+            }
+        }
+
+        document.querySelectorAll('.open-wizard-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const raceId = this.dataset.raceId;
+                const raceTitle = this.dataset.raceTitle;
+
+                // Show a loading indicator
+                Swal.fire({
+                    title: 'Cargando Preguntas...',
+                    text: `Preparando el asistente para ${raceTitle}`,
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Fetch questions for the wizard
+                fetch(`/api/races/${raceId}/questions_for_wizard`)
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(err => {
+                                throw new Error(err.message || `Error ${response.status} al cargar preguntas`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.close(); // Close loading indicator
+                        if (data.quiniela_closed) {
+                             Swal.fire('Información', 'La quiniela para esta carrera ya está cerrada. No puedes responder.', 'info');
+                             return;
+                        }
+                        if (!data.questions || data.questions.length === 0) {
+                            Swal.fire('Información', 'No hay preguntas disponibles para esta carrera en el asistente.', 'info');
+                            return;
+                        }
+                        initializeAndOpenWizard(raceId, raceTitle, data.questions);
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', `No se pudieron cargar las preguntas para el asistente: ${error.message}`, 'error');
+                        console.error('Error fetching questions for wizard:', error);
+                    });
+            });
+        });
+        // --- End Question Wizard Modal JavaScript ---
 
     </script>
     <!-- Script para SweetAlert (mensajes flash) - Movido fuera de los bloques Jinja eliminados -->
