@@ -1,4 +1,4 @@
-    <div id="questionWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
+<div id="questionWizardModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center" style="display: none; z-index: 120;">
         <div class="bg-white p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-lg sm:max-w-xl md:max-w-2xl mx-auto">
             <!-- Modal Header -->
             <div class="flex justify-between items-center mb-6">
@@ -32,18 +32,12 @@
     </div
 <script>
     // --- Lógica del Asistente de Preguntas (Question Wizard) ---
-    // Estas variables y funciones se adjuntarán al objeto window para ser accesibles globalmente.
-    // `allRaceQuestions` es poblada por `league_detail_view.html` antes de llamar a `openQuestionWizard`.
-    // `currentWizardRaceId` y `currentWizardRaceTitle` también son establecidas por `league_detail_view.html`.
-
     window.currentQuestionIndex = 0;
-    window.userWizardAnswers = {}; // Almacena las respuestas como { question_id: { ...answer_data } }
-    // window.allRaceQuestions = []; // Será poblado por el script invocador
-    // window.currentWizardRaceId = null; // Será poblado por el script invocador
-    // window.currentWizardRaceTitle = null; // Será poblado por el script invocador
+    window.userWizardAnswers = {};
+    window.allRaceQuestionsGlobal = [];
+    window.currentWizardRaceIdGlobal = null;
+    window.currentWizardRaceTitleGlobal = null;
 
-
-    // Elementos del DOM del Wizard (obtenidos cuando el script carga)
     const questionWizardModal = document.getElementById('questionWizardModal');
     const wizardQuestionProgress = document.getElementById('wizardQuestionProgress');
     const closeWizardModalBtn = document.getElementById('closeWizardModalBtn');
@@ -55,16 +49,11 @@
 
     window.openQuestionWizard = function(raceId, raceTitle, questionsData) {
         console.log("Wizard open requested for race:", raceTitle, raceId, questionsData);
-        // Global variables `allRaceQuestions`, `currentWizardRaceId`, `currentWizardRaceTitle`
-        // are expected to be set by the calling script (league_detail_view.html)
-        // before this function is invoked, or passed directly.
-        // For clarity, let's assume they are available on window or passed:
-        window.allRaceQuestionsGlobal = questionsData; // Using a distinct name to avoid confusion if already set
+        window.allRaceQuestionsGlobal = questionsData;
         window.currentWizardRaceIdGlobal = raceId;
         window.currentWizardRaceTitleGlobal = raceTitle;
-
         window.currentQuestionIndex = 0;
-        window.userWizardAnswers = {}; // Reset answers
+        window.userWizardAnswers = {};
 
         if (!questionWizardModal) {
             console.error("Wizard modal element not found!");
@@ -78,7 +67,6 @@
         if (questionWizardModal) {
             questionWizardModal.style.display = 'none';
         }
-        // Clear sensitive data if needed
         window.allRaceQuestionsGlobal = [];
         window.userWizardAnswers = {};
         window.currentQuestionIndex = 0;
@@ -90,16 +78,15 @@
             wizardAnswerOptions.innerHTML = '';
             wizardNextBtn.style.display = 'none';
             wizardPrevBtn.style.display = 'none';
-            wizardFinishBtn.style.display = 'block'; // Or show a message and close
+            wizardFinishBtn.style.display = 'block';
             return;
         }
 
         const question = window.allRaceQuestionsGlobal[index];
         wizardQuestionProgress.textContent = `Pregunta ${index + 1} de ${window.allRaceQuestionsGlobal.length} (${window.currentWizardRaceTitleGlobal})`;
         wizardQuestionText.textContent = question.text;
-        wizardAnswerOptions.innerHTML = ''; // Clear previous options
+        wizardAnswerOptions.innerHTML = '';
 
-        // Restore previously stored answer for this question if it exists
         const previousAnswerContainer = window.userWizardAnswers[question.id];
         let previousAnswer = null;
         if (previousAnswerContainer) {
@@ -111,13 +98,11 @@
                 previousAnswer = previousAnswerContainer.slider_answer_value;
             }
         }
-        // If no stored answer, use `question.user_answer` (pre-filled from server if available)
+
         if (previousAnswer === null || previousAnswer === undefined) {
              previousAnswer = question.user_answer;
         }
 
-
-        // Dynamically create answer options based on question type (similar to renderQuinielaForm)
         if (question.question_type === 'FREE_TEXT') {
             const input = document.createElement('textarea');
             input.name = `wizard_q_${question.id}`;
@@ -187,11 +172,10 @@
             textarea.name = `wizard_q_${question.id}`;
             textarea.classList.add('w-full', 'p-2', 'border', 'border-gray-300', 'rounded-md', 'focus:ring-orange-500', 'focus:border-orange-500');
             textarea.rows = 3;
-            textarea.value = previousAnswer || ''; // Expects comma-separated string of option texts
+            textarea.value = previousAnswer || '';
             wizardAnswerOptions.appendChild(textarea);
         }
 
-        // Update button visibility
         wizardPrevBtn.style.display = index === 0 ? 'none' : 'inline-flex';
         wizardNextBtn.style.display = index === window.allRaceQuestionsGlobal.length - 1 ? 'none' : 'inline-flex';
         wizardFinishBtn.style.display = index === window.allRaceQuestionsGlobal.length - 1 ? 'inline-flex' : 'none';
@@ -221,8 +205,6 @@
             answerData = { slider_answer_value: slider ? parseFloat(slider.value) : null };
         } else if (question.question_type === 'ORDERING') {
             const textarea = wizardAnswerOptions.querySelector(`textarea[name="wizard_q_${questionId}"]`);
-            // Backend might expect a specific format, e.g., comma-separated string of option_texts or IDs
-            // For now, storing the raw text. The submission endpoint will need to parse this.
             answerData = { answer_text: textarea ? textarea.value.trim() : "" };
         }
         window.userWizardAnswers[questionId] = answerData;
@@ -238,7 +220,7 @@
     }
 
     function handlePreviousWizardQuestion() {
-        window.saveCurrentWizardAnswer(); // Save even when going back
+        window.saveCurrentWizardAnswer();
         if (window.currentQuestionIndex > 0) {
             window.currentQuestionIndex--;
             window.displayWizardQuestion(window.currentQuestionIndex);
@@ -246,9 +228,8 @@
     }
 
     function handleFinishWizard() {
-        window.saveCurrentWizardAnswer(); // Save the last answer
+        window.saveCurrentWizardAnswer();
 
-        // Show loading indicator
         Swal.fire({
             title: 'Guardando Respuestas...',
             text: 'Por favor espera.',
@@ -260,7 +241,7 @@
 
         fetch(`/api/races/${window.currentWizardRaceIdGlobal}/answers_wizard`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' }, // Ensure CSRF token if needed
+            headers: { 'Content-Type': 'application/json' }, // CSRF Token removed
             body: JSON.stringify(window.userWizardAnswers)
         })
         .then(response => {
@@ -273,7 +254,7 @@
             Swal.fire({ title: '¡Éxito!', text: data.message || 'Respuestas guardadas correctamente.', icon: 'success', confirmButtonColor: '#F97316' })
             .then(() => {
                  window.closeWizard();
-                 window.location.reload(); // Reload to see updated status (e.g. pending count)
+                 window.location.reload();
             });
         })
         .catch(error => {
@@ -282,8 +263,6 @@
         });
     }
 
-    // Event listeners for wizard buttons (assigned once DOM is ready for these elements)
-    // No need for DOMContentLoaded for these assignments if script is at the end of the partial.
     if (closeWizardModalBtn) {
         closeWizardModalBtn.addEventListener('click', window.closeWizard);
     }
@@ -296,7 +275,4 @@
     if (wizardFinishBtn) {
         wizardFinishBtn.addEventListener('click', handleFinishWizard);
     }
-
-    // Note: The main openWizardButton listener is in league_detail_view.html
-    // This script focuses on the modal's internal logic once opened.
 </script>
