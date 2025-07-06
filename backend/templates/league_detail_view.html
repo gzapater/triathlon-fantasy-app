@@ -38,7 +38,7 @@
                     </p>
                      <!-- Botones de Acción para el Admin de la Liga -->
                     {% if current_user_is_creator_or_admin %}
-                    <div class="mt-4 flex items-center space-x-1 sm:space-x-2"> {/* Forzar una línea, ajustar espaciado */}
+                    <div class="mt-4 flex items-center space-x-1 sm:space-x-2"> 
                         <a href="{{ url_for('edit_league', league_id=league.id) }}" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-edit mr-2"></i>Editar</a>
                         {% if invitation_code and invitation_code.is_active %}
                         <button id="show-league-invitation-code-button" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-share-alt mr-2"></i>Compartir</button>
