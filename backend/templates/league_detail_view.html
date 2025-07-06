@@ -38,7 +38,7 @@
                     </p>
                      <!-- Botones de Acción para el Admin de la Liga -->
                     {% if current_user_is_creator_or_admin %}
-                    <div class="mt-4 flex items-center space-x-1 sm:space-x-2"> 
+                    <div class="mt-4 flex items-center space-x-1 sm:space-x-2"> {/* Forzar una línea, ajustar espaciado */}
                         <a href="{{ url_for('edit_league', league_id=league.id) }}" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-edit mr-2"></i>Editar</a>
                         {% if invitation_code and invitation_code.is_active %}
                         <button id="show-league-invitation-code-button" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-share-alt mr-2"></i>Compartir</button>
@@ -66,24 +66,25 @@
                     {% endif %}
 
                 </div>
-                <div class="mt-4 md:mt-0 bg-black bg-opacity-20 p-3 sm:p-4 rounded-lg flex flex-col space-y-3 sm:space-y-4">
-                    <!-- Fila Superior: Próximo Cierre -->
-                    <div class="text-center w-full">
+                <div class="mt-4 md:mt-0 bg-black bg-opacity-20 p-3 sm:p-4 rounded-lg flex flex-col lg:flex-row lg:justify-around items-center space-y-3 sm:space-y-4 lg:space-y-0 lg:space-x-3 xl:space-x-6">
+                    <!-- Bloque: Próximo Cierre -->
+                    <div class="text-center w-full lg:w-auto">
                         <p class="text-sm text-orange-200 uppercase tracking-wider">Próximo Cierre</p>
                         <div class="text-xl sm:text-2xl font-bold" id="countdown" data-next-close-date="{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}">
                             Calculando...
                         </div>
                     </div>
-                    <!-- Fila Inferior: Carreras y Participantes -->
-                    <div class="flex justify-around items-center w-full space-x-2 sm:space-x-4">
-                        <div class="text-center">
-                            <p class="text-2xl sm:text-3xl font-bold">{{ league_races_detailed|length }}</p>
-                            <p class="text-sm text-orange-200">Carreras</p>
-                        </div>
-                        <div class="text-center">
-                            <p class="text-2xl sm:text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
-                            <p class="text-sm text-orange-200">Participantes</p>
-                        </div>
+
+                    <!-- Bloque: Carreras -->
+                    <div class="text-center w-full lg:w-auto lg:border-l lg:border-orange-400 lg:pl-3 xl:lg:pl-6">
+                        <p class="text-2xl sm:text-3xl font-bold">{{ league_races_detailed|length }}</p>
+                        <p class="text-sm text-orange-200">Carreras</p>
+                    </div>
+
+                    <!-- Bloque: Participantes -->
+                    <div class="text-center w-full lg:w-auto lg:border-l lg:border-orange-400 lg:pl-3 xl:lg:pl-6">
+                        <p class="text-2xl sm:text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
+                        <p class="text-sm text-orange-200">Participantes</p>
                     </div>
                 </div>
             </div>
@@ -266,7 +267,35 @@
     {% include '_Wizard_questions.html' %}
 
     {# Modal para unirse a la liga con código (similar al original) #}
-   
+    <div id="join-league-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Unirse a la Liga "{{ league.name }}"</h3>
+                    <button onclick="closeJoinLeagueModal()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <form id="join-league-form" action="{{ url_for('process_join_league_with_code') }}" method="POST">
+                    <div class="mb-4">
+                        <label for="league-join-code" class="block text-sm font-medium text-gray-700 mb-1">Código de Invitación</label>
+                        <input type="text" name="join_code" id="league-join-code" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm"
+                               placeholder="Introduce el código de invitación">
+                        <input type="hidden" name="league_id" value="{{ league.id }}">
+                    </div>
+                    <div class="flex items-center justify-end space-x-3">
+                        <button type="button" onclick="closeJoinLeagueModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
+                            Unirme a la Liga
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal para MOSTRAR el código de invitación de la liga (similar al original) -->
     {% if invitation_code %}
