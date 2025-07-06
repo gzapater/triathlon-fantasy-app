@@ -5170,7 +5170,27 @@ def get_user_predictions_modal_content(race_id):
                         if option_obj:
                             user_answer_formatted = {"id": option_obj.id, "text": option_obj.option_text} # Dict
             elif q.question_type.name == 'ORDERING':
-                user_answer_formatted = user_answer_obj.answer_text # Comma-separated string of texts
+                if user_answer_obj.answer_text:
+                    ordered_items = user_answer_obj.answer_text.split(',')
+                    resolved_ordered_texts = []
+                    for item_str in ordered_items:
+                        item_str_stripped = item_str.strip()
+                        try:
+                            # Attempt to treat as an ID first
+                            opt_id = int(item_str_stripped)
+                            option_obj = QuestionOption.query.filter_by(id=opt_id, question_id=q.id).first()
+                            if option_obj:
+                                resolved_ordered_texts.append(option_obj.option_text)
+                            else:
+                                # If ID doesn't match any option for this question, or it's not an ID
+                                # treat it as text (original behavior)
+                                resolved_ordered_texts.append(item_str_stripped)
+                        except ValueError:
+                            # If not an int, it's already text
+                            resolved_ordered_texts.append(item_str_stripped)
+                    user_answer_formatted = ", ".join(resolved_ordered_texts) # Join with comma and space for better readability
+                else:
+                    user_answer_formatted = None # No answer provided
             elif q.question_type.name == 'SLIDER':
                 user_answer_formatted = user_answer_obj.slider_answer_value # Float or None
             else: # FREE_TEXT
