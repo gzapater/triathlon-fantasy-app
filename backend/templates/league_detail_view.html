@@ -150,9 +150,9 @@
                                         {% elif user_prediction_exists %}
                                             <!-- Si el usuario YA ha respondido, mostrar solo el botón Ver mi Quiniela -->
                                             <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if race.quiniela_close_date and race.quiniela_close_date < current_time_utc else 'false' }})"
-                                                    class="text-gray-400 hover:text-orange-600 font-bold"
-                                                    title="Ver mi Quiniela">
-                                                <i class="fas fa-eye"></i>
+                                                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center"
+                                                    title="Ver/editar Quiniela">
+                                                <i class="fas fa-eye mr-2"></i>Ver/editar
                                             </button>
                                         {% endif %}
                                         {# Botones fas fa-edit y fas fa-times-circle eliminados según nuevos requisitos #}
