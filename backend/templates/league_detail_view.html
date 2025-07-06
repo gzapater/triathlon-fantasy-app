@@ -69,22 +69,22 @@
                     {% endif %}
 
                 </div>
-                <div class="mt-4 md:mt-0 flex items-center space-x-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                    <div class="text-center">
+                <div class="mt-4 md:mt-0 flex flex-wrap justify-center items-center space-x-2 sm:space-x-6 bg-black bg-opacity-20 p-2 sm:p-4 rounded-lg">
+                    <div class="text-center mb-2 sm:mb-0"> {# Añadido margen inferior para cuando se envuelve #}
                         <p class="text-sm text-orange-200 uppercase tracking-wider">Próximo Cierre</p>
                         {# El data attribute se poblará desde Flask/Jinja2 con la variable next_race_close_date_isoformat #}
-                        <div class="text-2xl font-bold" id="countdown" data-next-close-date="{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}">
+                        <div class="text-xl sm:text-2xl font-bold" id="countdown" data-next-close-date="{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}">
                             {# El contenido inicial será actualizado por JavaScript. Puede ser un loader o N/A #}
                             Calculando...
                         </div>
                     </div>
-                    <div class="text-center border-l border-orange-400 pl-6">
-                        <p class="text-3xl font-bold">{{ league_races_detailed|length }}</p>
+                    <div class="text-center border-l border-orange-400 pl-2 sm:pl-6 mb-2 sm:mb-0"> {# Reducido padding izquierdo en móvil, añadido margen inferior #}
+                        <p class="text-2xl sm:text-3xl font-bold">{{ league_races_detailed|length }}</p>
                         <p class="text-sm text-orange-200">Carreras</p>
                     </div>
-                    <div class="text-center">
+                    <div class="text-center"> {# No necesita margen inferior si es el último potencialmente envuelto individualmente #}
                         {# Mostrar el número de participantes de la liga #}
-                        <p class="text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
+                        <p class="text-2xl sm:text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
                         <p class="text-sm text-orange-200">Participantes</p>
                     </div>
                 </div>
