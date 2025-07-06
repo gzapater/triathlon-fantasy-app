@@ -189,10 +189,10 @@
                 </div>
                  <!-- Análisis por Carrera -->
                 <div class="bg-white shadow-md rounded-lg">
-                    <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-bold text-gray-900">Análisis por Carrera</h2>
+                    <div class="p-6 border-b flex flex-wrap sm:flex-nowrap justify-between items-center">
+                        <h2 class="text-xl font-bold text-gray-900 w-full sm:w-auto mb-2 sm:mb-0">Análisis por Carrera</h2>
                         {% if league_races_detailed and league_races_detailed|length > 0 %}
-                        <select id="race-selector" class="text-sm border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500">
+                        <select id="race-selector" class="text-sm border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 w-full sm:w-auto">
                             {% for race in league_races_detailed %}
                             <option value="{{ race.id }}">{{ race.title }}</option>
                             {% endfor %}
