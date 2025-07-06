@@ -30,7 +30,7 @@
     <div class="bg-orange-500 text-white shadow-md p-6"> <!-- Eliminado mb-8 y rounded-lg para que se pegue al header y ocupe todo el ancho sin redondearse si está pegado -->
         <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8"> <!-- Contenedor opcional para mantener padding interno consistente con el header -->
             <div class="flex flex-col md:flex-row md:justify-between md:items-start">
-                <div>
+                <div class="w-full md:w-auto md:max-w-lg"> <!-- Contenedor izquierdo: Nombre de liga, info creador, botones admin. -->
                     <h1 class="text-3xl font-bold">{{ league.name }}</h1>
                     <p class="text-orange-100 mt-1">
                         Creada por: <span class="font-semibold">{{ league.creator.username if league.creator else 'N/A' }}</span> |
@@ -38,22 +38,19 @@
                     </p>
                      <!-- Botones de Acción para el Admin de la Liga -->
                     {% if current_user_is_creator_or_admin %}
-                    <div class="mt-4 flex items-center space-x-2">
-                        <a href="{{ url_for('edit_league', league_id=league.id) }}" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-edit mr-2"></i>Editar Liga</a>
+                    <div class="mt-4 flex flex-wrap items-center space-x-2 md:max-w-sm"> {/* flex-wrap y md:max-w-sm para controlar ancho y envolvimiento */}
+                        <a href="{{ url_for('edit_league', league_id=league.id) }}" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center mb-2 md:mb-0"><i class="fas fa-edit mr-2"></i>Editar Liga</a>
                         {% if invitation_code and invitation_code.is_active %}
-                        <button id="show-league-invitation-code-button" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-share-alt mr-2"></i>Compartir Código</button>
-                        {% elif not invitation_code or not invitation_code.is_active %}
-                        {# Button to generate/reactivate code could go here or elsewhere as per original logic #}
-                        {# For now, matching the new static HTML, it's not shown if no active code #}
-                        {% endif %}
-                        <form action="{{ url_for('delete_league', league_id=league.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');" class="inline">
+                        <button id="show-league-invitation-code-button" class="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center mb-2 md:mb-0"><i class="fas fa-share-alt mr-2"></i>Compartir Código</button>
+                        {% endif %} {/* Fin del if para el botón de compartir. El form de eliminar es independiente de esto. */}
+                        <form action="{{ url_for('delete_league', league_id=league.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta liga? Esta acción no se puede deshacer.');" class="inline mb-2 md:mb-0">
                             <button type="submit" class="bg-red-500/50 hover:bg-red-500 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center"><i class="fas fa-trash-alt mr-2"></i>Eliminar Liga</button>
                         </form>
                     </div>
                     {% endif %}
                     {# Button to generate invitation code if none exists or is inactive, for admins #}
                     {% if current_user_is_creator_or_admin and (not invitation_code or not invitation_code.is_active) %}
-                    <div class="mt-4">
+                    <div class="mt-4 md:max-w-sm"> {/* md:max-w-sm para consistencia */}
                         <form action="{{ url_for('generate_league_invitation_code', league_id=league.id) }}" method="POST">
                             {% if not invitation_code %}
                                 <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold py-2 px-3 rounded-md flex items-center">
@@ -69,23 +66,24 @@
                     {% endif %}
 
                 </div>
-                <div class="mt-4 md:mt-0 flex flex-wrap justify-center items-center space-x-2 sm:space-x-6 bg-black bg-opacity-20 p-2 sm:p-4 rounded-lg">
-                    <div class="text-center mb-2 sm:mb-0"> {# Añadido margen inferior para cuando se envuelve #}
+                <div class="mt-4 md:mt-0 bg-black bg-opacity-20 p-3 sm:p-4 rounded-lg flex flex-col space-y-3 sm:space-y-4">
+                    <!-- Fila Superior: Próximo Cierre -->
+                    <div class="text-center w-full">
                         <p class="text-sm text-orange-200 uppercase tracking-wider">Próximo Cierre</p>
-                        {# El data attribute se poblará desde Flask/Jinja2 con la variable next_race_close_date_isoformat #}
                         <div class="text-xl sm:text-2xl font-bold" id="countdown" data-next-close-date="{{ next_race_close_date_isoformat if next_race_close_date_isoformat else '' }}">
-                            {# El contenido inicial será actualizado por JavaScript. Puede ser un loader o N/A #}
                             Calculando...
                         </div>
                     </div>
-                    <div class="text-center border-l border-orange-400 pl-2 sm:pl-6 mb-2 sm:mb-0"> {# Reducido padding izquierdo en móvil, añadido margen inferior #}
-                        <p class="text-2xl sm:text-3xl font-bold">{{ league_races_detailed|length }}</p>
-                        <p class="text-sm text-orange-200">Carreras</p>
-                    </div>
-                    <div class="text-center"> {# No necesita margen inferior si es el último potencialmente envuelto individualmente #}
-                        {# Mostrar el número de participantes de la liga #}
-                        <p class="text-2xl sm:text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
-                        <p class="text-sm text-orange-200">Participantes</p>
+                    <!-- Fila Inferior: Carreras y Participantes -->
+                    <div class="flex justify-around items-center w-full space-x-2 sm:space-x-4">
+                        <div class="text-center">
+                            <p class="text-2xl sm:text-3xl font-bold">{{ league_races_detailed|length }}</p>
+                            <p class="text-sm text-orange-200">Carreras</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl sm:text-3xl font-bold">{{ league_participants_count if league_participants_count is not none else '0' }}</p>
+                            <p class="text-sm text-orange-200">Participantes</p>
+                        </div>
                     </div>
                 </div>
             </div>
