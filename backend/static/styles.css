@@ -259,3 +259,39 @@ ul li, ol li {
 #cancel-create-event-btn:hover {
     background-color: #D1D5DB !important; /* Gris más claro (gray-300) */
 }
+
+/* Custom Slider CSS from race_detail.html */
+.custom-slider-container {
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+}
+.slider-thumb {
+    box-sizing: border-box;
+}
+.slider-green-zone, .slider-yellow-zone-left, .slider-yellow-zone-right {
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.slider-value-display {
+    min-height: 2.5em;
+    text-align: center;
+}
+
+/* Drag item CSS from race_detail.html (potentially for ordering questions) */
+.drag-item {
+    cursor: move;
+}
+
+.drag-item:hover {
+    background-color: #f8f9fa; /* Tailwind gray-50 */
+}
+
+.drag-item.dragging {
+    /* opacity: 0.5; */
+    /* transform: rotate(5deg); */
+}

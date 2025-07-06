@@ -530,44 +530,205 @@ function displayWizardQuestion(index) {
                         const moveUpBtn = document.createElement('button');
                         moveUpBtn.innerHTML = '↑';
                         moveUpBtn.type = 'button';
-                        moveUpBtn.className = 'wizard-move-up-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200';
-                        moveUpBtn.onclick = () => { /* ... */ }; // Simplified, full logic in original
+                                moveUpBtn.className = 'wizard-move-up-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveUpBtn.addEventListener('click', () => {
+                                    const currentLi = moveUpBtn.closest('li');
+                                    if (currentLi && currentLi.previousElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.previousElementSibling);
+                                        updateWizardOrderingButtonStates(orderingListContainer);
+                                    }
+                                });
                         buttonContainer.appendChild(moveUpBtn);
-                        // ... (moveDownBtn similar)
-                        listItem.appendChild(buttonContainer);
-                        orderingListContainer.appendChild(listItem);
-                    });
-                } else {
-                    orderingListContainer.innerHTML = '<p class="text-sm text-gray-500">No hay opciones.</p>';
+
+                                const moveDownBtn = document.createElement('button');
+                                moveDownBtn.innerHTML = '↓';
+                                moveDownBtn.type = 'button';
+                                moveDownBtn.className = 'wizard-move-down-btn px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-300';
+                                moveDownBtn.addEventListener('click', () => {
+                                    const currentLi = moveDownBtn.closest('li');
+                                    if (currentLi && currentLi.nextElementSibling) {
+                                        currentLi.parentNode.insertBefore(currentLi, currentLi.nextElementSibling.nextSibling);
+                                        updateWizardOrderingButtonStates(orderingListContainer);
+                                    }
+                                });
+                                buttonContainer.appendChild(moveDownBtn);
+                                listItem.appendChild(buttonContainer);
+                                orderingListContainer.appendChild(listItem);
+                            });
+                        } else {
+                            orderingListContainer.innerHTML = '<p class="text-sm text-gray-500">No hay opciones para ordenar.</p>';
+                        }
+                        wizardAnswerOptions.appendChild(orderingListContainer);
+                        if (orderingListContainer.firstChild) {
+                             updateWizardOrderingButtonStates(orderingListContainer);
+                        }
+                        break;
+                    case 'SLIDER':
+                        if (!wizardAnswerOptions) break;
+                wizardAnswerOptions.innerHTML = ''; // Clear previous content
+
+                const minValue = parseFloat(question.slider_min_value);
+                const maxValue = parseFloat(question.slider_max_value);
+                const unit = question.slider_unit || "";
+                let parsedStep = parseFloat(question.slider_step);
+                let stepValue = (question.slider_step == null || isNaN(parsedStep) || parsedStep <= 0) ? 1 : parsedStep;
+
+                let errorMsg = "";
+                if (isNaN(minValue)) errorMsg = "Valor mínimo no numérico.";
+                else if (isNaN(maxValue)) errorMsg = "Valor máximo no numérico.";
+                else if (maxValue <= minValue) errorMsg = "Valor máximo debe ser mayor que el mínimo.";
+                else if (isNaN(stepValue)) errorMsg = "Paso (step) inválido.";
+
+                if (errorMsg) {
+                    wizardAnswerOptions.innerHTML = `<p class="text-red-500 text-center py-4">Error en config. slider: ${errorMsg}</p>`;
+                    if(wizardNextBtn) wizardNextBtn.style.display = 'none';
+                    if(wizardFinishBtn) wizardFinishBtn.style.display = 'none';
+                    break;
                 }
-                wizardAnswerOptions.appendChild(orderingListContainer);
-                // updateWizardOrderingButtonStates(orderingListContainer); // Call helper
+
+                const sliderContainer = document.createElement('div');
+                sliderContainer.className = 'custom-slider-container w-full pt-8 pb-4 relative select-none';
+
+                const trackBackground = document.createElement('div');
+                trackBackground.className = 'slider-track-background h-2 bg-gray-300 rounded-full absolute top-1/2 left-0 right-0 -translate-y-1/2';
+                sliderContainer.appendChild(trackBackground);
+
+                const thumb = document.createElement('div');
+                thumb.className = 'slider-thumb absolute top-1/2 -translate-y-1/2 flex items-stretch h-6 rounded shadow-md border border-gray-400';
+                thumb.style.cursor = 'grab';
+                thumb.id = `sliderThumb_${question.id}`;
+
+                const yellowZoneLeft = document.createElement('div');
+                yellowZoneLeft.className = 'slider-yellow-zone-left bg-yellow-300 border-r border-yellow-400';
+                thumb.appendChild(yellowZoneLeft);
+
+                const greenZone = document.createElement('div');
+                greenZone.className = 'slider-green-zone bg-green-500 border-l border-r border-green-600';
+                thumb.appendChild(greenZone);
+
+                const yellowZoneRight = document.createElement('div');
+                yellowZoneRight.className = 'slider-yellow-zone-right bg-yellow-300 border-l border-yellow-400';
+                thumb.appendChild(yellowZoneRight);
+                sliderContainer.appendChild(thumb);
+
+                const valueDisplay = document.createElement('div');
+                valueDisplay.id = `wizardSliderValueDisplay_${question.id}`;
+                valueDisplay.className = 'slider-value-display text-center text-lg font-semibold text-gray-700 mt-3 mb-1';
+                sliderContainer.appendChild(valueDisplay);
+
+                const labelsContainer = document.createElement('div');
+                labelsContainer.className = 'slider-labels flex justify-between text-xs text-gray-500';
+                const minLabel = document.createElement('span');
+                minLabel.id = `wizardSliderMinLabel_${question.id}`;
+                const maxLabel = document.createElement('span');
+                maxLabel.id = `wizardSliderMaxLabel_${question.id}`;
+                labelsContainer.appendChild(minLabel);
+                labelsContainer.appendChild(maxLabel);
+                sliderContainer.appendChild(labelsContainer);
+
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.id = `hiddenSliderValue_${question.id}`; // Used to store the actual value
+                sliderContainer.appendChild(hiddenInput);
+
+                wizardAnswerOptions.appendChild(sliderContainer);
+
+                requestAnimationFrame(() => {
+                    const trackWidthPx = trackBackground.offsetWidth;
+                    const valueRange = maxValue - minValue;
+
+                    if (valueRange <= 0 || trackWidthPx === 0) {
+                        wizardAnswerOptions.innerHTML = '<p class="text-red-500 text-center">Error: Configuración de slider inválida o contenedor no visible.</p>';
+                        if(wizardNextBtn) wizardNextBtn.style.display = 'none';
+                        if(wizardFinishBtn) wizardFinishBtn.style.display = 'none';
+                        return;
+                    }
+                    const pixelsPerUnit = trackWidthPx / valueRange;
+                    const thresholdPartial = parseFloat(question.slider_threshold_partial) || 0;
+                    const greenZoneUnitWidth = 1; // Assuming the "exact" point is 1 unit wide on the conceptual slider
+
+                    const greenZonePxWidth = Math.max(2, greenZoneUnitWidth * pixelsPerUnit); // Min 2px width for visibility
+                    const yellowZonePxWidth = Math.max(0, thresholdPartial * pixelsPerUnit);
+
+                    greenZone.style.width = `${greenZonePxWidth}px`;
+                    yellowZoneLeft.style.width = `${yellowZonePxWidth}px`;
+                    yellowZoneRight.style.width = `${yellowZonePxWidth}px`;
+                    thumb.style.width = `${greenZonePxWidth + (2 * yellowZonePxWidth)}px`;
+
+                    minLabel.textContent = `${minValue} ${unit}`;
+                    maxLabel.textContent = `${maxValue} ${unit}`;
+
+                    let initialValue = parseFloat(existingAnswer?.slider_answer_value ?? minValue);
+                    initialValue = Math.max(minValue, Math.min(maxValue, initialValue));
+                    let numDecimalPlaces = stepValue.toString().includes('.') ? (stepValue.toString().split('.')[1].length || 0) : 0;
+                    initialValue = parseFloat((Math.round((initialValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlaces));
+
+                    hiddenInput.value = initialValue;
+                    valueDisplay.textContent = `${initialValue} ${unit}`;
+
+                    const valuePointOffsetWithinThumbPx = yellowZonePxWidth + (greenZonePxWidth / 2);
+                    let initialValuePointOnTrackPx = ((initialValue - minValue) / valueRange) * trackWidthPx;
+                    initialValuePointOnTrackPx = Math.max(0, Math.min(initialValuePointOnTrackPx, trackWidthPx));
+                    thumb.style.left = `${initialValuePointOnTrackPx - valuePointOffsetWithinThumbPx}px`;
+
+                    let isDragging = false;
+                    let dragStartX;
+                    let thumbInitialLeftPx;
+
+                    thumb.onpointerdown = (e) => {
+                        if (e.button !== 0) return;
+                        isDragging = true;
+                        dragStartX = e.clientX;
+                        thumbInitialLeftPx = thumb.offsetLeft;
+                        thumb.setPointerCapture(e.pointerId);
+                        thumb.style.cursor = 'grabbing';
+                        document.body.style.userSelect = 'none';
+
+                        document.onpointermove = (evMove) => {
+                            if (!isDragging) return;
+                            let dx = evMove.clientX - dragStartX;
+                            let desiredThumbLeftPx = thumbInitialLeftPx + dx;
+                            let desiredValuePointOnTrackPx = desiredThumbLeftPx + valuePointOffsetWithinThumbPx;
+                            let clampedValuePointOnTrackPx = Math.max(0, Math.min(desiredValuePointOnTrackPx, trackWidthPx));
+
+                            let currentValue = (clampedValuePointOnTrackPx / trackWidthPx) * valueRange + minValue;
+                            currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+                            currentValue = parseFloat((Math.round((currentValue - minValue) / stepValue) * stepValue + minValue).toFixed(numDecimalPlaces));
+                            currentValue = Math.max(minValue, Math.min(maxValue, currentValue));
+
+                            hiddenInput.value = currentValue;
+                            valueDisplay.textContent = `${currentValue} ${unit}`;
+
+                            let finalValuePointOnTrackPx = ((currentValue - minValue) / valueRange) * trackWidthPx;
+                            thumb.style.left = `${finalValuePointOnTrackPx - valuePointOffsetWithinThumbPx}px`;
+                        };
+
+                        document.onpointerup = (evUp) => {
+                            if (!isDragging) return;
+                            isDragging = false;
+                            thumb.releasePointerCapture(evUp.pointerId);
+                            thumb.style.cursor = 'grab';
+                            document.body.style.userSelect = '';
+                            document.onpointermove = null;
+                            document.onpointerup = null;
+                        };
+                    };
+
+                    // Scoring Info Display
+                    const scoringInfoContainer = document.createElement('div');
+                    scoringInfoContainer.className = 'slider-scoring-info mt-3 pt-3 border-t border-gray-200 text-sm text-gray-600';
+                    const exactPointsP = document.createElement('p');
+                    exactPointsP.className = 'mb-1';
+                    exactPointsP.innerHTML = `Puntos por respuesta exacta (zona verde): <strong class="text-green-600">${question.slider_points_exact !== null ? question.slider_points_exact : 'N/A'}</strong>`;
+                    scoringInfoContainer.appendChild(exactPointsP);
+                    if (question.slider_points_partial !== null && question.slider_points_partial > 0 && thresholdPartial > 0) {
+                        const partialPointsP = document.createElement('p');
+                        partialPointsP.innerHTML = `Puntos por respuesta parcial (zona amarilla, +/- ${thresholdPartial} ${unit}): <strong class="text-yellow-600">${question.slider_points_partial}</strong>`;
+                        scoringInfoContainer.appendChild(partialPointsP);
+                    }
+                    wizardAnswerOptions.appendChild(scoringInfoContainer);
+                });
                 break;
-            case 'SLIDER':
-                 // Simplified Slider rendering for brevity in this step
-                const sliderInput = document.createElement('input');
-                sliderInput.type = 'range';
-                sliderInput.id = `wizardSliderAnswer_${question.id}`;
-                sliderInput.name = `wizard_q_${question.id}`; // Ensure name for form submission if that's how it's collected
-                sliderInput.min = question.slider_min_value;
-                sliderInput.max = question.slider_max_value;
-                sliderInput.step = question.slider_step || 1;
-                sliderInput.value = existingAnswer?.slider_answer_value ?? question.slider_min_value;
-                sliderInput.className = 'w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500';
-
-                const sliderValueDisplay = document.createElement('div');
-                sliderValueDisplay.id = `wizardSliderValueDisplay_${question.id}`;
-                sliderValueDisplay.className = 'text-center text-sm text-gray-700 mt-2';
-                sliderValueDisplay.textContent = `${sliderInput.value} ${question.slider_unit || ''}`;
-
-                sliderInput.oninput = () => {
-                    sliderValueDisplay.textContent = `${sliderInput.value} ${question.slider_unit || ''}`;
-                };
-
-                wizardAnswerOptions.appendChild(sliderInput);
-                wizardAnswerOptions.appendChild(sliderValueDisplay);
-                break;
-
             default:
                 wizardAnswerOptions.innerHTML = `<p class="text-red-500">Tipo de pregunta '${question.question_type}' no soportado.</p>`;
         }
@@ -633,6 +794,28 @@ function handlePreviousWizardQuestion() {
         displayWizardQuestion(wizardCurrentQuestionIndex);
     }
 }
+
+// Helper function to update enabled/disabled state of move buttons in wizard ordering list
+function updateWizardOrderingButtonStates(ulElement) {
+    if (!ulElement) return;
+    const listItems = ulElement.querySelectorAll('li[data-option-id]');
+    listItems.forEach((li, index) => {
+        const upButton = li.querySelector('.wizard-move-up-btn');
+        const downButton = li.querySelector('.wizard-move-down-btn');
+
+        if (upButton) {
+            upButton.disabled = (index === 0);
+            upButton.classList.toggle('opacity-50', upButton.disabled);
+            upButton.classList.toggle('cursor-not-allowed', upButton.disabled);
+        }
+        if (downButton) {
+            downButton.disabled = (index === listItems.length - 1);
+            downButton.classList.toggle('opacity-50', downButton.disabled);
+            downButton.classList.toggle('cursor-not-allowed', downButton.disabled);
+        }
+    });
+}
+
 
 // Event listeners for wizard buttons should be attached once the modal is in the DOM.
 // This can be done in DOMContentLoaded or when the wizard HTML is confirmed to be present.
