@@ -110,8 +110,8 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cierre Pronósticos</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Cierre Pronósticos</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Estado</th>
                                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                                 </tr>
                             </thead>
@@ -120,10 +120,10 @@
                                 <tr class="{% if loop.index is odd %}bg-white{% else %}bg-gray-50{% endif %}">
                                     <td class="px-6 py-4">
                                         <a href="{{ url_for('serve_race_detail_page', race_id=race.id) }}" class="font-medium text-gray-800 hover:text-orange-500 hover:underline">{{ race.title }}</a>
-                                        <p class="text-sm text-gray-500">{{ race.event_date|format_date_filter }}</p>
+                                        <p class="text-sm text-gray-500 hidden sm:block">{{ race.event_date|format_date_filter }}</p> {# Ocultar fecha del evento en móvil #}
                                     </td>
-                                    <td class="px-6 py-4 text-sm text-gray-500">{{ race.quiniela_close_date|format_date_filter if race.quiniela_close_date else 'N/A' }}</td>
-                                    <td class="px-6 py-4">
+                                    <td class="px-6 py-4 text-sm text-gray-500 hidden sm:table-cell">{{ race.quiniela_close_date|format_date_filter if race.quiniela_close_date else 'N/A' }}</td>
+                                    <td class="px-6 py-4 hidden sm:table-cell">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                         {% if race.status.value == 'CLOSED' %}bg-red-100 text-red-800
                                         {% elif race.status.value == 'PLANNED' %}bg-gray-100 text-gray-800
