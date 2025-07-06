@@ -143,9 +143,9 @@
                                         {% if not user_prediction_exists %}
                                             <!-- Si el usuario NO ha respondido, mostrar solo el botón Quiniela Wizard -->
                                             <button onclick="openQuestionWizard('{{ race.id }}', '{{ race.quiniela_close_date.isoformat() if race.quiniela_close_date else '' }}', '{{ race.title | e }}')"
-                                                    class="text-blue-500 hover:text-blue-700"
-                                                    title="Abrir Quiniela Wizard">
-                                                <i class="fas fa-poll-h"></i>
+                                                    class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center"
+                                                    title="Jugar Quiniela">
+                                                <i class="fas fa-play mr-2"></i>Jugar
                                             </button>
                                         {% elif user_prediction_exists %}
                                             <!-- Si el usuario YA ha respondido, mostrar solo el botón Ver mi Quiniela -->
