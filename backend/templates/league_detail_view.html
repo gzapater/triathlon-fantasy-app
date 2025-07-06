@@ -132,7 +132,6 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 text-center space-x-1 sm:space-x-2 md:space-x-4">
-                                        <button onclick="openRaceResultsModal('{{ race.id }}', '{{ race.title }}')" class="text-gray-400 hover:text-orange-600" title="Ver Clasificación"><i class="fas fa-trophy"></i></button>
                                         {# Assuming 'make_prediction_page' and 'view_prediction_page' routes exist #}
                                         {% set prediction_status = user_predictions_status.get(race.id) %}
                                         {% set user_prediction_exists = prediction_status.exists if prediction_status else false %}
