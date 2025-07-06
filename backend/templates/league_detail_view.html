@@ -143,14 +143,14 @@
                                         {% if not user_prediction_exists %}
                                             <!-- Si el usuario NO ha respondido, mostrar solo el botón Quiniela Wizard -->
                                             <button onclick="openQuestionWizard('{{ race.id }}', '{{ race.quiniela_close_date.isoformat() if race.quiniela_close_date else '' }}', '{{ race.title | e }}')"
-                                                    class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center"
+                                                    class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center w-32 justify-center"
                                                     title="Jugar Quiniela">
                                                 <i class="fas fa-play mr-2"></i>Jugar
                                             </button>
                                         {% elif user_prediction_exists %}
                                             <!-- Si el usuario YA ha respondido, mostrar solo el botón Ver mi Quiniela -->
                                             <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if race.quiniela_close_date and race.quiniela_close_date < current_time_utc else 'false' }})"
-                                                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center"
+                                                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center w-32 justify-center"
                                                     title="Ver/editar Quiniela">
                                                 <i class="fas fa-eye mr-2"></i>Ver/editar
                                             </button>
