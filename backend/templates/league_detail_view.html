@@ -155,10 +155,19 @@
                                             </button>
                                         {% elif user_prediction_exists %}
                                             <!-- Si el usuario YA ha respondido Y HAY PREGUNTAS, mostrar botón Ver mi Quiniela -->
+                                            {% set pending_count = user_predictions_status[race.id].pending_count if race.id in user_predictions_status else 0 %}
                                             <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if race.quiniela_close_date and race.quiniela_close_date < current_time_utc else 'false' }})"
-                                                    class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center w-32 justify-center"
-                                                    title="Ver/editar Quiniela">
-                                                <i class="fas fa-eye mr-2"></i>Ver/editar
+                                                    class="relative bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center w-32 justify-center"
+                                                    title="{{ 'Preguntas sin responder' if pending_count > 0 else 'Ver/editar Quiniela' }}">
+                                                <span class="inline-flex items-center">
+                                                    <i class="fas fa-eye mr-2"></i>Ver/editar
+                                                </span>
+                                                {% if pending_count > 0 %}
+                                                <span class="absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center"
+                                                      title="Preguntas sin responder">
+                                                    {{ pending_count }}
+                                                </span>
+                                                {% endif %}
                                             </button>
                                         {% endif %}
                                         {# Botones fas fa-edit y fas fa-times-circle eliminados según nuevos requisitos #}
