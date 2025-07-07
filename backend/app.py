@@ -4824,7 +4824,51 @@ def view_league_detail(league_id):
 
     # Detalles de las carreras de la liga
     # Ordenar por fecha de evento, por ejemplo
-    league_races_detailed = league.races.filter_by(is_deleted=False).order_by(Race.event_date.asc()).all()
+    league_races_query = league.races.filter_by(is_deleted=False).order_by(Race.event_date.asc())
+
+    # Añadir el conteo de preguntas a cada carrera
+    league_races_detailed_list = []
+    for race_obj in league_races_query.all():
+        # Contar preguntas activas para la carrera
+        # race.questions es una relación `lazy='dynamic'`, por lo que .count() hace una query.
+        try:
+            # Asegurarse que accedemos a la relación questions del objeto race_obj SQLAlchemy
+            questions_count_for_race = race_obj.questions.filter_by(is_active=True).count()
+        except Exception as e_qc:
+            app.logger.error(f"Error al contar preguntas para la carrera ID {race_obj.id}: {e_qc}")
+            questions_count_for_race = 0 # Default a 0 en caso de error
+
+        # Crear un objeto o diccionario para pasar a la plantilla, añadiendo questions_count
+        # Si race_obj ya es un objeto que se puede modificar (no siempre es buena idea modificarlo directamente si viene de SQLAlchemy)
+        # o si se convierte a un diccionario, se puede añadir ahí.
+        # Por simplicidad, si asumimos que la plantilla puede acceder a race_obj.questions_count,
+        # podemos intentar añadirlo como un atributo temporal.
+        # Sin embargo, es más seguro y limpio si league_races_detailed es una lista de diccionarios.
+        # Vamos a crear una lista de diccionarios para asegurar.
+
+        # Convertir el objeto Race a un diccionario y añadir questions_count
+        # Esto asume que Race tiene un método to_dict() o se construye manualmente.
+        # Si no, se puede crear un objeto simple o usar el objeto Race y confiar en que el atributo se pueda añadir.
+        # Para este caso, intentaremos añadir el atributo directamente al objeto si la plantilla lo permite,
+        # o lo pasaremos como parte de una estructura de datos más compleja si es necesario.
+        # La forma más segura es crear una nueva estructura.
+
+        # race_obj.questions_count = questions_count_for_race # Esto modificaría el objeto SQLAlchemy, no siempre ideal
+
+        # Creamos una estructura de datos para cada carrera
+        # Esto es mejor si no queremos modificar el objeto SQLAlchemy directamente
+        # o si necesitamos más datos procesados.
+        # Por ahora, vamos a asumir que podemos añadir `questions_count` al objeto `race`
+        # que se pasa a la plantilla, o que la plantilla puede accederlo a través de `race.questions.count()`.
+        # El plan original sugiere `race.questions_count`.
+
+        # Para que la plantilla pueda usar `race.questions_count`, lo añadimos aquí.
+        # Esto es una práctica común pero hay que ser consciente de que se está añadiendo un atributo
+        # dinámicamente a un objeto SQLAlchemy.
+        setattr(race_obj, 'questions_count', questions_count_for_race)
+        league_races_detailed_list.append(race_obj)
+
+    league_races_detailed = league_races_detailed_list # Reemplazar la lista original
 
     # Participantes de la liga - Data fetching for this section is no longer needed as the section is removed.
     # league_participants_query = league.participants.order_by(LeagueParticipant.joined_at.desc())
