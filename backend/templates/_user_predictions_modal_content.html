@@ -40,6 +40,29 @@
                 {% else %}
                     <p class="text-sm text-gray-500 italic pl-4 mt-1">No has respondido a esta pregunta.</p>
                 {% endif %}
+
+                {# Botón de Edición para cada pregunta #}
+                {# Necesitaremos race_id y race_name, que deberían estar disponibles en el contexto de este template #}
+                {# También si la quiniela está cerrada para esta carrera específica #}
+                {% if not is_quiniela_closed_for_race %}
+                <div class="mt-2 text-right">
+                    <button
+                        class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-1 px-2 rounded-md flex items-center ml-auto"
+                        onclick="openEditSingleQuestionModal(
+                            '{{ item.question_id }}',
+                            '{{ race_id }}',
+                            '{{ race_title | e }}',
+                            '{{ item.question_text | e }}',
+                            '{{ item.question_type }}',
+                            {{ item.options_json | default('null') | safe }},
+                            '{{ item.user_answer_raw | default('', true) | e('js') }}',
+                            {{ item.slider_details_json | default('null') | safe }}
+                        )"
+                        title="Editar esta respuesta">
+                        <i class="fas fa-edit mr-1"></i>Editar
+                    </button>
+                </div>
+                {% endif %}
             </div>
         {% endfor %}
     </div>

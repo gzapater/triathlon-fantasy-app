@@ -5666,3 +5666,123 @@ def join_league_by_code_api():
         db.session.rollback()
         app.logger.error(f"API join_league_by_code: Excepción al procesar unión a liga {league_to_join.id} con código {access_code_str} por user {current_user.id}: {e}", exc_info=True)
         return jsonify(message="Ocurrió un error al procesar tu solicitud para unirte a la liga."), 500
+
+@app.route('/api/race/<int:race_id>/question/<int:question_id>/answer', methods=['POST'])
+@login_required
+def save_single_question_answer(race_id, question_id):
+    app.logger.info(f"User {current_user.id} attempting to save single answer for race {race_id}, question {question_id}")
+
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
+    if not race:
+        app.logger.warning(f"Attempt to save single answer for non-existent or deleted race {race_id}")
+        return jsonify(message="Race not found or has been deleted"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to save single answer for closed quiniela race {race_id}")
+        return jsonify(message="La quiniela ya está cerrada y no se pueden modificar las predicciones."), 403
+
+    question = Question.query.filter_by(id=question_id, race_id=race_id, is_active=True).first()
+    if not question:
+        app.logger.warning(f"Question {question_id} not found, not active, or not part of race {race_id}")
+        return jsonify(message="Question not found, not active, or does not belong to this race."), 404
+
+    registration = UserRaceRegistration.query.filter_by(user_id=current_user.id, race_id=race_id).first()
+    if not registration:
+        # Auto-register LEAGUE_ADMIN or ADMIN if they are not already registered
+        if current_user.role.code in ['LEAGUE_ADMIN', 'ADMIN']:
+            app.logger.info(f"User {current_user.username} (Role: {current_user.role.code}) is not registered for race {race_id}. Auto-registering.")
+            try:
+                new_registration = UserRaceRegistration(user_id=current_user.id, race_id=race.id)
+                db.session.add(new_registration)
+                # The main db.session.commit() at the end of the function will handle saving this.
+                registration = new_registration
+            except IntegrityError:
+                db.session.rollback()
+                app.logger.error(f"IntegrityError during auto-registration of user {current_user.id} for race {race_id}.")
+                return jsonify(message="Error during auto-registration process."), 500
+        else: # Regular player not registered
+            app.logger.warning(f"User {current_user.id} not registered for race {race_id}, cannot save single answer.")
+            return jsonify(message="User not registered for this race"), 403
+
+    data = request.get_json()
+    if not data:
+        app.logger.warning(f"No payload for single answer for Q {question_id}, Race {race_id}")
+        return jsonify(message="No data provided"), 400
+
+    app.logger.debug(f"Received single answer payload for Q {question_id}, Race {race_id}: {data}")
+
+    try:
+        existing_answer = UserAnswer.query.filter_by(user_id=current_user.id, question_id=question.id).first()
+        if existing_answer:
+            # Delete existing MC options if it's an MC question to avoid duplicates
+            if question.question_type.name == 'MULTIPLE_CHOICE' and question.is_mc_multiple_correct:
+                UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=existing_answer.id).delete()
+
+            user_answer_to_update = existing_answer
+            app.logger.info(f"Updating existing UserAnswer {existing_answer.id} for Q {question_id}")
+        else:
+            user_answer_to_update = UserAnswer(
+                user_id=current_user.id,
+                race_id=race_id,
+                question_id=question.id
+            )
+            db.session.add(user_answer_to_update)
+            app.logger.info(f"Creating new UserAnswer for Q {question_id}")
+
+        question_type_name = question.question_type.name
+
+        if question_type_name == 'FREE_TEXT':
+            user_answer_to_update.answer_text = data.get('answer_text')
+        elif question_type_name == 'ORDERING':
+            user_answer_to_update.answer_text = data.get('answer_text') # Assuming payload sends 'answer_text' for ordering
+        elif question_type_name == 'MULTIPLE_CHOICE':
+            user_answer_to_update.answer_text = None # Clear text field for MC
+            if question.is_mc_multiple_correct:
+                selected_ids = data.get('selected_option_ids', [])
+                if not isinstance(selected_ids, list):
+                    return jsonify(message="selected_option_ids must be a list."), 400
+
+                # For updates, we removed old options. Now add new ones.
+                # For new answers, selected_mc_options is empty.
+                for opt_id in selected_ids:
+                    option_exists = QuestionOption.query.filter_by(id=opt_id, question_id=question.id).first()
+                    if option_exists:
+                        mc_option = UserAnswerMultipleChoiceOption(question_option_id=opt_id)
+                        user_answer_to_update.selected_mc_options.append(mc_option)
+                    else:
+                        app.logger.warning(f"Invalid option_id {opt_id} for MC-multiple Q {question.id}")
+            else: # Single correct
+                selected_id = data.get('selected_option_id')
+                if selected_id is not None:
+                    option_exists = QuestionOption.query.filter_by(id=selected_id, question_id=question.id).first()
+                    if option_exists:
+                        user_answer_to_update.selected_option_id = selected_id
+                    else:
+                        app.logger.warning(f"Invalid option_id {selected_id} for MC-single Q {question.id}")
+                        user_answer_to_update.selected_option_id = None
+                else:
+                    user_answer_to_update.selected_option_id = None
+        elif question_type_name == 'SLIDER':
+            slider_value = data.get('slider_answer_value')
+            if slider_value is not None:
+                try:
+                    user_answer_to_update.slider_answer_value = float(slider_value)
+                except (ValueError, TypeError):
+                    return jsonify(message="slider_answer_value must be a valid number."), 400
+            else:
+                 user_answer_to_update.slider_answer_value = None
+            user_answer_to_update.answer_text = None # Clear other types
+            user_answer_to_update.selected_option_id = None
+
+        db.session.commit()
+        app.logger.info(f"Successfully saved single answer for Q {question_id}, Race {race_id} by User {current_user.id}")
+        return jsonify(message="Respuesta guardada correctamente.", userAnswerId=user_answer_to_update.id), 200
+
+    except IntegrityError as ie:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError saving single answer for Q {question_id}, Race {race_id}: {ie}", exc_info=True)
+        return jsonify(message="Error de base de datos al guardar la respuesta."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception saving single answer for Q {question_id}, Race {race_id}: {e}", exc_info=True)
+        return jsonify(message="Ocurrió un error al guardar la respuesta."), 500
