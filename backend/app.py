@@ -850,6 +850,93 @@ def get_race_questions(race_id):
     return jsonify(output), 200
 
 
+@app.route('/api/races/<int:race_id>/questions_with_answers', methods=['GET'])
+@login_required
+def get_race_questions_with_answers(race_id):
+    app.logger.info(f"Fetching questions with answers for race_id: {race_id}, user: {current_user.id}")
+    race = Race.query.filter_by(id=race_id, is_deleted=False).first()
+    if not race:
+        app.logger.warning(f"Race not found or deleted: {race_id} for questions_with_answers")
+        return jsonify(message="Race not found or has been deleted"), 404
+
+    # Fetch active questions for the race
+    questions_query = Question.query.filter_by(race_id=race.id, is_active=True).order_by(Question.id)
+
+    # Fetch current user's answers for these questions
+    user_answers_for_race = UserAnswer.query.filter_by(user_id=current_user.id, race_id=race.id).all()
+    user_answers_map = {ua.question_id: ua for ua in user_answers_for_race}
+
+    output_questions = []
+    for question in questions_query:
+        question_data = {
+            "id": question.id,
+            "text": question.text,
+            "question_type": question.question_type.name,
+            "is_active": question.is_active, # Should always be true due to filter, but good to include
+            "options": [], # To be populated for MC/Ordering
+            "user_answer": None # Default to null, will be populated if answer exists
+        }
+
+        # Add type-specific scoring fields from Question model (similar to _serialize_question)
+        if question.question_type.name == 'FREE_TEXT':
+            question_data["max_score_free_text"] = question.max_score_free_text
+        elif question.question_type.name == 'MULTIPLE_CHOICE':
+            question_data["is_mc_multiple_correct"] = question.is_mc_multiple_correct
+            question_data["points_per_correct_mc"] = question.points_per_correct_mc
+            question_data["points_per_incorrect_mc"] = question.points_per_incorrect_mc
+            question_data["total_score_mc_single"] = question.total_score_mc_single
+        elif question.question_type.name == 'ORDERING':
+            question_data["points_per_correct_order"] = question.points_per_correct_order
+            question_data["bonus_for_full_order"] = question.bonus_for_full_order
+        elif question.question_type.name == 'SLIDER':
+            question_data["slider_unit"] = question.slider_unit
+            question_data["slider_min_value"] = question.slider_min_value
+            question_data["slider_max_value"] = question.slider_max_value
+            question_data["slider_step"] = question.slider_step
+            question_data["slider_points_exact"] = question.slider_points_exact
+            question_data["slider_threshold_partial"] = question.slider_threshold_partial
+            question_data["slider_points_partial"] = question.slider_points_partial
+
+        # Populate options for MC and Ordering questions
+        if question.question_type.name in ['MULTIPLE_CHOICE', 'ORDERING']:
+            options_query_for_q = question.options.order_by(QuestionOption.id) # Or specific order if needed
+            for opt in options_query_for_q:
+                question_data["options"].append({
+                    "id": opt.id,
+                    "option_text": opt.option_text
+                    # No need for correctness flags here, frontend wizard handles interaction
+                })
+
+        # Check if user has an answer for this question and format it
+        user_answer_obj = user_answers_map.get(question.id)
+        if user_answer_obj:
+            formatted_user_answer = {}
+            if question.question_type.name == 'FREE_TEXT':
+                formatted_user_answer['answer_text'] = user_answer_obj.answer_text
+            elif question.question_type.name == 'MULTIPLE_CHOICE':
+                if question.is_mc_multiple_correct:
+                    formatted_user_answer['selected_option_ids'] = [
+                        sel_opt.question_option_id for sel_opt in user_answer_obj.selected_mc_options
+                    ]
+                else:
+                    formatted_user_answer['selected_option_id'] = user_answer_obj.selected_option_id
+            elif question.question_type.name == 'ORDERING':
+                # UserAnswer.answer_text stores the comma-separated string of option texts for ordering
+                formatted_user_answer['ordered_options_text'] = user_answer_obj.answer_text
+            elif question.question_type.name == 'SLIDER':
+                formatted_user_answer['slider_answer_value'] = user_answer_obj.slider_answer_value
+
+            # Include question_id in user_answer for consistency with frontend save format, though a bit redundant here.
+            if formatted_user_answer: # Only add if any actual answer data was formatted
+                 formatted_user_answer['question_id'] = question.id
+                 question_data['user_answer'] = formatted_user_answer
+
+        output_questions.append(question_data)
+
+    app.logger.info(f"Successfully fetched {len(output_questions)} questions with answers for race {race_id}, user {current_user.id}")
+    return jsonify(output_questions), 200
+
+
 @app.route('/api/races/<int:race_id>/share_link', methods=['GET'])
 @login_required
 def get_race_share_link(race_id):
