@@ -843,12 +843,12 @@
         let currentEditingRaceId = null;
         let currentEditingQuestionId = null;
 
-        function openEditSingleQuestionModal(questionId, raceId, raceName, questionText, questionType, options, currentAnswerRaw, sliderDetails) {
+        function openEditSingleQuestionModal(questionId, raceId, encodedRaceName, encodedQuestionText, questionType, options, currentAnswerRaw, sliderDetails) {
             currentEditingQuestionId = questionId;
             currentEditingRaceId = raceId;
 
-            editSingleQuestionModalTitle.textContent = `Editar Respuesta para: ${raceName}`;
-            singleQuestionTextElem.textContent = questionText;
+            editSingleQuestionModalTitle.textContent = `Editar Respuesta para: ${decodeURIComponent(encodedRaceName)}`;
+            singleQuestionTextElem.textContent = decodeURIComponent(encodedQuestionText);
             editQuestionIdInput.value = questionId;
             editRaceIdInput.value = raceId;
             editQuestionTypeInput.value = questionType;

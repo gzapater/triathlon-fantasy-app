@@ -51,12 +51,12 @@
                         onclick="openEditSingleQuestionModal(
                             '{{ item.question_id }}',
                             '{{ race_id }}',
-                            '{{ race_title | e }}',
-                            '{{ item.question_text | e }}',
+                            encodeURIComponent('{{ race_title | e }}'),
+                            encodeURIComponent('{{ item.question_text | e }}'),
                             '{{ item.question_type }}',
-                            {{ item.options_json | default('null') | tojson | safe }},
-                            {{ item.user_answer_raw | default('', true) | tojson | safe }},
-                            {{ item.slider_details_json | default('null') | tojson | safe }}
+                            JSON.parse(decodeURIComponent('{{ item.options_json | default('null') | tojson | e('uri') }}')),
+                            JSON.parse(decodeURIComponent('{{ item.user_answer_raw | default('null') | tojson | e('uri') }}')),
+                            JSON.parse(decodeURIComponent('{{ item.slider_details_json | default('null') | tojson | e('uri') }}'))
                         )"
                         title="Editar esta respuesta">
                         <i class="fas fa-edit mr-1"></i>Editar
