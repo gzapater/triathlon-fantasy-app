@@ -430,6 +430,12 @@ function initAndShowMainWizard() {
             }
 
             displayWizardQuestion(wizardCurrentQuestionIndex);
+            // Initial rendering of the progress bar
+            if (typeof renderWizardProgressBar === 'function') {
+                renderWizardProgressBar();
+            } else {
+                console.error("renderWizardProgressBar function is not defined.");
+            }
             questionWizardModal.style.display = 'flex';
         })
         .catch(error => {
@@ -778,6 +784,13 @@ function displayWizardQuestion(index) {
     wizardPrevBtn.style.display = index > 0 ? 'inline-flex' : 'none';
     wizardNextBtn.style.display = index < wizardAllRaceQuestions.length - 1 ? 'inline-flex' : 'none';
     wizardFinishBtn.style.display = index === wizardAllRaceQuestions.length - 1 ? 'inline-flex' : 'none';
+
+    // Update the progress bar highlighting
+    if (typeof renderWizardProgressBar === 'function') {
+        renderWizardProgressBar();
+    } else {
+        console.error("renderWizardProgressBar function is not defined when trying to update from displayWizardQuestion.");
+    }
 }
 
 function saveCurrentWizardAnswer() {
@@ -853,6 +866,54 @@ function updateWizardOrderingButtonStates(ulElement) {
     });
 }
 
+// --- Function to render/update the Question Wizard Progress Bar ---
+function renderWizardProgressBar() {
+    const progressBarContainer = document.getElementById('wizardProgressBarContainer');
+    if (!progressBarContainer) {
+        console.error("Wizard progress bar container not found.");
+        return;
+    }
+
+    progressBarContainer.innerHTML = ''; // Clear existing progress bar items
+
+    if (!wizardAllRaceQuestions || wizardAllRaceQuestions.length === 0) {
+        progressBarContainer.style.display = 'none'; // Hide if no questions
+        return;
+    }
+    progressBarContainer.style.display = 'flex'; // Ensure it's visible if there are questions
+
+    for (let i = 0; i < wizardAllRaceQuestions.length; i++) {
+        const bolita = document.createElement('span');
+        bolita.textContent = i + 1;
+        bolita.dataset.questionIndex = i;
+
+        let baseClasses = 'flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm cursor-pointer transition-colors duration-150 ease-in-out border-2';
+        let stateClasses = '';
+
+        if (i === wizardCurrentQuestionIndex) {
+            // Current question: orange background, white text
+            stateClasses = 'bg-orange-500 hover:bg-orange-600 text-white border-orange-700 shadow-md';
+        } else if (i < wizardCurrentQuestionIndex) {
+            // Past questions: darker grey background, white text
+            stateClasses = 'bg-gray-500 hover:bg-gray-600 text-white border-gray-700';
+        } else {
+            // Future questions: light grey background, dark text
+            stateClasses = 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-400';
+        }
+        bolita.className = `${baseClasses} ${stateClasses}`;
+
+        bolita.addEventListener('click', function() {
+            const targetIndex = parseInt(this.dataset.questionIndex, 10);
+            if (targetIndex !== wizardCurrentQuestionIndex) {
+                saveCurrentWizardAnswer(); // Save answer of the question we are navigating away from
+                wizardCurrentQuestionIndex = targetIndex;
+                displayWizardQuestion(wizardCurrentQuestionIndex);
+                // displayWizardQuestion will call renderWizardProgressBar again to update highlights
+            }
+        });
+        progressBarContainer.appendChild(bolita);
+    }
+}
 
 // Event listeners for wizard buttons should be attached once the modal is in the DOM.
 // This can be done in DOMContentLoaded or when the wizard HTML is confirmed to be present.
