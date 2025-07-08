@@ -5337,9 +5337,6 @@ def get_user_predictions_modal_content(race_id):
             "slider_unit": q.slider_unit if q.question_type.name == 'SLIDER' else None
         })
 
-    return render_template('_user_predictions_modal_content.html',
-                           questions_and_answers=questions_and_answers_list,
-                           race_title=race.title,
 
     # Instead of returning rendered_template directly, prepare data for JSON response
     html_content = render_template('_user_predictions_modal_content.html',
