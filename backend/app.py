@@ -3657,6 +3657,134 @@ def update_user_answer(user_answer_id):
         app.logger.error(f"Exception updating UserAnswer {user_answer_id}: {e}", exc_info=True)
         return jsonify(message="An error occurred while updating the answer."), 500
 
+@app.route('/api/user_answers/<int:user_answer_id>', methods=['PUT'])
+@login_required
+def update_single_user_answer(user_answer_id):
+    app.logger.info(f"User {current_user.id} attempting to update UserAnswer ID: {user_answer_id}")
+
+    user_answer = UserAnswer.query.get(user_answer_id)
+    if not user_answer:
+        app.logger.warning(f"UserAnswer with ID {user_answer_id} not found.")
+        return jsonify(message="Answer not found"), 404
+
+    # Verify current_user owns the answer
+    if user_answer.user_id != current_user.id:
+        app.logger.warning(f"User {current_user.id} attempted to update UserAnswer {user_answer_id} owned by user {user_answer.user_id}.")
+        return jsonify(message="Forbidden: You do not have permission to modify this answer."), 403
+
+    race = Race.query.filter_by(id=user_answer.race_id, is_deleted=False).first()
+    if not race:
+        # This should ideally not happen if data integrity is maintained
+        app.logger.error(f"Race (ID: {user_answer.race_id}) associated with UserAnswer {user_answer_id} not found or deleted.")
+        return jsonify(message="Error: The race associated with this answer is not available."), 500
+
+    # Verify the race pool is still open
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to update answer for UserAnswer {user_answer_id} when quiniela for race {race.id} is closed.")
+        return jsonify(message="Cannot update answer: The quiniela for this race is closed."), 403
+
+    data = request.get_json()
+    if not data:
+        app.logger.warning(f"No data provided for updating UserAnswer {user_answer_id}.")
+        return jsonify(message="Invalid input: No data provided"), 400
+
+    question = Question.query.get(user_answer.question_id)
+    if not question:
+        # This should also ideally not happen
+        app.logger.error(f"Question (ID: {user_answer.question_id}) associated with UserAnswer {user_answer_id} not found.")
+        return jsonify(message="Error: The question associated with this answer is not available."), 500
+
+    question_type_name = question.question_type.name
+    app.logger.debug(f"Updating UserAnswer {user_answer_id} for Q {question.id} (Type: {question_type_name}). Payload: {data}")
+
+    try:
+        # Clear previous answer parts based on question type
+        user_answer.answer_text = None
+        user_answer.selected_option_id = None
+        user_answer.slider_answer_value = None
+        # Clear MC-multiple options
+        UserAnswerMultipleChoiceOption.query.filter_by(user_answer_id=user_answer.id).delete()
+        db.session.flush() # Ensure deletions are processed before additions
+
+        if question_type_name == 'FREE_TEXT':
+            new_answer_text = data.get('answer_text')
+            if new_answer_text is None: # Explicitly check for None, empty string might be a valid answer
+                app.logger.debug(f"No 'answer_text' in payload for UserAnswer {user_answer_id} (FREE_TEXT), setting to None.")
+            user_answer.answer_text = new_answer_text
+
+        elif question_type_name == 'ORDERING':
+            new_ordered_text = data.get('answer_text') # Frontend sends 'answer_text' for ordering
+            if new_ordered_text is None:
+                app.logger.debug(f"No 'answer_text' (for ordering) in payload for UserAnswer {user_answer_id}, setting to None.")
+            user_answer.answer_text = new_ordered_text
+
+        elif question_type_name == 'MULTIPLE_CHOICE':
+            if question.is_mc_multiple_correct:
+                selected_option_ids = data.get('selected_option_ids', [])
+                if not isinstance(selected_option_ids, list):
+                    app.logger.warning(f"'selected_option_ids' is not a list for MC-multiple Q {question.id}.")
+                    return jsonify(message="'selected_option_ids' must be a list."), 400
+
+                valid_option_ids_for_question = {opt.id for opt in question.options}
+                for opt_id in selected_option_ids:
+                    if opt_id not in valid_option_ids_for_question:
+                        app.logger.error(f"Invalid opt_id {opt_id} for multi-select MC UserAnswer {user_answer_id}, Q {question.id}")
+                        return jsonify(message=f"Invalid option ID {opt_id} provided."), 400
+                    db.session.add(UserAnswerMultipleChoiceOption(user_answer_id=user_answer.id, question_option_id=opt_id))
+            else: # Single-select
+                selected_option_id = data.get('selected_option_id')
+                if selected_option_id is not None: # Allow unselecting (sending null)
+                    if not isinstance(selected_option_id, int):
+                         app.logger.warning(f"Invalid 'selected_option_id' (not int/null) for UserAnswer {user_answer_id} (MC Single)")
+                         return jsonify(message="'selected_option_id' must be an integer or null."), 400
+
+                    valid_option = QuestionOption.query.filter_by(id=selected_option_id, question_id=question.id).first()
+                    if not valid_option:
+                        app.logger.error(f"Invalid option_id {selected_option_id} for single-select MC UserAnswer {user_answer_id}, Q {question.id}")
+                        return jsonify(message=f"Invalid option ID {selected_option_id} for question {question.id}."), 400
+                user_answer.selected_option_id = selected_option_id
+
+        elif question_type_name == 'SLIDER':
+            slider_answer_value = data.get('slider_answer_value')
+            if slider_answer_value is not None: # Allow null to clear
+                try:
+                    user_answer.slider_answer_value = float(slider_answer_value)
+                except (ValueError, TypeError):
+                    app.logger.warning(f"Invalid 'slider_answer_value' format for UserAnswer {user_answer_id} (SLIDER)")
+                    return jsonify(message="'slider_answer_value' must be a number or null."), 400
+            else:
+                user_answer.slider_answer_value = None
+
+        else:
+            app.logger.error(f"Unsupported question type '{question_type_name}' for update on UserAnswer {user_answer_id}")
+            return jsonify(message=f"Unsupported question type for update: {question_type_name}"), 400
+
+        user_answer.updated_at = datetime.utcnow()
+        db.session.commit()
+        app.logger.info(f"UserAnswer {user_answer_id} updated successfully.")
+
+        # Prepare response data (mirroring get_user_answers structure for the updated answer)
+        # This is a simplified version for now, focusing on what the frontend might need to update its display.
+        # A more complete serialization might be needed depending on how the frontend updates.
+        updated_answer_data = {
+            "id": user_answer.id,
+            "question_id": user_answer.question_id,
+            "answer_text": user_answer.answer_text,
+            "selected_option_id": user_answer.selected_option_id,
+            "slider_answer_value": user_answer.slider_answer_value,
+            "selected_mc_options": [{"option_id": mc_opt.question_option_id} for mc_opt in user_answer.selected_mc_options] if question.is_mc_multiple_correct else []
+            # Add more fields if needed by frontend for immediate update without full refresh
+        }
+        return jsonify(message="Answer updated successfully", updated_answer=updated_answer_data), 200
+
+    except IntegrityError as e:
+        db.session.rollback()
+        app.logger.error(f"IntegrityError updating UserAnswer {user_answer_id}: {e}", exc_info=True)
+        return jsonify(message="Database integrity error during update."), 500
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Exception updating UserAnswer {user_answer_id}: {e}", exc_info=True)
+        return jsonify(message="An error occurred while updating the answer."), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

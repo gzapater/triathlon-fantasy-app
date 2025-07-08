@@ -48,8 +48,11 @@
                 <div class="mt-2 text-right">
                     <button
                         class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-1 px-2 rounded-md flex items-center ml-auto"
+                        {# Pass user_answer_id as the first argument to openEditSingleQuestionModal #}
+                        {# The JS function will need to be updated to accept this #}
                         onclick="openEditSingleQuestionModal(
-                            '{{ item.question_id }}',
+                            '{{ item.user_answer_id | default('null') }}', {# Pass user_answer_id #}
+                            '{{ item.question_id }}', {# Keep question_id for now, might be useful #}
                             '{{ race_id }}',
                             {{ race_title | tojson | safe }},
                             {{ item.question_text | tojson | safe }},

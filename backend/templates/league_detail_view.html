@@ -842,15 +842,19 @@
 
         let currentEditingRaceId = null;
         let currentEditingQuestionId = null;
+        let currentEditingUserAnswerId = null; // Added to store user_answer_id
 
         // Arguments raceName, questionText, options, currentAnswerRaw, sliderDetails are now direct JS values
-        function openEditSingleQuestionModal(questionId, raceId, raceName, questionText, questionType, options, currentAnswerRaw, sliderDetails) {
+        function openEditSingleQuestionModal(userAnswerId, questionId, raceId, raceName, questionText, questionType, options, currentAnswerRaw, sliderDetails) {
+            currentEditingUserAnswerId = userAnswerId; // Store userAnswerId
             currentEditingQuestionId = questionId;
             currentEditingRaceId = raceId;
 
             // No need to decodeURIComponent for raceName and questionText as they are passed as direct JS strings via |tojson
             editSingleQuestionModalTitle.textContent = `Editar Respuesta para: ${raceName}`;
             singleQuestionTextElem.textContent = questionText;
+            // These hidden inputs might not be strictly necessary if userAnswerId is the primary key for the API call
+            // but keeping them for now as they might be useful for context or if API changes.
             editQuestionIdInput.value = questionId;
             editRaceIdInput.value = raceId;
             editQuestionTypeInput.value = questionType;
@@ -1006,6 +1010,7 @@
             singleQuestionInputContainer.innerHTML = ''; // Clear content
             editSingleQuestionModalError.classList.add('hidden');
             editSingleQuestionModalError.textContent = '';
+            currentEditingUserAnswerId = null; // Clear stored ID
             currentEditingQuestionId = null;
             currentEditingRaceId = null;
         }
@@ -1013,7 +1018,13 @@
         if (editSingleQuestionForm) {
             editSingleQuestionForm.addEventListener('submit', function(event) {
                 event.preventDefault();
-                if (!currentEditingQuestionId || !currentEditingRaceId) return;
+                // Use currentEditingUserAnswerId for the API call
+                if (!currentEditingUserAnswerId || !currentEditingQuestionId || !currentEditingRaceId) {
+                    console.error("Missing IDs for saving single question answer.");
+                    editSingleQuestionModalError.textContent = 'Error: Información de la pregunta no disponible. Intenta de nuevo.';
+                    editSingleQuestionModalError.classList.remove('hidden');
+                    return;
+                }
 
                 const formData = new FormData(editSingleQuestionForm);
                 const payload = {};
@@ -1022,42 +1033,48 @@
                 if (questionType === 'FREE_TEXT' || questionType === 'ORDERING') {
                     payload.answer_text = formData.get('answer_text');
                 } else if (questionType === 'MULTIPLE_CHOICE') {
-                    // Determine if it was radio or checkbox
-                    const firstInput = singleQuestionInputContainer.querySelector('input[name^="selected_option_id"]');
-                    if (firstInput && firstInput.type === 'radio') {
+                    const firstInput = singleQuestionInputContainer.querySelector('input[name^="selected_option_id"], input[name^="selected_option_ids"]');
+                    if (firstInput && firstInput.type === 'radio') { // Single MC
                         const val = formData.get('selected_option_id');
                         payload.selected_option_id = val ? parseInt(val) : null;
-                    } else { // Checkboxes
+                    } else { // Checkboxes (MC Multiple)
                         payload.selected_option_ids = formData.getAll('selected_option_ids').map(id => parseInt(id));
                     }
                 } else if (questionType === 'SLIDER') {
-                    payload.slider_answer_value = parseFloat(formData.get('slider_answer_value'));
+                    const sliderVal = formData.get('slider_answer_value');
+                    // Ensure slider value is a number or null if empty/invalid
+                    payload.slider_answer_value = (sliderVal !== null && sliderVal !== "") ? parseFloat(sliderVal) : null;
                 }
 
                 saveSingleQuestionButton.disabled = true;
                 saveSingleQuestionButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
                 editSingleQuestionModalError.classList.add('hidden');
 
-                // TODO: Determine CSRF token if needed by the application
-                // const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-                fetch(`/api/race/${currentEditingRaceId}/question/${currentEditingQuestionId}/answer`, {
-                    method: 'POST', // Or PUT, depending on API design
+                // Updated fetch call to the new PUT endpoint
+                fetch(`/api/user_answers/${currentEditingUserAnswerId}`, {
+                    method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        // 'X-CSRFToken': csrfToken // Include if CSRF protection is form-based
+                        // Add CSRF token header if your app uses them and they are not automatically handled
                     },
                     body: JSON.stringify(payload)
                 })
                 .then(response => {
                     if (!response.ok) {
-                        return response.json().then(err => { throw new Error(err.message || `Error ${response.status}`) });
+                        return response.json().then(err => {
+                            throw new Error(err.message || `Error ${response.status} - ${response.statusText}`);
+                        });
                     }
                     return response.json();
                 })
                 .then(data => {
                     closeEditSingleQuestionModal();
-                    Swal.fire({ title: '¡Éxito!', text: data.message || 'Respuesta actualizada correctamente.', icon: 'success', confirmButtonColor: '#F97316' });
+                    Swal.fire({
+                        title: '¡Éxito!',
+                        text: data.message || 'Respuesta actualizada correctamente.',
+                        icon: 'success',
+                        confirmButtonColor: '#F97316'
+                    });
 
                     // Dynamically update the displayed answer in the main user predictions modal
                     // This requires finding the specific question item in the _user_predictions_modal_content
