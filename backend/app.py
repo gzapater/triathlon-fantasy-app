@@ -5246,15 +5246,48 @@ def get_user_predictions_modal_content(race_id):
             "question_type": q.question_type.name,
             "question_type_display": question_type_display_map.get(q.question_type.name, q.question_type.name),
             "user_answer_formatted": user_answer_formatted,
+            "user_answer_raw": None, # Placeholder, will be populated below
+            "options_json": None, # Placeholder, will be populated below
+            "slider_details_json": None, # Placeholder, will be populated below
             "is_mc_multiple_correct": is_mc_multiple_correct_val,
             "slider_unit": q.slider_unit if q.question_type.name == 'SLIDER' else None
         })
+
+        # Populate raw answer and options/slider details for the edit button
+        current_item = questions_and_answers_list[-1]
+        if user_answer_obj:
+            if q.question_type.name == 'MULTIPLE_CHOICE':
+                if q.is_mc_multiple_correct:
+                    current_item["user_answer_raw"] = [sel_opt.question_option_id for sel_opt in user_answer_obj.selected_mc_options]
+                else:
+                    current_item["user_answer_raw"] = user_answer_obj.selected_option_id
+            elif q.question_type.name == 'SLIDER':
+                current_item["user_answer_raw"] = user_answer_obj.slider_answer_value
+            else: # FREE_TEXT, ORDERING
+                current_item["user_answer_raw"] = user_answer_obj.answer_text
+
+        if q.question_type.name == 'MULTIPLE_CHOICE' or q.question_type.name == 'ORDERING':
+            options = QuestionOption.query.filter_by(question_id=q.id).all()
+            # Include is_mc_multiple_correct for each option if relevant for JS rendering logic (though it's usually per-question)
+            current_item["options_json"] = [
+                {"id": opt.id, "option_text": opt.option_text, "is_mc_multiple_correct": q.is_mc_multiple_correct}
+                for opt in options
+            ]
+        elif q.question_type.name == 'SLIDER':
+            current_item["slider_details_json"] = {
+                "min_value": q.slider_min_value,
+                "max_value": q.slider_max_value,
+                "step": q.slider_step,
+                "unit": q.slider_unit
+            }
+
 
     return render_template('_user_predictions_modal_content.html',
                            questions_and_answers=questions_and_answers_list,
                            race_title=race.title,
                            race_id=race.id,
-                           quiniela_closed=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
+                           # quiniela_closed was the old name, template expects is_quiniela_closed_for_race
+                           is_quiniela_closed_for_race=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
                            )
 
 @app.route('/race/<int:race_id>/quiniela_form_content', methods=['GET'])
