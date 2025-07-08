@@ -861,10 +861,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const wizardPrevBtn = document.getElementById('wizardPrevBtn');
     const wizardNextBtn = document.getElementById('wizardNextBtn');
     const wizardFinishBtn = document.getElementById('wizardFinishBtn');
+    const wizardSaveAndCloseBtn = document.getElementById('wizardSaveAndCloseBtn'); // Get the new button
 
     if(closeWizardModalBtn) closeWizardModalBtn.addEventListener('click', closeWizard);
     if(wizardPrevBtn) wizardPrevBtn.addEventListener('click', handlePreviousWizardQuestion);
     if(wizardNextBtn) wizardNextBtn.addEventListener('click', handleNextWizardQuestion);
+
+    // Handler for the new "Save and Close" button (implementation in next step)
+    if(wizardSaveAndCloseBtn) {
+        wizardSaveAndCloseBtn.addEventListener('click', () => {
+            // Logic for saving and closing will be added in the next step
+            // For now, it will call a new function handleSaveAndCloseWizard
+            handleSaveAndCloseWizard();
+        });
+    }
 
     if(wizardFinishBtn) {
         wizardFinishBtn.addEventListener('click', () => {
@@ -902,3 +912,82 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- Handler function for "Save and Close" button in Wizard ---
+function handleSaveAndCloseWizard() {
+    console.log("handleSaveAndCloseWizard called");
+    saveCurrentWizardAnswer(); // Save answer for the currently displayed question
+
+    const wizardSaveAndCloseBtn = document.getElementById('wizardSaveAndCloseBtn');
+    if (!wizardSaveAndCloseBtn) {
+        console.error("Save and Close button not found in wizard.");
+        return;
+    }
+
+    // Optional: Check if there are any answers to save.
+    // if (Object.keys(wizardUserAnswers).length === 0) {
+    //     showNotificationModal("Sin Cambios", "No has respondido ninguna pregunta aún en esta sesión.", "info");
+    //     return;
+    // }
+
+    const originalButtonHTML = wizardSaveAndCloseBtn.innerHTML;
+    wizardSaveAndCloseBtn.disabled = true;
+    wizardSaveAndCloseBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+    fetch(`/api/races/${currentRaceIdForWizard}/answers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' /* CSRF if needed */ },
+        body: JSON.stringify(wizardUserAnswers)
+    })
+    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, body: data })))
+    .then(result => {
+        if (result.ok) {
+            closeWizard();
+            // Use SweetAlert for consistency if available, otherwise fallback to showNotificationModal
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Guardado',
+                    text: result.body.message || 'Tus respuestas han sido guardadas.',
+                    icon: 'success',
+                    confirmButtonColor: '#F97316' // Orange color
+                }).then(() => {
+                    // Optional: Reload or update UI elements if necessary
+                    // window.location.reload(); // Or a more targeted update
+                });
+            } else {
+                showNotificationModal("Guardado", result.body.message || 'Tus respuestas han sido guardadas.', "success");
+            }
+            // Potentially update UI elements on the underlying page here if needed without a full reload
+        } else {
+            // Use SweetAlert for error if available
+             if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Error',
+                    text: `Error: ${result.body.message || `Estado ${result.status}`}`,
+                    icon: 'error',
+                    confirmButtonColor: '#EF4444' // Red color for error
+                });
+            } else {
+                showNotificationModal("Error", `Error: ${result.body.message || `Estado ${result.status}`}`, "error");
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error saving wizard answers via Save and Close:', error);
+        // Use SweetAlert for error if available
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Error de Conexión',
+                text: 'No se pudieron guardar las respuestas. Revisa tu conexión e inténtalo de nuevo.',
+                icon: 'error',
+                confirmButtonColor: '#EF4444'
+            });
+        } else {
+            showNotificationModal("Error de Conexión", "No se pudieron guardar las respuestas.", "error");
+        }
+    })
+    .finally(() => {
+        wizardSaveAndCloseBtn.disabled = false;
+        wizardSaveAndCloseBtn.innerHTML = originalButtonHTML;
+    });
+}
