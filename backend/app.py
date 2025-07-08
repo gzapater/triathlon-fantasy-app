@@ -5340,9 +5340,6 @@ def get_user_predictions_modal_content(race_id):
     return render_template('_user_predictions_modal_content.html',
                            questions_and_answers=questions_and_answers_list,
                            race_title=race.title,
-                           race_id=race.id,
-                           quiniela_closed=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
-                           )
 
     # Instead of returning rendered_template directly, prepare data for JSON response
     html_content = render_template('_user_predictions_modal_content.html',
