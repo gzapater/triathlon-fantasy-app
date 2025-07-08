@@ -843,12 +843,14 @@
         let currentEditingRaceId = null;
         let currentEditingQuestionId = null;
 
-        function openEditSingleQuestionModal(questionId, raceId, encodedRaceName, encodedQuestionText, questionType, options, currentAnswerRaw, sliderDetails) {
+        // Arguments raceName, questionText, options, currentAnswerRaw, sliderDetails are now direct JS values
+        function openEditSingleQuestionModal(questionId, raceId, raceName, questionText, questionType, options, currentAnswerRaw, sliderDetails) {
             currentEditingQuestionId = questionId;
             currentEditingRaceId = raceId;
 
-            editSingleQuestionModalTitle.textContent = `Editar Respuesta para: ${decodeURIComponent(encodedRaceName)}`;
-            singleQuestionTextElem.textContent = decodeURIComponent(encodedQuestionText);
+            // No need to decodeURIComponent for raceName and questionText as they are passed as direct JS strings via |tojson
+            editSingleQuestionModalTitle.textContent = `Editar Respuesta para: ${raceName}`;
+            singleQuestionTextElem.textContent = questionText;
             editQuestionIdInput.value = questionId;
             editRaceIdInput.value = raceId;
             editQuestionTypeInput.value = questionType;
