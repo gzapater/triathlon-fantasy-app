@@ -48,15 +48,14 @@
                 <div class="mt-2 text-right">
                     <button
                         class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold py-1 px-2 rounded-md flex items-center ml-auto"
-                        {# Pass user_answer_id as the first argument to openEditSingleQuestionModal #}
-                        {# The JS function will need to be updated to accept this #}
+                        {# Assuming onclick HTML attribute is double-quoted based on user-provided HTML #}
                         onclick="openEditSingleQuestionModal(
-                            '{{ item.user_answer_id | default('null') }}', {# Pass user_answer_id #}
-                            '{{ item.question_id }}', {# Keep question_id for now, might be useful #}
-                            '{{ race_id }}',
-                            {{ race_title | tojson | safe }},
-                            {{ item.question_text | tojson | safe }},
-                            '{{ item.question_type }}',
+                            {{ item.user_answer_id | default('null') | tojson | safe }},
+                            {{ item.question_id | tojson | safe }},
+                            {{ race_id | tojson | safe }},
+                            '{{ race_title | replace('\\', '\\\\') | replace('\n', '\\n') | replace('\r', '\\r') | replace(\"'\", \"\\'\") }}',
+                            '{{ item.question_text | replace('\\', '\\\\') | replace('\n', '\\n') | replace('\r', '\\r') | replace(\"'\", \"\\'\") }}',
+                            '{{ item.question_type | replace('\\', '\\\\') | replace('\n', '\\n') | replace('\r', '\\r') | replace(\"'\", \"\\'\") }}',
                             {{ item.options_json | tojson | safe }},
                             {{ item.user_answer_raw | tojson | safe }},
                             {{ item.slider_details_json | tojson | safe }}
