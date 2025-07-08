@@ -57,9 +57,9 @@
                             {{ race_title | tojson | safe }},
                             {{ item.question_text | tojson | safe }},
                             '{{ item.question_type }}',
-                            {{ item.options_json | default('null') | tojson | safe }},
-                            {{ item.user_answer_raw | default('null') | tojson | safe }},
-                            {{ item.slider_details_json | default('null') | tojson | safe }}
+                            {{ item.options_json | tojson | safe }},
+                            {{ item.user_answer_raw | tojson | safe }},
+                            {{ item.slider_details_json | tojson | safe }}
                         )"
                         title="Editar esta respuesta">
                         <i class="fas fa-edit mr-1"></i>Editar
