@@ -330,18 +330,25 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- Question Wizard Global Variables ---
 let currentRaceIdForWizard = null;
 let currentQuinielaCloseDateForWizard = null;
-let currentRaceTitleForWizard = null; // Added for consistency if wizard title needs it
-let wizardAllRaceQuestions = []; // Renamed to avoid conflict if allRaceQuestions is used elsewhere
+let currentRaceTitleForWizard = null;
+let currentWizardIsEditMode = false; // Flag for edit mode
+let wizardAllRaceQuestions = [];
 let wizardCurrentQuestionIndex = 0;
 let wizardUserAnswers = {}; // Stores answers as { question_id: { ...answer_data } }
 
 
 // --- Function to be called from HTML to open the wizard ---
-function openQuestionWizard(raceId, quinielaCloseDateStr, raceTitleStr) {
-    console.log(`openQuestionWizard called with raceId: ${raceId}, quinielaCloseDate: ${quinielaCloseDateStr}, raceTitle: ${raceTitleStr}`);
+function openQuestionWizard(raceId, quinielaCloseDateStr, raceTitleStr, isEditMode = false) {
+    console.log(`openQuestionWizard called with raceId: ${raceId}, quinielaCloseDate: ${quinielaCloseDateStr}, raceTitle: ${raceTitleStr}, isEditMode: ${isEditMode}`);
     currentRaceIdForWizard = raceId;
     currentQuinielaCloseDateForWizard = quinielaCloseDateStr;
-    currentRaceTitleForWizard = raceTitleStr; // Store the race title
+    currentRaceTitleForWizard = raceTitleStr;
+    currentWizardIsEditMode = isEditMode; // Set the edit mode flag
+
+    // Reset answers from previous wizard session, especially if not fetching fresh ones (though we always fetch now)
+    wizardUserAnswers = {};
+    wizardCurrentQuestionIndex = 0;
+
 
     if (typeof initAndShowMainWizard === 'function') {
         initAndShowMainWizard();
@@ -375,13 +382,20 @@ function initAndShowMainWizard() {
         wizardTriggerButton.disabled = true;
     }
 
-    fetch(`/api/races/${currentRaceIdForWizard}/questions`)
+    // Determine the API endpoint based on edit mode
+    const apiEndpoint = currentWizardIsEditMode
+                      ? `/api/races/${currentRaceIdForWizard}/questions_with_answers`
+                      : `/api/races/${currentRaceIdForWizard}/questions`;
+
+    console.log(`Fetching questions from: ${apiEndpoint}`);
+
+    fetch(apiEndpoint)
         .then(response => {
             if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
             return response.json();
         })
         .then(questions => {
-            wizardAllRaceQuestions = questions;
+            wizardAllRaceQuestions = questions; // These questions might include 'user_answer' field if in edit mode
             if (!wizardAllRaceQuestions || wizardAllRaceQuestions.length === 0) {
                 showNotificationModal("Sin Preguntas", "No hay preguntas disponibles para esta carrera en este momento.", "info");
                 if (wizardTriggerButton) {
@@ -390,8 +404,31 @@ function initAndShowMainWizard() {
                 }
                 return;
             }
+
             wizardCurrentQuestionIndex = 0;
-            wizardUserAnswers = {};
+            wizardUserAnswers = {}; // Reset session answers
+
+            // If in edit mode, pre-populate wizardUserAnswers from fetched questions
+            if (currentWizardIsEditMode) {
+                wizardAllRaceQuestions.forEach(q => {
+                    if (q.user_answer) { // user_answer is the pre-filled answer from backend
+                        // The structure of q.user_answer should ideally match what saveCurrentWizardAnswer expects
+                        // e.g., { answer_text: "...", selected_option_id: ..., etc. }
+                        // For now, let's assume q.user_answer directly contains the answer in the correct format.
+                        // Or, we might need to transform it here.
+                        // Let's assume the backend provides user_answer in the format that displayWizardQuestion can directly use
+                        // or that saveCurrentWizardAnswer would produce.
+                        // Example: if q.user_answer = { "answer_text": "my old text" } for a FREE_TEXT question
+                        wizardUserAnswers[q.id] = q.user_answer;
+                    }
+                });
+            }
+
+            const wizardModalTitle = document.getElementById('questionWizardModalTitle');
+            if(wizardModalTitle) {
+                wizardModalTitle.textContent = currentWizardIsEditMode ? `Editar Quiniela: ${currentRaceTitleForWizard}` : `Jugar Quiniela: ${currentRaceTitleForWizard}`;
+            }
+
             displayWizardQuestion(wizardCurrentQuestionIndex);
             questionWizardModal.style.display = 'flex';
         })

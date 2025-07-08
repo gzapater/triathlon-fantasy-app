@@ -156,7 +156,7 @@
                                         {% elif user_prediction_exists %}
                                             <!-- Si el usuario YA ha respondido Y HAY PREGUNTAS, mostrar botón Ver mi Quiniela -->
                                             {% set pending_count = user_predictions_status[race.id].pending_count if race.id in user_predictions_status else 0 %}
-                                            <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if race.quiniela_close_date and race.quiniela_close_date < current_time_utc else 'false' }})"
+                                            <button onclick="openUserPredictionsModal('{{ race.id }}', '{{ race.title }}', {{ 'true' if race.quiniela_close_date and race.quiniela_close_date < current_time_utc else 'false' }}, '{{ race.quiniela_close_date.isoformat() if race.quiniela_close_date else '' }}')"
                                                     class="relative bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md inline-flex items-center w-32 justify-center"
                                                     title="{{ 'Preguntas sin responder' if pending_count > 0 else 'Ver/editar Quiniela' }}">
                                                 <span class="inline-flex items-center">
@@ -527,7 +527,7 @@
         }
 
         // Functions for User Predictions Modal
-        function openUserPredictionsModal(raceId, raceName, isQuinielaClosed) {
+        function openUserPredictionsModal(raceId, raceName, isQuinielaClosed, quinielaCloseDateISO) {
             const modal = document.getElementById('userPredictionsModal');
             const modalTitle = document.getElementById('userPredictionsModalTitle');
             const modalContent = document.getElementById('userPredictionsModalContent');
@@ -550,10 +550,23 @@
                         // Show edit button only if quiniela is not closed
                         if (editButton) {
                             if (!isQuinielaClosed) {
-                                editButton.href = `/race/${raceId}#hacer-prediccion`; // Or specific edit URL
+                                // Keep as an A tag for styling but prevent default navigation
+                                editButton.href = "javascript:void(0);";
+                                editButton.onclick = function() {
+                                    // Call openQuestionWizard with the edit flag (true)
+                                    // The openQuestionWizard function is in script.js and needs to be updated to handle the 4th param
+                                    if (typeof openQuestionWizard === 'function') {
+                                        openQuestionWizard(raceId, quinielaCloseDateISO, raceName, true);
+                                        closeUserPredictionsModal(); // Close this modal after triggering the other
+                                    } else {
+                                        console.error('openQuestionWizard function is not defined.');
+                                        alert('Error: La funcionalidad para editar predicciones no está disponible.');
+                                    }
+                                };
                                 editButton.classList.remove('hidden');
                             } else {
                                 editButton.classList.add('hidden');
+                                editButton.onclick = null; // Remove onclick if not usable
                             }
                         }
                     })
@@ -562,6 +575,7 @@
                         modalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar tus predicciones. ${error.message}</p>`;
                         if (editButton) {
                             editButton.classList.add('hidden');
+                            editButton.onclick = null; // Remove onclick on error
                         }
                     });
             }
