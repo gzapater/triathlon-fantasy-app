@@ -5344,6 +5344,27 @@ def get_user_predictions_modal_content(race_id):
                            quiniela_closed=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
                            )
 
+    # Instead of returning rendered_template directly, prepare data for JSON response
+    html_content = render_template('_user_predictions_modal_content.html',
+                                   questions_and_answers=questions_and_answers_list,
+                                   race_title=race.title, # Already available
+                                   race_id=race.id,       # Already available
+                                   quiniela_closed=(race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
+                                  )
+
+    total_questions = Question.query.filter_by(race_id=race.id, is_active=True).count()
+    quiniela_close_date_iso = race.quiniela_close_date.isoformat() if race.quiniela_close_date else None
+    is_quiniela_closed_bool = (race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow())
+
+    return jsonify({
+        "html_content": html_content,
+        "total_questions": total_questions,
+        "race_id": race.id,
+        "race_title": race.title,
+        "quiniela_close_date_iso": quiniela_close_date_iso,
+        "is_quiniela_closed": is_quiniela_closed_bool
+    }), 200
+
 @app.route('/race/<int:race_id>/quiniela_form_content', methods=['GET'])
 @login_required
 def get_quiniela_form_content(race_id):

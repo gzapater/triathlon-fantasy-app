@@ -331,23 +331,26 @@ document.addEventListener('DOMContentLoaded', () => {
 let currentRaceIdForWizard = null;
 let currentQuinielaCloseDateForWizard = null;
 let currentRaceTitleForWizard = null;
-let currentWizardIsEditMode = false; // Flag for edit mode
+let currentWizardIsEditMode = false;
+let wizardInitialQuestionIndex = null; // New global for starting index
 let wizardAllRaceQuestions = [];
 let wizardCurrentQuestionIndex = 0;
 let wizardUserAnswers = {}; // Stores answers as { question_id: { ...answer_data } }
 
 
 // --- Function to be called from HTML to open the wizard ---
-function openQuestionWizard(raceId, quinielaCloseDateStr, raceTitleStr, isEditMode = false) {
-    console.log(`openQuestionWizard called with raceId: ${raceId}, quinielaCloseDate: ${quinielaCloseDateStr}, raceTitle: ${raceTitleStr}, isEditMode: ${isEditMode}`);
+function openQuestionWizard(raceId, quinielaCloseDateStr, raceTitleStr, isEditMode = false, initialIndex = null) {
+    console.log(`openQuestionWizard called with raceId: ${raceId}, quinielaCloseDate: ${quinielaCloseDateStr}, raceTitle: ${raceTitleStr}, isEditMode: ${isEditMode}, initialIndex: ${initialIndex}`);
     currentRaceIdForWizard = raceId;
     currentQuinielaCloseDateForWizard = quinielaCloseDateStr;
     currentRaceTitleForWizard = raceTitleStr;
-    currentWizardIsEditMode = isEditMode; // Set the edit mode flag
+    currentWizardIsEditMode = isEditMode;
+    wizardInitialQuestionIndex = initialIndex; // Store the desired starting index
 
-    // Reset answers from previous wizard session, especially if not fetching fresh ones (though we always fetch now)
     wizardUserAnswers = {};
-    wizardCurrentQuestionIndex = 0;
+    // Set wizardCurrentQuestionIndex based on wizardInitialQuestionIndex if provided, otherwise default to 0.
+    // This will be re-evaluated in initAndShowMainWizard after questions are loaded to ensure validity.
+    wizardCurrentQuestionIndex = (wizardInitialQuestionIndex !== null) ? wizardInitialQuestionIndex : 0;
 
 
     if (typeof initAndShowMainWizard === 'function') {
@@ -405,8 +408,15 @@ function initAndShowMainWizard() {
                 return;
             }
 
-            wizardCurrentQuestionIndex = 0;
             wizardUserAnswers = {}; // Reset session answers
+
+            // Set current question index: use wizardInitialQuestionIndex if valid, else 0
+            if (wizardInitialQuestionIndex !== null && wizardInitialQuestionIndex >= 0 && wizardInitialQuestionIndex < wizardAllRaceQuestions.length) {
+                wizardCurrentQuestionIndex = wizardInitialQuestionIndex;
+            } else {
+                wizardCurrentQuestionIndex = 0; // Default to first question
+            }
+            wizardInitialQuestionIndex = null; // Reset for next time wizard opens
 
             // If in edit mode, pre-populate wizardUserAnswers from fetched questions
             if (currentWizardIsEditMode) {

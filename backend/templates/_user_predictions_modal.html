@@ -8,7 +8,11 @@
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <div id="userPredictionsModalContent" class="my-4 max-h-[60vh] overflow-y-auto pr-2">
+            <!-- Progress Bar Container for Summary Modal -->
+            <div id="summaryProgressBarContainer" class="flex justify-center items-center space-x-2 mb-4 py-2 border-y border-gray-200">
+                <!-- Numbered circles will be dynamically inserted here by JavaScript -->
+            </div>
+            <div id="userPredictionsModalContent" class="my-4 max-h-[50vh] overflow-y-auto pr-2"> {# Adjusted max-h slightly due to progress bar #}
                 {# Content will be loaded here by JavaScript #}
                 <p class="text-center text-gray-500">Cargando tus predicciones...</p>
             </div>

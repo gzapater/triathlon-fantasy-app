@@ -538,26 +538,40 @@
             }
             if (modalContent) {
                 modalContent.innerHTML = '<p class="text-center text-gray-500">Cargando tus predicciones...</p>';
-                fetch(`/race/${raceId}/user_predictions_modal_content`)
+                fetch(`/race/${raceId}/user_predictions_modal_content`) // This now returns JSON
                     .then(response => {
                         if (!response.ok) {
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
-                        return response.text();
+                        return response.json(); // Expect JSON response
                     })
-                    .then(html => {
-                        modalContent.innerHTML = html;
-                        // Show edit button only if quiniela is not closed
+                    .then(data => {
+                        modalContent.innerHTML = data.html_content; // Set the HTML content
+
+                        // Call renderSummaryProgressBar with data from the response
+                        if (typeof renderSummaryProgressBar === 'function') {
+                            renderSummaryProgressBar(
+                                data.race_id, // raceId from data
+                                data.total_questions,
+                                data.quiniela_close_date_iso, // quinielaCloseDateISO from data
+                                data.race_title, // raceName from data
+                                data.is_quiniela_closed // isQuinielaClosed from data
+                            );
+                        } else {
+                            console.error('renderSummaryProgressBar function is not defined.');
+                        }
+
+                        // Show edit button only if quiniela is not closed (using data.is_quiniela_closed)
                         if (editButton) {
-                            if (!isQuinielaClosed) {
-                                // Keep as an A tag for styling but prevent default navigation
+                            if (!data.is_quiniela_closed) {
                                 editButton.href = "javascript:void(0);";
                                 editButton.onclick = function() {
-                                    // Call openQuestionWizard with the edit flag (true)
-                                    // The openQuestionWizard function is in script.js and needs to be updated to handle the 4th param
                                     if (typeof openQuestionWizard === 'function') {
-                                        openQuestionWizard(raceId, quinielaCloseDateISO, raceName, true);
-                                        closeUserPredictionsModal(); // Close this modal after triggering the other
+                                        // Use quinielaCloseDateISO and raceName from the data payload
+                                        // The 'true' is for editMode. The 5th param (initialQuestionIndex) is not set here,
+                                        // so wizard opens at the start by default when clicking main edit button.
+                                        openQuestionWizard(data.race_id, data.quiniela_close_date_iso, data.race_title, true);
+                                        closeUserPredictionsModal();
                                     } else {
                                         console.error('openQuestionWizard function is not defined.');
                                         alert('Error: La funcionalidad para editar predicciones no está disponible.');
@@ -566,13 +580,13 @@
                                 editButton.classList.remove('hidden');
                             } else {
                                 editButton.classList.add('hidden');
-                                editButton.onclick = null; // Remove onclick if not usable
+                                editButton.onclick = null;
                             }
                         }
                     })
                     .catch(error => {
-                        console.error('Error fetching user predictions:', error);
-                        modalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar tus predicciones. ${error.message}</p>`;
+                        console.error('Error fetching user predictions modal data:', error);
+                        modalContent.innerHTML = `<p class="text-center text-red-500">Error al cargar el contenido de tus predicciones. ${error.message}</p>`;
                         if (editButton) {
                             editButton.classList.add('hidden');
                             editButton.onclick = null; // Remove onclick on error
@@ -827,6 +841,51 @@
             });
         }
         // --- End Answer/Edit Quiniela Modal JavaScript ---
+
+        // --- Function to render the Progress Bar in the Summary Modal ---
+        function renderSummaryProgressBar(raceId, totalQuestions, quinielaCloseDateISO, raceTitle, isQuinielaClosed) {
+            const progressBarContainer = document.getElementById('summaryProgressBarContainer');
+            if (!progressBarContainer) {
+                console.error("Summary progress bar container not found.");
+                return;
+            }
+
+            progressBarContainer.innerHTML = ''; // Clear existing items
+
+            if (!totalQuestions || totalQuestions === 0) {
+                progressBarContainer.style.display = 'none'; // Hide if no questions
+                return;
+            }
+            progressBarContainer.style.display = 'flex'; // Ensure visible
+
+            for (let i = 0; i < totalQuestions; i++) {
+                const bolita = document.createElement('span');
+                bolita.textContent = i + 1;
+                bolita.dataset.questionIndex = i;
+
+                // Apply neutral/clickable style (e.g., 'future' style from main wizard's bar)
+                let baseClasses = 'flex items-center justify-center w-8 h-8 rounded-full font-semibold text-sm cursor-pointer transition-colors duration-150 ease-in-out border-2';
+                let styleClasses = 'bg-gray-200 hover:bg-gray-300 text-gray-700 border-gray-400'; // Default/future style
+                bolita.className = `${baseClasses} ${styleClasses}`;
+
+                bolita.addEventListener('click', function() {
+                    const targetIndex = parseInt(this.dataset.questionIndex, 10);
+
+                    // Close this summary modal
+                    closeUserPredictionsModal();
+
+                    // Open the main Question Wizard to the specific question, in edit mode
+                    if (typeof openQuestionWizard === 'function') {
+                        // Pass raceId, quinielaCloseDateISO, raceTitle, true (for editMode), and targetIndex
+                        openQuestionWizard(raceId, quinielaCloseDateISO, raceTitle, true, targetIndex);
+                    } else {
+                        console.error('openQuestionWizard function is not defined.');
+                        alert('Error: La funcionalidad para editar predicciones no está disponible.');
+                    }
+                });
+                progressBarContainer.appendChild(bolita);
+            }
+        }
 
     </script>
     <!-- Script para SweetAlert (mensajes flash) - Movido fuera de los bloques Jinja eliminados -->
