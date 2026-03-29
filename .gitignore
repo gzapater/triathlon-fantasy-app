@@ -17,10 +17,11 @@ __pycache__/
 
 # Ficheros de sistema operativo
 .DS_Store
+desktop.ini
 
 # Datos locales y logs
-instance/*.db
-functions/venv/
+instance/
+functions/
 firebase-debug.log
 
 seed_data.json
