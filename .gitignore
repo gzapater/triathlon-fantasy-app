@@ -1,10 +1,15 @@
-# Entornos Virtuales de Python
+# Entornos virtuales de Python
 venv/
 .venv/
 env/
 .env
+.env.*
+!.env.example
+.flaskenv
+.cloudrun.env
+.cloudrun.env.yaml
 
-# Ficheros de caché de Python
+# Ficheros de cache de Python
 __pycache__/
 *.pyc
 *.pyo
@@ -13,5 +18,9 @@ __pycache__/
 # Ficheros de sistema operativo
 .DS_Store
 
-seed_data.json
+# Datos locales y logs
+instance/*.db
+functions/venv/
+firebase-debug.log
 
+seed_data.json

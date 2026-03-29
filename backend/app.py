@@ -1,10 +1,12 @@
 import os
-import boto3
+import secrets
 from flask import Flask, jsonify, request, redirect, url_for, send_from_directory, flash, session
 import logging # Importación añadida
 # Updated model imports
 from backend.models import db, User, Role, Race, RaceFormat, Segment, RaceSegmentDetail, QuestionType, Question, QuestionOption, UserRaceRegistration, UserAnswer, UserAnswerMultipleChoiceOption, OfficialAnswer, OfficialAnswerMultipleChoiceOption, UserFavoriteRace, FavoriteLink, UserScore, RaceStatus, Event, EventStatus # Added UserScore, RaceStatus, Event, AND EventStatus
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.exc import IntegrityError # Import for handling unique constraint violations
 from sqlalchemy import func # Add this import at the top of app.py if not present
 from flask_migrate import Migrate # Import Migrate
@@ -83,33 +85,54 @@ def slugify(value, separator='-'):
     return value
 
 app.jinja_env.filters['slugify'] = slugify
-
-def get_ssm_parameter(name, default=None):
-    """Función para obtener un parámetro de AWS SSM Parameter Store."""
-    try:
-        # La región se debe ajustar si es diferente.
-        ssm_client = boto3.client('ssm', region_name='eu-north-1')
-        response = ssm_client.get_parameter(Name=name, WithDecryption=True)
-        return response['Parameter']['Value']
-    except Exception as e:
-        # Si falla (ej. en local, sin credenciales), usa un valor por defecto.
-        print(f"No se pudo obtener el parámetro '{name}' de SSM. Error: {e}")
-        return default
 # Añade esta línea DESPUÉS de app = Flask(__name__)
 # Indica a Flask que confíe en los headers X-Forwarded-For, X-Forwarded-Host, X-Forwarded-Proto y X-Forwarded-Port del proxy
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1) # <--- Añade esta línea
 
 # Configuration
 # ==============================================================================
-# Lee los secretos desde las variables de entorno o, en su defecto, desde AWS Parameter Store
-app.secret_key = os.environ.get('FLASK_SECRET_KEY') or get_ssm_parameter('/tripredict/prod/FLASK_SECRET_KEY')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or get_ssm_parameter('/tripredict/prod/DATABASE_URL')
+# Lee los secretos desde las variables de entorno
+app.secret_key = os.environ.get('FLASK_SECRET_KEY')
+
+# --- Database Configuration ---
+# Prioriza DATABASE_URL del entorno para producción (por ejemplo, Supabase)
+# y usa SQLite local como fallback en desarrollo.
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # Fuerza el driver psycopg2 cuando la URL viene en formato PostgreSQL estándar.
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
+    # Compatibilidad con PgBouncer/Supabase.
+    if 'postgresql' in database_url:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            "pool_pre_ping": True,
+            "connect_args": {
+                "options": "-c prepare_threshold=0"
+            }
+        }
+        app.logger.info("PostgreSQL detected. Configuring engine for PgBouncer compatibility.")
+
+    app.logger.info("Connecting to database specified by DATABASE_URL.")
+else:
+    app.logger.info("DATABASE_URL not set, falling back to local SQLite database (instance/app_dev.db).")
+    instance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'instance')
+    os.makedirs(instance_path, exist_ok=True)
+    local_db_path = os.path.join(instance_path, 'app_dev.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{local_db_path}'
 
 # Comprobación de que las variables se han cargado correctamente
 if not app.secret_key:
-    raise ValueError("FLASK_SECRET_KEY is not set in environment or SSM Parameter Store.")
+    if app.config.get('SQLALCHEMY_DATABASE_URI', '').startswith('postgresql'):
+        raise ValueError("FLASK_SECRET_KEY must be set in the environment for production deployments.")
+    else:
+        app.logger.warning("FLASK_SECRET_KEY not set. Using a temporary, insecure key for local development.")
+        app.secret_key = "dev-secret-key"
+
 if not app.config['SQLALCHEMY_DATABASE_URI']:
-    raise ValueError("DATABASE_URL is not set in environment or SSM Parameter Store.")
+    raise ValueError("SQLALCHEMY_DATABASE_URI could not be configured.")
 
 # Configuración de cookies mejorada para Cloudfront
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -117,6 +140,7 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutos
+app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
 
 # Configuración CORS si es necesario
 app.config['CORS_ORIGINS'] = '*'  # O especifica tu dominio de Cloudfront
@@ -170,6 +194,30 @@ app.config['DEBUG_LOGIN'] = True      # <--- AÑADE ESTA LÍNEA TEMPORALMENTE pa
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+def _generate_unique_username(base_value):
+    base_username = slugify(base_value or "player", separator='')[:30] or "player"
+    candidate = base_username
+    suffix = 1
+
+    while User.query.filter_by(username=candidate).first():
+        suffix_value = str(suffix)
+        candidate = f"{base_username[:max(1, 30 - len(suffix_value))]}{suffix_value}"
+        suffix += 1
+
+    return candidate
+
+
+def _get_default_player_role():
+    return Role.query.filter_by(code='PLAYER').first()
+
+
+def _build_login_response(user, message):
+    response = jsonify(message=message, user_id=user.id, username=user.username)
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
+    return response
 
 # Seeding functions (create_initial_roles, create_initial_race_data, create_initial_question_types)
 # have been moved to backend/seed.py and will be run via CLI.
@@ -1512,6 +1560,10 @@ def create_favorite_link(race_id):
         app.logger.warning(f"Race with id {race_id} not found or deleted when creating favorite link.")
         return jsonify(message="Race not found or has been deleted"), 404
 
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to create favorite link for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="Cannot add links to a race with a closed quiniela."), 403
+
     # LEAGUE_ADMIN can only add links to their own races
     if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
         app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to create favorite link for race {race_id} they do not own.")
@@ -1591,6 +1643,10 @@ def update_favorite_link(link_id):
         app.logger.error(f"Race with id {link.race_id} associated with FavoriteLink {link_id} not found.")
         return jsonify(message="Associated race not found, cannot update link."), 500
 
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to update favorite link for closed quiniela race {race.id} by user {current_user.id}")
+        return jsonify(message="Cannot modify links for a race with a closed quiniela."), 403
+
     # LEAGUE_ADMIN can only update links for their own races
     if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
         app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to update favorite link {link_id} for race {race.id} they do not own.")
@@ -1629,7 +1685,7 @@ def update_favorite_link(link_id):
         updated = True
 
     if not updated:
-        return jsonify(message="No updatable fields provided."), 400
+        return jsonify(message="No updatable_fields provided."), 400
 
     try:
         db.session.commit()
@@ -1661,6 +1717,10 @@ def delete_favorite_link(link_id):
         app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to delete favorite link {link_id} for race {race.id} they do not own.")
         return jsonify(message="Forbidden: You can only delete links for races you created."), 403
 
+    if race and race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to delete favorite link for closed quiniela race {race.id} by user {current_user.id}")
+        return jsonify(message="Cannot delete links for a race with a closed quiniela."), 403
+
     try:
         db.session.delete(link)
         db.session.commit()
@@ -1683,6 +1743,10 @@ def reorder_favorite_links(race_id):
     if not race:
         app.logger.warning(f"Race with id {race_id} not found or deleted when reordering links.")
         return jsonify(message="Race not found or has been deleted"), 404
+
+    if race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to reorder favorite links for closed quiniela race {race_id} by user {current_user.id}")
+        return jsonify(message="Cannot reorder links for a race with a closed quiniela."), 403
 
     if current_user.role.code == 'LEAGUE_ADMIN' and race.user_id != current_user.id:
         app.logger.warning(f"LEAGUE_ADMIN {current_user.id} forbidden to reorder links for race {race_id} they do not own.")
@@ -1904,6 +1968,11 @@ def update_free_text_question(question_id):
     if question.question_type.name != 'FREE_TEXT':
         return jsonify(message="Cannot update non-FREE_TEXT question via this endpoint"), 400
 
+    race = Race.query.get(question.race_id)
+    if race and race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to update question for closed quiniela race {race.id} by user {current_user.id}")
+        return jsonify(message="Cannot modify questions for a race with a closed quiniela."), 403
+
     data = request.get_json()
     if not data:
         return jsonify(message="Invalid input: No data provided"), 400
@@ -1943,6 +2012,11 @@ def delete_question(question_id):
     question = Question.query.get(question_id)
     if not question:
         return jsonify(message="Question not found"), 404
+
+    race = Race.query.get(question.race_id)
+    if race and race.quiniela_close_date and race.quiniela_close_date < datetime.utcnow():
+        app.logger.warning(f"Attempt to delete question for closed quiniela race {race.id} by user {current_user.id}")
+        return jsonify(message="Cannot delete questions for a race with a closed quiniela."), 403
 
     try:
         # Delete associated options first - important for all question types
@@ -2014,21 +2088,90 @@ def login_api():
 
     username = data.get('username')
     password = data.get('password')
-    if not username or not password: return jsonify(message="Username and password are required"), 400
+    if not username or not password:
+        return jsonify(message="Username and password are required"), 400
     user = User.query.filter_by(username=username).first()
     if user and user.check_password(password) and user.is_active:
         login_user(user)
-        response = jsonify(message="Login successful", user_id=user.id, username=user.username)
-
-        # Añadir headers CORS si es necesario
-        response.headers.add('Access-Control-Allow-Credentials', 'true')
-        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin', '*'))
-
-        return response, 200
-    elif user and not user.is_active:  
+        return _build_login_response(user, "Login successful"), 200
+    elif user and not user.is_active:
         return jsonify(message="Account disabled. Please contact support."), 403
-    else:  
+    else:
         return jsonify(message="Invalid username or password"), 401
+
+
+@app.route('/api/login/google', methods=['POST'])
+def google_login_api():
+    google_client_id = app.config.get('GOOGLE_CLIENT_ID')
+    if not google_client_id:
+        return jsonify(message="Google login is not configured"), 503
+
+    data = request.get_json()
+    credential = data.get('credential') if data else None
+    if not credential:
+        return jsonify(message="Google credential is required"), 400
+
+    try:
+        token_info = google_id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            google_client_id,
+        )
+    except ValueError as exc:
+        app.logger.warning(f"[google_login_api] Invalid Google token: {exc}")
+        return jsonify(message="Invalid Google credential"), 401
+
+    google_sub = token_info.get('sub')
+    email = token_info.get('email')
+    email_verified = token_info.get('email_verified')
+    display_name = token_info.get('name') or email
+
+    if not google_sub or not email:
+        return jsonify(message="Google account did not provide the required identity data"), 400
+
+    if not email_verified:
+        return jsonify(message="Google account email must be verified"), 403
+
+    player_role = _get_default_player_role()
+    if not player_role:
+        return jsonify(message="Default player role is not configured"), 500
+
+    user = User.query.filter_by(google_sub=google_sub).first()
+
+    if user and not user.is_active:
+        return jsonify(message="Account disabled. Please contact support."), 403
+
+    if not user:
+        user = User.query.filter_by(email=email).first()
+        if user:
+            if not user.is_active:
+                return jsonify(message="Account disabled. Please contact support."), 403
+            user.google_sub = google_sub
+        else:
+            username_seed = email.split('@', 1)[0]
+            user = User(
+                name=display_name,
+                username=_generate_unique_username(username_seed),
+                email=email,
+                google_sub=google_sub,
+                role=player_role,
+            )
+            user.set_password(secrets.token_urlsafe(32))
+            db.session.add(user)
+
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        app.logger.warning(f"[google_login_api] Integrity error while saving Google user: {exc}")
+        return jsonify(message="We could not complete the Google login. Please try again."), 409
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.exception(f"[google_login_api] Unexpected error: {exc}")
+        return jsonify(message="Google login failed due to a server error"), 500
+
+    login_user(user)
+    return _build_login_response(user, "Login successful"), 200
 
 @app.route('/api/logout', methods=['POST'])
 @login_required
@@ -2677,12 +2820,12 @@ def faq_page():
 @app.route('/login')
 def serve_login_page():
     # Assuming frontend folder is one level up from where app.py is (backend/app.py -> frontend/)
-    return render_template('login.html')
+    return render_template('login.html', google_client_id=app.config.get('GOOGLE_CLIENT_ID'))
 
 @app.route('/register')
 def register_page():
     all_roles = Role.query.all()
-    return render_template('register.html', roles=all_roles)
+    return render_template('register.html', roles=all_roles, google_client_id=app.config.get('GOOGLE_CLIENT_ID'))
 
 
 @app.route('/join_race/<int:race_id>')

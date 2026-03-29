@@ -2,10 +2,11 @@ Flask
 Flask-SQLAlchemy
 Flask-Login
 Werkzeug
-psycopg2-binary
-gunicorn 
+gunicorn
 Flask-Migrate>=3.0.0
 bcrypt>=3.2.0
-Flask-Script==2.0.6
-boto3
 pytest
+psycopg2-binary
+python-dotenv
+google-auth
+requests

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesión - TriPredict</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    {% if google_client_id %}
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    {% endif %}
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon_promo.svg') }}">
@@ -85,6 +88,19 @@
                             </button>
                         </div>
                     </form>
+
+                    {% if google_client_id %}
+                    <div class="my-6 flex items-center">
+                        <div class="h-px flex-1 bg-gray-200"></div>
+                        <span class="px-4 text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">o continúa con</span>
+                        <div class="h-px flex-1 bg-gray-200"></div>
+                    </div>
+
+                    <div id="google-login-section" data-google-client-id="{{ google_client_id }}" class="space-y-3">
+                        <div id="googleSignInButton" class="flex justify-center"></div>
+                        <p class="text-center text-xs text-gray-500">Si es tu primera vez, te crearemos una cuenta de jugador automáticamente.</p>
+                    </div>
+                    {% endif %}
 
                     <div id="messageArea" class="mt-4 text-center text-sm"></div>
                     <!-- login.js will make this visible and add content/classes, and control display -->

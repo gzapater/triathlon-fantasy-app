@@ -1,0 +1,5 @@
+FLASK_APP=backend/app.py
+# Usa preferentemente el Session Pooler de Supabase para Cloud Run.
+DATABASE_URL=postgresql://postgres.xxx:[TU_PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
+FLASK_SECRET_KEY=pon_aqui_una_clave_larga_y_aleatoria
+GOOGLE_CLIENT_ID=tu-client-id.apps.googleusercontent.com
