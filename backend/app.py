@@ -213,6 +213,17 @@ def _get_default_player_role():
     return Role.query.filter_by(code='PLAYER').first()
 
 
+def _normalize_registration_input(data):
+    data = data or {}
+    return {
+        'name': (data.get('name') or '').strip(),
+        'username': (data.get('username') or '').strip(),
+        'email': (data.get('email') or '').strip().lower(),
+        'password': data.get('password') or '',
+        'role_code': (data.get('role') or '').strip().upper(),
+    }
+
+
 def _build_login_response(user, message):
     response = jsonify(message=message, user_id=user.id, username=user.username)
     response.headers.add('Access-Control-Allow-Credentials', 'true')
@@ -688,6 +699,23 @@ def archive_race(race_id):
         return jsonify(message="Error archiving race"), 500
 
 
+def _format_ordering_answer(answer_text, question_id):
+    if not answer_text:
+        return None
+    ordered_option_ids_str = answer_text.split(',')
+    ordered_option_texts = []
+    for opt_id_str in ordered_option_ids_str:
+        try:
+            opt_id = int(opt_id_str.strip())
+            option_obj = QuestionOption.query.get(opt_id)
+            if option_obj and option_obj.question_id == question_id:
+                ordered_option_texts.append(option_obj.option_text)
+            else:
+                ordered_option_texts.append(f"[ID de opción inválido: {opt_id_str}]")
+        except ValueError:
+            ordered_option_texts.append(opt_id_str.strip())
+    return ", ".join(ordered_option_texts)
+
 @app.route('/api/races/<int:race_id>/questions', methods=['GET'])
 @login_required
 def get_race_questions(race_id):
@@ -803,22 +831,8 @@ def get_race_questions(race_id):
             if question.question_type.name == 'FREE_TEXT':
                 official_answer_formatted = official_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                # OfficialAnswer.answer_text for ORDERING questions stores comma-separated option IDs.
-                # We need to convert these IDs to their corresponding texts.
                 if official_answer_obj and official_answer_obj.answer_text:
-                    ordered_option_ids_str = official_answer_obj.answer_text.split(',')
-                    ordered_option_texts = []
-                    for opt_id_str in ordered_option_ids_str:
-                        try:
-                            opt_id = int(opt_id_str.strip())
-                            option_obj = QuestionOption.query.get(opt_id)
-                            if option_obj and option_obj.question_id == question.id: # Ensure option belongs to the question
-                                ordered_option_texts.append(option_obj.option_text)
-                            else:
-                                ordered_option_texts.append(f"[ID de opción inválido: {opt_id_str}]")
-                        except ValueError:
-                            ordered_option_texts.append(f"[ID de opción malformado: {opt_id_str}]")
-                    official_answer_formatted = ", ".join(ordered_option_texts) # Join texts with comma and space for display
+                    official_answer_formatted = _format_ordering_answer(official_answer_obj.answer_text, question.id)
                 else:
                     official_answer_formatted = None # No official answer or empty answer_text
             elif question.question_type.name == 'MULTIPLE_CHOICE':
@@ -876,7 +890,7 @@ def get_race_questions(race_id):
             if question.question_type.name == 'FREE_TEXT':
                 user_answer_formatted = current_user_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                user_answer_formatted = current_user_answer_obj.answer_text # This is already comma-separated texts
+                user_answer_formatted = _format_ordering_answer(current_user_answer_obj.answer_text, question.id)
             elif question.question_type.name == 'MULTIPLE_CHOICE':
                 if question.is_mc_multiple_correct:
                     user_answer_formatted = [{"id": opt.question_option_id, "text": opt.question_option.option_text} for opt in current_user_answer_obj.selected_mc_options]
@@ -1394,9 +1408,7 @@ def get_participant_answers(race_id, user_id):
             if question.question_type.name == 'FREE_TEXT':
                 participant_answer_formatted = user_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                # For ordering questions, UserAnswer.answer_text stores the comma-separated string of option texts.
-                # So, we can use it directly.
-                participant_answer_formatted = user_answer_obj.answer_text
+                participant_answer_formatted = _format_ordering_answer(user_answer_obj.answer_text, question.id)
             elif question.question_type.name == 'MULTIPLE_CHOICE':
                 if question.is_mc_multiple_correct:
                     participant_answer_formatted = [{"id": opt.question_option_id, "text": opt.question_option.option_text} for opt in user_answer_obj.selected_mc_options]
@@ -1413,9 +1425,8 @@ def get_participant_answers(race_id, user_id):
             if question.question_type.name == 'FREE_TEXT':
                 official_answer_formatted = official_answer_obj.answer_text
             elif question.question_type.name == 'ORDERING':
-                # For ordering questions, OfficialAnswer.answer_text should store the comma-separated string of correct option texts.
                 if official_answer_obj and official_answer_obj.answer_text:
-                    official_answer_formatted = official_answer_obj.answer_text
+                    official_answer_formatted = _format_ordering_answer(official_answer_obj.answer_text, question.id)
                 else:
                     official_answer_formatted = None # No official answer set or answer_text is empty/None
             elif question.question_type.name == 'MULTIPLE_CHOICE':
@@ -2038,30 +2049,39 @@ def hello():
 @app.route('/api/register', methods=['POST'])
 def register_user():
     data = request.get_json()
-    if not data: return jsonify(message="Invalid input: No data provided"), 400
-    name = data.get('name')
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-    role_code = data.get('role') # Get role from request
+    if not data:
+        return jsonify(message="Invalid input: No data provided"), 400
 
-    # Aseguramos que role_code también venga en la solicitud
+    normalized_data = _normalize_registration_input(data)
+    name = normalized_data['name']
+    username = normalized_data['username']
+    email = normalized_data['email']
+    password = normalized_data['password']
+    role_code = normalized_data['role_code']
+
     if not all([name, username, email, password, role_code]):
         return jsonify(message="Missing required fields"), 400
 
-    # Validar rol: Buscar el rol por su 'code'
-    # La línea 'role_name = data.get('role', 'user')' era redundante y se ha eliminado.
     user_role_obj = Role.query.filter_by(code=role_code).first()
 
-    # Este bloque 'if' ahora tiene la indentación correcta (4 espacios)
     if not user_role_obj:
-        # Es crucial que create_initial_roles() haya corrido y poblado los roles con sus 'code's.
-        # Los mensajes de error ahora deben reflejar los 'code's esperados.
         return jsonify(message=f"Invalid role code: '{role_code}' specified. Available role codes are typically 'PLAYER', 'LEAGUE_ADMIN', 'ADMIN'."), 400
 
-    # Estas líneas también deben tener la misma indentación que el resto del bloque principal de la función
-    if User.query.filter_by(username=username).first(): return jsonify(message="Username already exists"), 409
-    if User.query.filter_by(email=email).first(): return jsonify(message="Email already exists"), 409
+    existing_username_user = User.query.filter(func.lower(User.username) == username.lower()).first()
+    if existing_username_user:
+        return jsonify(
+            message="Ese nombre de usuario ya existe. Inicia sesión con esa cuenta o elige otro nombre de usuario.",
+            field="username",
+            code="USERNAME_EXISTS",
+        ), 409
+
+    existing_email_user = User.query.filter(func.lower(User.email) == email.lower()).first()
+    if existing_email_user:
+        return jsonify(
+            message="Ya existe una cuenta con ese correo. Inicia sesión con esa cuenta o usa otro correo.",
+            field="email",
+            code="EMAIL_EXISTS",
+        ), 409
 
     new_user = User(name=name, username=username, email=email, role=user_role_obj)
     new_user.set_password(password)
@@ -2069,9 +2089,24 @@ def register_user():
         db.session.add(new_user)
         db.session.commit()
         return jsonify(message="User registered successfully"), 201
+    except IntegrityError as exc:
+        db.session.rollback()
+        app.logger.warning(f"IntegrityError during registration for '{email}': {exc}")
+        conflict_message = "No se pudo completar el registro porque el usuario o el correo ya existen."
+        conflict_field = None
+
+        original_error = str(getattr(exc, "orig", exc)).lower()
+        if "username" in original_error:
+            conflict_message = "Ese nombre de usuario ya existe. Inicia sesión con esa cuenta o elige otro nombre de usuario."
+            conflict_field = "username"
+        elif "email" in original_error:
+            conflict_message = "Ya existe una cuenta con ese correo. Inicia sesión con esa cuenta o usa otro correo."
+            conflict_field = "email"
+
+        return jsonify(message=conflict_message, field=conflict_field, code="REGISTRATION_CONFLICT"), 409
     except Exception as e:
         db.session.rollback()
-        print(f"Error during registration: {e}")
+        app.logger.error(f"Error during registration for '{email}': {e}", exc_info=True)
         return jsonify(message="Registration failed due to a server error"), 500
 
 
